@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import type { Gig, AwayDate, DayStatus } from '../supabase/types';
+import type { Gig, AwayDate } from '../supabase/types';
 import { computeDayStatus, isGigIncomplete } from '../supabase/types';
 
 interface CalendarProps {
