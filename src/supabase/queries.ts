@@ -144,6 +144,26 @@ export async function deleteGig(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function getUpcomingGigs(limit = 50): Promise<GigWithCreator[]> {
+  const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('gigs')
+    .select('*, profiles!gigs_created_by_fkey(name)')
+    .gte('date', todayISO)
+    .order('date')
+    .order('start_time')
+    .limit(limit);
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    creator_name: row.profiles?.name ?? 'Unknown',
+    profiles: undefined,
+  }));
+}
+
 // ─── Away Dates ─────────────────────────────────────────
 
 export async function getAwayDatesForMonth(year: number, month: number): Promise<AwayDateWithUser[]> {
