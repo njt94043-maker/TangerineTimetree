@@ -44,7 +44,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
   const [selectedDate, setSelectedDate] = useState('');
   const [editGigId, setEditGigId] = useState<string | null>(null);
 
-  const { gigs, awayDates, profiles, refresh } = useCalendarData(year, month);
+  const { gigs, awayDates, refresh } = useCalendarData(year, month);
 
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
