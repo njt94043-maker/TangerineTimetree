@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice INV-048 — Halloween</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Page ── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    .page {
+      width: 595px;
+      min-height: 842px;
+      background: #111014;
+      font-family: 'Space Grotesk', sans-serif;
+      color: #e0d8cc;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Dark grunge texture ── */
+    .grunge-texture {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(ellipse, #1c181e 0.7px, transparent 0.7px),
+        radial-gradient(ellipse, #0d0a0f 0.4px, transparent 0.4px),
+        radial-gradient(ellipse, #201a1c 0.3px, transparent 0.3px);
+      background-size: 13px 13px, 9px 9px, 5px 5px;
+      background-position: 0 0, 4px 6px, 8px 3px;
+      opacity: 0.5;
+    }
+
+    /* ── Ember glow ── */
+    .ember-glow {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 200px;
+      background: radial-gradient(ellipse at 50% -20%, rgba(204,85,0,0.15), transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Left ember strip ── */
+    .ember-strip {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: linear-gradient(180deg, #cc5500, #e8940a, #cc5500, #8a3a00, #cc5500, #e8940a);
+    }
+
+    /* ── SVG decoration positions ── */
+    .pumpkin-top-right {
+      position: absolute;
+      top: 56px;
+      right: 38px;
+    }
+    .bat-1 {
+      position: absolute;
+      top: 30px;
+      right: 140px;
+      color: #4a3e34;
+    }
+    .bat-2 {
+      position: absolute;
+      top: 70px;
+      right: 200px;
+      color: #3a3030;
+    }
+    .bat-3 {
+      position: absolute;
+      top: 110px;
+      left: 60px;
+      color: #3a3030;
+    }
+    .spider-pos {
+      position: absolute;
+      top: -4px;
+      right: 100px;
+      width: 28px;
+      height: 36px;
+      opacity: 0.7;
+    }
+    .candle-1 {
+      position: absolute;
+      bottom: 40px;
+      left: 44px;
+      width: 14px;
+      height: 36px;
+      opacity: 0.8;
+    }
+    .candle-2 {
+      position: absolute;
+      bottom: 40px;
+      left: 64px;
+      width: 11px;
+      height: 30px;
+      opacity: 0.6;
+    }
+    .candle-3 {
+      position: absolute;
+      bottom: 40px;
+      right: 50px;
+      width: 12px;
+      height: 32px;
+      opacity: 0.7;
+    }
+    .pumpkin-bottom-left {
+      position: absolute;
+      bottom: 30px;
+      left: 100px;
+      opacity: 0.5;
+    }
+    .pumpkin-bottom-right {
+      position: absolute;
+      bottom: 180px;
+      right: 30px;
+      opacity: 0.35;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 40px 44px 24px 54px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .band-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid #cc550044;
+    }
+    .trading-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      color: #e8940a;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      text-transform: uppercase;
+    }
+    .business-type {
+      font-size: 10px;
+      color: #6a5a44;
+      margin-top: 6px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .invoice-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: #cc5500;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+    .invoice-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      color: #e8940a;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      padding: 0 44px 0 54px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+    .divider-line-left {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, #cc5500, transparent);
+    }
+    .divider-line-right {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #cc5500);
+    }
+    .divider-slash {
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .slash-orange { color: #cc5500; }
+    .slash-amber { color: #e8940a; }
+
+    /* ── Dates ── */
+    .dates-row {
+      padding: 20px 44px 12px 54px;
+      display: flex;
+      gap: 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .date-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #5a4a34;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .date-value {
+      font-size: 13px;
+      color: #c4b8a4;
+    }
+
+    /* ── From / To ── */
+    .from-to-row {
+      padding: 16px 44px 12px 54px;
+      display: flex;
+      gap: 40px;
+      position: relative;
+      z-index: 1;
+    }
+    .from-to-col { flex: 1; }
+    .section-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #cc5500;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .from-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e8940a;
+    }
+    .from-ta {
+      font-size: 12px;
+      color: #6a5a44;
+      margin-top: 2px;
+    }
+    .from-website {
+      font-size: 11px;
+      color: #5a4a34;
+      margin-top: 6px;
+    }
+    .to-company {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e0d8cc;
+    }
+    .to-contact {
+      font-size: 12px;
+      color: #9a8a74;
+      margin-top: 2px;
+    }
+    .to-address {
+      font-size: 11px;
+      color: #6a5a44;
+      margin-top: 6px;
+      white-space: pre-line;
+    }
+
+    /* ── Description ── */
+    .description-wrapper {
+      padding: 20px 44px 12px 54px;
+      position: relative;
+      z-index: 1;
+    }
+    .description-box {
+      background: #1a1618;
+      border: 1px solid #2a2226;
+      border-left: 3px solid #cc5500;
+      border-radius: 0 6px 6px 0;
+      padding: 18px 22px;
+    }
+    .desc-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #5a4a34;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .desc-text {
+      font-size: 13px;
+      color: #c4b8a4;
+      white-space: pre-line;
+      line-height: 1.7;
+    }
+
+    /* ── Amount ── */
+    .amount-wrapper {
+      padding: 12px 44px 12px 54px;
+      position: relative;
+      z-index: 1;
+    }
+    .amount-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 22px;
+      background: linear-gradient(135deg, #1a0d00, #261400);
+      border: 1px solid #3a2200;
+      border-radius: 6px;
+    }
+    .amount-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      color: #cc5500;
+      font-weight: 700;
+    }
+    .amount-value {
+      font-family: 'Syne', sans-serif;
+      font-size: 34px;
+      font-weight: 800;
+      color: #e8940a;
+    }
+
+    /* ── Bank details ── */
+    .bank-wrapper {
+      padding: 20px 44px 12px 54px;
+      position: relative;
+      z-index: 1;
+    }
+    .bank-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #cc5500;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .bank-row {
+      display: flex;
+      gap: 28px;
+    }
+    .bank-label {
+      font-size: 9px;
+      color: #5a4a34;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .bank-value {
+      font-size: 12px;
+      color: #c4b8a4;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin: 24px 44px 0 54px;
+      padding: 14px 0;
+      border-top: 1px solid #2a2226;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .footer-message {
+      font-size: 10px;
+      color: #6a5a44;
+      letter-spacing: 1px;
+    }
+    .footer-website {
+      font-size: 9px;
+      color: #3a3028;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body style="background:#141418;display:flex;justify-content:center;padding:40px 0;">
+
+<div class="page">
+  <!-- Dark grunge texture -->
+  <div class="grunge-texture"></div>
+
+  <!-- Ember glow -->
+  <div class="ember-glow"></div>
+
+  <!-- Left ember strip -->
+  <div class="ember-strip"></div>
+
+  <!-- Pumpkin — top-right (size 46) -->
+  <svg class="pumpkin-top-right" width="46" height="46" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M23,12 C23,8 25,5 28,4 C26,5 25,8 25,11" stroke="#5a7a34" stroke-width="2" fill="none" opacity="0.8"/>
+    <ellipse cx="25" cy="30" rx="18" ry="15" fill="#e06600" opacity="0.6"/>
+    <ellipse cx="18" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="32" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="25" cy="30" rx="6" ry="15" fill="#f07000" opacity="0.2"/>
+    <polygon points="16,26 19,22 22,27" fill="#1a0d00" opacity="0.65"/>
+    <polygon points="28,26 31,22 34,27" fill="#1a0d00" opacity="0.65"/>
+    <path d="M18,34 C20,38 30,38 32,34 C30,36 20,36 18,34Z" fill="#1a0d00" opacity="0.6"/>
+    <ellipse cx="19" cy="24" rx="5" ry="8" fill="white" opacity="0.08" transform="rotate(-10 19 24)"/>
+  </svg>
+
+  <!-- Bat 1: top:30, right:140, color:#4a3e34, size:32 -->
+  <svg class="bat-1" width="32" height="19.2" viewBox="0 0 50 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M25 14 C22 8, 14 3, 2 5 C6 8, 8 10, 10 14 C8 12, 5 11, 2 12 C6 14, 10 16, 14 16 C10 18, 8 22, 6 26 C12 22, 16 18, 20 16 L25 20 L30 16 C34 18, 38 22, 44 26 C42 22, 40 18, 36 16 C40 16, 44 14, 48 12 C45 11, 42 12, 40 14 C42 10, 44 8, 48 5 C36 3, 28 8, 25 14Z" fill="currentColor" opacity="0.4"/>
+    <circle cx="22" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+    <circle cx="28" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+  </svg>
+
+  <!-- Bat 2: top:70, right:200, color:#3a3030, size:22 -->
+  <svg class="bat-2" width="22" height="13.2" viewBox="0 0 50 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M25 14 C22 8, 14 3, 2 5 C6 8, 8 10, 10 14 C8 12, 5 11, 2 12 C6 14, 10 16, 14 16 C10 18, 8 22, 6 26 C12 22, 16 18, 20 16 L25 20 L30 16 C34 18, 38 22, 44 26 C42 22, 40 18, 36 16 C40 16, 44 14, 48 12 C45 11, 42 12, 40 14 C42 10, 44 8, 48 5 C36 3, 28 8, 25 14Z" fill="currentColor" opacity="0.4"/>
+    <circle cx="22" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+    <circle cx="28" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+  </svg>
+
+  <!-- Bat 3: top:110, left:60, color:#3a3030, size:18 -->
+  <svg class="bat-3" width="18" height="10.8" viewBox="0 0 50 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M25 14 C22 8, 14 3, 2 5 C6 8, 8 10, 10 14 C8 12, 5 11, 2 12 C6 14, 10 16, 14 16 C10 18, 8 22, 6 26 C12 22, 16 18, 20 16 L25 20 L30 16 C34 18, 38 22, 44 26 C42 22, 40 18, 36 16 C40 16, 44 14, 48 12 C45 11, 42 12, 40 14 C42 10, 44 8, 48 5 C36 3, 28 8, 25 14Z" fill="currentColor" opacity="0.4"/>
+    <circle cx="22" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+    <circle cx="28" cy="13" r="1.5" fill="#e8940a" opacity="0.7"/>
+  </svg>
+
+  <!-- Spider -->
+  <svg class="spider-pos" viewBox="0 0 40 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <line x1="20" y1="0" x2="20" y2="18" stroke="#6a5a44" stroke-width="0.8" opacity="0.4"/>
+    <ellipse cx="20" cy="24" rx="5" ry="4" fill="#2a2226" opacity="0.6"/>
+    <ellipse cx="20" cy="30" rx="7" ry="6" fill="#2a2226" opacity="0.5"/>
+    <g stroke="#3a3028" stroke-width="1" opacity="0.5">
+      <path d="M15 24 C10 20, 6 16, 3 14"/>
+      <path d="M15 26 C10 26, 5 28, 2 30"/>
+      <path d="M15 28 C10 32, 6 36, 4 40"/>
+      <path d="M14 30 C10 36, 8 40, 6 46"/>
+      <path d="M25 24 C30 20, 34 16, 37 14"/>
+      <path d="M25 26 C30 26, 35 28, 38 30"/>
+      <path d="M25 28 C30 32, 34 36, 36 40"/>
+      <path d="M26 30 C30 36, 32 40, 34 46"/>
+    </g>
+    <circle cx="18" cy="23" r="1.2" fill="#e8940a" opacity="0.6"/>
+    <circle cx="22" cy="23" r="1.2" fill="#e8940a" opacity="0.6"/>
+  </svg>
+
+  <!-- Candle 1 -->
+  <svg class="candle-1" viewBox="0 0 20 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 6 C12 10, 14 14, 12 18 C11 20, 9 20, 8 18 C6 14, 8 10, 10 6Z" fill="#e8940a" opacity="0.5"/>
+    <path d="M10 9 C11 12, 12 14, 11 17 C10.5 18, 9.5 18, 9 17 C8 14, 9 12, 10 9Z" fill="#ffcc44" opacity="0.4"/>
+    <rect x="7" y="18" width="6" height="28" rx="1" fill="#d4c4a0" opacity="0.35"/>
+    <ellipse cx="10" cy="18" rx="4" ry="2" fill="#e8d4b0" opacity="0.3"/>
+    <path d="M12 22 C13 24, 13 28, 12.5 30" stroke="#d4c4a0" stroke-width="1.5" fill="none" opacity="0.3"/>
+  </svg>
+
+  <!-- Candle 2 -->
+  <svg class="candle-2" viewBox="0 0 20 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 6 C12 10, 14 14, 12 18 C11 20, 9 20, 8 18 C6 14, 8 10, 10 6Z" fill="#e8940a" opacity="0.5"/>
+    <path d="M10 9 C11 12, 12 14, 11 17 C10.5 18, 9.5 18, 9 17 C8 14, 9 12, 10 9Z" fill="#ffcc44" opacity="0.4"/>
+    <rect x="7" y="18" width="6" height="28" rx="1" fill="#d4c4a0" opacity="0.35"/>
+    <ellipse cx="10" cy="18" rx="4" ry="2" fill="#e8d4b0" opacity="0.3"/>
+    <path d="M12 22 C13 24, 13 28, 12.5 30" stroke="#d4c4a0" stroke-width="1.5" fill="none" opacity="0.3"/>
+  </svg>
+
+  <!-- Candle 3 -->
+  <svg class="candle-3" viewBox="0 0 20 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 6 C12 10, 14 14, 12 18 C11 20, 9 20, 8 18 C6 14, 8 10, 10 6Z" fill="#e8940a" opacity="0.5"/>
+    <path d="M10 9 C11 12, 12 14, 11 17 C10.5 18, 9.5 18, 9 17 C8 14, 9 12, 10 9Z" fill="#ffcc44" opacity="0.4"/>
+    <rect x="7" y="18" width="6" height="28" rx="1" fill="#d4c4a0" opacity="0.35"/>
+    <ellipse cx="10" cy="18" rx="4" ry="2" fill="#e8d4b0" opacity="0.3"/>
+    <path d="M12 22 C13 24, 13 28, 12.5 30" stroke="#d4c4a0" stroke-width="1.5" fill="none" opacity="0.3"/>
+  </svg>
+
+  <!-- Pumpkin — bottom-left (size 34, opacity 0.5) -->
+  <svg class="pumpkin-bottom-left" width="34" height="34" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M23,12 C23,8 25,5 28,4 C26,5 25,8 25,11" stroke="#5a7a34" stroke-width="2" fill="none" opacity="0.8"/>
+    <ellipse cx="25" cy="30" rx="18" ry="15" fill="#e06600" opacity="0.6"/>
+    <ellipse cx="18" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="32" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="25" cy="30" rx="6" ry="15" fill="#f07000" opacity="0.2"/>
+    <polygon points="16,26 19,22 22,27" fill="#1a0d00" opacity="0.65"/>
+    <polygon points="28,26 31,22 34,27" fill="#1a0d00" opacity="0.65"/>
+    <path d="M18,34 C20,38 30,38 32,34 C30,36 20,36 18,34Z" fill="#1a0d00" opacity="0.6"/>
+    <ellipse cx="19" cy="24" rx="5" ry="8" fill="white" opacity="0.08" transform="rotate(-10 19 24)"/>
+  </svg>
+
+  <!-- Pumpkin — bottom-right (size 26, opacity 0.35) -->
+  <svg class="pumpkin-bottom-right" width="26" height="26" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M23,12 C23,8 25,5 28,4 C26,5 25,8 25,11" stroke="#5a7a34" stroke-width="2" fill="none" opacity="0.8"/>
+    <ellipse cx="25" cy="30" rx="18" ry="15" fill="#e06600" opacity="0.6"/>
+    <ellipse cx="18" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="32" cy="30" rx="8" ry="15" fill="#c45500" opacity="0.25"/>
+    <ellipse cx="25" cy="30" rx="6" ry="15" fill="#f07000" opacity="0.2"/>
+    <polygon points="16,26 19,22 22,27" fill="#1a0d00" opacity="0.65"/>
+    <polygon points="28,26 31,22 34,27" fill="#1a0d00" opacity="0.65"/>
+    <path d="M18,34 C20,38 30,38 32,34 C30,36 20,36 18,34Z" fill="#1a0d00" opacity="0.6"/>
+    <ellipse cx="19" cy="24" rx="5" ry="8" fill="white" opacity="0.08" transform="rotate(-10 19 24)"/>
+  </svg>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <img class="band-logo" src="data:image/png;base64,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" alt="TGT">
+      <div>
+        <div class="trading-name">The Green Tangerine</div>
+        <div class="business-type">Live Music Entertainment</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="invoice-title">Invoice</div>
+      <div class="invoice-number">INV-048</div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="divider">
+    <div class="divider-line-left"></div>
+    <span class="divider-slash slash-orange">/</span>
+    <span class="divider-slash slash-amber">/</span>
+    <span class="divider-slash slash-orange">/</span>
+    <div class="divider-line-right"></div>
+  </div>
+
+  <!-- Dates -->
+  <div class="dates-row">
+    <div>
+      <div class="date-label">Issued</div>
+      <div class="date-value">31 October 2026</div>
+    </div>
+    <div>
+      <div class="date-label">Due</div>
+      <div class="date-value">14 November 2026</div>
+    </div>
+    <div>
+      <div class="date-label">Terms</div>
+      <div class="date-value">Net 14</div>
+    </div>
+  </div>
+
+  <!-- From / To -->
+  <div class="from-to-row">
+    <div class="from-to-col">
+      <div class="section-label">From</div>
+      <div class="from-name">Nathan Thomas</div>
+      <div class="from-ta">t/a The Green Tangerine</div>
+      <div class="from-website">www.thegreentangerine.com</div>
+    </div>
+    <div class="from-to-col">
+      <div class="section-label">Bill To</div>
+      <div class="to-company">The Cauldron &amp; Cask</div>
+      <div class="to-contact">James Blackwood</div>
+      <div class="to-address">13 Ember Lane
+Bristol BS1 4DJ</div>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <div class="description-wrapper">
+    <div class="description-box">
+      <div class="desc-label">Description</div>
+      <div class="desc-text">Live band performance — Halloween Special
+Full 4-piece band, 3 × 40-minute sets
+Including themed costumes and spooky repertoire</div>
+    </div>
+  </div>
+
+  <!-- Amount -->
+  <div class="amount-wrapper">
+    <div class="amount-box">
+      <div class="amount-label">Amount Due</div>
+      <div class="amount-value">&pound;1,200.00</div>
+    </div>
+  </div>
+
+  <!-- Bank details -->
+  <div class="bank-wrapper">
+    <div class="bank-title">Payment Details</div>
+    <div class="bank-row">
+      <div>
+        <div class="bank-label">Account Name</div>
+        <div class="bank-value">Nathan Thomas</div>
+      </div>
+      <div>
+        <div class="bank-label">Bank</div>
+        <div class="bank-value">Starling Bank</div>
+      </div>
+      <div>
+        <div class="bank-label">Sort Code</div>
+        <div class="bank-value">60-83-71</div>
+      </div>
+      <div>
+        <div class="bank-label">Account No.</div>
+        <div class="bank-value">12345678</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-message">Thank you for your business &#128293;</div>
+    <div class="footer-website">www.thegreentangerine.com</div>
+  </div>
+</div>
+
+</body>
+</html>
