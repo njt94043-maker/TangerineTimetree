@@ -7,7 +7,6 @@ interface CalendarProps {
   month: number;
   gigs: Gig[];
   awayDates: AwayDate[];
-  totalMembers: number;
   onDatePress: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -32,7 +31,7 @@ function toISO(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePress, onPrevMonth, onNextMonth }: CalendarProps) {
+export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMonth, onNextMonth }: CalendarProps) {
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -85,7 +84,7 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
           if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" />;
 
           const iso = toISO(year, month, day);
-          const status = computeDayStatus(iso, today, gigs, awayDates, totalMembers);
+          const status = computeDayStatus(iso, today, gigs, awayDates);
           const isToday = iso === today;
           const dateGigs = gigsByDate.get(iso) ?? [];
           const hasIncomplete = dateGigs.some(isGigIncomplete);
@@ -99,8 +98,8 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
               {status === 'gig' && (
                 <span className={`day-dot ${hasIncomplete ? 'incomplete' : ''}`} style={{ background: 'var(--color-gig)' }} />
               )}
-              {status === 'partial' && (
-                <span className="day-dot" style={{ background: 'var(--color-partial)' }} />
+              {status === 'practice' && (
+                <span className="day-dot" style={{ background: 'var(--color-practice)' }} />
               )}
             </div>
           );
@@ -110,7 +109,7 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
       <div className="legend">
         <LegendItem color="var(--color-available)" label="Available" />
         <LegendItem color="var(--color-gig)" label="Gig" />
-        <LegendItem color="var(--color-partial)" label="Partial" />
+        <LegendItem color="var(--color-practice)" label="Practice" />
         <LegendItem color="var(--color-unavailable)" label="Away" />
       </div>
     </div>

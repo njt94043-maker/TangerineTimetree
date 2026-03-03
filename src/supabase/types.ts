@@ -15,6 +15,7 @@ export interface Gig {
   client_name: string;
   fee: number | null;
   payment_type: 'cash' | 'invoice' | '';
+  gig_type: 'gig' | 'practice';
   load_time: string | null;
   start_time: string | null;
   end_time: string | null;
@@ -56,9 +57,10 @@ export interface GigChangelogWithUser extends GigChangelogEntry {
   user_name: string;
 }
 
-export type DayStatus = 'available' | 'gig' | 'partial' | 'unavailable' | 'past';
+export type DayStatus = 'available' | 'gig' | 'practice' | 'unavailable' | 'past';
 
 export function isGigIncomplete(gig: Gig): boolean {
+  if (gig.gig_type === 'practice') return false;
   return !gig.venue || !gig.client_name || gig.fee == null || !gig.start_time || !gig.load_time;
 }
 
@@ -67,15 +69,15 @@ export function computeDayStatus(
   today: string,
   gigs: Gig[],
   awayDates: AwayDate[],
-  totalMembers: number,
 ): DayStatus {
   if (date < today) return 'past';
-  const hasGig = gigs.some(g => g.date === date);
+  const dateGigs = gigs.filter(g => g.date === date);
+  const hasGig = dateGigs.some(g => g.gig_type === 'gig');
   if (hasGig) return 'gig';
-  const awayUserIds = new Set(
-    awayDates.filter(a => date >= a.start_date && date <= a.end_date).map(a => a.user_id),
-  );
-  if (awayUserIds.size >= totalMembers) return 'unavailable';
-  if (awayUserIds.size > 0) return 'partial';
+  const hasPractice = dateGigs.some(g => g.gig_type === 'practice');
+  if (hasPractice) return 'practice';
+  // Any member away = band unavailable
+  const anyoneAway = awayDates.some(a => date >= a.start_date && date <= a.end_date);
+  if (anyoneAway) return 'unavailable';
   return 'available';
 }

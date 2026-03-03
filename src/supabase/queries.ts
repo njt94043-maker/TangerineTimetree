@@ -59,6 +59,7 @@ export async function getGigsByDate(date: string): Promise<GigWithCreator[]> {
 
 export async function createGig(gig: {
   date: string;
+  gig_type?: 'gig' | 'practice';
   venue?: string;
   client_name?: string;
   fee?: number | null;
@@ -75,6 +76,7 @@ export async function createGig(gig: {
     .from('gigs')
     .insert({
       date: gig.date,
+      gig_type: gig.gig_type ?? 'gig',
       venue: gig.venue ?? '',
       client_name: gig.client_name ?? '',
       fee: gig.fee ?? null,
