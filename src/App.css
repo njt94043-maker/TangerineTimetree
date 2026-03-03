@@ -17,8 +17,8 @@
 
   --color-available: #66bb6a;
   --color-gig: #f39c12;
-  --color-partial: #ffb74d;
-  --color-unavailable: #44445a;
+  --color-practice: #ab47bc;
+  --color-unavailable: #ef5350;
   --color-danger: #ef5350;
   --color-success: #66bb6a;
 
@@ -111,6 +111,17 @@ html, body, #root {
   color: var(--color-text);
 }
 .input-field::placeholder { color: var(--color-text-muted); }
+.input-field[type="date"],
+.input-field[type="time"] {
+  color-scheme: dark;
+  cursor: pointer;
+  min-height: 44px;
+}
+.input-field[type="date"]::-webkit-calendar-picker-indicator,
+.input-field[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
 
 .label {
   font-weight: 700;
@@ -192,8 +203,10 @@ html, body, #root {
 .calendar-cell.available .day-num { color: var(--color-available); }
 .calendar-cell.gig { background: rgba(243,156,18,0.15); }
 .calendar-cell.gig .day-num { color: var(--color-gig); font-weight: 700; }
-.calendar-cell.partial { background: rgba(255,183,77,0.15); }
-.calendar-cell.unavailable { background: rgba(68,68,90,0.15); }
+.calendar-cell.practice { background: rgba(171,71,188,0.15); }
+.calendar-cell.practice .day-num { color: var(--color-practice); font-weight: 700; }
+.calendar-cell.unavailable { background: rgba(239,83,80,0.12); }
+.calendar-cell.unavailable .day-num { color: var(--color-danger); }
 
 .day-dot {
   width: 5px;
@@ -271,6 +284,11 @@ html, body, #root {
   border: 1px solid var(--color-tangerine);
   color: var(--color-tangerine);
 }
+.toggle-btn.active.practice {
+  background: rgba(171,71,188,0.15);
+  border: 1px solid var(--color-practice);
+  color: var(--color-practice);
+}
 
 /* Away cards */
 .away-card {
@@ -298,11 +316,22 @@ html, body, #root {
 .changelog-text { font-size: 11px; color: var(--color-text-dim); }
 .changelog-time { font-family: var(--font-mono); font-size: 9px; color: var(--color-text-muted); }
 
-/* Incomplete badge */
+/* Badges */
 .incomplete-badge {
   display: inline-block;
   background: rgba(239,83,80,0.2);
   color: var(--color-danger);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.practice-badge {
+  display: inline-block;
+  background: rgba(171,71,188,0.2);
+  color: var(--color-practice);
   font-size: 9px;
   font-weight: 700;
   padding: 2px 8px;

@@ -104,7 +104,6 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
             month={month}
             gigs={gigs}
             awayDates={awayDates}
-            totalMembers={profiles.length || 4}
             onDatePress={handleDatePress}
             onPrevMonth={goToPrev}
             onNextMonth={goToNext}
