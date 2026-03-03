@@ -7,7 +7,7 @@ interface DayDetailProps {
   date: string;
   awayDates: AwayDateWithUser[];
   onClose: () => void;
-  onAddGig: (date: string) => void;
+  onAddGig: (date: string, type: 'gig' | 'practice') => void;
   onEditGig: (gigId: string) => void;
   onMarkAway: () => void;
 }
@@ -130,8 +130,11 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
 
         {/* Actions */}
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-green" onClick={() => onAddGig(date)}>Add Gig / Practice</button>
-          <button className="btn btn-tangerine" onClick={onMarkAway}>I'm Away</button>
+          <button className="btn btn-green" onClick={() => onAddGig(date, 'gig')}>Add Gig</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-practice" style={{ flex: 1 }} onClick={() => onAddGig(date, 'practice')}>Add Practice</button>
+            <button className="btn btn-tangerine" style={{ flex: 1 }} onClick={onMarkAway}>I'm Away</button>
+          </div>
         </div>
       </div>
     </div>
