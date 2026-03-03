@@ -4,7 +4,7 @@
   "description": "The Green Tangerine Gig Calendar",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
+  "background_color": "#08080c",
   "theme_color": "#f39c12",
   "orientation": "portrait",
   "icons": [

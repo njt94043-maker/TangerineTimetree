@@ -29,11 +29,17 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
       minHeight: '100vh',
       padding: '20px',
     }}>
-      {/* Logo */}
+      {/* Logo with neon glow */}
       <img
         src="/logo.png"
         alt="The Green Tangerine"
-        style={{ width: 100, height: 100, borderRadius: '50%', marginBottom: 16 }}
+        style={{
+          width: 100,
+          height: 100,
+          borderRadius: '50%',
+          marginBottom: 20,
+          boxShadow: '0 0 20px rgba(243,156,18,0.35), 0 0 50px rgba(243,156,18,0.12)',
+        }}
       />
 
       <h1 style={{
@@ -42,6 +48,7 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
         fontWeight: 700,
         color: 'var(--color-tangerine)',
         marginBottom: 4,
+        textShadow: '0 0 20px rgba(243,156,18,0.3)',
       }}>
         Tangerine Timetree
       </h1>
@@ -49,9 +56,10 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
       <p style={{
         fontSize: 13,
         color: 'var(--color-text-dim)',
-        marginBottom: 32,
+        marginBottom: 36,
+        letterSpacing: '0.5px',
       }}>
-        The Green Tangerine Gig Calendar
+        The Green Tangerine
       </p>
 
       <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 320 }}>
@@ -78,7 +86,13 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
         </div>
 
         {error && (
-          <p style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginBottom: 14 }}>
+          <p style={{
+            color: 'var(--color-danger)',
+            fontSize: 12,
+            textAlign: 'center',
+            marginBottom: 14,
+            textShadow: '0 0 8px rgba(255,82,82,0.3)',
+          }}>
             {error}
           </p>
         )}
