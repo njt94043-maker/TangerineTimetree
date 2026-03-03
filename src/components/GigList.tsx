@@ -21,11 +21,6 @@ function formatGroupDate(iso: string): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-function formatFullDate(iso: string): string {
-  const d = new Date(iso + 'T12:00:00');
-  return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-}
-
 function daysUntil(iso: string): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
