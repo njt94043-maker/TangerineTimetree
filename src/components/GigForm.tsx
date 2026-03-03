@@ -1,7 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
 import { createGig, updateGig, deleteGig } from '../supabase/queries';
-import type { Gig } from '../supabase/types';
 
 interface GigFormProps {
   date: string;
