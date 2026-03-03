@@ -102,3 +102,26 @@
 ### Supabase CLI quirks
 - `supabase db execute --linked` doesn't exist in all CLI versions. Use migration files + `supabase db push` instead.
 - Service role key is needed for admin operations (user creation/deletion). Never expose it in client code.
+
+## Monorepo (C:\Apps\TGT\)
+
+### shared/ code can't import npm packages
+- `shared/supabase/` has no `node_modules/`. It relies on the consuming app's node_modules for resolution.
+- `clientRef.ts` uses a `SupabaseClientLike` interface instead of `import type { SupabaseClient } from '@supabase/supabase-js'` to avoid this.
+- If you add new shared code that needs an npm type, either use a structural type or move the import to the app-specific code.
+
+### Metro cache after monorepo changes
+- After changing `metro.config.js`, `watchFolders`, or shared/ file structure, run `npx expo start -c` (clear cache flag).
+- Without `-c`, Metro may use stale resolution from before the config change.
+
+### npm install in native/ needs --legacy-peer-deps
+- react-dom 19.2.4 wants react ^19.2.4 but Expo 55 pins react 19.2.0. Use `npm install --legacy-peer-deps` in native/.
+
+### Vercel root directory for web/
+- After monorepo restructure, Vercel must have its root directory set to `web/` in project settings.
+- The `../shared` path in vite.config.ts resolve alias works because Vercel clones the full repo; root directory only changes cwd.
+
+### No npm workspaces — by design
+- We deliberately avoided npm workspaces to prevent Metro symlink issues on Windows.
+- Each app manages its own `node_modules/` independently.
+- Shared code is imported via `@shared/*` TypeScript path alias, not through symlinked packages.

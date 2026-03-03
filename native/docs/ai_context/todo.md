@@ -6,9 +6,9 @@
 ---
 
 ## Current Priority
-- **Monorepo setup**: Combine GigBooks + Tangerine Timetree into `C:\Apps\TGT\` with shared/web/native structure (plan at `~/.claude/plans/partitioned-nibbling-narwhal.md`)
+- **Push monorepo to GitHub** + update Vercel root directory to `web/`
 - **GigBooks gig list view**: Port `GigList.tsx` from Timetree web to React Native (list view only exists in Timetree currently)
-- **Build + install GigBooks APK**: Pending color/gig_type changes need building and testing on device
+- **Build + install GigBooks APK**: Verify Metro resolves shared/ imports at runtime + test all pending changes
 - **Test Tangerine Timetree on band members' iPhones**: Share URL, test PWA install, verify login
 
 ## Backlog
@@ -29,6 +29,7 @@
 _None identified._
 
 ## Completed
+- [x] Monorepo restructure — C:\Apps\TGT\ with shared/web/native, unified Supabase layer, both tsc clean (2026-03-03)
 - [x] Timetree gig list view — GigList.tsx + Cal/List toggle + CSS + getUpcomingGigs query (2026-03-03)
 - [x] GigBooks gig_type sync — types, queries, calendar, day sheet, gig form, colors all updated (2026-03-03)
 - [x] Shared gig calendar — Supabase backend + Tangerine Timetree PWA + GigBooks CLAUDE.md updates (2026-03-03)

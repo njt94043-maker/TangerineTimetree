@@ -411,3 +411,59 @@
 1. **Monorepo setup**: Create `C:\Apps\TGT\` with shared/web/native structure, move both apps in
 2. **GigBooks gig list view**: Port `GigList.tsx` from Timetree to React Native
 3. **Build + install GigBooks APK** with all pending changes
+
+---
+
+## Session: 2026-03-03 — Monorepo Restructure
+
+### What Was Done
+
+**Monorepo setup at C:\Apps\TGT\:**
+- Created `C:\Apps\TGT\` with `shared/`, `web/`, `native/` structure
+- Moved TangerineTimetree `.git` to TGT root (preserves full commit history)
+- Copied TangerineTimetree → `web/`, GigBooks → `native/`
+- Root `package.json` with convenience scripts (no npm workspaces — avoids Metro symlink issues)
+- Root `.gitignore` covering both projects
+
+**Shared Supabase layer (shared/supabase/):**
+- `types.ts` — unified from GigBooks version (has `'partial'` DayStatus, `totalMembers` param on `computeDayStatus`, practice validation in `isGigIncomplete`)
+- `queries.ts` — merged: GigBooks base + Timetree's `getUpcomingGigs()`, uses `getSupabase()` bridge pattern
+- `config.ts` — hardcoded URL + anon key (Metro can't use `import.meta.env`)
+- `clientRef.ts` — new `initSupabase(client)` / `getSupabase()` bridge, uses `SupabaseClientLike` interface (avoids requiring `@supabase/supabase-js` in shared/)
+- `index.ts` — barrel re-export
+
+**Metro config for native/:**
+- Created `metro.config.js` with `watchFolders: [shared/]` and `nodeModulesPaths: [native/node_modules/]`
+- Updated `tsconfig.json` with `@shared/*` path alias and `include: [".", "../shared"]`
+
+**Vite config for web/:**
+- Updated `vite.config.ts` with `resolve.alias: { '@shared': '../shared' }`
+- Updated `tsconfig.app.json` with `@shared/*` path alias and `include: ["src", "../shared"]`
+
+**Import updates (both apps):**
+- All supabase type/query/config imports changed to `@shared/supabase/*`
+- Deleted 6 local copies (types.ts, queries.ts, config.ts in each app)
+- Platform-specific files stay local: `client.ts` (AsyncStorage vs browser), `AuthContext.tsx` (native only), `useAuth.ts` (web only)
+- Fixed web `Calendar.tsx` — added `totalMembers` prop to support partial availability from shared `computeDayStatus`
+
+**Bug fixes during unification:**
+- Web now has `'partial'` DayStatus (was missing)
+- Web's `isGigIncomplete` now validates practice sessions (was always returning false)
+- Web's `deleteGig` now logs complete changelog entries (was missing `field_changed`, `new_value`)
+- Web's `computeDayStatus` now uses `totalMembers` for proper partial availability
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native/)
+- `npx tsc -b` passes clean (web/)
+- Git commit successful (182 files, renames detected)
+
+### What's Blocked
+- Vercel deployment needs root directory updated to `web/` (manual dashboard change)
+- Git push not done yet (pending user decision on repo name)
+
+### Next Session Priorities
+1. **Push to GitHub** — update remote if renaming repo, push monorepo commit
+2. **Update Vercel** — set root directory to `web/`
+3. **GigBooks gig list view** — port `GigList.tsx` from web to React Native
+4. **Build + install GigBooks APK** — verify Metro resolves shared/ imports at runtime
+5. **Test Timetree** on band members' iPhones
