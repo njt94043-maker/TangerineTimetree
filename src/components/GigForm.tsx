@@ -5,15 +5,16 @@ import { createGig, updateGig, deleteGig } from '../supabase/queries';
 interface GigFormProps {
   date: string;
   gigId?: string | null;
+  initialType?: 'gig' | 'practice';
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function GigForm({ date: initialDate, gigId, onClose, onSaved }: GigFormProps) {
+export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose, onSaved }: GigFormProps) {
   const isEditing = !!gigId;
 
   const [date, setDate] = useState(initialDate);
-  const [gigType, setGigType] = useState<'gig' | 'practice'>('gig');
+  const [gigType, setGigType] = useState<'gig' | 'practice'>(initialType);
   const [venue, setVenue] = useState('');
   const [clientName, setClientName] = useState('');
   const [fee, setFee] = useState('');
@@ -77,7 +78,7 @@ export function GigForm({ date: initialDate, gigId, onClose, onSaved }: GigFormP
   }
 
   async function handleDelete() {
-    if (!gigId || !confirm('Delete this gig?')) return;
+    if (!gigId || !confirm('Delete this?')) return;
     try {
       await deleteGig(gigId);
       onSaved();
@@ -87,25 +88,17 @@ export function GigForm({ date: initialDate, gigId, onClose, onSaved }: GigFormP
   }
 
   const isPractice = gigType === 'practice';
-  const title = isEditing
-    ? `Edit ${isPractice ? 'Practice' : 'Gig'}`
-    : `New ${isPractice ? 'Practice' : 'Gig'}`;
+  const label = isPractice ? 'Practice' : 'Gig';
 
   return (
     <div className="form-wrap" style={{ paddingTop: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button className="btn btn-small btn-green" onClick={onClose}>{'\u25C0'} Back</button>
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{title}</h2>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{isEditing ? `Edit ${label}` : `New ${label}`}</h2>
         <div style={{ width: 60 }} />
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="label">TYPE</div>
-        <div className="toggle-row">
-          <div className={`toggle-btn neu-card ${gigType === 'gig' ? 'active' : ''}`} onClick={() => setGigType('gig')}>Gig</div>
-          <div className={`toggle-btn neu-card ${gigType === 'practice' ? 'active practice' : ''}`} onClick={() => setGigType('practice')}>Practice</div>
-        </div>
-
         <div className="label">DATE</div>
         <div className="neu-inset">
           <input className="input-field" type="date" value={date} onChange={e => setDate(e.target.value)} required />
@@ -176,7 +169,7 @@ export function GigForm({ date: initialDate, gigId, onClose, onSaved }: GigFormP
 
         <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button className="btn btn-primary" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : isEditing ? `Update ${isPractice ? 'Practice' : 'Gig'}` : `Save ${isPractice ? 'Practice' : 'Gig'}`}
+            {saving ? 'Saving...' : isEditing ? `Update ${label}` : `Save ${label}`}
           </button>
           {isEditing && (
             <button className="btn btn-danger" type="button" onClick={handleDelete}>Delete</button>

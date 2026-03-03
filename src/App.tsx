@@ -43,6 +43,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
   const [view, setView] = useState<View>('calendar');
   const [selectedDate, setSelectedDate] = useState('');
   const [editGigId, setEditGigId] = useState<string | null>(null);
+  const [initialGigType, setInitialGigType] = useState<'gig' | 'practice'>('gig');
 
   const { gigs, awayDates, refresh } = useCalendarData(year, month);
 
@@ -61,9 +62,10 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
     setView('day-detail');
   }
 
-  function handleAddGig(date: string) {
+  function handleAddGig(date: string, type: 'gig' | 'practice' = 'gig') {
     setSelectedDate(date);
     setEditGigId(null);
+    setInitialGigType(type);
     setView('gig-form');
   }
 
@@ -131,6 +133,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
         <GigForm
           date={selectedDate}
           gigId={editGigId}
+          initialType={initialGigType}
           onClose={() => setView('calendar')}
           onSaved={handleGigSaved}
         />
