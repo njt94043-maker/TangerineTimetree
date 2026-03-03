@@ -130,8 +130,8 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
 
         {/* Actions */}
         <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button className="btn btn-tangerine" onClick={() => onAddGig(date)}>Add Gig / Practice</button>
-          <button className="btn btn-green" onClick={onMarkAway}>I'm Away</button>
+          <button className="btn btn-green" onClick={() => onAddGig(date)}>Add Gig / Practice</button>
+          <button className="btn btn-tangerine" onClick={onMarkAway}>I'm Away</button>
         </div>
       </div>
     </div>
