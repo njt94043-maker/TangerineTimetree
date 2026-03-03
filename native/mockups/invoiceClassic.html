@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #333333; font-size: 14px; line-height: 1.5; overflow-x: hidden; width: 100%; }
+  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .header { background: #1abc9c; color: #ffffff; padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 36px; font-weight: bold; letter-spacing: 4px; }
+  .header .logo { width: 90px; height: 90px; }
+  .meta { padding: 20px 40px; }
+  .meta-row { margin-bottom: 3px; font-size: 13px; }
+  .meta-label { color: #666666; }
+  .orange-rule { height: 3px; background: #f39c12; margin: 0 40px; }
+  .parties { display: flex; padding: 20px 40px; gap: 40px; }
+  .party { flex: 1; }
+  .party-label { color: #1abc9c; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .party-name { font-weight: bold; font-size: 16px; margin-bottom: 2px; }
+  .party-detail { font-size: 13px; color: #666666; line-height: 1.4; }
+  .party-detail a { color: #1abc9c; text-decoration: none; }
+  .table-section { margin-top: 20px; }
+  .table-header { background: #f39c12; color: #ffffff; display: flex; padding: 10px 40px; font-weight: bold; font-size: 13px; border-radius: 4px 4px 0 0; margin: 0 40px; }
+  .table-header .desc { flex: 3; }
+  .table-header .amt { flex: 1; text-align: right; }
+  .table-row { display: flex; padding: 14px 40px; margin: 0 40px; border-bottom: 1px solid #eee; }
+  .table-row .desc { flex: 3; font-size: 14px; }
+  .table-row .amt { flex: 1; text-align: right; font-size: 14px; }
+  .orange-rule-table { height: 2px; background: #f39c12; margin: 0 40px; }
+  .total-bar { background: #f39c12; color: #ffffff; display: flex; padding: 12px 40px; font-weight: bold; font-size: 18px; border-radius: 4px; margin: 0 40px; margin-top: 2px; }
+  .total-bar .desc { flex: 3; }
+  .total-bar .amt { flex: 1; text-align: right; }
+  .payment { padding: 25px 40px; }
+  .payment h3 { font-size: 13px; font-weight: bold; color: #1abc9c; margin-bottom: 8px; }
+  .payment-row { font-size: 13px; margin-bottom: 3px; }
+  .payment-label { color: #666666; }
+  .spacer { flex: 1; }
+  .footer { background: #1abc9c; color: #ffffff; padding: 20px 40px; text-align: center; font-size: 12px; }
+  .footer .website { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+  .footer .terms-label { color: #f39c12; font-weight: bold; }
+  .footer .thanks { color: #f39c12; font-style: italic; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>INVOICE</h1>
+    <div class="logo"><div style="width:90px;height:90px;border-radius:50%;background:#f39c12;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:20px;">TGT</div></div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-row"><span class="meta-label">Invoice Number: </span><strong>INV-047</strong></div>
+    <div class="meta-row"><span class="meta-label">Issue Date: </span>25 December 2026</div>
+    <div class="meta-row"><span class="meta-label">Due Date: </span>08 January 2027</div>
+  </div>
+
+  <div class="orange-rule"></div>
+
+  <div class="parties">
+    <div class="party">
+      <div class="party-label">From:</div>
+      <div class="party-name">Nathan Thomas</div>
+      <div class="party-detail">Trading as: The Green Tangerine</div>
+      <div class="party-detail">Live Music Entertainment</div>
+      <div class="party-detail"><a href="#">www.thegreentangerine.com</a></div>
+    </div>
+    <div class="party">
+      <div class="party-label">To:</div>
+      <div class="party-name">The Holly &amp; Ivy Tavern</div>
+      <div class="party-detail">Margaret Whitfield</div>
+      <div class="party-detail">42 Cathedral Road<br>Cardiff CF11 9LL</div>
+    </div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-header">
+      <div class="desc">Description</div>
+      <div class="amt">Amount</div>
+    </div>
+    <div class="table-row">
+      <div class="desc">Live band performance — Christmas Eve Special<br>Full 4-piece band, 2 × 45-minute sets<br>Including festive repertoire and audience requests</div>
+      <div class="amt">£1,200.00</div>
+    </div>
+  </div>
+
+  <div class="orange-rule-table"></div>
+
+  <div style="display: flex; justify-content: flex-end; margin: 0 40px;">
+    <div class="total-bar" style="width: 300px; margin: 2px 0 0 0;">
+      <div class="desc">TOTAL:</div>
+      <div class="amt">£1,200.00</div>
+    </div>
+  </div>
+
+  <div class="payment">
+    <h3>Payment Details:</h3>
+    <div class="payment-row"><span class="payment-label">Account Name: </span>Nathan Thomas</div>
+    <div class="payment-row"><span class="payment-label">Bank: </span>Starling Bank</div>
+    <div class="payment-row"><span class="payment-label">Sort Code: </span>60-83-71</div>
+    <div class="payment-row"><span class="payment-label">Account Number: </span>12345678</div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="footer">
+    <div class="website">www.thegreentangerine.com</div>
+    <div class="terms-label">Payment Terms:</div>
+    <div>Please pay within 14 days of invoice date</div>
+    <div class="thanks">Thank you for your business!</div>
+  </div>
+</div>
+</body>
+</html>

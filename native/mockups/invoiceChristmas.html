@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice INV-047 — Christmas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Page ── */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    .page {
+      width: 595px;
+      min-height: 842px;
+      background: #0d1f14;
+      font-family: 'Outfit', sans-serif;
+      color: #e8e0d4;
+      position: relative;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    /* ── Paper-grain texture ── */
+    .paper-grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        radial-gradient(ellipse, #1a3020 0.8px, transparent 0.8px),
+        radial-gradient(ellipse, #081510 0.5px, transparent 0.5px),
+        radial-gradient(ellipse, #162a1c 0.3px, transparent 0.3px);
+      background-size: 11px 11px, 7px 7px, 5px 5px;
+      background-position: 0 0, 3px 5px, 7px 2px;
+      opacity: 0.4;
+    }
+
+    /* ── Snowflakes container ── */
+    .snowflakes-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .snowflake-1 { position: absolute; top: 60px; right: 44px; color: #c9a84c; }
+    .snowflake-2 { position: absolute; top: 120px; right: 90px; color: #5a7a5e; }
+    .snowflake-3 { position: absolute; top: 200px; right: 30px; color: #5a7a5e; }
+    .snowflake-4 { position: absolute; bottom: 140px; left: 30px; color: #5a7a5e; }
+    .snowflake-5 { position: absolute; bottom: 80px; left: 80px; color: #c9a84c; }
+    .snowflake-6 { position: absolute; bottom: 200px; right: 60px; color: #5a7a5e; }
+
+    /* ── Decorative SVG positions ── */
+    .holly-top-left {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      width: 100px;
+      height: 100px;
+    }
+    .holly-bottom-right {
+      position: absolute;
+      bottom: -10px;
+      right: -10px;
+      width: 90px;
+      height: 90px;
+      transform: rotate(180deg);
+    }
+    .tree-watermark {
+      position: absolute;
+      bottom: 160px;
+      right: 40px;
+      width: 60px;
+      height: 80px;
+      opacity: 0.5;
+    }
+    .bauble-top-left {
+      position: absolute;
+      top: 180px;
+      left: 20px;
+      width: 22px;
+      height: 28px;
+    }
+    .bauble-bottom-right {
+      position: absolute;
+      bottom: 100px;
+      right: 110px;
+      width: 18px;
+      height: 24px;
+    }
+
+    /* ── Gold top accent ── */
+    .gold-accent-top {
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #c9a84c, #e8c65a, #c9a84c, transparent);
+    }
+
+    /* ── Gold bottom accent ── */
+    .gold-accent-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #c9a84c, #e8c65a, #c9a84c, transparent);
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 36px 44px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .band-logo {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid #c9a84c33;
+    }
+    .trading-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #c9a84c;
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+    }
+    .business-type {
+      font-size: 11px;
+      color: #8b9e87;
+      margin-top: 6px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .invoice-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 38px;
+      font-weight: 300;
+      color: #8b3a3a;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .invoice-number {
+      font-size: 13px;
+      color: #c9a84c;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      padding: 0 44px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .divider-line-left {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #2d4a32);
+    }
+    .divider-line-right {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, #2d4a32, transparent);
+    }
+    .divider-dots {
+      display: flex;
+      gap: 4px;
+    }
+    .dot-red { color: #8b3a3a; font-size: 8px; }
+    .dot-gold { color: #c9a84c; font-size: 8px; }
+
+    /* ── Dates ── */
+    .dates-row {
+      padding: 20px 44px;
+      display: flex;
+      gap: 32px;
+      position: relative;
+      z-index: 1;
+    }
+    .date-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #5a7a5e;
+      margin-bottom: 4px;
+    }
+    .date-value {
+      font-size: 13px;
+      color: #d4ccbc;
+    }
+
+    /* ── From / To ── */
+    .from-to-row {
+      padding: 12px 44px;
+      display: flex;
+      gap: 40px;
+      position: relative;
+      z-index: 1;
+    }
+    .from-to-col {
+      flex: 1;
+    }
+    .section-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8b3a3a;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .from-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #c9a84c;
+    }
+    .from-ta {
+      font-size: 12px;
+      color: #8b9e87;
+      margin-top: 2px;
+    }
+    .from-website {
+      font-size: 11px;
+      color: #7a8a76;
+      margin-top: 6px;
+    }
+    .to-company {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e8e0d4;
+    }
+    .to-contact {
+      font-size: 12px;
+      color: #b0a898;
+      margin-top: 2px;
+    }
+    .to-address {
+      font-size: 11px;
+      color: #7a8a76;
+      margin-top: 6px;
+      white-space: pre-line;
+    }
+
+    /* ── Description ── */
+    .description-wrapper {
+      padding: 24px 44px;
+      position: relative;
+      z-index: 1;
+    }
+    .description-box {
+      background: #132a1a;
+      border: 1px solid #2d4a32;
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+    .desc-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #5a7a5e;
+      margin-bottom: 10px;
+    }
+    .desc-text {
+      font-size: 13px;
+      color: #d4ccbc;
+      white-space: pre-line;
+      line-height: 1.7;
+    }
+
+    /* ── Amount ── */
+    .amount-wrapper {
+      padding: 8px 44px;
+      position: relative;
+      z-index: 1;
+    }
+    .amount-box {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      background: linear-gradient(135deg, #1a0a0a, #2a1515);
+      border: 1px solid #4a2020;
+      border-radius: 8px;
+    }
+    .amount-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #8b3a3a;
+      font-weight: 700;
+    }
+    .amount-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px;
+      font-weight: 700;
+      color: #c9a84c;
+    }
+
+    /* ── Bank details ── */
+    .bank-wrapper {
+      padding: 24px 44px;
+      position: relative;
+      z-index: 1;
+    }
+    .bank-title {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8b3a3a;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .bank-row {
+      display: flex;
+      gap: 32px;
+    }
+    .bank-label {
+      font-size: 9px;
+      color: #5a7a5e;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .bank-value {
+      font-size: 12px;
+      color: #d4ccbc;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin: 20px 44px 0;
+      padding: 16px 0;
+      border-top: 1px solid #2d4a32;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+    .footer-message {
+      font-size: 10px;
+      color: #5a7a5e;
+      letter-spacing: 1px;
+    }
+    .footer-website {
+      font-size: 9px;
+      color: #3d5a42;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body style="background:#141418;display:flex;justify-content:center;padding:40px 0;">
+
+<div class="page">
+  <!-- Paper grain texture -->
+  <div class="paper-grain"></div>
+
+  <!-- Snowflakes -->
+  <div class="snowflakes-layer">
+    <!-- Snowflake 1: top:60, right:44, color:#c9a84c, size:20 -->
+    <svg class="snowflake-1" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+    <!-- Snowflake 2: top:120, right:90, color:#5a7a5e, size:14 -->
+    <svg class="snowflake-2" width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+    <!-- Snowflake 3: top:200, right:30, color:#5a7a5e, size:10 -->
+    <svg class="snowflake-3" width="10" height="10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+    <!-- Snowflake 4: bottom:140, left:30, color:#5a7a5e, size:16 -->
+    <svg class="snowflake-4" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+    <!-- Snowflake 5: bottom:80, left:80, color:#c9a84c, size:12 -->
+    <svg class="snowflake-5" width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+    <!-- Snowflake 6: bottom:200, right:60, color:#5a7a5e, size:11 -->
+    <svg class="snowflake-6" width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.5">
+        <line x1="12" y1="2" x2="12" y2="22"/>
+        <line x1="3.3" y1="7" x2="20.7" y2="17"/>
+        <line x1="3.3" y1="17" x2="20.7" y2="7"/>
+        <line x1="12" y1="2" x2="10" y2="5"/>
+        <line x1="12" y1="2" x2="14" y2="5"/>
+        <line x1="12" y1="22" x2="10" y2="19"/>
+        <line x1="12" y1="22" x2="14" y2="19"/>
+        <line x1="3.3" y1="7" x2="5.8" y2="8.8"/>
+        <line x1="3.3" y1="7" x2="5" y2="5.2"/>
+        <line x1="20.7" y1="7" x2="18.2" y2="8.8"/>
+        <line x1="20.7" y1="7" x2="19" y2="5.2"/>
+        <line x1="3.3" y1="17" x2="5.8" y2="15.2"/>
+        <line x1="3.3" y1="17" x2="5" y2="18.8"/>
+        <line x1="20.7" y1="17" x2="18.2" y2="15.2"/>
+        <line x1="20.7" y1="17" x2="19" y2="18.8"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Holly corner — top-left -->
+  <svg class="holly-top-left" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M56,42 C54,38 52,36 48,34 C50,32 50,28 46,24 C44,20 46,16 50,12 C52,16 54,20 56,22 C58,18 60,16 60,20 C60,24 58,28 58,32 C60,34 60,38 58,42 Z" fill="#1a6b35" opacity="0.8"/>
+    <path d="M56,42 Q52,28 50,12" stroke="#0f4420" stroke-width="0.6" fill="none" opacity="0.5"/>
+    <path d="M60,44 C64,40 68,40 72,38 C72,42 76,42 80,40 C84,40 86,44 82,46 C80,44 76,46 74,48 C76,50 74,54 70,52 C66,50 62,48 60,46 Z" fill="#228B22" opacity="0.7"/>
+    <path d="M60,44 Q72,42 82,44" stroke="#14601e" stroke-width="0.6" fill="none" opacity="0.4"/>
+    <path d="M54,48 C50,52 48,56 44,60 C46,62 44,66 40,68 C38,72 42,74 46,72 C46,68 50,66 52,64 C50,68 52,70 56,68 C58,64 56,56 54,50 Z" fill="#1a6b35" opacity="0.65"/>
+    <path d="M54,48 Q48,58 42,70" stroke="#0f4420" stroke-width="0.6" fill="none" opacity="0.4"/>
+    <circle cx="55" cy="42" r="5.5" fill="#dc3545"/>
+    <circle cx="61" cy="44" r="5" fill="#c82333"/>
+    <circle cx="57" cy="48" r="5.2" fill="#dc3545"/>
+    <circle cx="53" cy="40" r="2" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="59" cy="42" r="1.7" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="55" cy="46" r="1.8" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="55" cy="42" r="0.8" fill="#a71d2a" opacity="0.3"/>
+    <circle cx="61" cy="44" r="0.7" fill="#a71d2a" opacity="0.3"/>
+    <circle cx="57" cy="48" r="0.8" fill="#a71d2a" opacity="0.3"/>
+  </svg>
+
+  <!-- Holly corner — bottom-right (rotated 180deg) -->
+  <svg class="holly-bottom-right" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M56,42 C54,38 52,36 48,34 C50,32 50,28 46,24 C44,20 46,16 50,12 C52,16 54,20 56,22 C58,18 60,16 60,20 C60,24 58,28 58,32 C60,34 60,38 58,42 Z" fill="#1a6b35" opacity="0.8"/>
+    <path d="M56,42 Q52,28 50,12" stroke="#0f4420" stroke-width="0.6" fill="none" opacity="0.5"/>
+    <path d="M60,44 C64,40 68,40 72,38 C72,42 76,42 80,40 C84,40 86,44 82,46 C80,44 76,46 74,48 C76,50 74,54 70,52 C66,50 62,48 60,46 Z" fill="#228B22" opacity="0.7"/>
+    <path d="M60,44 Q72,42 82,44" stroke="#14601e" stroke-width="0.6" fill="none" opacity="0.4"/>
+    <path d="M54,48 C50,52 48,56 44,60 C46,62 44,66 40,68 C38,72 42,74 46,72 C46,68 50,66 52,64 C50,68 52,70 56,68 C58,64 56,56 54,50 Z" fill="#1a6b35" opacity="0.65"/>
+    <path d="M54,48 Q48,58 42,70" stroke="#0f4420" stroke-width="0.6" fill="none" opacity="0.4"/>
+    <circle cx="55" cy="42" r="5.5" fill="#dc3545"/>
+    <circle cx="61" cy="44" r="5" fill="#c82333"/>
+    <circle cx="57" cy="48" r="5.2" fill="#dc3545"/>
+    <circle cx="53" cy="40" r="2" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="59" cy="42" r="1.7" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="55" cy="46" r="1.8" fill="#ff6b6b" opacity="0.5"/>
+    <circle cx="55" cy="42" r="0.8" fill="#a71d2a" opacity="0.3"/>
+    <circle cx="61" cy="44" r="0.7" fill="#a71d2a" opacity="0.3"/>
+    <circle cx="57" cy="48" r="0.8" fill="#a71d2a" opacity="0.3"/>
+  </svg>
+
+  <!-- Christmas tree watermark -->
+  <svg class="tree-watermark" viewBox="0 0 60 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="30,8 18,30 42,30" fill="#1e5430" opacity="0.5"/>
+    <polygon points="30,18 14,42 46,42" fill="#2d6b3f" opacity="0.45"/>
+    <polygon points="30,30 10,56 50,56" fill="#1e5430" opacity="0.4"/>
+    <polygon points="30,4 31.5,8 35,8 32.5,10.5 33.5,14 30,12 26.5,14 27.5,10.5 25,8 28.5,8" fill="#c9a84c" opacity="0.6"/>
+    <rect x="27" y="56" width="6" height="8" fill="#5a3a20" opacity="0.4"/>
+    <circle cx="25" cy="26" r="2" fill="#8b3a3a" opacity="0.6"/>
+    <circle cx="35" cy="36" r="2" fill="#c9a84c" opacity="0.5"/>
+    <circle cx="22" cy="44" r="2.5" fill="#8b3a3a" opacity="0.5"/>
+    <circle cx="38" cy="48" r="2" fill="#c9a84c" opacity="0.5"/>
+    <circle cx="30" cy="50" r="2" fill="#8b3a3a" opacity="0.4"/>
+  </svg>
+
+  <!-- Bauble — top-left (#8b3a3a) -->
+  <svg class="bauble-top-left" viewBox="0 0 30 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="13" y="2" width="4" height="5" rx="1" fill="#c9a84c" opacity="0.6"/>
+    <circle cx="15" cy="22" r="13" fill="#8b3a3a" opacity="0.4"/>
+    <ellipse cx="11" cy="18" rx="4" ry="6" fill="white" opacity="0.08" transform="rotate(-20 11 18)"/>
+  </svg>
+
+  <!-- Bauble — bottom-right (#c9a84c) -->
+  <svg class="bauble-bottom-right" viewBox="0 0 30 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="13" y="2" width="4" height="5" rx="1" fill="#c9a84c" opacity="0.6"/>
+    <circle cx="15" cy="22" r="13" fill="#c9a84c" opacity="0.4"/>
+    <ellipse cx="11" cy="18" rx="4" ry="6" fill="white" opacity="0.08" transform="rotate(-20 11 18)"/>
+  </svg>
+
+  <!-- Gold top accent -->
+  <div class="gold-accent-top"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <img class="band-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAYAAACOEfKtAAAe60lEQVR42u2daawlx3Xff6equvtub3+zvOEs5HCTOBpSokxaG6nVQpxENmR5SSLEhgHbQRIhjhHEQGIgToJ8CoI4AQI4CYw4AWyYFqTAMSRDlp1IdGxJFE1JpEhKFNeZ4cybty936dvdVXXyofuSj8OZ4eOmxWEDhZm33O6qf5/1f07VE747l23+DZd8/yRwM3AH8BbgGNABbr3CfR4CRsA54GHgfuAx4Kl9Pu81v+R1vre5ZBEHgbuBu4AfBt4MTL/K5+wC3wLuA/4v8GfA6iVgRkD5AblkjwRMrg8CvwNsNAvZOyLgmxGaoVcYk59Pfj9e5nc2mmd98DJSKd/v4O0Frgt8AvjaJQv0QNUAEa8C1n5HbO5VNffe+7OvNXPoXmGO3zeXaQZAr5n0E5dIjn+NANsPoP4SSX6imVPvMvP9nl9uz/8/Djx+ibSF7wJoV1P5vVL5eDPHy839ewreTcA9eyZafY+BuxyQ1Z6v72nm/D0DUfYY5J9uvN73g8S9HIlcbeZ+6Xq+K/ZuYox/4xKp0x+QsXeuv7HHsbzudnHyoAXgS3veavwBAu9S763NWhZeby89ufHintCk/AEE7tJR7gl5Fl8vEC8HXvVXALxLVfp1AdHsAe/r3w/gCajIVcarA/Hre0A0r4W3Nd8L8PYCYkw9Jl+/5OdFlD2f3ffnXgyieSnvLPsALwJfbpL/Ckhel7hInp+MAqpXnpbBkqWOdldoZSlgiDFSFp4qwGg4JmjYM/096iQvdf/n1ngf8M49N9GXC2DS3Ow3gH/8eoA3Ae3FC0poJYZuVzmw2GHpaJeDB2B+PmVm3jA9ldBpG+bdFMaM8MajQfBOyHdHFOUM/Txl+fwF1lZTzp7r8+z5grXNMUr53LO5MpCTtf4H4Ff2YLFvAG3j4j8GfKoJPt1rCVrUvSZWmO2lHD3S4vrrOtx8c4ej16UcXlrg8PQcZryK7qzhKsGoQhmJwzHdURvrh1SMKDVhcOM87VPXM5ecxhd9fLmNzaY5e+YbrKwNefLsmK9/o+DBhwacv7gLxKsBOVnzTwKf3oPJSwJo9pCdXwHmXq1BfbGkCUYSrjvW483Xtzl9e5vrr4WleUM7U9xcF3lmQG9lhOzuYkY5NioCJEFBFGsF7xSjkCoUAc6kR2kfmGVqcwsNERVHWe6iUdCZjNhJGM9lXGhnfPVrFX/02VWeeHq3MZsvAnGi+1vAO/aQtvGlAJwg/WngJ16N9L347VquOdzjzrdNc/tbE246mbLgPa2WoGXFKDN0bzxN+cdPMbf6COlsJFGwsXa9UaAyQhJBIlQiJAqikZW4QKwSDspFogOdgqyVENcrRAWplDBOCMGQL3QZnF5kq3uQz35mg0/94Tk2N0aIxEtBnKz9fzba+CIptFcA76eBf/FKwRPAGHlO2jppm9vfNs/HP3aIn/3oFB+6xXFjq2R+eZvp81t0lzeYW9lBvrONPXY3U9sWWzyGzLcxGLQMuGZiLhqSWFuyLHOkLuGin6OKliWzTmhB0UlodboUu2XNoRnwLYF2wGaBGR0z+NaI3p1v5cMfeRuLrWWeOatsbFWIxEu10QOnGtb74QYjvRyAE2lsA3/YUO0vO8mugRNUlbZzfOj9C/zSPzzBT35kmtumS+bOb9Fd36a7tUG3ymmlFc4pLhGmfGRHO0h3AbP6CJ3ZFow9topoMwunythCBrikzTP9OTTAAbtO0QoUIrSMwfQLJNYSbKJggcQDHccg9uhPHyAPW4xXhPf8+N9iYfZRnnwysL5RIHJZz/IO4L80gF5WAicv+ReAv9Poun056mqMIUbFAB96zzX8k396Mx/76A0c2blA55GLdFbWacUhacvjU0MS66dM7KNTqDKlmjqCrD8KLiJVBFGiAavCIIF2FKpxwrl8gUTGLCbrVG3BuAQXIrYMKGAFnDG0EEKVMCjb7OxMMagyet0xBzfWCQ89wtjewK0/8kHGW/fx8GORPK+eMz+NAEVgFjjfFLLcxBbay0jf7wEzL6foZBoDrKrcfus1/Pqv/Sj/6Fc/zg2LdxA+92d0zn2brsuxHSFaSMYRtAYljRAsCEIWwZcVm2lCd7iBsx4bIQikQRg6SJwlDh3n9DDtZMh8b5eQWNQYTOmxCqk1ZAJqUkZumhU/y2bRJQhkWZ/Z6QGzvYAm0O0ogwe+RrFwHUvXDDlzYZsnn/Goxsst9TTwX/eGNPaSytUvvVzpM0aICr1uwi/+7Fv5tV+9ixM3B/xmQvHf/yOt+BjlnCNJEtzIY70SLWQBYpN3AQRTvwlXejaiI9OCzJR4kecMkbWClC3OcZCpdIfpzoCQpdgoJEVJO0CmluB6bAxnWMlnGVVCGocspH2mpkaY1JNmKb6M+LGnkMCMES58+xmSUxm5hwe+MaSqwuWkcA5YBr46sYVuj2u2wN/fb/lPmtwoRuX2U4f4xC+d4JabUza2v4xuC2n5OL10SMtkZHmBJkLsWgiKD5EoAolDqwqnNUBDq0wbyMaBMnEEAS9CCbTbljBucUEXmHVbdFtDghjMKCcN4IYpu0WH7dihwJFlYxY763TsGEwkCIQSUoRYFVQo0jg61w7MbRVsrhQcPdFhpusYDsvLLVsbjP7zRIXdHtt3F3DLfqSvjplqnP/2T72Fv/vxLt21LfIvbjAXDBIqYmIo2lMs7/ZoBU9iKlwyxqUekxRgFGIA54jWgPeIEapSMcaiRikFJHMkeUlZdVktesy5NVqtEUYtMoiEcZf1vMswJiRJRafV52CWkzhPMLX6uyB0oqIIooq3tbQXMkkNIUsLZCR054V2y1wtubilwepewLk9ifQv8rw9fwnwoNNK+NVf+VF+5I4+5QMP09vcYbpVYiZ+uwLVTaq2YxwzxrHFMHYJ4wxbRLI0p+OGmKyiigrW4gTERQIeFwNpAqbvGfoZdscdjriLYKEa9Ch2WuRVgnXQyXJmOxukLuIyS0gswTiMj5hhiUQlFxAUa6AS8AKIwSJoBiSBdGaKsgr0ZhXzrCXGcDkJlAarL05UODRs7EdeigerwRNmOoZ/828/wQduN6z99m+y1C4Jc55RBKNC4pI6hKiUbgh0kyHokMrAQB1FaJPHHsOiS6oVbenTSkuir6gG4BcM+CmKrcBg4QD90wt0Ht5mQw4TckeS57TaOYtTuyRpRTRKAYwSR9ZOiD4Qy0DwgDXYlkGdQaypjVnhSXykGy2uCtixcDYY5t/0dpbvfRx7bUH3iZT+KL80Q5lg85EGs42JDXwfMNWAaa8MnmGqo/z6v/oZPvz2lAv/7d9zzXSsw41CECsElIqIWMFbg40WqwqFRyK0kkhm+3RjnzymBNuh9LPsFobWjGBnDmAOGUZTI/q7s5jFBIk58f3HyR+8yNLKGWZ6RS0HATTWYpECofCE4LHGol5pWYMkgmk0Mo5LXKG0SyVWUISSHYW1NGX83us50L6BB5/5PPEtSvsvoD+6bI4QGqzeB3x6AuBde1T5CimZkFn45U98gL/2niUu/I//xKF5TzRCWihGBK9aFxq8JzpBE0tphDSxaAoSFcSg3pNFSMSTyID+bsX4tlspT81QDjdRX4Fa7JTDBsvc3A8xZpPRzDob80vkwzGESKoBkbqsoSJEVSgNqEFVEXGIKkYUNUIVtV5gkqELc+jcHHFpnt6xa7nxxI380Sc/y5nsGTjYpjVt6iaRSx1nbfy1wezTrkH1XVfPOmpv9RMffTM/9ZM3sXrP73KgNSQkDkkdQ1uhVSSNim2kQYNiSs+EH44Yqmgpo1ClXcQ4ojF4hPF8QpzPKTd2iGWErRHM9+DiLnpihq3Vh5FvbDI72EWQGhAVhrGNTxy+bYltgxiDaYiBqIqJEaNS86sC0RliZugeehPp0hFksQOq+MFFHv7K4/zxNx9g8xZHK0TavRdnsDrJTfdg5oDjjWe5LONSow63nprjF/7BrWx+6QvMFqvIkRapV8JoTEcNNihUjiAJOZYiOoaaMoiOXITCGqzzpBYSU9DVMVOUHKg8m9tdBsNjmCIS54F+IHlwG8ks4XhCeHSTo888RXaozoFNJiRiwSt4weSCDhQXauZCrRATA2jt1IzBFBUSI1EN+sQTrO8YLt5xEntjwPRzPvW5Xfo3jFgpYXZdmW+FK/nUCUa3AMcdcFvTfKOXSuDEgE53U37+50+SDs/iHlmlOx8JY0FdRuxOsYFjsxAGLqUQwYaCREsSSjIZsSAlqUSmYyAFkqhYBV8ZVsMigyNTdJ54BLOlbN52gva5AQvDddpbyvrFgs0bDjBOWyTkSDSk40hlAt6AcYKkdcpWGaEqPU6EaBWNIKogAU0UImRRaAWoBl16B47TnbXc85kHeWK+pDioDJehN5I6zELQFwM4QbUL3Oaa9ESvHP8pH3rfMd733uu58PSDdOYy1sMholpsSxn4SBmh0ypZZEQSxrhhUdNM5vkbuyi4CDYqJhjWZYpd7UC7YHZ0hg6e6vAcrZVdFneWMfMO9cKR9VXKZzNWThzHnX2a7lyJjZB6ZejqtVivBCLaxFAVinGGmArGB3yIVKJMYUjKwLMbPbbuPETn4Dk++XvbPOA30Bsja31FE5ieV0SuGtHFRhJPTyRQriR987NdPvAhh4ygs5HiOhWpL+n2ImE8ZiFxJFYJwwqNEQ8YEUgMihB9IAtKoorHsKU9tulgJDDV2gBbkjgHw4S1dI75zRVMG1BL4SN6OGHpmRWeXjzJ1sJBev3zlB0lxjoTCkZBwSqYWHOHpRVy7wkILnUQDYf6gawfebo4Sf7uo6QHL/CZPyi4v9imfYeynStBBHHKzBIUsTYBV4BxgtdtDjhxNWbvTTelvOv9H4QHA72/fJTWIU8Eiu2aAPBeqHwAH7FpglipgUNJo5JVSqWWDT/FgDYtVzDX3SFtKcMqgCRk48jF9gJ2VJKFIZoYjAExgSJYOocDi09dZPnUUfpbm8zoiNzU+bMVS0wMsQrYKoKp/ZaLQgRSa5nfzMk24FvxJuyHTzNMn+D3P7nN43M7rB+06HlD0hG2bUTPGfKeQIz7yWhPuIaBuWLz1fUnBanGVA99g+6UZ2wtnSSFGLEiUHh8iIiBGAPiBZcYEgPFWFgZzzIMHTpJwWJ7C8eYaByjKFib0CsDO1XKYG6awytn0a7BWIs6QXLQ6CmsMCd9Ni/k9Bdmmd7NMW3FR9BE6mSsZQhUmCpSWYgoSaVM98dUFxxPLrwV+84FHlv7Sz517xa7N404eCpgN5S+RnBQFMDBwJRzrA32RUS1JzbwBR54or6JEa451oPRENldhvnaSFoDVRFQHzBRQeq3bX0kyyxeMy5st9gqEnpuzJHOOmkn4MuIJAnihDgu6cUII2XjxHFm1ndp2QIfBNFQS6GPtEQIQTFTkYXBFheXFhlvpySmJA2QB4+zhiTUYUbUWvE6KL1dw/JWl+Gdp3Bvn+fzf/AA/+fxXdL3VPhUWF+xVCJU0RA8eBPqUKiC8SDsp9ng9FXpeus8x4+fZnHhh7kY/hhjwFURP8qxjRUICkaVToSxd5wvZhhVKWlWcmxui0THdaf52GBSh0kMflTSidAdR85OLyLRMDvYwHSFxCtlIjAokYZkcwqFE2b8kNXxIuvpNEvlOonULHOuJWodwRmkLXRyYbRseNZMET40z2pryGd+8zucafWZ/1HFtCMXn7KQGHqzEb8Lz/aF6pCQOsVuQzHcX0/61esdknD+/LfY2lrCaUYSDCMHWctSxEBbhSkUT5uLVY+BzeiYIcdmdpC0wkdg7Iilx7Qd0QlhWCAIU1EYFY7t6+Y4cG6NtBUoUEIikFikqLAqdQUuwjiCbRXMbmyyfuIgvccGzBzOkVJoR2FsPdYkjNeE1f4M/i3zDI+m/PlXtrn/8bN03xa55mSkzCPDgbBwJKIRtoeG6ZlQk71e6XTADgyjYXyOPXj5ADafCl4589QO6dw8/d5NpBcu0rkWghNmSIGUNbr0y5QsDLimtUPSVUoPVSGI93VG0E4RZ/DDMUZqiYoj5dzBI3Tygvlyi6JbsyQSFTuu6lb/WDuDyihRhTDrmDu/yy5zrNy8hD6xQrs3JBaKLxy5zlJcN8PwzjZff2rIl39vGb+Us/QRRV0k5LXHdk7Z8QathOAiWwFGvk6qpzAUy0JeVuwHQQv8yyv9UIFW5rjh5pKlO+8gP5vh1jYpR4ZteqxW09iiYMavMdMtMB3HOPeoV7q9DEYVoSEu47jCIFgVEoEtnWbnwCJHzp/FdQIjA66d1hW9WvCwWnvzyhmirbm9XqpUT+dUdx9neyalSg7BkZtpveM9rJ0wfHV9h89+cYXH+5tMvbPkwM2KlkpRNQQqUGhtxCpRjI1se2FHa1t+zFjKv7CsLBd7GemXD+CEfenOGjoty/WnPcVNS+QzB9m9YQr6gcPDZWzWJ3YE2inlsO7NEQXtexCIVihVkW4KZYQE1LVZnl5ifmWNAzJkN6krQK6VPBehelW8gUIE7TncVAIjj2xFysUf5vD7f4r20RbFoT4bWZsv3P8Un/2zp3lyuM7020vmb4kYoxQF5BG6RhgGpVAhwVACeYyAMMTSj4q1cHI3YeWLht1BtS8AHfDNxhPHF+fCkWLgeGxwnvu/ej3vfceQs/7PWTj6ATpfWONQLOlnloGPVH6MRCVKHdDGuYw0cwzXhySzHSg92nZknZTlfB6bVxwZb1FO1/GkGAMiaO7BGCSxEAJdUcyOJ19RwtAymD9F72MfZGPr65x5quTeex/nwu6I9FBB712W6Rkl9YEyN03Dds0i5VoHyraJMIa+ZpDWo3Ah1EDOWbDnDOtr1dX6ZvZmIt90QH5Z9dVaiZfPj7lplPL59XtJ7vsJ7r7159jZ/SoX3ucYPHSMxQtrTGcGm5SExOMTJbegoWLcr51HmgdyDczOG7bOWXaXZjm++iTlPIwVnFGiBMhzXIAqD2gBWdnC2FkG00L/qGVnpsNKFXn807/F02fWKLKS+esybjymxES4OAqUQwULI4mICgalDEoUwUitvtu+pt2s1GZBJYK3LFnD4NuGcfD74OYByB1wBrjzSmpcxoJn7mvxQ3dW/MnG7/Lsn97Nh+/+MW64dsTO9Jc5t9aj3Ngke3JIN7d0dg3tNCHuDLCuIDMRKk/mYHfzOMkHPkK6+WXK9YARg68iqg5PB81msb3DJAeXSA4eopyZZrm6yHcuPshTF7ZZPbvFqByQLQYO3hXpTFuirxhVsFOAFSHYuuXDqRJQdNI2p7VZqLTmLTMLW95w0SsEw5QRDmw5Hn6sLlbvDz/OOODBpgNJLy+FcObpMdffn7LwIxVPr97Lb3/+fm6Yfy+3vvkurnvbLBqeorr1SQbPPsXYWNx2D9GICRHJc3oHrkXmj2OPHmUnuZ+gW/TfeRq3cDNZNgczc8S0zViE7WKX1c3znLnwGOceeob13VViqnQXPDNv9izNWJyF/igyGkKJsB0UjGBFUVWCQtWwUaah5AwNhxjAB2Fr1RLmFG8C5JbjbUPxUML65uil1Jc95PODAvwY8L8uR2ftzUpOXjfFu/+eZzxXMm2g6gf8GkzrcZbmTnH80C0cmFuk0xbc+DxxukRiCbGk3VuiCiNGg/Psbp8nHw0ovGdcpQx3hM1hySAfMRoPyKsBIQm0Z6A9D7OzDpMqPiixUspQA1KKslMJY1WcgczAyCstZ2vJ07rFZBTrtpBKhTIoW7Fe5s66JZ+NrARlujS8u8x48LfgwsoIEd0PgAL8uDRkwiNX4gQn3IOThLv+epfbPjrkhrbwpb7StkpPfS0JQ5Cxw/o5UulhqxYxZlgRXFQCUKpn7Lcp/A7WesR5kiyyNA9FC4oEFnsWYyM7RcAoSKwJ3dCoYE2PGTZCnealBnaC0hHBC4wRNCrOCOOolFHoR6VUodJIVKEohSCGJ2MkjODdsw4+l/GlPxnWtnh/4A2BUw44CzxKven5spygAD5WfPMvPMfe1OHRW4aMy0gUZa6dEluR2SlwxmN0DWENEyEVOJjCSg6DALMJpAa6iWGjirVHxLCYOcoycn7kKQrQKDixIJFShUxqciCqsuuFkoiR2gk07TWMFYIqQRWDkPtIgWLF4BVKQrNyQ1kZztuAHxuOW1g4l/KFLxVEwn5s3wSjR4GzE7BONT3Q8UqNlCIwyj1+p8X8jYrtVBxvpZwbV5R1Bk9VCQSDas0paRQKtQyDcrjlONlNGHvwHoIXZoxjd6zkFbSckAetuxFUiSjjWHceBaDwykANIwUVJRNhGIV+UDIrtKSWuIAQJl1iwMDXzH9tEgUjwmop7BjoDoV39VIeuUe5uFJcrsnySgBK07n7uQmAXeBnGvCvCCCibG9EZukyd6NnxXuiGhJnyDWQWsswQMvUs1ARUhFSJ2xXka0qslNFRhGO9uoGp35Tlhz4iDENhY3gY+1VK62BrVQogK6DcUOmpsYQpQY717oNJA+1TcyjsOUNlTYd4lYYDBMurAr9+UhcU+4+mLD7eceDD4wv11x5NRU2wL8DviV7tm493dQ79UrVuckbmmp3uOvHE+beN2Dgla41lCEw5YQ8QCZKJjWZmQoUPmJFmzStrpChtq7WCU3YIE31TxkqjBtqKlIX85saEYWCs8I4xhdMNGiz7ywKUYRB4DkJdgjnAmxWhlLBb8Mdc8L8N1t84Z4xpVb7PRBg8sg+cB2wYRt9HlIf+nC6KRybq3UnFFXFzoWUY7Mtpk6UVL62P4VqHToYKFXwREpf2yqRmvhUESqFIEqFIVLHa16VUYQxht2o5FpnCgKUWveTGWOaYLj2sqEpt6pC0byGkdbMTd5434DgES5GGLpI3BbeMmW4drnFn99TMirLfaVsk/fUYPNp6mMFrN3TsroB/Nx+GspFYJiX7JxPWZrKmD7uGfhAzzoUwUpkZ5iQiqOdKuOoVMAo1vFaFQ2bHsTWUlYBGMtuUCpVjBisCG0HPtadW9JIo4/Py4E2kykB34Qt2xGqpmvTIDxbGZa9UFglrBmu7windlp8+XdgY2e8X7t3qQT+cpOAGLvHKJ5rAuqDV3Mme0HcHZRsnHUc6qYsHKu9Mgp5YyWeWkkZekdIIoPKkthIjLAb61QqawLcqlHf2l4JRurOgjLWds/o86paYahUsVJLpjWwG4VRgFHTFGm0lnTvHauqjAyEi4Y39YRbtrr85e/AhbXhfuK9y0nfo8A/m1Qy7SWtWwL8jas5k0tBHAwrVp9xTMWE6aORjSAUFbRb9WLWthPAsTW0JE5xSUDVYMQwik3hXmDU5Kte9fkWkSYNC7K3Nb5uU9sNwk6AUg15E2cKddPmahCWB5ZNLwwAWRF+aNFw4mKH+39fubA6eLng7XUe/7rZxWSbfXsvKNO1GoSPvxwQVaHXynjrO1scfW/FWSeUpmJqKhAqwYW6yra+nnLNoYKpdt05VTaVL1VBqMVMmmK2vCBuqJmV2CRQI63NwUSbjYK3wiDWpYPzIyEmECro9iN3HEhJHnLc/5mK7dHLVtu9ocvZpiNhPEnn7CXcYNGMv7kfNX4B6eADy88qrGWcWADpCDu5wUsgZJHo6h0xz65avDekWb38qglJjBHGwVDXqBz9JvGPahgHJY8witAPwlhrRzVQYVmF1FjWh4b1HUPfQ+kUHSonRLizk7L7v1Pu+1zOsHEY+vKP4Jlg8c+bfYMT0/eCF71XCr8NHN2vFO6VREhYOtjm9B1C67TnYiuw5pUkifSmAsYIw76l0wo4W2cO0oQak1TNIlSqqKm/H01syrQ1JeUxDCKsjEFzg62EIUpoRfDCXCXc0nHMLad8+0+VJ54c1szgKwdPgGeBN+2Vvst14e/daPP7r2aXUuoyTpzIOHm7wknPssLq2KNWmF9U2u2a4p9EgZ4mhVOwVonB4IOgQfGFQEvZTZQwgOGOYRgjNhE0BW/qnUvzCCdSw6F+wtp9wne+FtjN89qFv/KDnyYY/AzwyUt3K70uW72ef9NCO0k5diLl2CmldVLZ6AV2Op6qG9geQ0cEo3BBldA3HMgNrePKWh/CuhJzwVhLdk2kSAJFKWhJHYF7JVU47CzHE0dvx7L9sPL01wIrG8Vzmwn11YN3xa1er+tmw71AJtZxYN5xzfWG7LqIX4oM5yF2AmMVVsd1k5KvhBCb/A6t92k1HUoS6n0lXWuYTQwLVpitDLJqWP+28OxjkfXNkkjVOKRXBd4r3mz4mm93faEUOLqpMDsjLCw5pg5DdgDMvDBuB0onVBLxMeLrzf1YVVIjtBXalcGMBL8pDJYN62ciKysVwyI8JxyvUupe9XbX123D9YsXZnDG0U6h0zV0O0I25Wi1lTSNmEQIqnivVLky7iujoTLoQ55DGZ8H7TWQuFe04fqlNl1Ojoz7Cq/hMSdXP8NAmmH2DHmF93pVx6B85RIMXpnQ8F04dGLvARNMxgsOkXjxyRy8vsef7PvQiX1th2v+/b459uS7BN6r2qV/OacyAfGNg3deQxDfOPrpFYL4xuFjr4FNfOP4u1cT0vHGAYyvyfXGEaCvIYjwxiG0r8ouvnEM8mvopSfF+jcO4n6FDub/m6Pg3/hjBN/HAF5Otf/K/TmM/wcIXRQp7sLaawAAAABJRU5ErkJggg==" alt="TGT">
+      <div>
+        <div class="trading-name">The Green Tangerine</div>
+        <div class="business-type">Live Music Entertainment</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="invoice-title">Invoice</div>
+      <div class="invoice-number">INV-047</div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="divider">
+    <div class="divider-line-left"></div>
+    <div class="divider-dots">
+      <span class="dot-red">&#9679;</span>
+      <span class="dot-gold">&#9670;</span>
+      <span class="dot-red">&#9679;</span>
+    </div>
+    <div class="divider-line-right"></div>
+  </div>
+
+  <!-- Dates -->
+  <div class="dates-row">
+    <div>
+      <div class="date-label">Issue Date</div>
+      <div class="date-value">25 December 2026</div>
+    </div>
+    <div>
+      <div class="date-label">Due Date</div>
+      <div class="date-value">08 January 2027</div>
+    </div>
+    <div>
+      <div class="date-label">Payment Terms</div>
+      <div class="date-value">14 days</div>
+    </div>
+  </div>
+
+  <!-- From / To -->
+  <div class="from-to-row">
+    <div class="from-to-col">
+      <div class="section-label">From</div>
+      <div class="from-name">Nathan Thomas</div>
+      <div class="from-ta">t/a The Green Tangerine</div>
+      <div class="from-website">www.thegreentangerine.com</div>
+    </div>
+    <div class="from-to-col">
+      <div class="section-label">Bill To</div>
+      <div class="to-company">The Holly &amp; Ivy Tavern</div>
+      <div class="to-contact">Margaret Whitfield</div>
+      <div class="to-address">42 Cathedral Road
+Cardiff CF11 9LL</div>
+    </div>
+  </div>
+
+  <!-- Description -->
+  <div class="description-wrapper">
+    <div class="description-box">
+      <div class="desc-label">Description</div>
+      <div class="desc-text">Live band performance — Christmas Eve Special
+Full 4-piece band, 2 × 45-minute sets
+Including festive repertoire and audience requests</div>
+    </div>
+  </div>
+
+  <!-- Amount -->
+  <div class="amount-wrapper">
+    <div class="amount-box">
+      <div class="amount-label">Total Amount Due</div>
+      <div class="amount-value">&pound;1,200.00</div>
+    </div>
+  </div>
+
+  <!-- Bank details -->
+  <div class="bank-wrapper">
+    <div class="bank-title">Payment Details</div>
+    <div class="bank-row">
+      <div>
+        <div class="bank-label">Account Name</div>
+        <div class="bank-value">Nathan Thomas</div>
+      </div>
+      <div>
+        <div class="bank-label">Bank</div>
+        <div class="bank-value">Starling Bank</div>
+      </div>
+      <div>
+        <div class="bank-label">Sort Code</div>
+        <div class="bank-value">60-83-71</div>
+      </div>
+      <div>
+        <div class="bank-label">Account No.</div>
+        <div class="bank-value">12345678</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-message">Thank you for your business — Wishing you a wonderful festive season &#10022;</div>
+    <div class="footer-website">www.thegreentangerine.com</div>
+  </div>
+
+  <!-- Gold bottom accent -->
+  <div class="gold-accent-bottom"></div>
+</div>
+
+</body>
+</html>
