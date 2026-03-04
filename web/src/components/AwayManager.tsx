@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { getMyAwayDates, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
+import { getMyAwayDates, createAwayDate, deleteAwayDate, updateAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 
@@ -19,6 +19,7 @@ function formatRange(start: string, end: string): string {
 export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
   const [awayDates, setAwayDates] = useState<AwayDate[]>([]);
   const [showForm, setShowForm] = useState(!!initialDate);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(initialDate ?? new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(initialDate ?? new Date().toISOString().split('T')[0]);
   const [reason, setReason] = useState('');
@@ -33,20 +34,37 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
 
   useEffect(() => { fetchDates(); }, []);
 
+  function startEdit(a: AwayDate) {
+    setEditingId(a.id);
+    setStartDate(a.start_date);
+    setEndDate(a.end_date);
+    setReason(a.reason ?? '');
+    setShowForm(true);
+    setError('');
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (endDate < startDate) { setError('End date must be on or after start date'); return; }
     setSaving(true);
     setError('');
     try {
-      await createAwayDate({ start_date: startDate, end_date: endDate, reason });
+      if (editingId) {
+        await updateAwayDate(editingId, { start_date: startDate, end_date: endDate, reason });
+      } else {
+        await createAwayDate({ start_date: startDate, end_date: endDate, reason });
+      }
       setShowForm(false);
+      setEditingId(null);
       setReason('');
       fetchDates();
     } catch (err) {
       if (isNetworkError(err)) {
-        queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        if (!editingId) {
+          queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        }
         setShowForm(false);
+        setEditingId(null);
         setReason('');
         return;
       }
@@ -83,7 +101,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
 
       {awayDates.map(a => (
         <div key={a.id} className="away-card neu-inset">
-          <div className="away-card-content">
+          <div className="away-card-content" style={{ cursor: 'pointer' }} onClick={() => startEdit(a)}>
             <div className="away-range">{formatRange(a.start_date, a.end_date)}</div>
             {a.reason && <div className="away-reason">{a.reason}</div>}
           </div>
@@ -93,7 +111,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
 
       {showForm ? (
         <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Add Away Period</h3>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>{editingId ? 'Edit Away Period' : 'Add Away Period'}</h3>
 
           <label className="label" htmlFor="away-from">FROM</label>
           <div className="neu-inset">
@@ -116,7 +134,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
           {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>{error}</p>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
-            <button className="btn btn-small" type="button" onClick={() => setShowForm(false)}>Cancel</button>
+            <button className="btn btn-small" type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
             <button className="btn btn-small btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>

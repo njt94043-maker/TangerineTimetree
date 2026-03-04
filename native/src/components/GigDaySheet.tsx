@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle, neuInsetStyle } from '../theme/shadows';
 import { NeuButton } from './NeuButton';
@@ -65,12 +65,25 @@ export function GigDaySheet({ visible, date, awayDates, onClose, onAddGig, onEdi
     a => date >= a.start_date && date <= a.end_date,
   );
 
+  // Swipe-down dismiss
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const swipePan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gs) => gs.dy > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+    onPanResponderRelease: (_, gs) => {
+      if (gs.dy > 60) onCloseRef.current();
+    },
+  }), []);
+
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent>
       <View style={styles.overlay}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
         <View style={[styles.sheet, neuRaisedStyle('strong')]}>
-          <View style={styles.handle} />
+          <View {...swipePan.panHandlers} style={styles.handleArea}>
+            <View style={styles.handle} />
+          </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
             <Text style={styles.dateTitle}>{formatDisplayDate(date)}</Text>
@@ -198,13 +211,15 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
+  handleArea: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
   handle: {
     width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: COLORS.textMuted,
-    alignSelf: 'center',
-    marginBottom: 12,
   },
   scroll: { flexGrow: 1 },
   dateTitle: {

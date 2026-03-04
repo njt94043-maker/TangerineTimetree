@@ -7,6 +7,7 @@ interface LoginPageProps {
 export function LoginPage({ onSignIn }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -77,16 +78,29 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
         </div>
 
         <label htmlFor="login-password" className="label" style={{ textAlign: 'left' }}>PASSWORD</label>
-        <div className="neu-inset" style={{ marginBottom: 14 }}>
+        <div className="neu-inset" style={{ marginBottom: 14, position: 'relative' }}>
           <input
             id="login-password"
             className="input-field"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             autoComplete="current-password"
+            style={{ paddingRight: 44 }}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(s => !s)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            style={{
+              position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', color: 'var(--color-text-dim)',
+              cursor: 'pointer', fontSize: 13, padding: 6, minWidth: 32, minHeight: 32,
+            }}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
         </div>
 
         {error && (

@@ -39,6 +39,7 @@ export default function GigsTab() {
 function LoginGate({ signIn, insetTop }: { signIn: (e: string, p: string) => Promise<string | null>; insetTop: number }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -73,15 +74,20 @@ function LoginGate({ signIn, insetTop }: { signIn: (e: string, p: string) => Pro
           />
         </View>
 
-        <View style={[styles.inputWrap, neuInsetStyle()]}>
+        <View style={[styles.inputWrap, neuInsetStyle(), { flexDirection: 'row', alignItems: 'center' }]}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { flex: 1 }]}
             placeholder="Password"
             placeholderTextColor={COLORS.textMuted}
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
           />
+          <Pressable onPress={() => setShowPassword(s => !s)} hitSlop={8} style={{ paddingHorizontal: 12 }}>
+            <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.teal }}>
+              {showPassword ? 'Hide' : 'Show'}
+            </Text>
+          </Pressable>
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}

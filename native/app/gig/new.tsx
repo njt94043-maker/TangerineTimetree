@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { COLORS, FONTS } from '../../src/theme';
 import { neuRaisedStyle, neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
@@ -32,7 +33,27 @@ export default function GigFormScreen() {
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [timePickerTarget, setTimePickerTarget] = useState<'load' | 'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
+
+  function timeToDate(hhmm: string): Date {
+    const [h, m] = hhmm.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h || 0, m || 0, 0, 0);
+    return d;
+  }
+
+  function handleTimePicked(_: DateTimePickerEvent, selected?: Date) {
+    if (Platform.OS === 'android') setTimePickerTarget(null);
+    if (!selected) return;
+    const hh = String(selected.getHours()).padStart(2, '0');
+    const mm = String(selected.getMinutes()).padStart(2, '0');
+    const val = `${hh}:${mm}`;
+    if (timePickerTarget === 'load') setLoadTime(val);
+    else if (timePickerTarget === 'start') setStartTime(val);
+    else if (timePickerTarget === 'end') setEndTime(val);
+    if (Platform.OS === 'ios') setTimePickerTarget(null);
+  }
 
   // Load existing gig when editing
   useEffect(() => {
@@ -256,41 +277,35 @@ export default function GigFormScreen() {
         {!isPractice && (
           <>
             <Text style={styles.label}>LOAD-IN TIME</Text>
-            <View style={[styles.fieldWrap, neuInsetStyle()]}>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 18:00"
-                placeholderTextColor={COLORS.textMuted}
-                value={loadTime}
-                onChangeText={setLoadTime}
-              />
-            </View>
+            <Pressable onPress={() => setTimePickerTarget('load')}>
+              <View style={[styles.fieldWrap, neuInsetStyle()]}>
+                <Text style={[styles.fieldText, !loadTime && styles.placeholder]}>
+                  {loadTime || 'Tap to set'}
+                </Text>
+              </View>
+            </Pressable>
           </>
         )}
 
         {/* Start time */}
         <Text style={styles.label}>START TIME</Text>
-        <View style={[styles.fieldWrap, neuInsetStyle()]}>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 21:00"
-            placeholderTextColor={COLORS.textMuted}
-            value={startTime}
-            onChangeText={setStartTime}
-          />
-        </View>
+        <Pressable onPress={() => setTimePickerTarget('start')}>
+          <View style={[styles.fieldWrap, neuInsetStyle()]}>
+            <Text style={[styles.fieldText, !startTime && styles.placeholder]}>
+              {startTime || 'Tap to set'}
+            </Text>
+          </View>
+        </Pressable>
 
         {/* End time */}
         <Text style={styles.label}>END TIME (OPTIONAL)</Text>
-        <View style={[styles.fieldWrap, neuInsetStyle()]}>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. 23:30"
-            placeholderTextColor={COLORS.textMuted}
-            value={endTime}
-            onChangeText={setEndTime}
-          />
-        </View>
+        <Pressable onPress={() => setTimePickerTarget('end')}>
+          <View style={[styles.fieldWrap, neuInsetStyle()]}>
+            <Text style={[styles.fieldText, !endTime && styles.placeholder]}>
+              {endTime || 'Tap to set'}
+            </Text>
+          </View>
+        </Pressable>
 
         {/* Notes */}
         <Text style={styles.label}>NOTES (OPTIONAL)</Text>
@@ -328,6 +343,19 @@ export default function GigFormScreen() {
         onConfirm={(d) => { setDate(d); setCalendarVisible(false); }}
         onCancel={() => setCalendarVisible(false)}
       />
+
+      {timePickerTarget !== null && (
+        <DateTimePicker
+          mode="time"
+          is24Hour
+          value={timeToDate(
+            timePickerTarget === 'load' ? loadTime || '18:00'
+            : timePickerTarget === 'start' ? startTime || '21:00'
+            : endTime || '23:30'
+          )}
+          onChange={handleTimePicked}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }

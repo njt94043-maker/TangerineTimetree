@@ -222,7 +222,25 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  position: relative;
 }
+.today-btn {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: none;
+  border: 1px solid var(--color-tangerine);
+  color: var(--color-tangerine);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: background 0.15s;
+}
+.today-btn:hover { background: rgba(243,156,18,0.12); }
 /* 2.2: calendar arrows bumped to 14px pad + 44×44 min */
 .calendar-arrow {
   background: none;
@@ -306,13 +324,19 @@ html, body, #root {
 }
 .calendar-cell.unavailable .day-num { color: rgba(255,82,82,0.6); }
 
-/* 2.5: day indicator dots bumped from 5px to 7px */
-.day-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+/* 6.5: multiple dots container */
+.day-dots {
+  display: flex;
+  gap: 2px;
   position: absolute;
-  bottom: 4px;
+  bottom: 3px;
+  justify-content: center;
+}
+.day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  position: relative;
 }
 .day-dot.incomplete::after {
   content: '';
