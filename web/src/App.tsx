@@ -114,62 +114,52 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
           <img src="/logo.png" alt="TGT" className="header-logo" />
           <span className="header-title">Timetree</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {isMainView && (
-            <div className="view-toggle">
-              <button
-                className={`view-toggle-btn ${view === 'calendar' ? 'active' : ''}`}
-                onClick={() => setView('calendar')}
-              >
-                Cal
-              </button>
-              <button
-                className={`view-toggle-btn ${view === 'list' ? 'active' : ''}`}
-                onClick={() => setView('list')}
-              >
-                List
-              </button>
-            </div>
-          )}
-          <div className="header-user" onClick={onSignOut}>
-            {profile?.name ?? 'User'} &middot; Sign out
-          </div>
+        <div className="header-user" onClick={onSignOut}>
+          {profile?.name ?? 'User'} &middot; Sign out
         </div>
       </div>
 
       {/* Views */}
       {view === 'calendar' && (
-        <>
-          <Calendar
-            year={year}
-            month={month}
-            gigs={gigs}
-            awayDates={awayDates}
-            totalMembers={profiles.length}
-            onDatePress={handleDatePress}
-            onPrevMonth={goToPrev}
-            onNextMonth={goToNext}
-          />
-          <div style={{ padding: '12px 20px' }}>
-            <button className="btn btn-green btn-small" style={{ width: '100%' }} onClick={() => setView('away')}>
-              My Away Dates
-            </button>
-          </div>
-        </>
+        <Calendar
+          year={year}
+          month={month}
+          gigs={gigs}
+          awayDates={awayDates}
+          totalMembers={profiles.length}
+          onDatePress={handleDatePress}
+          onPrevMonth={goToPrev}
+          onNextMonth={goToNext}
+        />
       )}
 
       {view === 'list' && (
-        <>
-          <GigList
-            onGigPress={handleGigPressFromList}
-            onAddGig={handleAddGigFromList}
-          />
-          <div style={{ padding: '12px 20px' }}>
-            <button className="btn btn-green btn-small" style={{ width: '100%' }} onClick={() => setView('away')}>
-              My Away Dates
+        <GigList
+          onGigPress={handleGigPressFromList}
+          onAddGig={handleAddGigFromList}
+        />
+      )}
+
+      {isMainView && (
+        <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="view-toggle" style={{ alignSelf: 'center' }}>
+            <button
+              className={`view-toggle-btn ${view === 'calendar' ? 'active' : ''}`}
+              onClick={() => setView('calendar')}
+            >
+              Cal
+            </button>
+            <button
+              className={`view-toggle-btn ${view === 'list' ? 'active' : ''}`}
+              onClick={() => setView('list')}
+            >
+              List
             </button>
           </div>
-        </>
+          <button className="btn btn-green btn-small" style={{ width: '100%' }} onClick={() => setView('away')}>
+            My Away Dates
+          </button>
+        </div>
       )}
 
       {view === 'day-detail' && (

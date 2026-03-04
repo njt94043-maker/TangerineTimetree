@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/theme';
@@ -7,6 +7,7 @@ import { neuRaisedStyle, neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
 import { GigCalendar } from '../../src/components/GigCalendar';
 import { GigDaySheet } from '../../src/components/GigDaySheet';
+import { GigList } from '../../src/components/GigList';
 import { useAuth } from '../../src/supabase/AuthContext';
 import { getGigsForMonth, getAwayDatesForMonth, getProfiles } from '@shared/supabase/queries';
 import { supabase } from '../../src/supabase/client';
@@ -28,7 +29,7 @@ export default function GigsTab() {
     return <LoginGate signIn={signIn} insetTop={insets.top} />;
   }
 
-  return <GigsCalendarView insetTop={insets.top} insetBottom={insets.bottom} />;
+  return <GigsMainView insetTop={insets.top} insetBottom={insets.bottom} />;
 }
 
 // ─── Login gate ─────────────────────────────────────────
@@ -93,10 +94,13 @@ function LoginGate({ signIn, insetTop }: { signIn: (e: string, p: string) => Pro
   );
 }
 
-// ─── Calendar view ──────────────────────────────────────
+// ─── Main view (calendar + list toggle) ─────────────────
 
-function GigsCalendarView({ insetTop, insetBottom }: { insetTop: number; insetBottom: number }) {
+type ViewMode = 'calendar' | 'list';
+
+function GigsMainView({ insetTop, insetBottom }: { insetTop: number; insetBottom: number }) {
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [awayDates, setAwayDates] = useState<AwayDateWithUser[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -157,7 +161,6 @@ function GigsCalendarView({ insetTop, insetBottom }: { insetTop: number; insetBo
 
   function handleEditGig(gigId: string) {
     setSheetVisible(false);
-    // Find the gig to pass its type to the form
     const gig = gigs.find(g => g.id === gigId);
     router.push({ pathname: '/gig/new', params: { gigId, gigType: gig?.gig_type ?? 'gig' } });
   }
@@ -167,19 +170,51 @@ function GigsCalendarView({ insetTop, insetBottom }: { insetTop: number; insetBo
     router.push({ pathname: '/gig/away', params: { date: selectedDate ?? '' } });
   }
 
+  function handleGigPressFromList(gigId: string, gigType: string) {
+    router.push({ pathname: '/gig/new', params: { gigId, gigType } });
+  }
+
+  function handleAddGigFromList(date: string, type: 'gig' | 'practice') {
+    router.push({ pathname: '/gig/new', params: { date, gigType: type } });
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insetTop + 8, paddingBottom: insetBottom + 70 }]}>
-      <Text style={styles.screenTitle}>Gig Calendar</Text>
+      <Text style={styles.screenTitle}>Gigs</Text>
 
-      <GigCalendar
-        gigs={gigs}
-        awayDates={awayDates}
-        totalMembers={profiles.length || 4}
-        onDatePress={handleDatePress}
-      />
+      {viewMode === 'calendar' && (
+        <GigCalendar
+          gigs={gigs}
+          awayDates={awayDates}
+          totalMembers={profiles.length || 4}
+          onDatePress={handleDatePress}
+        />
+      )}
 
-      {/* Quick away dates button */}
-      <View style={styles.quickActions}>
+      {viewMode === 'list' && (
+        <GigList
+          onGigPress={handleGigPressFromList}
+          onAddGig={handleAddGigFromList}
+        />
+      )}
+
+      {/* Cal/List toggle + away dates */}
+      <View style={styles.bottomActions}>
+        <View style={styles.viewToggle}>
+          <Pressable
+            onPress={() => setViewMode('calendar')}
+            style={[styles.toggleBtn, viewMode === 'calendar' && styles.toggleBtnActive]}
+          >
+            <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>Cal</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setViewMode('list')}
+            style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+          >
+            <Text style={[styles.toggleText, viewMode === 'list' && styles.toggleTextActive]}>List</Text>
+          </Pressable>
+        </View>
+
         <NeuButton
           label="My Away Dates"
           onPress={() => router.push('/gig/away')}
@@ -247,8 +282,33 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 14,
   },
-  quickActions: {
+  bottomActions: {
     paddingHorizontal: 20,
     marginTop: 12,
+    gap: 10,
+    alignItems: 'center',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.card,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
+  },
+  toggleBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+  },
+  toggleBtnActive: {
+    backgroundColor: 'rgba(243,156,18,0.12)',
+  },
+  toggleText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
+  toggleTextActive: {
+    color: COLORS.orange,
   },
 });
