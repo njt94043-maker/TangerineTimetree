@@ -648,3 +648,112 @@
 - Push to GitHub → Vercel deploys Phase 2 + 3 web changes
 - Build release APK → test on device (scroll fix, count badges, toast feedback)
 - Test web on iPhone (touch targets, safe areas, focus states)
+
+---
+
+## Session: 2026-03-04 — Phase 4: In-App Change Summary
+
+### What Was Done
+
+**4.1 — Supabase migration:**
+- Added `last_opened_at TIMESTAMPTZ DEFAULT NOW()` column to `profiles` table
+- Created `away_date_changelog` table (id, away_date_id, user_id, action, date_range, reason, created_at)
+- RLS policies: authenticated read, own inserts
+- Migration applied via `supabase db push` (Supabase CLI linked to project jlufqgslgjowfaqmqlds)
+- Migration file: `supabase/migrations/20260304105634_phase4_change_summary.sql`
+
+**4.2 — Shared queries (`shared/supabase/queries.ts`):**
+- `updateLastOpened()`: Updates `profiles.last_opened_at` to NOW() for current user
+- `getChangesSince(since)`: Queries both `gig_changelog` and `away_date_changelog` for entries after `since`, by other users only. JOINs profiles for names, gigs for venue/date context. Returns `ChangeSummaryItem[]` with human-readable descriptions, sorted by most recent, limited to 10
+- `createAwayDate()`: Now logs to `away_date_changelog` (action: 'created', date_range, reason)
+- `deleteAwayDate()`: Now fetches away date info before delete, logs to `away_date_changelog` (action: 'deleted')
+
+**4.3 — Shared types (`shared/supabase/types.ts`):**
+- Added `last_opened_at` to `Profile` interface
+- Added `ChangeSummaryItem` type: `{ type, action, user_name, description, created_at }`
+- Formatter logic inlined into `getChangesSince()` — no separate file needed
+
+**4.4 — Web implementation (`web/src/App.tsx` + `web/src/App.css`):**
+- On MainView mount, fetches changes since `profile.last_opened_at` (once per session via useRef flag)
+- Dismissible banner with tangerine left border, dark card, lists changes with colored dots (green for gig, red for away)
+- "Dismiss" button calls `updateLastOpened()` and clears banner
+- New CSS classes: `.change-banner`, `.change-banner-header`, `.change-banner-title`, `.change-banner-dismiss`, `.change-banner-list`, `.change-banner-item`, `.change-dot`
+
+**4.5 — Native implementation (`native/app/(tabs)/gigs.tsx`):**
+- On first mount, fetches changes since `profile.last_opened_at` (once per session via useRef flag)
+- Shows `Alert.alert("What's Changed", summary)` with formatted list
+- On dismiss (OK button), calls `updateLastOpened()`
+- `profile` prop passed from GigsTab to GigsMainView
+
+**Decisions:** D-057 (in-app change summary), D-058 (away_date_changelog table), D-059 (last_opened_at tracking)
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+- `npx vite build` passes (7 precache entries, 627 KiB)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Push to GitHub → Vercel deploys Phase 2 + 3 + 4 web changes
+- Build release APK → test on device (change summary alert, scroll fix, count badges, toast)
+- Test web on iPhone (touch targets, safe areas, focus states, change banner)
+- Phase 5: Full Offline Support (service worker caching, offline queue)
+
+---
+
+## Session: 2026-03-04 — Phase 5: Full Offline Support
+
+### What Was Done
+
+**5.1 — Web: Service worker offline caching (`web/vite.config.ts`):**
+- Added Workbox `runtimeCaching` config with two strategies:
+  - Supabase REST API: `NetworkFirst` with 10s timeout, 24h cache, 50 entries max
+  - Google Fonts: `CacheFirst` with 1-year cache, 20 entries max
+- Added offline indicator banner to `App.tsx` — "You're offline — showing cached data"
+- Detects connectivity via `navigator.onLine` + `online`/`offline` events
+- Auto-refreshes calendar data when connectivity returns
+- New `.offline-banner` CSS class in `App.css`
+
+**5.2 — Web: Offline mutation queue (`web/src/hooks/useOfflineQueue.ts`):**
+- New file: localStorage-based mutation queue (5 mutation types: createGig, updateGig, deleteGig, createAwayDate, deleteAwayDate)
+- `isNetworkError()`: detects fetch failures and offline state
+- `queueMutation()`: adds mutation to localStorage queue
+- `useOfflineQueue()` hook: tracks pending count, auto-replays queue on reconnect, calls `onSynced` callback
+- Integrated into `GigForm.tsx`: catches network errors on save/delete, queues and treats as success
+- Integrated into `AwayManager.tsx`: catches network errors on create/delete, queues mutations
+- `App.tsx`: shows pending count in offline banner, shows "X changes syncing..." when back online
+
+**5.3 — Native: AsyncStorage cache (`native/src/utils/offlineCache.ts`):**
+- New file: caches gigs, away dates, and profiles in AsyncStorage keyed by year-month
+- `cacheCalendarData()`: stores after each successful network fetch
+- `getCachedCalendarData()`: retrieves cached data for given month
+- `gigs.tsx` `fetchData()`: on network failure, falls back to cache and shows "Offline — showing cached data" banner
+- New `offlineBanner` / `offlineBannerText` styles
+
+**5.4 — Native: Offline mutation queue (`native/src/utils/offlineQueue.ts`):**
+- New file: AsyncStorage-based mutation queue (same 5 mutation types as web)
+- `isNetworkError()` / `queueMutation()`: detect and queue failed mutations
+- `replayQueue()`: replays queued mutations when online, keeps failed items
+- `startOfflineQueueListener()`: subscribes to NetInfo connectivity changes, auto-replays on reconnect
+- Installed `@react-native-community/netinfo` package
+- Integrated into `gig/new.tsx`: catches network errors on save/delete, queues with toast feedback
+- Integrated into `gig/away.tsx`: catches network errors on create/delete away dates
+- `gigs.tsx`: starts offline queue listener alongside realtime subscriptions
+
+**Decisions:** D-060 (NetworkFirst SW caching), D-061 (offline mutation queue pattern), D-062 (AsyncStorage cache)
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+- `npx vite build` passes (7 precache entries, 630 KiB)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Push to GitHub → Vercel deploys Phase 2–5 web changes
+- Build release APK → test on device (offline mode, change summary, all Phase 3 fixes)
+- Test web on iPhone (offline indicator, change banner, touch targets, safe areas)
+- Phase 6: Polish & Remaining Items (today button, time picker, calendar preservation, etc.)

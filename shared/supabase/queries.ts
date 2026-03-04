@@ -7,6 +7,7 @@ import type {
   AwayDate,
   AwayDateWithUser,
   GigChangelogWithUser,
+  ChangeSummaryItem,
 } from './types';
 
 function checkAuthError(error: any): void {
@@ -270,11 +271,44 @@ export async function createAwayDate(params: {
     .single();
 
   if (error) { checkAuthError(error); throw error; }
+
+  // Log to away_date_changelog
+  const range = params.start_date === params.end_date
+    ? params.start_date
+    : `${params.start_date} to ${params.end_date}`;
+  await supabase.from('away_date_changelog').insert({
+    away_date_id: data.id,
+    user_id: user.id,
+    action: 'created',
+    date_range: range,
+    reason: params.reason ?? '',
+  });
+
   return data;
 }
 
 export async function deleteAwayDate(id: string): Promise<void> {
   const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Fetch away date info for changelog before deleting
+  const { data: current } = await supabase.from('away_dates').select('start_date, end_date, reason').eq('id', id).single();
+
+  // Log deletion before delete
+  if (current) {
+    const range = current.start_date === current.end_date
+      ? current.start_date
+      : `${current.start_date} to ${current.end_date}`;
+    await supabase.from('away_date_changelog').insert({
+      away_date_id: id,
+      user_id: user.id,
+      action: 'deleted',
+      date_range: range,
+      reason: current.reason ?? '',
+    });
+  }
+
   const { error } = await supabase.from('away_dates').delete().eq('id', id);
   if (error) { checkAuthError(error); throw error; }
 }
@@ -296,4 +330,70 @@ export async function getGigChangelog(gigId: string): Promise<GigChangelogWithUs
     user_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
   }));
+}
+
+// ─── Change Summary ─────────────────────────────────────
+
+export async function updateLastOpened(): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from('profiles').update({ last_opened_at: new Date().toISOString() }).eq('id', user.id);
+}
+
+export async function getChangesSince(since: string): Promise<ChangeSummaryItem[]> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  // Fetch gig changelog entries since last opened (by other users)
+  const { data: gigChanges } = await supabase
+    .from('gig_changelog')
+    .select('*, profiles!gig_changelog_user_id_fkey(name), gigs!gig_changelog_gig_id_fkey(date, venue)')
+    .gt('created_at', since)
+    .neq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Fetch away date changelog entries since last opened (by other users)
+  const { data: awayChanges } = await supabase
+    .from('away_date_changelog')
+    .select('*, profiles!away_date_changelog_user_id_fkey(name)')
+    .gt('created_at', since)
+    .neq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const items: ChangeSummaryItem[] = [];
+
+  for (const c of (gigChanges ?? [])) {
+    const userName = (c as any).profiles?.name ?? 'Someone';
+    const gig = (c as any).gigs;
+    let description = '';
+    if (c.action === 'created') {
+      description = `added a ${gig?.venue ? `gig at ${gig.venue}` : 'gig'}${gig?.date ? ` on ${formatShortDate(gig.date)}` : ''}`;
+    } else if (c.action === 'deleted') {
+      description = `removed a gig${c.old_value ? ` (${c.old_value})` : ''}`;
+    } else if (c.action === 'updated') {
+      description = `updated ${c.field_changed?.replace(/_/g, ' ')}${gig?.venue ? ` for ${gig.venue}` : ''}${c.new_value ? ` to "${c.new_value}"` : ''}`;
+    }
+    items.push({ type: 'gig', action: c.action, user_name: userName, description, created_at: c.created_at });
+  }
+
+  for (const c of (awayChanges ?? [])) {
+    const userName = (c as any).profiles?.name ?? 'Someone';
+    const description = c.action === 'created'
+      ? `marked away ${c.date_range}${c.reason ? ` (${c.reason})` : ''}`
+      : `removed away date ${c.date_range}`;
+    items.push({ type: 'away', action: c.action, user_name: userName, description, created_at: c.created_at });
+  }
+
+  // Sort by most recent first, limit to 10
+  items.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return items.slice(0, 10);
+}
+
+function formatShortDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }

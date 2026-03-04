@@ -3,6 +3,7 @@ import { supabase } from '../supabase/client';
 import { createGig, updateGig, deleteGig } from '@shared/supabase/queries';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig } from '@shared/supabase/types';
+import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 
 interface GigFormProps {
   date: string;
@@ -86,6 +87,21 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       }
       onSaved();
     } catch (err) {
+      if (isNetworkError(err)) {
+        const offlineData = {
+          date, gig_type: gigType, venue, client_name: clientName,
+          fee: fee ? parseFloat(fee) : null, payment_type: paymentType,
+          load_time: loadTime || null, start_time: startTime || null,
+          end_time: endTime || null, notes,
+        };
+        if (isEditing && gigId) {
+          queueMutation('updateGig', { id: gigId, updates: offlineData });
+        } else {
+          queueMutation('createGig', offlineData);
+        }
+        onSaved(); // Treat as success — will sync when online
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
@@ -97,7 +113,12 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     try {
       await deleteGig(gigId);
       onSaved();
-    } catch {
+    } catch (err) {
+      if (isNetworkError(err)) {
+        queueMutation('deleteGig', { id: gigId });
+        onSaved();
+        return;
+      }
       setError('Failed to delete');
     }
   }

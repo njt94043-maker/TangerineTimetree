@@ -11,6 +11,7 @@ import { createGig, updateGig, deleteGig, getGigsByDate } from '@shared/supabase
 import { supabase } from '../../src/supabase/client';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigType } from '@shared/supabase/types';
+import { isNetworkError, queueMutation } from '../../src/utils/offlineQueue';
 
 export default function GigFormScreen() {
   const router = useRouter();
@@ -85,6 +86,19 @@ export default function GigFormScreen() {
       }
       router.back();
     } catch (e) {
+      if (isNetworkError(e)) {
+        const gigData = buildGigData();
+        if (isEditing && params.gigId) {
+          await queueMutation('updateGig', { id: params.gigId, updates: gigData });
+        } else {
+          await queueMutation('createGig', gigData);
+        }
+        if (Platform.OS === 'android') {
+          ToastAndroid.show('Saved offline — will sync when connected', ToastAndroid.SHORT);
+        }
+        router.back();
+        return;
+      }
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save gig');
     } finally {
       setSaving(false);
@@ -131,6 +145,14 @@ export default function GigFormScreen() {
             await deleteGig(params.gigId!);
             router.back();
           } catch (e) {
+            if (isNetworkError(e)) {
+              await queueMutation('deleteGig', { id: params.gigId! });
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Queued for sync', ToastAndroid.SHORT);
+              }
+              router.back();
+              return;
+            }
             Alert.alert('Error', 'Failed to delete gig');
           }
         },

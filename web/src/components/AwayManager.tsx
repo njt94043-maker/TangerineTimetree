@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { getMyAwayDates, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
+import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 
 interface AwayManagerProps {
   initialDate?: string;
@@ -43,6 +44,12 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
       setReason('');
       fetchDates();
     } catch (err) {
+      if (isNetworkError(err)) {
+        queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        setShowForm(false);
+        setReason('');
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
@@ -54,7 +61,12 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
     try {
       await deleteAwayDate(id);
       fetchDates();
-    } catch { /* ignore */ }
+    } catch (err) {
+      if (isNetworkError(err)) {
+        queueMutation('deleteAwayDate', { id });
+        setAwayDates(prev => prev.filter(a => a.id !== id));
+      }
+    }
   }
 
   return (
