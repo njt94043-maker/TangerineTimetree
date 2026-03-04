@@ -146,7 +146,9 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="TGT" className="header-logo" />
-          <span className="header-title">Timetree</span>
+          <span className="header-title">
+            {view === 'calendar' ? 'Calendar' : view === 'list' ? 'Upcoming' : view === 'away' ? 'Away Dates' : 'Timetree'}
+          </span>
         </div>
         <button className="header-user" onClick={onSignOut}>
           {profile?.name ?? 'User'} &middot; Sign out
@@ -205,6 +207,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
           onDatePress={handleDatePress}
           onPrevMonth={goToPrev}
           onNextMonth={goToNext}
+          onGoToToday={() => { const n = new Date(); setYear(n.getFullYear()); setMonth(n.getMonth()); }}
         />
       )}
 

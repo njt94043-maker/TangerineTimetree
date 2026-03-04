@@ -11,6 +11,7 @@ interface CalendarProps {
   onDatePress: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
+  onGoToToday: () => void;
 }
 
 const MONTH_NAMES = [
@@ -32,7 +33,7 @@ function toISO(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePress, onPrevMonth, onNextMonth }: CalendarProps) {
+export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePress, onPrevMonth, onNextMonth, onGoToToday }: CalendarProps) {
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -74,6 +75,9 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
         <button className="calendar-arrow" onClick={onPrevMonth} aria-label="Previous month">{'\u25C0'}</button>
         <span className="calendar-month">{MONTH_NAMES[month]} {year}</span>
         <button className="calendar-arrow" onClick={onNextMonth} aria-label="Next month">{'\u25B6'}</button>
+        {(year !== new Date().getFullYear() || month !== new Date().getMonth()) && (
+          <button className="today-btn" onClick={onGoToToday}>Today</button>
+        )}
       </div>
 
       <div className="calendar-grid" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
@@ -88,24 +92,25 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
           const status = computeDayStatus(iso, today, gigs, awayDates, totalMembers);
           const isToday = iso === today;
           const dateGigs = gigsByDate.get(iso) ?? [];
-          const hasIncomplete = dateGigs.some(isGigIncomplete);
 
           const classes = ['calendar-cell', status];
           if (isToday) classes.push('today');
 
           const gigCount = dateGigs.length;
 
+          // Build dots: one per gig (max 3), colored by type
+          const dots = dateGigs.slice(0, 3).map((g, i) => {
+            const color = g.gig_type === 'practice' ? 'var(--color-practice)' : 'var(--color-gig)';
+            const inc = g.gig_type !== 'practice' && isGigIncomplete(g);
+            return <span key={i} className={`day-dot ${inc ? 'incomplete' : ''}`} style={{ background: color }} />;
+          });
+
           return (
             <button key={`day-${day}`} className={classes.join(' ')} onClick={() => onDatePress(iso)} aria-label={`${MONTH_NAMES[month]} ${day}`}>
               <span className="day-num">{day}</span>
-              {status === 'gig' && (
-                <span className={`day-dot ${hasIncomplete ? 'incomplete' : ''}`} style={{ background: 'var(--color-gig)' }} />
-              )}
-              {status === 'practice' && (
-                <span className="day-dot" style={{ background: 'var(--color-practice)' }} />
-              )}
-              {gigCount > 1 && (
-                <span className="day-count">{gigCount}</span>
+              {dots.length > 0 && <span className="day-dots">{dots}</span>}
+              {gigCount > 3 && (
+                <span className="day-count">+{gigCount - 3}</span>
               )}
             </button>
           );

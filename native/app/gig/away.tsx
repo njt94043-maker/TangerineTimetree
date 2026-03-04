@@ -8,7 +8,7 @@ import { neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
 import { NeuCard } from '../../src/components/NeuCard';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
-import { getMyAwayDates, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
+import { getMyAwayDates, createAwayDate, deleteAwayDate, updateAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
 import { TextInput, ToastAndroid, Platform } from 'react-native';
 import { isNetworkError, queueMutation } from '../../src/utils/offlineQueue';
@@ -20,6 +20,7 @@ export default function AwayDatesScreen() {
 
   const [awayDates, setAwayDates] = useState<AwayDate[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [startDate, setStartDate] = useState(params.date ?? new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(params.date ?? new Date().toISOString().split('T')[0]);
   const [reason, setReason] = useState('');
@@ -46,6 +47,14 @@ export default function AwayDatesScreen() {
     if (params.date) setShowForm(true);
   }, [params.date]);
 
+  function startEdit(a: AwayDate) {
+    setEditingId(a.id);
+    setStartDate(a.start_date);
+    setEndDate(a.end_date);
+    setReason(a.reason ?? '');
+    setShowForm(true);
+  }
+
   async function handleSave() {
     if (!startDate || !endDate) return;
     if (endDate < startDate) {
@@ -54,14 +63,22 @@ export default function AwayDatesScreen() {
     }
     setSaving(true);
     try {
-      await createAwayDate({ start_date: startDate, end_date: endDate, reason });
+      if (editingId) {
+        await updateAwayDate(editingId, { start_date: startDate, end_date: endDate, reason });
+      } else {
+        await createAwayDate({ start_date: startDate, end_date: endDate, reason });
+      }
       setShowForm(false);
+      setEditingId(null);
       setReason('');
       fetchAwayDates();
     } catch (e) {
       if (isNetworkError(e)) {
-        await queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        if (!editingId) {
+          await queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        }
         setShowForm(false);
+        setEditingId(null);
         setReason('');
         if (Platform.OS === 'android') ToastAndroid.show('Saved offline — will sync when connected', ToastAndroid.SHORT);
         return;
@@ -134,7 +151,7 @@ export default function AwayDatesScreen() {
         )}
 
         {awayDates.map(a => (
-          <View key={a.id} style={[styles.awayCard, neuInsetStyle()]}>
+          <Pressable key={a.id} onPress={() => startEdit(a)} style={[styles.awayCard, neuInsetStyle()]}>
             <View style={styles.awayCardContent}>
               <Text style={styles.awayRange}>{formatRange(a.start_date, a.end_date)}</Text>
               {a.reason ? <Text style={styles.awayReason}>{a.reason}</Text> : null}
@@ -142,13 +159,13 @@ export default function AwayDatesScreen() {
             <Pressable onPress={() => handleDelete(a.id)} hitSlop={8}>
               <Text style={styles.deleteBtn}>X</Text>
             </Pressable>
-          </View>
+          </Pressable>
         ))}
 
         {/* Add form */}
         {showForm ? (
           <View style={styles.formSection}>
-            <Text style={styles.formTitle}>Add Away Period</Text>
+            <Text style={styles.formTitle}>{editingId ? 'Edit Away Period' : 'Add Away Period'}</Text>
 
             <Text style={styles.label}>FROM</Text>
             <Pressable onPress={() => setPickerTarget('start')}>
@@ -180,7 +197,7 @@ export default function AwayDatesScreen() {
             </View>
 
             <View style={styles.formActions}>
-              <NeuButton label="Cancel" onPress={() => setShowForm(false)} small />
+              <NeuButton label="Cancel" onPress={() => { setShowForm(false); setEditingId(null); }} small />
               <View style={{ width: 12 }} />
               <NeuButton
                 label={saving ? 'Saving...' : 'Save'}

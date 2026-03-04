@@ -313,6 +313,30 @@ export async function deleteAwayDate(id: string): Promise<void> {
   if (error) { checkAuthError(error); throw error; }
 }
 
+export async function updateAwayDate(id: string, params: {
+  start_date: string;
+  end_date: string;
+  reason?: string;
+}): Promise<AwayDate> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('away_dates')
+    .update({
+      start_date: params.start_date,
+      end_date: params.end_date,
+      reason: params.reason ?? '',
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
 // ─── Changelog ──────────────────────────────────────────
 
 export async function getGigChangelog(gigId: string): Promise<GigChangelogWithUser[]> {

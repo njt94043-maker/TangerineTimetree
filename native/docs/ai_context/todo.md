@@ -6,16 +6,20 @@
 ---
 
 ## Current Priority
-- **Phase 6: Polish & Remaining Items** — today button, time picker, calendar preservation, etc.
-- **Push to GitHub** → Vercel deploys Phase 2 + 3 + 4 + 5 web changes
-- **Build release APK** → test on device (offline mode, change summary, scroll fix, count badges, toast)
+- **Push to GitHub** → Vercel deploys Phase 2–6 web changes
+- **Build release APK** → test on device (all phases including Phase 6 polish)
 - **Test Tangerine Timetree on band members' iPhones**: Share URL, test PWA install, verify login
 
-## Recently Completed (Phase 5 — 2026-03-04)
-- [x] 5.1 — Web: Service worker runtimeCaching for Supabase API (NetworkFirst, 24h) + Google Fonts (CacheFirst)
-- [x] 5.2 — Web: Offline mutation queue (localStorage, auto-replay on reconnect, pending count badge)
-- [x] 5.3 — Native: AsyncStorage cache (cache on fetch, serve from cache on network failure, offline banner)
-- [x] 5.4 — Native: Offline mutation queue (AsyncStorage queue, NetInfo listener, auto-replay)
+## Recently Completed (Phase 6 — 2026-03-04)
+- [x] 6.1 — Today button on calendar (both apps) — header button to jump back to current month
+- [x] 6.2 — Time picker on native gig form — replaced text inputs with @react-native-community/datetimepicker
+- [x] 6.3 — Calendar month preservation on web — already working (year/month state in MainView)
+- [x] 6.4 — Away date editing (both apps) — tap to edit, updateAwayDate query, form prefill
+- [x] 6.5 — Multiple gig dots on calendar (both apps) — up to 3 dots colored by type, +N badge
+- [x] 6.6 — Swipe-down dismiss on native day sheet — PanResponder on handle area
+- [x] 6.7 — Dynamic header title on web — shows "Calendar", "Upcoming", "Away Dates" per view
+- [x] 6.8 — PWA launch screen — apple-touch-startup-image + description meta tag
+- [x] 6.9 — Password visibility toggle on login (both apps) — Show/Hide button
 
 ## Backlog
 - Test themed templates on device (7 invoice + 7 receipt styles, SVG decorations)
@@ -35,6 +39,7 @@
 _None identified._
 
 ## Completed
+- [x] Phase 6: Polish & Remaining Items — today button, time picker, dots, swipe dismiss, header, PWA, passwords (2026-03-04)
 - [x] Phase 5: Full Offline Support — SW caching, offline queues, AsyncStorage cache, NetInfo listener (2026-03-04)
 - [x] Phase 4: In-App Change Summary — DB migration, shared queries, web banner, native alert (2026-03-04)
 - [x] Phase 2: Web Visual Redesign — safe areas, touch targets, fonts, contrast, spacing, accessibility (2026-03-04)

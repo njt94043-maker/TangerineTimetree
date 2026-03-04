@@ -116,13 +116,23 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
         <Pressable onPress={goToPrev} style={styles.arrowBtn} hitSlop={12}>
           <Text style={styles.arrow}>{'\u25C0'}</Text>
         </Pressable>
-        <Text style={styles.monthYear}>
-          {MONTH_NAMES[viewMonth]} {viewYear}
-        </Text>
+        <Pressable onPress={() => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); }}>
+          <Text style={styles.monthYear}>
+            {MONTH_NAMES[viewMonth]} {viewYear}
+          </Text>
+        </Pressable>
         <Pressable onPress={goToNext} style={styles.arrowBtn} hitSlop={12}>
           <Text style={styles.arrow}>{'\u25B6'}</Text>
         </Pressable>
       </View>
+      {(viewYear !== now.getFullYear() || viewMonth !== now.getMonth()) && (
+        <Pressable
+          onPress={() => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); }}
+          style={styles.todayBtn}
+        >
+          <Text style={styles.todayBtnText}>Today</Text>
+        </Pressable>
+      )}
 
       {/* Day headers */}
       <View style={styles.row}>
@@ -173,24 +183,30 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
                     >
                       {day}
                     </Text>
-                    {/* Dot indicator for gigs */}
-                    {status === 'gig' && (
-                      <View style={[styles.dot, { backgroundColor: COLORS.calGig }]}>
-                        {hasIncomplete && <View style={styles.incompleteDot} />}
+                    {/* Dots — one per gig, max 3, colored by type */}
+                    {dateGigs.length > 0 && (
+                      <View style={styles.dotsRow}>
+                        {dateGigs.slice(0, 3).map((g, i) => {
+                          const color = g.gig_type === 'practice' ? COLORS.calPractice : COLORS.calGig;
+                          const inc = g.gig_type !== 'practice' && isGigIncomplete(g);
+                          return (
+                            <View key={i} style={[styles.dot, { backgroundColor: color }]}>
+                              {inc && <View style={styles.incompleteDot} />}
+                            </View>
+                          );
+                        })}
                       </View>
                     )}
-                    {/* Dot for practice */}
-                    {status === 'practice' && (
-                      <View style={[styles.dot, { backgroundColor: COLORS.calPractice }]} />
+                    {/* Partial availability dot */}
+                    {status === 'partial' && dateGigs.length === 0 && (
+                      <View style={styles.dotsRow}>
+                        <View style={[styles.dot, { backgroundColor: COLORS.calAway }]} />
+                      </View>
                     )}
-                    {/* Dot for partial availability */}
-                    {status === 'partial' && (
-                      <View style={[styles.dot, { backgroundColor: COLORS.calAway }]} />
-                    )}
-                    {/* Count badge when >1 gig */}
-                    {dateGigs.length > 1 && (
+                    {/* Count badge when >3 gigs */}
+                    {dateGigs.length > 3 && (
                       <View style={styles.countBadge}>
-                        <Text style={styles.countText}>{dateGigs.length}</Text>
+                        <Text style={styles.countText}>+{dateGigs.length - 3}</Text>
                       </View>
                     )}
                   </View>
@@ -241,6 +257,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
   },
+  todayBtn: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.teal,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginTop: -4,
+    marginBottom: 4,
+  },
+  todayBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 10,
+    color: COLORS.teal,
+    letterSpacing: 0.3,
+  },
   row: { flexDirection: 'row' },
   cell: {
     flex: 1,
@@ -277,12 +309,17 @@ const styles = StyleSheet.create({
   gigText: { color: COLORS.calGig, fontFamily: FONTS.bodyBold },
   practiceText: { color: COLORS.calPractice, fontFamily: FONTS.bodyBold },
   availableText: { color: COLORS.calAvailable },
-  dot: {
+  dotsRow: {
     position: 'absolute',
     bottom: 2,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+    flexDirection: 'row',
+    gap: 2,
+    justifyContent: 'center',
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
   },
   incompleteDot: {
     position: 'absolute',

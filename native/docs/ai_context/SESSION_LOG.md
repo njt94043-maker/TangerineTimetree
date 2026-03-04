@@ -757,3 +757,58 @@
 - Build release APK → test on device (offline mode, change summary, all Phase 3 fixes)
 - Test web on iPhone (offline indicator, change banner, touch targets, safe areas)
 - Phase 6: Polish & Remaining Items (today button, time picker, calendar preservation, etc.)
+
+---
+
+## Session: 2026-03-04 — Phase 6: Polish & Remaining Items
+
+### What Was Done
+
+**6.1 — Today button (both apps):**
+- Web Calendar: "Today" button appears in header when not on current month, resets year/month
+- Native Calendar: "Today" pill below header, tapping month title also returns to today
+
+**6.2 — Time picker on native gig form:**
+- Installed `@react-native-community/datetimepicker@8.6.0`
+- Replaced TextInput fields for load-in/start/end time with Pressable + native DateTimePicker
+- Smart defaults: load-in 18:00, start 21:00, end 23:30
+
+**6.3 — Calendar month preservation on web:**
+- Already working — year/month state lives in MainView, persists across Cal↔List switches
+
+**6.4 — Away date editing (both apps):**
+- New `updateAwayDate()` query in `shared/supabase/queries.ts`
+- Web: tap away card content to edit (prefills form, saves via update)
+- Native: same — Pressable card opens form in edit mode with editingId tracking
+
+**6.5 — Multiple gig dots (both apps):**
+- Both calendars now show up to 3 individual dots (one per gig, colored by type)
+- Each dot shows incomplete indicator if applicable
+- Count badge shows "+N" only when >3 gigs on a day
+
+**6.6 — Swipe-down dismiss on native day sheet:**
+- Added PanResponder to handle area (expanded touch target)
+- Swipe down >60px triggers onClose
+
+**6.7 — Dynamic header title on web:**
+- Header shows "Calendar", "Upcoming", "Away Dates" based on current view
+
+**6.8 — PWA launch screen:**
+- Added `apple-touch-startup-image` meta tag pointing to logo-512
+- Added `description` meta tag for better PWA install experience
+
+**6.9 — Password visibility toggle (both apps):**
+- Web: Show/Hide button inside password input
+- Native: Show/Hide text button next to password field
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Push to GitHub → Vercel deploys Phase 2–6 web changes
+- Build release APK → test all Phase 6 items on device
+- Test Tangerine Timetree PWA on band members' iPhones
