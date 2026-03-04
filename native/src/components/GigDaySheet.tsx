@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
-  scroll: { flexGrow: 0 },
+  scroll: { flexGrow: 1 },
   dateTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 18,

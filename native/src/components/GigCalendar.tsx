@@ -187,6 +187,12 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
                     {status === 'partial' && (
                       <View style={[styles.dot, { backgroundColor: COLORS.calAway }]} />
                     )}
+                    {/* Count badge when >1 gig */}
+                    {dateGigs.length > 1 && (
+                      <View style={styles.countBadge}>
+                        <Text style={styles.countText}>{dateGigs.length}</Text>
+                      </View>
+                    )}
                   </View>
                 </Pressable>
               );
@@ -286,6 +292,23 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: COLORS.danger,
+  },
+  countBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countText: {
+    fontFamily: FONTS.mono,
+    fontSize: 8,
+    color: COLORS.text,
+    fontWeight: '700',
   },
   legend: {
     flexDirection: 'row',

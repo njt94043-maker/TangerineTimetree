@@ -13,16 +13,16 @@
   --color-green: #00e676;
   --color-green-dark: #00c853;
 
-  /* ── Text ── */
+  /* ── Text ── (2.4: contrast bumped for WCAG AA) */
   --color-text: #d0d0dc;
-  --color-text-dim: #585870;
-  --color-text-muted: #333344;
+  --color-text-dim: #7a7a94;
+  --color-text-muted: #4a4a60;
 
   /* ── Calendar statuses ── */
   --color-gig: #00e676;
   --color-practice: #bb86fc;
   --color-unavailable: #ff5252;
-  --color-available: #333344;
+  --color-available: #4a4a60;
   --color-danger: #ff5252;
   --color-success: #00e676;
 
@@ -55,12 +55,15 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+/* 2.1: safe area padding on app container */
 .app {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100%;
   display: flex;
   flex-direction: column;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 /* ─── Neumorphic cards ─── */
@@ -78,6 +81,12 @@ html, body, #root {
   border: 1px solid rgba(0,0,0,0.3);
 }
 
+/* ─── Focus visible (2.6: keyboard accessibility) ─── */
+:focus-visible {
+  outline: 2px solid var(--color-tangerine);
+  outline-offset: 2px;
+}
+
 /* ─── Buttons ─── */
 .btn {
   background-color: var(--bg-card);
@@ -85,6 +94,7 @@ html, body, #root {
   box-shadow: var(--shadow-raised);
   border: 1px solid rgba(255,255,255,0.04);
   padding: 14px 20px;
+  min-height: 48px;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 13px;
@@ -93,7 +103,6 @@ html, body, #root {
   text-align: center;
   transition: box-shadow 0.15s, transform 0.1s;
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
 }
 .btn:active { box-shadow: var(--shadow-inset); transform: scale(0.97); }
 .btn-tangerine {
@@ -115,7 +124,7 @@ html, body, #root {
   color: var(--color-danger);
   border-color: rgba(255,82,82,0.12);
 }
-.btn-small { padding: 10px 16px; font-size: 12px; }
+.btn-small { padding: 10px 16px; font-size: 12px; min-height: 44px; }
 .btn-primary {
   background: linear-gradient(135deg, var(--color-green), var(--color-green-dark));
   color: #000;
@@ -137,8 +146,9 @@ html, body, #root {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--color-text);
+  min-height: 44px;
 }
-.input-field::placeholder { color: var(--color-text-muted); }
+.input-field::placeholder { color: var(--color-text-dim); }
 .input-field[type="date"],
 .input-field[type="time"] {
   color-scheme: dark;
@@ -151,30 +161,39 @@ html, body, #root {
   cursor: pointer;
 }
 .input-field[type="number"] { font-family: var(--font-mono); }
+/* 2.6: focus-visible for inputs inside neu-inset */
+.neu-inset:focus-within {
+  border-color: var(--color-tangerine);
+  box-shadow: var(--shadow-inset), 0 0 0 1px rgba(243,156,18,0.3);
+}
+.input-field:focus { outline: none; }
 
+/* 2.3: form labels bumped from 10px to 11px */
 .label {
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-text-dim);
   letter-spacing: 0.8px;
   text-transform: uppercase;
-  margin: 14px 0 6px 2px;
+  margin: 16px 0 6px 2px;
 }
 
 /* ─── Header ─── */
+/* 2.1: safe area top + 2.5: bottom border, logo 40px */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px 8px;
+  padding: max(16px, env(safe-area-inset-top)) 20px 8px;
   position: sticky;
   top: 0;
   background: linear-gradient(180deg, var(--bg-primary) 70%, transparent);
   z-index: 10;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
 .header-logo {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   box-shadow: 0 0 10px rgba(243,156,18,0.3);
 }
@@ -188,6 +207,10 @@ html, body, #root {
   font-size: 12px;
   color: var(--color-text-dim);
   cursor: pointer;
+  padding: 8px 0 8px 8px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
   transition: color 0.15s;
 }
 .header-user:active { color: var(--color-tangerine); }
@@ -200,14 +223,19 @@ html, body, #root {
   justify-content: space-between;
   margin-bottom: 12px;
 }
+/* 2.2: calendar arrows bumped to 14px pad + 44×44 min */
 .calendar-arrow {
   background: none;
   border: none;
   color: var(--color-tangerine);
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
-  padding: 8px;
-  -webkit-tap-highlight-color: transparent;
+  padding: 14px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: text-shadow 0.15s;
 }
 .calendar-arrow:active { text-shadow: var(--glow-tangerine); }
@@ -216,21 +244,24 @@ html, body, #root {
   font-size: 16px;
   color: var(--color-text);
 }
+/* 2.5: calendar gap bumped from 2px to 3px */
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 3px;
 }
+/* 2.3: day headers bumped from 10px to 11px */
 .calendar-day-header {
   text-align: center;
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--color-text-dim);
   text-transform: uppercase;
   padding: 4px 0;
 }
 .calendar-day-header.weekend { color: var(--color-text-muted); }
 
+/* 2.2: calendar cells min-height from 40px to 44px */
 .calendar-cell {
   aspect-ratio: 1;
   display: flex;
@@ -241,14 +272,14 @@ html, body, #root {
   border-radius: 50%;
   position: relative;
   font-size: 14px;
-  -webkit-tap-highlight-color: transparent;
-  min-height: 40px;
+  min-height: 44px;
   transition: box-shadow 0.15s, background 0.15s;
 }
 .calendar-cell:hover { background: rgba(255,255,255,0.02); }
+/* 2.5: bolder today indicator */
 .calendar-cell.today {
   border: 2px solid var(--color-tangerine);
-  box-shadow: 0 0 6px rgba(243,156,18,0.25);
+  box-shadow: 0 0 10px rgba(243,156,18,0.35);
 }
 .calendar-cell.past .day-num { color: var(--color-text-muted); }
 
@@ -275,10 +306,10 @@ html, body, #root {
 }
 .calendar-cell.unavailable .day-num { color: rgba(255,82,82,0.6); }
 
-/* Day indicator dots */
+/* 2.5: day indicator dots bumped from 5px to 7px */
 .day-dot {
-  width: 5px;
-  height: 5px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   position: absolute;
   bottom: 4px;
@@ -295,6 +326,25 @@ html, body, #root {
   box-shadow: 0 0 4px rgba(255,82,82,0.6);
 }
 
+/* 3.5: gig count badge when >1 gig on a day */
+.day-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  background: rgba(255,255,255,0.12);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
 /* ─── Legend ─── */
 .legend {
   display: flex;
@@ -303,14 +353,22 @@ html, body, #root {
   padding-top: 10px;
   border-top: 1px solid rgba(255,255,255,0.04);
 }
-.legend-item { display: flex; align-items: center; gap: 4px; }
+/* 2.2: legend items get 32px min tap area */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  min-height: 32px;
+}
 .legend-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   box-shadow: 0 0 4px currentColor;
 }
-.legend-label { font-size: 10px; color: var(--color-text-dim); }
+/* 2.3: legend labels from 10px to 11px */
+.legend-label { font-size: 11px; color: var(--color-text-dim); }
 
 /* ─── Day detail overlay ─── */
 .overlay {
@@ -325,10 +383,11 @@ html, body, #root {
   -webkit-backdrop-filter: blur(4px);
 }
 .overlay-dismiss { flex: 1; }
+/* 2.1: safe area bottom on day sheet */
 .day-sheet {
   max-height: 80vh;
   overflow-y: auto;
-  padding: 8px 20px 30px;
+  padding: 8px 20px max(30px, env(safe-area-inset-bottom));
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   border-top: 1px solid rgba(255,255,255,0.06);
@@ -342,19 +401,21 @@ html, body, #root {
 }
 
 /* ─── Forms ─── */
-.form-wrap { padding: 0 20px 40px; }
+/* 2.1: safe area bottom on form wrap */
+.form-wrap { padding: 0 20px max(40px, env(safe-area-inset-bottom)); }
 
 /* ─── Toggle buttons ─── */
 .toggle-row { display: flex; gap: 10px; }
+/* 2.2: toggle buttons get 14px pad + 44px min-height */
 .toggle-btn {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
+  min-height: 44px;
   text-align: center;
   cursor: pointer;
   font-weight: 700;
   font-size: 13px;
   color: var(--color-text-dim);
-  -webkit-tap-highlight-color: transparent;
   transition: all 0.15s;
 }
 .toggle-btn.active {
@@ -371,47 +432,62 @@ html, body, #root {
 }
 
 /* ─── Away cards ─── */
+/* 2.2: away card padding bumped to 16px */
 .away-card {
   display: flex;
   align-items: center;
-  padding: 14px;
+  padding: 16px;
   margin-bottom: 10px;
 }
 .away-card-content { flex: 1; }
 .away-range { font-weight: 700; font-size: 14px; }
 .away-reason { font-size: 12px; color: var(--color-text-dim); margin-top: 2px; }
+/* 2.2: away delete button gets 44×44 min tap target */
 .away-delete {
   color: var(--color-danger);
   font-weight: 700;
   cursor: pointer;
-  padding: 8px;
+  padding: 14px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  font-size: 14px;
   transition: text-shadow 0.15s;
 }
 .away-delete:active { text-shadow: var(--glow-danger); }
 
 /* ─── Changelog ─── */
+/* 2.2: changelog toggle gets 44px min-height tap area */
 .changelog-toggle {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-tangerine);
   cursor: pointer;
   background: none;
   border: none;
   font-family: var(--font-body);
+  min-height: 44px;
+  padding: 10px 0;
   opacity: 0.8;
   transition: opacity 0.15s;
 }
 .changelog-toggle:active { opacity: 1; }
 .changelog-entry { margin-bottom: 6px; }
-.changelog-text { font-size: 11px; color: var(--color-text-dim); }
-.changelog-time { font-family: var(--font-mono); font-size: 9px; color: var(--color-text-muted); }
+.changelog-text { font-size: 12px; color: var(--color-text-dim); }
+/* 2.3: changelog time bumped from 9px to 11px */
+.changelog-time { font-family: var(--font-mono); font-size: 11px; color: var(--color-text-muted); }
 
 /* ─── Badges ─── */
+/* 2.3: badge font from 9px to 10px */
 .incomplete-badge {
   display: inline-block;
   background: rgba(255,82,82,0.12);
   color: var(--color-danger);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 4px;
@@ -423,7 +499,7 @@ html, body, #root {
   display: inline-block;
   background: rgba(187,134,252,0.12);
   color: var(--color-practice);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 4px;
@@ -434,13 +510,15 @@ html, body, #root {
 
 /* ─── Detail rows ─── */
 .detail-grid { margin: 8px 0; }
+/* 2.5: detail row padding from 3px to 8px vertical */
 .detail-row {
   display: flex;
   justify-content: space-between;
-  padding: 3px 0;
+  padding: 8px 0;
 }
-.detail-label { font-size: 12px; color: var(--color-text-dim); }
-.detail-value { font-family: var(--font-mono); font-size: 12px; color: var(--color-text); }
+/* 2.3: detail labels from 12px to 13px */
+.detail-label { font-size: 13px; color: var(--color-text-dim); }
+.detail-value { font-family: var(--font-mono); font-size: 13px; color: var(--color-text); }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 4px; }
@@ -456,17 +534,18 @@ html, body, #root {
   border: 1px solid rgba(0,0,0,0.3);
   overflow: hidden;
 }
+/* 2.2: view toggle btns from 6px/12px to 10px/16px + 2.3: font from 11px to 12px */
 .view-toggle-btn {
   background: none;
   border: none;
-  padding: 6px 12px;
+  padding: 10px 16px;
+  min-height: 44px;
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
 }
 .view-toggle-btn.active {
   background: rgba(243,156,18,0.12);
@@ -501,9 +580,10 @@ html, body, #root {
   color: var(--color-tangerine);
   opacity: 0.8;
 }
+/* 2.2: gig list card padding from 14px to 16px, margin from 8px to 12px */
 .gig-list-card {
-  padding: 14px;
-  margin-bottom: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
   cursor: pointer;
   transition: box-shadow 0.15s, transform 0.1s;
 }
@@ -575,4 +655,15 @@ html, body, #root {
   width: 80px;
   height: 80px;
   box-shadow: 0 0 24px rgba(243,156,18,0.3), 0 0 48px rgba(243,156,18,0.1);
+}
+
+/* ─── Error alerts (2.6: role=alert styling) ─── */
+.error-banner {
+  padding: 10px 20px;
+  background-color: rgba(255,82,82,0.1);
+  text-align: center;
+}
+.error-banner-text {
+  color: var(--color-danger);
+  font-size: 13px;
 }

@@ -6,10 +6,15 @@
 ---
 
 ## Current Priority
-- **Push monorepo to GitHub** + update Vercel root directory to `web/`
-- **GigBooks gig list view**: Port `GigList.tsx` from Timetree web to React Native (list view only exists in Timetree currently)
-- **Build + install GigBooks APK**: Verify Metro resolves shared/ imports at runtime + test all pending changes
+- **Phase 4: In-App Change Summary** — away_date_changelog table, last_opened_at, change summary banner/alert
+- **Push to GitHub** → Vercel deploys Phase 2 + 3 web changes
+- **Build release APK** → test on device (scroll fix, count badges, toast)
 - **Test Tangerine Timetree on band members' iPhones**: Share URL, test PWA install, verify login
+
+## Recently Completed (Phase 3 remaining — 2026-03-04)
+- [x] 3.4 — Day sheet scroll fix (flexGrow: 0 → 1)
+- [x] 3.5 — Calendar gig count indicator (both apps, >1 gig shows count badge)
+- [x] 3.6 — Success feedback on save (ToastAndroid on native)
 
 ## Backlog
 - Test themed templates on device (7 invoice + 7 receipt styles, SVG decorations)
@@ -29,6 +34,11 @@
 _None identified._
 
 ## Completed
+- [x] Phase 2: Web Visual Redesign — safe areas, touch targets, fonts, contrast, spacing, accessibility (2026-03-04)
+- [x] Phase 3 remaining: day sheet scroll, gig count badge, save toast (2026-03-04)
+- [x] Phase 1: Critical data & sync fixes — realtime list sync, error handling, form validation, auth expiry (2026-03-04)
+- [x] Native gig list ported from web + Cal/List toggle + web toggle moved below calendar (2026-03-03)
+- [x] Comprehensive audit + 6-phase fix plan created and approved (2026-03-03)
 - [x] Monorepo restructure — C:\Apps\TGT\ with shared/web/native, unified Supabase layer, both tsc clean (2026-03-03)
 - [x] Timetree gig list view — GigList.tsx + Cal/List toggle + CSS + getUpcomingGigs query (2026-03-03)
 - [x] GigBooks gig_type sync — types, queries, calendar, day sheet, gig form, colors all updated (2026-03-03)

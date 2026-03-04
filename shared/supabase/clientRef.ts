@@ -10,9 +10,18 @@ interface SupabaseClientLike {
 }
 
 let _client: SupabaseClientLike | null = null;
+let _onAuthError: (() => void) | null = null;
 
 export function initSupabase(client: SupabaseClientLike): void {
   _client = client;
+}
+
+export function onAuthError(handler: () => void): void {
+  _onAuthError = handler;
+}
+
+export function handleAuthError(): void {
+  if (_onAuthError) _onAuthError();
 }
 
 export function getSupabase(): SupabaseClientLike {

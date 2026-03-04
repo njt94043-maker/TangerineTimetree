@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/theme';
@@ -9,6 +9,7 @@ import { NeuCard } from '../../src/components/NeuCard';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
 import { createGig, updateGig, deleteGig, getGigsByDate } from '@shared/supabase/queries';
 import { supabase } from '../../src/supabase/client';
+import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigType } from '@shared/supabase/types';
 
 export default function GigFormScreen() {
@@ -54,28 +55,33 @@ export default function GigFormScreen() {
     }
   }
 
-  async function handleSave() {
-    if (!date) return;
+  function buildGigData() {
+    return {
+      date,
+      gig_type: gigType,
+      venue,
+      client_name: isPractice ? '' : clientName,
+      fee: isPractice ? null : (fee ? parseFloat(fee) : null),
+      payment_type: isPractice ? ('' as const) : paymentType,
+      load_time: isPractice ? null : (loadTime || null),
+      start_time: startTime || null,
+      end_time: endTime || null,
+      notes,
+    };
+  }
+
+  async function doSave() {
     setSaving(true);
-
     try {
-      const gigData = {
-        date,
-        gig_type: gigType,
-        venue,
-        client_name: isPractice ? '' : clientName,
-        fee: isPractice ? null : (fee ? parseFloat(fee) : null),
-        payment_type: isPractice ? ('' as const) : paymentType,
-        load_time: isPractice ? null : (loadTime || null),
-        start_time: startTime || null,
-        end_time: endTime || null,
-        notes,
-      };
-
+      const gigData = buildGigData();
       if (isEditing && params.gigId) {
         await updateGig(params.gigId, gigData);
       } else {
         await createGig(gigData);
+      }
+      const msg = isEditing ? `${isPractice ? 'Practice' : 'Gig'} updated` : `${isPractice ? 'Practice' : 'Gig'} saved`;
+      if (Platform.OS === 'android') {
+        ToastAndroid.show(msg, ToastAndroid.SHORT);
       }
       router.back();
     } catch (e) {
@@ -83,6 +89,34 @@ export default function GigFormScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleSave() {
+    if (!date) return;
+
+    const gigData = buildGigData();
+    const checkGig = { ...gigData, id: '', created_by: '', created_at: '', updated_at: '', payment_type: gigData.payment_type || '' } as Gig;
+
+    if (isGigIncomplete(checkGig)) {
+      const missing: string[] = [];
+      if (!venue) missing.push('venue');
+      if (!isPractice && !clientName) missing.push('client');
+      if (!isPractice && gigData.fee == null) missing.push('fee');
+      if (!startTime) missing.push('start time');
+      if (!isPractice && !loadTime) missing.push('load-in time');
+
+      Alert.alert(
+        'Incomplete',
+        `This ${gigType} is missing: ${missing.join(', ')}.\n\nSave anyway? It will be marked INCOMPLETE.`,
+        [
+          { text: 'Go Back', style: 'cancel' },
+          { text: 'Save Anyway', onPress: doSave },
+        ],
+      );
+      return;
+    }
+
+    doSave();
   }
 
   async function handleDelete() {

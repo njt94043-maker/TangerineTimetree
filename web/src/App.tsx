@@ -46,7 +46,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
   const [editGigId, setEditGigId] = useState<string | null>(null);
   const [initialGigType, setInitialGigType] = useState<'gig' | 'practice'>('gig');
 
-  const { gigs, awayDates, profiles, refresh } = useCalendarData(year, month);
+  const { gigs, awayDates, profiles, error: calendarError, refresh } = useCalendarData(year, month);
 
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
@@ -109,15 +109,23 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
   return (
     <>
       {/* Header */}
-      <div className="header">
+      <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src="/logo.png" alt="TGT" className="header-logo" />
           <span className="header-title">Timetree</span>
         </div>
-        <div className="header-user" onClick={onSignOut}>
+        <button className="header-user" onClick={onSignOut}>
           {profile?.name ?? 'User'} &middot; Sign out
+        </button>
+      </header>
+
+      {/* Error banner */}
+      {calendarError && isMainView && (
+        <div className="error-banner" role="alert">
+          <span className="error-banner-text">{calendarError}</span>
+          <button className="btn btn-small btn-green" style={{ marginLeft: 12 }} onClick={refresh}>Retry</button>
         </div>
-      </div>
+      )}
 
       {/* Views */}
       {view === 'calendar' && (

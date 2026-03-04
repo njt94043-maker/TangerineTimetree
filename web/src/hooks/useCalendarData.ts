@@ -8,6 +8,7 @@ export function useCalendarData(year: number, month: number) {
   const [awayDates, setAwayDates] = useState<AwayDateWithUser[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -19,8 +20,9 @@ export function useCalendarData(year: number, month: number) {
       setGigs(g);
       setAwayDates(a);
       setProfiles(p);
+      setError(null);
     } catch {
-      // Silently handle
+      setError('Failed to load calendar data');
     } finally {
       setLoading(false);
     }
@@ -42,5 +44,5 @@ export function useCalendarData(year: number, month: number) {
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
-  return { gigs, awayDates, profiles, loading, refresh: fetchData };
+  return { gigs, awayDates, profiles, loading, error, refresh: fetchData };
 }

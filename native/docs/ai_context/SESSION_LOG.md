@@ -467,3 +467,184 @@
 3. **GigBooks gig list view** — port `GigList.tsx` from web to React Native
 4. **Build + install GigBooks APK** — verify Metro resolves shared/ imports at runtime
 5. **Test Timetree** on band members' iPhones
+
+---
+
+## Session: 2026-03-03 — Native Gig List + Web Toggle Move + Audit + Plan
+
+### What Was Done
+- **GigBooks gig list view**: Ported `GigList.tsx` from web to React Native (FlatList, grouped by date, countdown badges, neumorphic cards)
+- **Web Cal/List toggle**: Moved from header to below calendar content (user feedback: too tight)
+- **Cal/List toggle for native**: Added viewMode toggle + GigList component to `gigs.tsx`
+- **Vercel deployment**: User set root directory to `web/`; committed and pushed to trigger deploy
+- **Comprehensive fit-for-purpose audit**: 50+ issues across both apps, consolidated into prioritized list (7 CRITICAL, 8 HIGH, MEDIUM/LOW)
+- **6-phase implementation plan**: Created and approved at `~/.claude/plans/ticklish-moseying-deer.md`
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+- Built and installed release APK on device (RFCW113WZRM)
+- Vercel deployed with `web/` root directory
+
+### Next Session Priorities
+- Phase 1: Critical Data & Sync Fixes
+
+---
+
+## Session: 2026-03-04 — Phase 1: Critical Data & Sync Fixes
+
+### What Was Done
+
+**1.1 — List view realtime sync (both apps):**
+- Native `GigList.tsx`: Added Supabase realtime subscription (`gig-list` channel), refetches on any `gigs` table change
+- Web `GigList.tsx`: Added Supabase realtime subscription (`gig-list-web` channel), refetches on any `gigs` table change
+- Both list views now auto-update when other users add/edit/delete gigs
+
+**1.2 — Error handling everywhere:**
+- Native `GigList.tsx`: Added `error` state, retry UI ("Failed to load gigs. Tap to retry.")
+- Native `gigs.tsx`: Added `calendarError` state, error banner with retry in calendar view
+- Web `GigList.tsx`: Added `error` state, retry button
+- Web `useCalendarData.ts`: Added `error` state, exposed in return value
+- Web `App.tsx`: Error banner above calendar/list when `calendarError` is set
+- Web `DayDetail.tsx`: Error state on `getGigsByDate()` failure with retry button
+
+**1.3 — Form validation with warnings:**
+- Web `GigForm.tsx`: Before save, checks `isGigIncomplete()` — shows `confirm()` dialog listing missing fields, user can save anyway (marked INCOMPLETE)
+- Native `new.tsx`: Before save, checks `isGigIncomplete()` — shows `Alert.alert()` with "Save Anyway" / "Go Back", user can save anyway
+
+**1.4 — Auth token expiry handling:**
+- `shared/supabase/clientRef.ts`: Added `onAuthError()` callback registration + `handleAuthError()` trigger
+- `shared/supabase/queries.ts`: Added `checkAuthError(error)` helper — detects PGRST301, 401, JWT expired, not authenticated; calls `handleAuthError()` before all `throw error` statements
+- Web `useAuth.ts`: Registers `onAuthError` handler → signs out + clears state → shows login page
+- Native `AuthContext.tsx`: Registers `onAuthError` handler → signs out + clears state → shows login gate
+
+**Bonus Phase 3 items (implemented alongside GigList changes):**
+- 3.1 — Add gig buttons in list view: Added `ListFooterComponent` with "Add Gig" + "Add Practice" buttons
+- 3.2 — Pull-to-refresh on list view: Added `RefreshControl` to FlatList
+- 3.3 — Long text overflow: Added `numberOfLines={2}` to venue, `numberOfLines={1}` to client
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+- `npx expo export --platform android` — 1249 modules bundled successfully
+- Release APK built and installed on device (RFCW113WZRM)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Phase 2: Web Visual Redesign (safe areas, touch targets, font sizes, contrast, spacing, accessibility)
+- Phase 3 remaining: day sheet scroll fix, calendar gig count indicator, success feedback on save
+
+---
+
+## Session: 2026-03-04 — Phase 2: Web Visual Redesign
+
+### What Was Done
+
+**2.1 — Safe areas:**
+- Removed `user-scalable=no` from viewport meta (accessibility requirement)
+- Added `env(safe-area-inset-*)` padding to `.app` (left/right), `.header` (top), `.day-sheet` (bottom), `.form-wrap` (bottom)
+
+**2.2 — Touch targets (44px minimum):**
+- Calendar arrows: 8px → 14px padding + 44×44 min + flex center
+- View toggle buttons: 6px/12px → 10px/16px + 44px min-height
+- Calendar cells: 40px → 44px min-height
+- Away delete button: 8px → 14px padding + 44×44 min (converted from `<span>` to `<button>`)
+- GigList cards: 14px → 16px padding
+- DayDetail cards: 14px → 16px padding
+- Toggle buttons: 12px → 14px padding + 44px min-height
+- Changelog toggle: 44px min-height tap area
+- Legend items: 32px min-height with padding
+- All `.btn`: min-height 48px, `.btn-small`: min-height 44px
+- Input fields: min-height 44px
+
+**2.3 — Font sizes (11px minimum everywhere):**
+- Day headers: 10px → 11px
+- Legend labels: 10px → 11px
+- View toggle: 11px → 12px
+- Badges: 9px → 10px
+- Changelog time: 9px → 11px
+- Form labels: 10px → 11px
+- Detail labels: 12px → 13px
+- Detail values: 12px → 13px
+- "Added by" text: 10px → 11px
+- Changelog text: 11px → 12px
+
+**2.4 — Color contrast (WCAG AA):**
+- `--color-text-dim`: `#585870` → `#7a7a94` (~4.5:1 on dark bg)
+- `--color-text-muted`: `#333344` → `#4a4a60` (~3:1 for secondary)
+- `--color-available`: updated to match new muted value
+- Input placeholder color: now uses `--color-text-dim` (improved contrast)
+
+**2.5 — Visual hierarchy & spacing:**
+- Header: added subtle bottom border, logo 36px → 40px
+- Calendar: grid gap 2px → 3px, bolder today indicator (stronger glow)
+- Day detail rows: padding 3px → 8px vertical
+- GigList cards: margin 8px → 12px between cards
+- Form labels: margin 14px → 16px top spacing
+- Status dots: 5px → 7px diameter
+
+**2.6 — Accessibility:**
+- Added `:focus-visible` styling (2px tangerine outline, 2px offset)
+- Added `.neu-inset:focus-within` highlight for focused inputs
+- Converted header user `<div>` to `<button>`
+- Converted header `<div>` to semantic `<header>`
+- Converted calendar day cells from `<div>` to `<button>` with `aria-label`
+- Added `aria-label="Previous month"` / `"Next month"` to calendar arrows
+- Added `aria-label="Delete away date"` to away delete button
+- Converted payment type toggles from `<div>` to `<button type="button">`
+- Converted away-delete `<span>` to `<button>`
+- Added `htmlFor`/`id` linking on all form labels (GigForm, AwayManager, LoginPage)
+- Added `role="alert"` to all error messages (App.tsx, DayDetail, GigForm, AwayManager, GigList, LoginPage)
+- Added `.error-banner` CSS class for consistent error styling
+- Removed `-webkit-tap-highlight-color: transparent` from buttons and toggles
+
+### What Was Tested
+- `npx tsc -b` passes clean (web)
+- `npx tsc --noEmit` passes clean (native)
+- `npx vite build` passes (7 precache entries, 622 KiB)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Phase 3 remaining: day sheet scroll fix (3.4), calendar gig count indicator (3.5), success feedback on save (3.6)
+- Phase 4: In-App Change Summary (away_date_changelog, last_opened_at, change summary banner)
+- Push to GitHub → Vercel deploys web changes
+- Test on iPhone: touch targets, safe areas, focus states
+
+---
+
+## Session: 2026-03-04 — Phase 3 Remaining: Native UX Fixes
+
+### What Was Done
+
+**3.4 — Day sheet scroll fix:**
+- `GigDaySheet.tsx` line 209: `scroll: { flexGrow: 0 }` → `flexGrow: 1`
+- ScrollView now expands to fill available space, allowing scroll when 5+ gigs on a day
+
+**3.5 — Calendar gig count indicator (both apps):**
+- **Web** (`Calendar.tsx`): When `dateGigs.length > 1`, renders a `<span className="day-count">` badge showing the count
+- **Web** (`App.css`): New `.day-count` class — 14px circle, 8px mono font, positioned top-right of calendar cell
+- **Native** (`GigCalendar.tsx`): When `dateGigs.length > 1`, renders a `<View style={countBadge}>` with count text
+- **Native**: New `countBadge` + `countText` styles — 14px circle, 8px mono font, top-right of day circle
+
+**3.6 — Success feedback on save (native):**
+- `new.tsx`: After successful save, shows `ToastAndroid.show()` with "Gig saved" / "Practice saved" / "Gig updated" / "Practice updated"
+- Non-blocking toast (doesn't require dismiss), then navigates back
+- Android-only (ToastAndroid), iOS has no equivalent used
+
+### What Was Tested
+- `npx tsc --noEmit` passes clean (native)
+- `npx tsc -b` passes clean (web)
+- `npx vite build` passes (7 precache entries, 623 KiB)
+
+### What's Blocked
+- Nothing
+
+### Next Session Priorities
+- Phase 4: In-App Change Summary (away_date_changelog, last_opened_at, change summary banner)
+- Push to GitHub → Vercel deploys Phase 2 + 3 web changes
+- Build release APK → test on device (scroll fix, count badges, toast feedback)
+- Test web on iPhone (touch targets, safe areas, focus states)

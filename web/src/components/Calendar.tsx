@@ -71,9 +71,9 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
   return (
     <div className="calendar neu-card">
       <div className="calendar-header">
-        <button className="calendar-arrow" onClick={onPrevMonth}>{'\u25C0'}</button>
+        <button className="calendar-arrow" onClick={onPrevMonth} aria-label="Previous month">{'\u25C0'}</button>
         <span className="calendar-month">{MONTH_NAMES[month]} {year}</span>
-        <button className="calendar-arrow" onClick={onNextMonth}>{'\u25B6'}</button>
+        <button className="calendar-arrow" onClick={onNextMonth} aria-label="Next month">{'\u25B6'}</button>
       </div>
 
       <div className="calendar-grid" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
@@ -82,7 +82,7 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
         ))}
 
         {cells.map((day, idx) => {
-          if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" />;
+          if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" style={{ cursor: 'default' }} />;
 
           const iso = toISO(year, month, day);
           const status = computeDayStatus(iso, today, gigs, awayDates, totalMembers);
@@ -93,8 +93,10 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
           const classes = ['calendar-cell', status];
           if (isToday) classes.push('today');
 
+          const gigCount = dateGigs.length;
+
           return (
-            <div key={`day-${day}`} className={classes.join(' ')} onClick={() => onDatePress(iso)}>
+            <button key={`day-${day}`} className={classes.join(' ')} onClick={() => onDatePress(iso)} aria-label={`${MONTH_NAMES[month]} ${day}`}>
               <span className="day-num">{day}</span>
               {status === 'gig' && (
                 <span className={`day-dot ${hasIncomplete ? 'incomplete' : ''}`} style={{ background: 'var(--color-gig)' }} />
@@ -102,7 +104,10 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
               {status === 'practice' && (
                 <span className="day-dot" style={{ background: 'var(--color-practice)' }} />
               )}
-            </div>
+              {gigCount > 1 && (
+                <span className="day-count">{gigCount}</span>
+              )}
+            </button>
           );
         })}
       </div>

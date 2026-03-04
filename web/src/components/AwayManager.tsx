@@ -75,7 +75,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
             <div className="away-range">{formatRange(a.start_date, a.end_date)}</div>
             {a.reason && <div className="away-reason">{a.reason}</div>}
           </div>
-          <span className="away-delete" onClick={() => handleDelete(a.id)}>X</span>
+          <button className="away-delete" aria-label="Delete away date" onClick={() => handleDelete(a.id)}>X</button>
         </div>
       ))}
 
@@ -83,25 +83,25 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
         <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Add Away Period</h3>
 
-          <div className="label">FROM</div>
+          <label className="label" htmlFor="away-from">FROM</label>
           <div className="neu-inset">
-            <input className="input-field" type="date" value={startDate} onChange={e => {
+            <input id="away-from" className="input-field" type="date" value={startDate} onChange={e => {
               setStartDate(e.target.value);
               if (e.target.value > endDate) setEndDate(e.target.value);
             }} />
           </div>
 
-          <div className="label">TO</div>
+          <label className="label" htmlFor="away-to">TO</label>
           <div className="neu-inset">
-            <input className="input-field" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            <input id="away-to" className="input-field" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
 
-          <div className="label">REASON (OPTIONAL)</div>
+          <label className="label" htmlFor="away-reason">REASON (OPTIONAL)</label>
           <div className="neu-inset">
-            <input className="input-field" placeholder="e.g. Holiday, family event" value={reason} onChange={e => setReason(e.target.value)} />
+            <input id="away-reason" className="input-field" placeholder="e.g. Holiday, family event" value={reason} onChange={e => setReason(e.target.value)} />
           </div>
 
-          {error && <p style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>{error}</p>}
+          {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>{error}</p>}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
             <button className="btn btn-small" type="button" onClick={() => setShowForm(false)}>Cancel</button>
