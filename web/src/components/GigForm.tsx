@@ -1,9 +1,11 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
 import { createGig, updateGig, deleteGig } from '@shared/supabase/queries';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
+import { ErrorAlert } from './ErrorAlert';
+import { ConfirmModal } from './ConfirmModal';
 
 interface GigFormProps {
   date: string;
@@ -26,8 +28,14 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmIncomplete, setConfirmIncomplete] = useState<string | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingSubmitRef = useRef<any>(null);
 
   useEffect(() => {
     if (gigId) {
@@ -43,43 +51,37 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
           setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
           setNotes(data.notes ?? '');
+          setIsPublic(data.is_public ?? false);
         }
       });
     }
   }, [gigId, initialDate]);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  const isPractice = gigType === 'practice';
+  const label = isPractice ? 'Practice' : 'Gig';
+
+  function buildGigData() {
+    return {
+      date,
+      gig_type: gigType,
+      venue,
+      client_name: clientName,
+      fee: fee ? parseFloat(fee) : null,
+      payment_type: paymentType,
+      load_time: loadTime || null,
+      start_time: startTime || null,
+      end_time: endTime || null,
+      notes,
+      is_public: !isPractice && isPublic,
+    };
+  }
+
+  type GigData = ReturnType<typeof buildGigData>;
+
+  async function doSave(data: GigData) {
     setSaving(true);
     setError('');
-
     try {
-      const data = {
-        date,
-        gig_type: gigType,
-        venue,
-        client_name: clientName,
-        fee: fee ? parseFloat(fee) : null,
-        payment_type: paymentType,
-        load_time: loadTime || null,
-        start_time: startTime || null,
-        end_time: endTime || null,
-        notes,
-      };
-
-      // Warn if gig is incomplete but allow save
-      const checkGig = { ...data, id: '', created_by: '', created_at: '', updated_at: '', fee: data.fee, payment_type: data.payment_type || '' } as Gig;
-      if (isGigIncomplete(checkGig)) {
-        const missing: string[] = [];
-        if (!venue) missing.push('venue');
-        if (gigType !== 'practice' && !clientName) missing.push('client');
-        if (gigType !== 'practice' && data.fee == null) missing.push('fee');
-        if (!startTime) missing.push('start time');
-        if (gigType !== 'practice' && !loadTime) missing.push('load-in time');
-        const ok = confirm(`This ${gigType} is missing: ${missing.join(', ')}.\n\nSave anyway? It will be marked INCOMPLETE.`);
-        if (!ok) { setSaving(false); return; }
-      }
-
       if (isEditing && gigId) {
         await updateGig(gigId, data);
       } else {
@@ -88,18 +90,12 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       onSaved();
     } catch (err) {
       if (isNetworkError(err)) {
-        const offlineData = {
-          date, gig_type: gigType, venue, client_name: clientName,
-          fee: fee ? parseFloat(fee) : null, payment_type: paymentType,
-          load_time: loadTime || null, start_time: startTime || null,
-          end_time: endTime || null, notes,
-        };
         if (isEditing && gigId) {
-          queueMutation('updateGig', { id: gigId, updates: offlineData });
+          queueMutation('updateGig', { id: gigId, updates: data });
         } else {
-          queueMutation('createGig', offlineData);
+          queueMutation('createGig', data);
         }
-        onSaved(); // Treat as success — will sync when online
+        onSaved();
         return;
       }
       setError(err instanceof Error ? err.message : 'Failed to save');
@@ -108,8 +104,29 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     }
   }
 
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const data = buildGigData();
+
+    // Warn if gig is incomplete but allow save
+    const checkGig = { ...data, id: '', created_by: '', created_at: '', updated_at: '', fee: data.fee, payment_type: data.payment_type || '' } as Gig;
+    if (isGigIncomplete(checkGig)) {
+      const missing: string[] = [];
+      if (!venue) missing.push('venue');
+      if (gigType !== 'practice' && !clientName) missing.push('client');
+      if (gigType !== 'practice' && data.fee == null) missing.push('fee');
+      if (!startTime) missing.push('start time');
+      if (gigType !== 'practice' && !loadTime) missing.push('load-in time');
+      pendingSubmitRef.current = data;
+      setConfirmIncomplete(`This ${gigType} is missing: ${missing.join(', ')}.\n\nSave anyway? It will be marked INCOMPLETE.`);
+      return;
+    }
+
+    doSave(data);
+  }
+
   async function handleDelete() {
-    if (!gigId || !confirm('Delete this?')) return;
+    if (!gigId) return;
     try {
       await deleteGig(gigId);
       onSaved();
@@ -123,15 +140,12 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     }
   }
 
-  const isPractice = gigType === 'practice';
-  const label = isPractice ? 'Practice' : 'Gig';
-
   return (
-    <div className="form-wrap" style={{ paddingTop: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="form-wrap form-top">
+      <div className="page-header">
         <button className="btn btn-small btn-green" onClick={onClose}>{'\u25C0'} Back</button>
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>{isEditing ? `Edit ${label}` : `New ${label}`}</h2>
-        <div style={{ width: 60 }} />
+        <h2 className="page-title">{isEditing ? `Edit ${label}` : `New ${label}`}</h2>
+        <div className="page-header-spacer" />
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -193,26 +207,60 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
         <div className="neu-inset">
           <textarea
             id="gig-notes"
-            className="input-field"
+            className="input-field input-noresize"
             placeholder="Any extra details..."
             rows={3}
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            style={{ resize: 'none' }}
           />
         </div>
 
-        {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 14 }}>{error}</p>}
+        {!isPractice && (
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={e => setIsPublic(e.target.checked)}
+              className="checkbox-input"
+            />
+            <span>
+              <span className="checkbox-text-main">Show on website</span>
+              <br />
+              <span className="checkbox-text-sub">Display this gig on thegreentangerine.com</span>
+            </span>
+          </label>
+        )}
 
-        <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {error && <ErrorAlert message={error} compact />}
+
+        <div className="form-actions">
           <button className="btn btn-primary" type="submit" disabled={saving}>
             {saving ? 'Saving...' : isEditing ? `Update ${label}` : `Save ${label}`}
           </button>
           {isEditing && (
-            <button className="btn btn-danger" type="button" onClick={handleDelete}>Delete</button>
+            <button className="btn btn-danger" type="button" onClick={() => setConfirmDelete(true)}>Delete</button>
           )}
         </div>
       </form>
+
+      {confirmDelete && (
+        <ConfirmModal
+          message="Delete this gig?"
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => { setConfirmDelete(false); handleDelete(); }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
+
+      {confirmIncomplete && (
+        <ConfirmModal
+          message={confirmIncomplete}
+          confirmLabel="Save Anyway"
+          onConfirm={() => { setConfirmIncomplete(null); if (pendingSubmitRef.current) doSave(pendingSubmitRef.current); }}
+          onCancel={() => { setConfirmIncomplete(null); pendingSubmitRef.current = null; }}
+        />
+      )}
     </div>
   );
 }

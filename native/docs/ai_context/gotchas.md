@@ -125,3 +125,21 @@
 - We deliberately avoided npm workspaces to prevent Metro symlink issues on Windows.
 - Each app manages its own `node_modules/` independently.
 - Shared code is imported via `@shared/*` TypeScript path alias, not through symlinked packages.
+
+### Offline queue must include ALL mutation types
+- The offline queue type union (`QueuedMutation['type']`) and switch statement must match ALL mutation functions.
+- If a new mutation is added (e.g., `updateAwayDate`), it must be added to BOTH `native/src/utils/offlineQueue.ts` AND `web/src/hooks/useOfflineQueue.ts`.
+- Missing entries cause "Unknown mutation type" crashes when users try to perform that action offline.
+- **Checklist for new mutations**: 1) Add import, 2) Add to type union, 3) Add case to replayOne switch.
+
+### AuthContext must refresh session on mount
+- `supabase.auth.getSession()` returns a cached JWT — it does NOT validate whether the token is still valid.
+- If the device was idle/offline for hours, the cached session appears valid but API calls fail with 401.
+- Fix: always call `supabase.auth.refreshSession()` after `getSession()` to validate + extend TTL.
+
+### @react-native-community/datetimepicker cmake build failure
+- Adding `@react-native-community/datetimepicker@8.6.0` causes `assembleRelease` to fail with cmake error.
+- Error: `Process 'command cmake.exe' finished with non-zero exit value 1` — cmake 3.22.1 in Android SDK.
+- The package generates JNI codegen with CMakeLists.txt (`cmake_minimum_required(VERSION 3.13)`) — version should be compatible.
+- Likely fix: `npx expo prebuild --clean` to regenerate the android native project with the new dependency properly linked, then rebuild.
+- Alternative: install newer cmake via `sdkmanager --install "cmake;3.31.0"` or check full cmake output for actual C++ compilation error.

@@ -1,7 +1,207 @@
-# GigBooks — Session Log
+# TGT — Session Log
 
 > What each session built, tested, and blocked.
 > Append at the end of every session.
+> For instant context, read STATUS.md first.
+
+## Latest Sessions (Quick Index)
+| Date | Focus | Key Outcome |
+|------|-------|-------------|
+| 2026-03-04 | Sprint S8 — Polish pass | CSS extraction, ViewContext, error boundaries, light theme, code splitting, DNS |
+| 2026-03-04 | Sprint S7 — MEDIUM code issues | Date utils, shared components, skeleton loaders, validation, themed modals |
+| 2026-03-04 | Sprint S6 — Public Website Sprint 3 | Media gallery, media manager, contact form, IONOS domain docs |
+| 2026-03-04 | Sprint S5 — Public Website Sprint 2 | PublicSite component, LoginModal, SEO, public gigs, member profiles |
+| 2026-03-04 | Sprint S4 — Public Website Sprint 1 | Schema migration, is_public toggle, profile page |
+| 2026-03-04 | Sprint S3 — Docs + CI/CD | Schema map, web blueprint, GitHub Actions, env.example, blueprint fixes |
+| 2026-03-04 | Sprint S2 — HIGH code issues | Type safety, error handling, offline improvements, spinner time picker |
+| 2026-03-04 | Codebase audit + critical fixes + SOT redesign | 3 critical bugs fixed, STATUS.md created, sprint roadmap defined |
+| 2026-03-04 | Audit phases 4-6 + public site planning | Offline support, change summary, Polish, public site plan |
+| 2026-03-04 | Audit phases 1-3 | Sync, errors, validation, auth, web redesign, native UX |
+| 2026-03-03 | Native gig list + monorepo | Gig list view, Cal/List toggle, monorepo restructure |
+| 2026-03-03 | Shared gig calendar | Supabase backend, Timetree PWA, gig types |
+
+---
+
+## Session: 2026-03-04 — Sprint S8: Polish Pass
+
+### Done
+- **CSS extraction**: Moved ~80 inline `style={{}}` objects to CSS classes in App.css. Created utility classes: `.page-header`, `.page-title`, `.page-header-spacer`, `.form-top`, `.flex-row-gap-*`, `.btn-full`, `.btn-flex`, `.main-actions`, `.day-title`, `.empty-message`, `.gig-card-inset`, `.gig-venue-name`, `.gig-client-name`, `.gig-notes-text`, `.gig-creator-text`, `.gig-actions-row`, `.away-section`, `.day-actions`, `.form-actions`, `.checkbox-label`, `.password-toggle`, `.saved-text`, etc.
+- **ViewContext**: Created `useViewContext.tsx` with `ViewProvider` + `useView()` hook. Navigation state (view, selectedDate, editGigId, returnView) extracted from MainView. Provides `goToDay`, `goToAddGig`, `goToEditGig`, `goBack` etc. MainView is now ~40 lines shorter.
+- **Error boundaries**: Created `ErrorBoundary` component for web (class component, auto-reset) and native (React Native styled). Wrapped app-level rendering in both.
+- **Light theme**: Added `@media (prefers-color-scheme: light)` block to App.css. Overrides all CSS variables (backgrounds, text, accents, shadows, glows) for a warm cream/white light theme. Component-specific overrides for calendar cells, buttons, badges, toggles.
+- **Code splitting**: Configured `manualChunks` in vite.config.ts — PublicSite gets its own chunk, MediaManager + Enquiries share a chunk.
+- **DNS**: IONOS DNS configured via API (A @ → 76.76.21.21, CNAME www → cname.vercel-dns.com). Propagation confirmed.
+
+### tsc
+- `web tsc -b`: PASS
+- `native tsc --noEmit`: PASS
+
+### Files Changed (Web)
+- `web/src/hooks/useViewContext.tsx` — NEW (ViewProvider + useView)
+- `web/src/components/ErrorBoundary.tsx` — NEW
+- `web/src/App.tsx` — ViewProvider wrap, useView() in MainView, ErrorBoundary wrap
+- `web/src/App.css` — S8 utility classes, error boundary styles, light theme media query
+- `web/src/components/DayDetail.tsx` — inline styles → CSS classes
+- `web/src/components/GigForm.tsx` — inline styles → CSS classes
+- `web/src/components/AwayManager.tsx` — inline styles → CSS classes
+- `web/src/components/GigList.tsx` — inline styles → CSS classes
+- `web/src/components/Enquiries.tsx` — inline styles → CSS classes
+- `web/src/components/MediaManager.tsx` — inline styles → CSS classes
+- `web/src/components/ProfilePage.tsx` — inline styles → CSS classes
+- `web/src/components/LoginModal.tsx` — inline styles → CSS classes
+- `web/vite.config.ts` — manualChunks code splitting
+
+### Files Changed (Native)
+- `native/src/components/ErrorBoundary.tsx` — NEW
+- `native/app/_layout.tsx` — ErrorBoundary wrap
+
+---
+
+## Session: 2026-03-04 — Sprint S7: MEDIUM Code Issues Batch
+
+### Done
+- **web/src/utils/format.ts**: Extracted 8 shared formatting utilities (fmt, fmtFee, formatDisplayDate, formatGroupDate, daysUntil, formatRange, formatRelative, formatShortDate). Removed duplicate definitions from DayDetail, GigList, AwayManager, Enquiries.
+- **web/src/hooks/useMutationWithQueue.ts**: New hook encapsulating the try/catch/isNetworkError/queueMutation pattern. Exported `QueuedMutation` interface from useOfflineQueue.
+- **web/src/components/ErrorAlert.tsx**: Shared error display component (full with retry button, or compact inline). Replaced inline error `<p>` patterns across GigForm, AwayManager, LoginModal, ProfilePage, DayDetail, GigList.
+- **web/src/components/LoadingSpinner.tsx**: Shared loading component with skeleton mode (animated pulse bars). Replaced inline "Loading..." text in GigList, DayDetail, MediaManager, Enquiries, App.tsx.
+- **web/src/components/ConfirmModal.tsx**: Themed confirm dialog replacing browser `confirm()`. Supports danger mode, keyboard (Escape), focus management. Replaced 5 confirm() calls: GigForm (incomplete warning + delete), DayDetail (delete), AwayManager (delete), MediaManager (delete).
+- **web/src/App.css**: Added CSS for ErrorAlert, LoadingSpinner, skeleton loader animation, ConfirmModal overlay.
+- **native/app/(tabs)/settings.tsx**: Sort code auto-format (XX-XX-XX, digits only), payment terms clamp (1–365).
+- **native/app/invoice/new.tsx**: Invoice amount auto-rounds to 2 decimal places on blur.
+
+### tsc
+- `web tsc -b`: PASS
+- `native tsc --noEmit`: PASS
+
+### Files Changed (Web)
+- `web/src/utils/format.ts` — NEW
+- `web/src/hooks/useMutationWithQueue.ts` — NEW
+- `web/src/hooks/useOfflineQueue.ts` — exported QueuedMutation
+- `web/src/components/ErrorAlert.tsx` — NEW
+- `web/src/components/LoadingSpinner.tsx` — NEW
+- `web/src/components/ConfirmModal.tsx` — NEW
+- `web/src/components/DayDetail.tsx` — use shared imports, skeleton, ConfirmModal
+- `web/src/components/GigList.tsx` — use shared imports, skeleton, ErrorAlert
+- `web/src/components/GigForm.tsx` — refactored submit flow, ConfirmModal ×2, ErrorAlert
+- `web/src/components/AwayManager.tsx` — use shared imports, ConfirmModal, ErrorAlert
+- `web/src/components/MediaManager.tsx` — ConfirmModal, LoadingSpinner
+- `web/src/components/Enquiries.tsx` — use shared format imports, LoadingSpinner
+- `web/src/components/LoginModal.tsx` — ErrorAlert
+- `web/src/components/ProfilePage.tsx` — ErrorAlert
+- `web/src/App.tsx` — LoadingSpinner
+- `web/src/App.css` — new shared component styles
+
+### Files Changed (Native)
+- `native/app/(tabs)/settings.tsx` — sort code validation, payment terms clamping
+- `native/app/invoice/new.tsx` — amount rounding on blur
+
+---
+
+## Session: 2026-03-04 — Sprint S6: Public Website Sprint 3
+
+### Done
+- **web/src/components/PublicSite.tsx**: Added dynamic media gallery section — fetches from `getPublicMedia()`, displays photos in responsive grid with lightbox overlay, video cards with YouTube embed support. Gallery nav link in header (conditional on media existing). Hero CTA switches to "View Gallery" when media exists.
+- **web/src/components/MediaManager.tsx**: New component for authenticated band members. Features: drag-and-drop photo upload to Supabase Storage `public-media` bucket, multi-file support, YouTube video URL input with auto-embed URL extraction and thumbnail generation, inline title editing, toggle visibility, delete with Storage cleanup. Accessible via "Manage Media" button in main app view.
+- **Contact form**: Replaced mailto link with a Supabase-backed form — fields: name, email, event type (select), preferred date, message. Submits via `submitContactForm()` to `contact_submissions` table. Success/error states with mailto fallback on error.
+- **web/src/components/Enquiries.tsx**: New in-app enquiry inbox for band members. Shows submissions with unread badge, expand to see full details, Reply (opens mailto to enquirer), Archive. Relative timestamps, event type badges.
+- **Supabase migration** (`20260304140000_storage_and_contact.sql`): Created `public-media` Storage bucket (public, 10MB limit, image/video MIME types, auth upload/delete policies). Created `contact_submissions` table with anon insert + auth read/update RLS.
+- **shared/supabase/queries.ts**: Added media CRUD (`createMediaEntry`, `updateMediaEntry`, `deleteMediaEntry`, `getAllMedia`) + contact queries (`submitContactForm`, `getContactSubmissions`, `markSubmissionRead`, `archiveSubmission`).
+- **shared/supabase/types.ts**: Added `ContactSubmission` interface.
+- **shared/supabase/clientRef.ts**: Added optional `storage` property to `SupabaseClientLike` interface.
+- **web/src/App.tsx**: Added `'media'` and `'enquiries'` view types, MediaManager + Enquiries imports, "Manage Media" and "Booking Enquiries" buttons in main view.
+- **web/src/App.css**: Added ~300 lines — gallery grid, lightbox overlay, contact form inputs, media manager styles, enquiries inbox styles. Mobile responsive rules.
+
+### Manual Steps for User
+1. **IONOS Domain**: In IONOS DNS settings for thegreentangerine.com — set A record `@` → `76.76.21.21`, CNAME `www` → `cname.vercel-dns.com`. Add custom domain in Vercel project settings.
+
+### Tests
+- `web: npx tsc -b` — PASS
+- `native: npx tsc --noEmit` — PASS
+- `web: npx vite build` — PASS (432KB JS, 32KB CSS, 7 SW entries)
+
+---
+
+## Session: 2026-03-04 — Sprint S5: Public Website Sprint 2
+
+### Done
+- **web/src/components/PublicSite.tsx**: Full single-page scrolling website for unauthenticated visitors. 7 sections: hero (band name, tagline, CTAs), upcoming gigs (dynamic from `getPublicGigs()`), about the band (description + member cards), for venues (6 benefit cards + 2 testimonials), pricing (5 tiers), contact (mailto-based), footer.
+- **web/src/components/LoginModal.tsx**: Overlay modal replacing the old full-page LoginPage. Triggered by "Band Login" button in public site header. Close button to dismiss. Same login form logic.
+- **web/src/App.tsx**: Updated auth flow — unauthenticated users see PublicSite instead of LoginPage. Login modal state managed at App level. Removed LoginPage import.
+- **web/index.html**: SEO meta tags — OpenGraph (type, title, description, image, url, site_name), Twitter cards (summary_large_image), Schema.org JSON-LD (MusicGroup + LocalBusiness with genre, area served, social links).
+- **shared/supabase/queries.ts**: Added `getPublicProfiles()` — fetches all profiles for public display, graceful fallback if anon read denied.
+- **web/src/App.css**: Full public site CSS — sticky header with glass-morphism, hero with gradient backgrounds, responsive grid layouts for gigs/benefits/pricing/members, mobile hamburger menu, login modal overlay styling. All prefixed with `ps-` to scope.
+- **Responsive**: Mobile-first with `@media (max-width: 768px)` breakpoint — hamburger nav, stacked grids, adjusted padding.
+
+### Architecture
+- Public site replaces login page for unauth users (single app, two experiences)
+- Band members fetched dynamically via `getPublicProfiles()` with hardcoded fallback (RLS may block anon reads on profiles)
+- No new dependencies added — pure React + CSS
+- All styles scoped with `ps-` prefix (public site) and `login-modal-` prefix
+
+### Notes
+- Profiles table RLS only allows authenticated reads. `getPublicProfiles()` returns empty array for anon users → falls back to hardcoded members. To make dynamic, add anon SELECT policy on profiles.
+- Gallery section not included yet (planned for S6 with `getPublicMedia()`)
+- Contact uses mailto link (Supabase Edge Function planned for S6)
+- Both tsc checks pass (web -b + native --noEmit)
+
+---
+
+## Session: 2026-03-04 — Sprint S4: Public Website Sprint 1
+
+### Done
+- **Supabase migration** (`20260304120000_public_site_schema.sql`): Added `is_public` boolean to gigs, `band_role` text to profiles, created `public_media` table with RLS policies for anonymous read access
+- **shared/supabase/types.ts**: Added `is_public` to Gig, `band_role` to Profile, new `PublicMedia` interface
+- **shared/supabase/queries.ts**: Added `getPublicGigs()`, `getPublicMedia()`, `updateProfile()`, `is_public` param to `createGig()`
+- **web GigForm.tsx**: "Show on website" checkbox (gigs only, not practices), persisted via is_public field, works with offline queue
+- **native app/gig/new.tsx**: "Show on website" Switch component (gigs only), matching neumorphic style
+- **web ProfilePage.tsx**: New component — editable name + band_role, read-only email, save + sign out buttons
+- **web App.tsx**: Added `'profile'` to View type, split header into clickable name → profile + separate sign out, profile view rendering
+
+### Notes
+- Both tsc checks pass clean
+- Web build succeeds (vite build)
+- Migration applied to live Supabase instance via `supabase db push`
+
+---
+
+## Session: 2026-03-04 — Sprint S3: Documentation + CI/CD
+
+### Done
+- **schema_map.md**: Added Part B — all 5 Supabase tables (profiles, gigs, away_dates, gig_changelog, away_date_changelog) with full column defs, types, RLS policies, indexes, triggers, relationships
+- **web/docs/blueprint.md**: Created — routing, components, hooks, PWA config, styling, data flow, offline strategy, auth, state management, file structure, build/deploy
+- **.github/workflows/check.yml**: Created — runs `npx tsc --noEmit` (native) and `npx tsc -b` (web) on PRs to master
+- **web/.env.example**: Created with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY placeholders
+- **native blueprint.md fixes**: "4 invoice styles" → "7 styles", "5 tables" → "6 tables", D-015 clarified with Supabase exception
+
+### Notes
+- All 5 Sprint S3 goals completed — no build/install needed for any of them
+- CI/CD workflow needs first PR to validate (untested)
+- Next: reboot PC → fix APK build → Sprint S4 (public website)
+
+---
+
+## Session: 2026-03-04 — Sprint S2: HIGH Code Issues
+
+### What Was Done
+- **Type-safe row mappings** in shared/supabase/queries.ts — replaced all `(row: any)` casts with typed join interfaces (`GigWithProfileJoin`, `AwayDateWithProfileJoin`, etc.)
+- **SupabaseClientLike interface** improved in clientRef.ts — `auth` property now has typed methods (`getUser`, `getSession`, `refreshSession`, `signInWithPassword`, `signOut`, `onAuthStateChange`)
+- **Changelog error handling** — all 5 changelog inserts wrapped in try/catch (best-effort, non-blocking)
+- **getSettings() nullable** — returns `GigBooksSettings | null` instead of asserting `row!`; `createInvoice()` guards with null check
+- **Offline queue conflict detection** — `entityExists()` check before replaying update/delete mutations in web useOfflineQueue.ts
+- **DayDetail offline mutations** — added delete button with offline queueing, offline-aware fetch error messages
+- **Spinner time picker** — `display="spinner"` on DateTimePicker in native gig form (replaces analogue clock)
+- Both `tsc` checks pass clean (native `--noEmit` + web `-b`)
+
+### What Was Tested
+- `npx tsc --noEmit` in native/ — clean
+- `npx tsc -b` in web/ — clean
+
+### What's Blocked
+- APK build — `android/` directory locked by stale process. Needs PC reboot, then `npx expo prebuild --clean` → `./gradlew assembleRelease`
+
+### Next Session Priorities
+- Reboot PC, fix APK build
+- Sprint S3: Supabase docs, web blueprint, CI/CD
 
 ---
 
@@ -804,11 +1004,97 @@
 ### What Was Tested
 - `npx tsc --noEmit` passes clean (native)
 - `npx tsc -b` passes clean (web)
+- Git push to GitHub succeeded (`d725d39..afc4d74 master -> master`) — Vercel auto-deploys web changes
+- **APK build FAILED** — cmake error from `@react-native-community/datetimepicker` JNI codegen
+
+### What's Blocked
+- **APK build**: `Process 'command cmake.exe' finished with non-zero exit value 1` during `assembleRelease`. Only cmake 3.22.1 installed. The datetimepicker generates JNI codegen with CMakeLists.txt requiring `cmake_minimum_required(VERSION 3.13)` — version should be fine but compilation fails. Likely fix: `npx expo prebuild --clean` to regenerate android native project, or update cmake SDK, or check full cmake error output.
+
+### Next Session Priorities
+- **Fix APK build** — try `npx expo prebuild --clean` then rebuild, or install newer cmake via sdkmanager
+- Test all Phase 6 items on device once APK builds
+- Test Tangerine Timetree PWA on band members' iPhones
+
+---
+
+## Session: 2026-03-04 — Public Website Planning + Base44 Export Analysis
+
+### What Was Done
+
+**Base44 Export Analysis:**
+- Extracted and catalogued full base44 source export (`green-tangerine-hub-e58b6a1a.zip`, 80+ files)
+- Read all 7 public pages (Home, ForVenues, Pricing, Contact, Photos, Videos, MerchShop)
+- Read all 18 hub/admin pages (Dashboard, Bookings, etc.)
+- Read Layout, CSS, Tailwind config, key components (BookingForm, InvoiceGenerator, ExpenseForm)
+- Documented full data model (14 entities), business logic, design system, and all page content
+- Compiled comprehensive reference: `base44-export/SITE_REFERENCE.md`
+
+**Public Website Planning:**
+- Decided: Build public site INTO existing `web/` app (not separate project)
+- Decided: Option C — static content pages + dynamic sections (gigs, gallery) fed from Supabase
+- Decided: No merch shop (not used)
+- Decided: Gigs need `is_public` flag to control website visibility
+- Decided: Profile page with name, avatar, band role
+- Decided: Domain (thegreentangerine.com on IONOS) → point to Vercel
+- Created full implementation plan: `PLAN_PUBLIC_SITE.md`
+
+**Plan covers:**
+1. Supabase schema (is_public on gigs, band_role on profiles, public_media table, RLS for anonymous reads)
+2. Gig form toggle — "Show on Website" (web + native)
+3. Profile page (web) — name, avatar, band role
+4. Public website (7 sections: hero, gigs, about, for venues, pricing, gallery, contact)
+5. Login modal (replaces LoginPage for auth-gated access)
+6. Domain setup (IONOS DNS → Vercel)
+7. 3-sprint implementation order
+
+### What Was Tested
+- No code changes — planning session only
 
 ### What's Blocked
 - Nothing
 
 ### Next Session Priorities
-- Push to GitHub → Vercel deploys Phase 2–6 web changes
-- Build release APK → test all Phase 6 items on device
-- Test Tangerine Timetree PWA on band members' iPhones
+1. Sprint 1: Supabase migration + shared types/queries + gig form toggle + profile page
+2. Sprint 2: Public website component + login modal + SEO
+3. Sprint 3: Media gallery + contact form + domain setup
+
+---
+
+## Session: 2026-03-04 — Full Codebase Audit + Critical Fixes + SOT Redesign
+
+### What Was Done
+- **Full surgical audit** of entire codebase using 5 parallel agents:
+  - Shared layer (types, queries, config, clientRef)
+  - Native app (all screens, forms, data layer, PDF, offline, auth)
+  - Web app (components, hooks, PWA, auth, styling, routing)
+  - SOT docs (all 7 docs + CLAUDE.md + MEMORY.md)
+  - Project config (package.json, tsconfig, vite, metro, Supabase, CI/CD)
+- **Identified 12 issues** (4 critical, 8 high) + 26 medium + 13 low
+- **Fixed 3 CRITICAL bugs:**
+  1. Added `updateAwayDate` to offline queues in both native (`offlineQueue.ts`) and web (`useOfflineQueue.ts`) — users could not edit away dates while offline
+  2. Added `refreshSession()` to `AuthContext.tsx` on mount — prevents expired JWT silent failures after idle/offline
+  3. Wrapped `createReceipts()` in `withExclusiveTransactionAsync()` — prevents partial receipt creation on crash
+- **SOT redesign — context loss prevention:**
+  - Created `STATUS.md` — instant context document (read in 30 seconds, replaces reading 6 files)
+  - Updated `CLAUDE.md` session protocol to prioritize STATUS.md
+  - Restructured `todo.md` with Blocked/Next/Planned/Backlog sections
+  - Added session index to top of SESSION_LOG.md
+  - Defined 8-sprint roadmap (S1-S8) covering all remaining work
+
+### What Was Tested
+- `npx tsc --noEmit` in native/ — passes clean (exit 0)
+- `npx tsc -b` in web/ — passes clean (exit 0)
+
+### What's Blocked
+- APK build (cmake/datetimepicker) — unchanged, fix planned for Sprint S2
+
+### Decisions Made
+- D-069: STATUS.md as instant-context document — 3-layer context system (instant/working/deep)
+- D-070: Sprint roadmap S2-S8 for remaining work
+- D-071: Session protocol updated to read STATUS.md first
+
+### Next Session Priorities (Sprint S2)
+1. Fix APK build (prebuild clean + cmake debugging)
+2. Fix HIGH code issues: type safety in shared queries, changelog error handling, getSettings nullable
+3. Add conflict detection to offline queue
+4. Add offline support to web DayDetail component

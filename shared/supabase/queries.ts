@@ -6,9 +6,41 @@ import type {
   GigWithCreator,
   AwayDate,
   AwayDateWithUser,
+  GigChangelogEntry,
   GigChangelogWithUser,
   ChangeSummaryItem,
+  PublicMedia,
+  ContactSubmission,
 } from './types';
+
+// Row shapes returned by Supabase joins (avoids `any` casts)
+interface GigWithProfileJoin extends Gig {
+  profiles: { name: string } | null;
+}
+
+interface AwayDateWithProfileJoin extends AwayDate {
+  profiles: { name: string } | null;
+}
+
+interface GigChangelogWithProfileJoin extends GigChangelogEntry {
+  profiles: { name: string } | null;
+}
+
+interface GigChangelogWithGigJoin extends GigChangelogEntry {
+  profiles: { name: string } | null;
+  gigs: { date: string; venue: string } | null;
+}
+
+interface AwayDateChangelogRow {
+  id: string;
+  away_date_id: string;
+  user_id: string;
+  action: string;
+  date_range: string;
+  reason: string;
+  created_at: string;
+  profiles: { name: string } | null;
+}
 
 function checkAuthError(error: any): void {
   if (!error) return;
@@ -61,7 +93,7 @@ export async function getGigsForMonth(year: number, month: number): Promise<GigW
 
   if (error) { checkAuthError(error); throw error; }
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: GigWithProfileJoin) => ({
     ...row,
     creator_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
@@ -78,7 +110,7 @@ export async function getGigsByDate(date: string): Promise<GigWithCreator[]> {
 
   if (error) { checkAuthError(error); throw error; }
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: GigWithProfileJoin) => ({
     ...row,
     creator_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
@@ -96,6 +128,7 @@ export async function createGig(gig: {
   start_time?: string | null;
   end_time?: string | null;
   notes?: string;
+  is_public?: boolean;
 }): Promise<Gig> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -114,6 +147,7 @@ export async function createGig(gig: {
       start_time: gig.start_time ?? null,
       end_time: gig.end_time ?? null,
       notes: gig.notes ?? '',
+      is_public: gig.is_public ?? false,
       created_by: user.id,
     })
     .select()
@@ -121,12 +155,14 @@ export async function createGig(gig: {
 
   if (error) { checkAuthError(error); throw error; }
 
-  // Log creation
-  await supabase.from('gig_changelog').insert({
-    gig_id: data.id,
-    user_id: user.id,
-    action: 'created',
-  });
+  // Log creation (non-critical — don't fail the mutation)
+  try {
+    await supabase.from('gig_changelog').insert({
+      gig_id: data.id,
+      user_id: user.id,
+      action: 'created',
+    });
+  } catch { /* changelog is best-effort */ }
 
   return data;
 }
@@ -147,9 +183,10 @@ export async function updateGig(
 
   // Log each changed field
   if (current) {
+    const currentRecord = current as Record<string, unknown>;
     const changelogEntries = Object.entries(updates)
       .filter(([key, val]) => {
-        const oldVal = (current as any)[key];
+        const oldVal = currentRecord[key];
         return String(val ?? '') !== String(oldVal ?? '');
       })
       .map(([key, val]) => ({
@@ -157,12 +194,14 @@ export async function updateGig(
         user_id: user.id,
         action: 'updated' as const,
         field_changed: key,
-        old_value: String((current as any)[key] ?? ''),
+        old_value: String(currentRecord[key] ?? ''),
         new_value: String(val ?? ''),
       }));
 
     if (changelogEntries.length > 0) {
-      await supabase.from('gig_changelog').insert(changelogEntries);
+      try {
+        await supabase.from('gig_changelog').insert(changelogEntries);
+      } catch { /* changelog is best-effort */ }
     }
   }
 }
@@ -176,14 +215,16 @@ export async function deleteGig(id: string): Promise<void> {
   const { data: current } = await supabase.from('gigs').select('venue, date').eq('id', id).single();
 
   // Log deletion (before delete, since CASCADE will remove changelog too)
-  await supabase.from('gig_changelog').insert({
-    gig_id: id,
-    user_id: user.id,
-    action: 'deleted',
-    field_changed: '',
-    old_value: current ? `${current.venue} on ${current.date}` : '',
-    new_value: '',
-  });
+  try {
+    await supabase.from('gig_changelog').insert({
+      gig_id: id,
+      user_id: user.id,
+      action: 'deleted',
+      field_changed: '',
+      old_value: current ? `${current.venue} on ${current.date}` : '',
+      new_value: '',
+    });
+  } catch { /* changelog is best-effort */ }
 
   const { error } = await supabase.from('gigs').delete().eq('id', id);
   if (error) { checkAuthError(error); throw error; }
@@ -205,7 +246,7 @@ export async function getUpcomingGigs(limit = 50): Promise<GigWithCreator[]> {
     .limit(limit);
   if (error) { checkAuthError(error); throw error; }
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: GigWithProfileJoin) => ({
     ...row,
     creator_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
@@ -228,7 +269,7 @@ export async function getAwayDatesForMonth(year: number, month: number): Promise
 
   if (error) { checkAuthError(error); throw error; }
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: AwayDateWithProfileJoin) => ({
     ...row,
     user_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
@@ -276,13 +317,15 @@ export async function createAwayDate(params: {
   const range = params.start_date === params.end_date
     ? params.start_date
     : `${params.start_date} to ${params.end_date}`;
-  await supabase.from('away_date_changelog').insert({
-    away_date_id: data.id,
-    user_id: user.id,
-    action: 'created',
-    date_range: range,
-    reason: params.reason ?? '',
-  });
+  try {
+    await supabase.from('away_date_changelog').insert({
+      away_date_id: data.id,
+      user_id: user.id,
+      action: 'created',
+      date_range: range,
+      reason: params.reason ?? '',
+    });
+  } catch { /* changelog is best-effort */ }
 
   return data;
 }
@@ -300,13 +343,15 @@ export async function deleteAwayDate(id: string): Promise<void> {
     const range = current.start_date === current.end_date
       ? current.start_date
       : `${current.start_date} to ${current.end_date}`;
-    await supabase.from('away_date_changelog').insert({
-      away_date_id: id,
-      user_id: user.id,
-      action: 'deleted',
-      date_range: range,
-      reason: current.reason ?? '',
-    });
+    try {
+      await supabase.from('away_date_changelog').insert({
+        away_date_id: id,
+        user_id: user.id,
+        action: 'deleted',
+        date_range: range,
+        reason: current.reason ?? '',
+      });
+    } catch { /* changelog is best-effort */ }
   }
 
   const { error } = await supabase.from('away_dates').delete().eq('id', id);
@@ -349,7 +394,7 @@ export async function getGigChangelog(gigId: string): Promise<GigChangelogWithUs
 
   if (error) { checkAuthError(error); throw error; }
 
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: GigChangelogWithProfileJoin) => ({
     ...row,
     user_name: row.profiles?.name ?? 'Unknown',
     profiles: undefined,
@@ -390,9 +435,9 @@ export async function getChangesSince(since: string): Promise<ChangeSummaryItem[
 
   const items: ChangeSummaryItem[] = [];
 
-  for (const c of (gigChanges ?? [])) {
-    const userName = (c as any).profiles?.name ?? 'Someone';
-    const gig = (c as any).gigs;
+  for (const c of (gigChanges ?? []) as GigChangelogWithGigJoin[]) {
+    const userName = c.profiles?.name ?? 'Someone';
+    const gig = c.gigs;
     let description = '';
     if (c.action === 'created') {
       description = `added a ${gig?.venue ? `gig at ${gig.venue}` : 'gig'}${gig?.date ? ` on ${formatShortDate(gig.date)}` : ''}`;
@@ -404,8 +449,8 @@ export async function getChangesSince(since: string): Promise<ChangeSummaryItem[
     items.push({ type: 'gig', action: c.action, user_name: userName, description, created_at: c.created_at });
   }
 
-  for (const c of (awayChanges ?? [])) {
-    const userName = (c as any).profiles?.name ?? 'Someone';
+  for (const c of (awayChanges ?? []) as AwayDateChangelogRow[]) {
+    const userName = c.profiles?.name ?? 'Someone';
     const description = c.action === 'created'
       ? `marked away ${c.date_range}${c.reason ? ` (${c.reason})` : ''}`
       : `removed away date ${c.date_range}`;
@@ -415,6 +460,187 @@ export async function getChangesSince(since: string): Promise<ChangeSummaryItem[
   // Sort by most recent first, limit to 10
   items.sort((a, b) => b.created_at.localeCompare(a.created_at));
   return items.slice(0, 10);
+}
+
+// ─── Public Queries (no auth required) ──────────────────
+
+export async function getPublicProfiles(): Promise<Profile[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('name');
+  if (error) return []; // Graceful fallback — anon may not have read access
+  return data ?? [];
+}
+
+export async function getPublicGigs(): Promise<Gig[]> {
+  const supabase = getSupabase();
+  const today = new Date();
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const { data, error } = await supabase
+    .from('gigs')
+    .select('*')
+    .eq('is_public', true)
+    .gte('date', todayISO)
+    .order('date');
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getPublicMedia(): Promise<PublicMedia[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('public_media')
+    .select('*')
+    .eq('visible', true)
+    .order('sort_order')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+// ─── Media Management (auth required) ────────────────────
+
+export async function createMediaEntry(entry: {
+  media_type: 'photo' | 'video';
+  url: string;
+  title?: string;
+  description?: string;
+  thumbnail_url?: string;
+  video_embed_url?: string;
+  date_taken?: string | null;
+  location?: string;
+  sort_order?: number;
+}): Promise<PublicMedia> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('public_media')
+    .insert({
+      media_type: entry.media_type,
+      url: entry.url,
+      title: entry.title ?? '',
+      description: entry.description ?? '',
+      thumbnail_url: entry.thumbnail_url ?? '',
+      video_embed_url: entry.video_embed_url ?? '',
+      date_taken: entry.date_taken ?? null,
+      location: entry.location ?? '',
+      sort_order: entry.sort_order ?? 0,
+      visible: true,
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateMediaEntry(
+  id: string,
+  updates: Partial<Pick<PublicMedia, 'title' | 'description' | 'visible' | 'sort_order' | 'location' | 'url' | 'thumbnail_url' | 'video_embed_url'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('public_media').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteMediaEntry(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('public_media').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function getAllMedia(): Promise<PublicMedia[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('public_media')
+    .select('*')
+    .order('sort_order')
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+// ─── Profile Management ─────────────────────────────────
+
+export async function updateProfile(updates: {
+  name?: string;
+  band_role?: string;
+  avatar_url?: string;
+}): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', user.id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Contact Submissions ─────────────────────────────────
+
+export async function submitContactForm(form: {
+  name: string;
+  email: string;
+  event_type?: string;
+  preferred_date?: string;
+  message: string;
+}): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('contact_submissions')
+    .insert({
+      name: form.name,
+      email: form.email,
+      event_type: form.event_type ?? '',
+      preferred_date: form.preferred_date || null,
+      message: form.message,
+    });
+
+  if (error) throw error;
+}
+
+export async function getContactSubmissions(): Promise<ContactSubmission[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('contact_submissions')
+    .select('*')
+    .eq('archived', false)
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function markSubmissionRead(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('contact_submissions')
+    .update({ read: true })
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function archiveSubmission(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('contact_submissions')
+    .update({ archived: true })
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
 }
 
 function formatShortDate(dateStr: string): string {

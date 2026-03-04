@@ -2,18 +2,13 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { getMyAwayDates, createAwayDate, deleteAwayDate, updateAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
+import { formatRange } from '../utils/format';
+import { ErrorAlert } from './ErrorAlert';
+import { ConfirmModal } from './ConfirmModal';
 
 interface AwayManagerProps {
   initialDate?: string;
   onClose: () => void;
-}
-
-function formatRange(start: string, end: string): string {
-  const s = new Date(start + 'T12:00:00');
-  const e = new Date(end + 'T12:00:00');
-  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-  if (start === end) return s.toLocaleDateString('en-GB', { ...opts, year: 'numeric' });
-  return `${s.toLocaleDateString('en-GB', opts)} \u2013 ${e.toLocaleDateString('en-GB', { ...opts, year: 'numeric' })}`;
 }
 
 export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
@@ -25,6 +20,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   async function fetchDates() {
     try {
@@ -75,7 +71,6 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Remove this away date?')) return;
     try {
       await deleteAwayDate(id);
       fetchDates();
@@ -88,30 +83,30 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
   }
 
   return (
-    <div className="form-wrap" style={{ paddingTop: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="form-wrap form-top">
+      <div className="page-header">
         <button className="btn btn-small btn-green" onClick={onClose}>{'\u25C0'} Back</button>
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>My Away Dates</h2>
-        <div style={{ width: 60 }} />
+        <h2 className="page-title">My Away Dates</h2>
+        <div className="page-header-spacer" />
       </div>
 
       {awayDates.length === 0 && !showForm && (
-        <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '40px 0' }}>No away dates set</p>
+        <p className="empty-message empty-message-lg">No away dates set</p>
       )}
 
       {awayDates.map(a => (
         <div key={a.id} className="away-card neu-inset">
-          <div className="away-card-content" style={{ cursor: 'pointer' }} onClick={() => startEdit(a)}>
+          <div className="away-card-content away-card-clickable" onClick={() => startEdit(a)}>
             <div className="away-range">{formatRange(a.start_date, a.end_date)}</div>
             {a.reason && <div className="away-reason">{a.reason}</div>}
           </div>
-          <button className="away-delete" aria-label="Delete away date" onClick={() => handleDelete(a.id)}>X</button>
+          <button className="away-delete" aria-label="Delete away date" onClick={() => setConfirmDeleteId(a.id)}>X</button>
         </div>
       ))}
 
       {showForm ? (
-        <form onSubmit={handleSubmit} style={{ marginTop: 20 }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>{editingId ? 'Edit Away Period' : 'Add Away Period'}</h3>
+        <form onSubmit={handleSubmit} className="away-form">
+          <h3 className="away-form-title">{editingId ? 'Edit Away Period' : 'Add Away Period'}</h3>
 
           <label className="label" htmlFor="away-from">FROM</label>
           <div className="neu-inset">
@@ -131,17 +126,26 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
             <input id="away-reason" className="input-field" placeholder="e.g. Holiday, family event" value={reason} onChange={e => setReason(e.target.value)} />
           </div>
 
-          {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 10 }}>{error}</p>}
+          {error && <ErrorAlert message={error} compact />}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 20 }}>
+          <div className="form-submit-row">
             <button className="btn btn-small" type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
             <button className="btn btn-small btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
       ) : (
-        <div style={{ marginTop: 20 }}>
-          <button className="btn btn-green" style={{ width: '100%' }} onClick={() => setShowForm(true)}>Add Away Date</button>
+        <div className="away-add-wrap">
+          <button className="btn btn-green btn-full" onClick={() => setShowForm(true)}>Add Away Date</button>
         </div>
+      )}
+      {confirmDeleteId && (
+        <ConfirmModal
+          message="Remove this away date?"
+          confirmLabel="Remove"
+          danger
+          onConfirm={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null); }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
       )}
     </div>
   );

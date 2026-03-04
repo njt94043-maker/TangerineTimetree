@@ -1,11 +1,14 @@
-# GigBooks — Schema Map
+# TGT — Schema Map
 
 > Source of Truth for all data models, database schema, and type definitions.
 > Update on any data model change.
+> Covers both local SQLite (GigBooks native) and Supabase (shared calendar).
 
 ---
 
-## Database Tables
+## Part A — Local SQLite Tables (GigBooks Native)
+
+> Stored on-device via expo-sqlite. No cloud sync.
 
 ### settings
 Single-row config store (`id = 'default'`).
@@ -284,3 +287,154 @@ band_members
 | Invoices | `getInvoices()`, `getInvoice(id)`, `createInvoice(data)`, `updateInvoiceStatus(id, status)`, `updateInvoicePdfUri(id, uri)`, `deleteInvoice(id)` |
 | Receipts | `getReceiptsForInvoice(invoiceId)`, `createReceipts(invoiceId)`, `updateReceiptPdfUri(id, uri)` |
 | Dashboard | `getDashboardStats()` |
+
+---
+
+## Part B — Supabase Tables (Shared Calendar)
+
+> Project: `jlufqgslgjowfaqmqlds`. Used by both web (Timetree) and native (GigBooks).
+> All tables have RLS enabled. Realtime on gigs + away_dates only.
+
+### profiles
+
+Extends Supabase `auth.users`. Auto-created on signup via `handle_new_user()` trigger.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | — | PK, FK → auth.users(id) ON DELETE CASCADE |
+| name | TEXT | NO | — | Display name |
+| is_admin | BOOLEAN | YES | FALSE | Admin flag |
+| avatar_url | TEXT | YES | '' | |
+| band_role | TEXT | YES | '' | Instrument/role (e.g. "Lead Guitar") |
+| last_opened_at | TIMESTAMPTZ | YES | NOW() | For change summary feature |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**RLS:** SELECT all authenticated; UPDATE own only (`id = auth.uid()`).
+
+### gigs
+
+Gig and practice records. Realtime-subscribed.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| date | DATE | NO | — | |
+| gig_type | TEXT | YES | 'gig' | CHECK IN ('gig', 'practice') |
+| venue | TEXT | YES | '' | |
+| client_name | TEXT | YES | '' | |
+| fee | NUMERIC(10,2) | YES | NULL | GBP |
+| payment_type | TEXT | YES | — | CHECK IN ('cash', 'invoice', '') |
+| load_time | TIME | YES | NULL | |
+| start_time | TIME | YES | NULL | |
+| end_time | TIME | YES | NULL | |
+| notes | TEXT | YES | '' | |
+| is_public | BOOLEAN | YES | false | Controls visibility on public website |
+| created_by | UUID | NO | — | FK → profiles(id) |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+| updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
+
+**Index:** `idx_gigs_date` ON gigs(date).
+**RLS:** SELECT/UPDATE/DELETE all authenticated; INSERT requires `created_by = auth.uid()`. Anon SELECT where `is_public = true`.
+**Trigger:** `on_gig_updated` auto-sets `updated_at`.
+
+### away_dates
+
+Band member availability. Realtime-subscribed.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| user_id | UUID | NO | — | FK → profiles(id) ON DELETE CASCADE |
+| start_date | DATE | NO | — | |
+| end_date | DATE | NO | — | |
+| reason | TEXT | YES | '' | |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**Constraint:** `valid_date_range`: end_date >= start_date.
+**Indexes:** `idx_away_dates_user`, `idx_away_dates_range` (start_date, end_date).
+**RLS:** SELECT all authenticated; INSERT/UPDATE/DELETE own only (`user_id = auth.uid()`).
+
+### gig_changelog
+
+Audit trail for gig CRUD. Best-effort inserts.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| gig_id | UUID | NO | — | FK → gigs(id) ON DELETE CASCADE |
+| user_id | UUID | NO | — | FK → profiles(id) |
+| action | TEXT | NO | — | CHECK IN ('created', 'updated', 'deleted') |
+| field_changed | TEXT | YES | '' | Column name (for updates) |
+| old_value | TEXT | YES | '' | |
+| new_value | TEXT | YES | '' | |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**Index:** `idx_changelog_gig` ON gig_changelog(gig_id).
+**RLS:** SELECT all authenticated; INSERT `user_id = auth.uid()`.
+
+### away_date_changelog
+
+Audit trail for away date mutations. Best-effort inserts.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| away_date_id | UUID | YES | — | No FK constraint (survives cascade delete) |
+| user_id | UUID | NO | — | FK → profiles(id) |
+| action | TEXT | NO | — | CHECK IN ('created', 'deleted') |
+| date_range | TEXT | YES | '' | Human-readable range |
+| reason | TEXT | YES | '' | |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**RLS:** SELECT all authenticated; INSERT `user_id = auth.uid()`.
+
+### public_media
+
+Photos and videos for the public website gallery.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID | NO | gen_random_uuid() | PK |
+| media_type | TEXT | NO | — | CHECK IN ('photo', 'video') |
+| url | TEXT | NO | — | |
+| title | TEXT | YES | '' | |
+| description | TEXT | YES | '' | |
+| thumbnail_url | TEXT | YES | '' | |
+| video_embed_url | TEXT | YES | '' | YouTube/embed URL |
+| date_taken | DATE | YES | NULL | |
+| location | TEXT | YES | '' | |
+| sort_order | INT | YES | 0 | |
+| visible | BOOLEAN | YES | true | Controls public visibility |
+| created_by | UUID | YES | — | FK → profiles(id) |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**RLS:** Anon SELECT where `visible = true`; authenticated full CRUD.
+
+### Supabase Entity Relationships
+
+```
+auth.users
+    └── profiles (1:1, auto-created via trigger)
+            ├── gigs (1:many via created_by)
+            │     └── gig_changelog (1:many via gig_id, CASCADE)
+            ├── away_dates (1:many via user_id, CASCADE)
+            │     └── away_date_changelog (no FK — survives deletion)
+            └── public_media (1:many via created_by)
+            └── changelogs (1:many via user_id)
+```
+
+### Supabase CRUD Operations (shared/supabase/queries.ts)
+
+| Entity | Operations |
+|--------|-----------|
+| Profiles | `getProfiles()`, `getProfile(id)`, `updateLastOpened(id)` |
+| Gigs | `getGigsForMonth(y,m)`, `getGigsByDate(d)`, `getUpcomingGigs()`, `createGig(data)`, `updateGig(id, data)`, `deleteGig(id)` |
+| Away Dates | `getAwayDatesForMonth(y,m)`, `getMyAwayDates(uid)`, `createAwayDate(data)`, `updateAwayDate(id, data)`, `deleteAwayDate(id)` |
+| Changelogs | `logGigChange(...)`, `logAwayDateChange(...)`, `getGigChangelog(gigId)`, `getChangesSince(since)` |
+
+### Migration Files
+
+- Initial: `native/docs/supabase/migration.sql`
+- gig_type: `native/supabase/migrations/20260303120000_add_gig_type.sql`
+- Phase 4: `supabase/migrations/20260304105634_phase4_change_summary.sql`
+- Types: `shared/supabase/types.ts`

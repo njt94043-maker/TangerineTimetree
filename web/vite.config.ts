@@ -46,4 +46,14 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, '../shared'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'public-site': ['./src/components/PublicSite.tsx'],
+          'media': ['./src/components/MediaManager.tsx', './src/components/Enquiries.tsx'],
+        },
+      },
+    },
+  },
 });

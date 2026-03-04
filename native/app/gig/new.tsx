@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid, Switch } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
@@ -32,6 +32,7 @@ export default function GigFormScreen() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [timePickerTarget, setTimePickerTarget] = useState<'load' | 'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
@@ -74,6 +75,7 @@ export default function GigFormScreen() {
       setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
       setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
       setNotes(data.notes ?? '');
+      setIsPublic(data.is_public ?? false);
     }
   }
 
@@ -89,6 +91,7 @@ export default function GigFormScreen() {
       start_time: startTime || null,
       end_time: endTime || null,
       notes,
+      is_public: isPractice ? false : isPublic,
     };
   }
 
@@ -321,6 +324,22 @@ export default function GigFormScreen() {
           />
         </View>
 
+        {/* Show on website — gigs only */}
+        {!isPractice && (
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Show on website</Text>
+              <Text style={styles.switchSub}>Display this gig on thegreentangerine.com</Text>
+            </View>
+            <Switch
+              value={isPublic}
+              onValueChange={setIsPublic}
+              trackColor={{ false: COLORS.textMuted, true: COLORS.teal + '60' }}
+              thumbColor={isPublic ? COLORS.teal : COLORS.textDim}
+            />
+          </View>
+        )}
+
         {/* Save button */}
         <View style={styles.saveArea}>
           <NeuButton
@@ -347,6 +366,7 @@ export default function GigFormScreen() {
       {timePickerTarget !== null && (
         <DateTimePicker
           mode="time"
+          display="spinner"
           is24Hour
           value={timeToDate(
             timePickerTarget === 'load' ? loadTime || '18:00'
@@ -438,6 +458,23 @@ const styles = StyleSheet.create({
   },
   toggleTextActive: {
     color: COLORS.orange,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingHorizontal: 4,
+  },
+  switchLabel: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  switchSub: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textDim,
+    marginTop: 2,
   },
   saveArea: {
     marginTop: 24,

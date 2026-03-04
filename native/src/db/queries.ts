@@ -24,13 +24,12 @@ export interface GigBooksSettings {
   next_invoice_number: number;
 }
 
-export async function getSettings(): Promise<GigBooksSettings> {
+export async function getSettings(): Promise<GigBooksSettings | null> {
   const db = await getDb();
-  const row = await db.getFirstAsync<GigBooksSettings>(
+  return db.getFirstAsync<GigBooksSettings>(
     'SELECT your_name, trading_as, business_type, website, email, phone, bank_account_name, bank_name, bank_sort_code, bank_account_number, payment_terms_days, next_invoice_number FROM settings WHERE id = ?',
     ['default']
   );
-  return row!;
 }
 
 export async function updateSettings(updates: Partial<GigBooksSettings>): Promise<void> {
@@ -212,6 +211,7 @@ export async function createInvoice(data: {
 }): Promise<Invoice> {
   const db = await getDb();
   const settings = await getSettings();
+  if (!settings) throw new Error('Settings not initialized');
 
   const id = genId();
   const invoiceNumber = formatInvoiceNumber(settings.next_invoice_number);
@@ -394,25 +394,27 @@ export async function createReceipts(invoiceId: string): Promise<ReceiptWithMemb
 
   const results: ReceiptWithMember[] = [];
 
-  for (let i = 0; i < otherMembers.length; i++) {
-    const member = otherMembers[i];
-    const amt = i === 0 ? perPerson + remainder : perPerson;
-    const id = genId();
-    await db.runAsync(
-      'INSERT INTO receipts (id, invoice_id, member_id, amount, date) VALUES (?, ?, ?, ?, ?)',
-      [id, invoiceId, member.id, amt, today]
-    );
-    results.push({
-      id,
-      invoice_id: invoiceId,
-      member_id: member.id,
-      amount: amt,
-      date: today,
-      pdf_uri: '',
-      created_at: new Date().toISOString(),
-      member_name: member.name,
-    });
-  }
+  await db.withExclusiveTransactionAsync(async () => {
+    for (let i = 0; i < otherMembers.length; i++) {
+      const member = otherMembers[i];
+      const amt = i === 0 ? perPerson + remainder : perPerson;
+      const id = genId();
+      await db.runAsync(
+        'INSERT INTO receipts (id, invoice_id, member_id, amount, date) VALUES (?, ?, ?, ?, ?)',
+        [id, invoiceId, member.id, amt, today]
+      );
+      results.push({
+        id,
+        invoice_id: invoiceId,
+        member_id: member.id,
+        amount: amt,
+        date: today,
+        pdf_uri: '',
+        created_at: new Date().toISOString(),
+        member_name: member.name,
+      });
+    }
+  });
 
   return results;
 }
