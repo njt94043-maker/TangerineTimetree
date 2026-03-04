@@ -42,6 +42,7 @@ All in `docs/ai_context/`:
 
 | Document | Purpose | Update When |
 |----------|---------|-------------|
+| `STATUS.md` | Instant context — read FIRST | Every session end |
 | `blueprint.md` | Architecture north star | Architectural changes |
 | `schema_map.md` | DB schema + TypeScript types | Data model changes |
 | `decisions_log.md` | Locked ADRs (append-only) | New decisions made |
@@ -58,9 +59,9 @@ All in `docs/ai_context/`:
 ## Session Start Protocol
 Before writing ANY code:
 1. Read `CLAUDE.md` (this file)
-2. Read `docs/ai_context/SESSION_LOG.md` — where we left off
-3. Read `docs/ai_context/todo.md` — current priorities
-4. Read `docs/ai_context/decisions_log.md` — locked decisions
+2. Read `docs/ai_context/STATUS.md` — instant context (where are we, what's next, what's blocked)
+3. Read `docs/ai_context/todo.md` — current priorities and sprint plan
+4. Only read deeper docs (SESSION_LOG, decisions_log, gotchas) if the task requires it
 5. Run `npx tsc --noEmit` — verify clean state
 6. **Declare scope** — "I will modify X, Y, Z. I will NOT touch A, B, C."
 7. Get confirmation before writing code
@@ -68,11 +69,13 @@ Before writing ANY code:
 ## Session End Protocol
 Before wrapping up:
 1. Verify `npx tsc --noEmit` passes
-2. Update `SESSION_LOG.md` — what was done, tested, blocked, next priorities
+2. Update `STATUS.md` — current state, next action, blockers, sprint progress
 3. Update `todo.md` — mark done, add new items
-4. Update `gotchas.md` — if lessons were learned
-5. Update `decisions_log.md` — if new decisions were locked
-6. Update this file — if locked rules changed
+4. Update `SESSION_LOG.md` — what was done, tested, blocked, next priorities
+5. Update `gotchas.md` — if lessons were learned
+6. Update `decisions_log.md` — if new decisions were locked
+7. Update this file — if locked rules changed
+8. If time was wasted → add entry to `pain_journal.md`
 
 ## Business Context
 - Nathan Thomas, sole trader, trading as The Green Tangerine

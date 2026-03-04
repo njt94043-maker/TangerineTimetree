@@ -3,33 +3,13 @@ import { supabase } from '../supabase/client';
 import type { GigWithCreator } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
 import { getUpcomingGigs } from '@shared/supabase/queries';
+import { fmt, fmtFee, formatGroupDate, daysUntil } from '../utils/format';
+import { ErrorAlert } from './ErrorAlert';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface GigListProps {
   onGigPress: (gigId: string, date: string) => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
-}
-
-function fmt(time: string | null): string {
-  return time ? time.slice(0, 5) : '\u2014';
-}
-
-function fmtFee(fee: number | null): string {
-  return fee != null ? `\u00A3${fee.toFixed(2)}` : '\u2014';
-}
-
-function formatGroupDate(iso: string): string {
-  const d = new Date(iso + 'T12:00:00');
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
-function daysUntil(iso: string): string {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(iso + 'T00:00:00');
-  const diff = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  return `${diff} days`;
 }
 
 export function GigList({ onGigPress, onAddGig }: GigListProps) {
@@ -66,16 +46,11 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
   }, [fetchGigs]);
 
   if (loading) {
-    return <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '40px 0' }}>Loading...</p>;
+    return <LoadingSpinner skeleton />;
   }
 
   if (error) {
-    return (
-      <div role="alert" style={{ textAlign: 'center', padding: '40px 20px' }}>
-        <p style={{ color: 'var(--color-danger)', marginBottom: 12 }}>{error}</p>
-        <button className="btn btn-small btn-green" onClick={fetchGigs}>Retry</button>
-      </div>
-    );
+    return <ErrorAlert message={error} onRetry={fetchGigs} />;
   }
 
   // Group gigs by date
@@ -92,8 +67,8 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
     <div className="gig-list">
       {dates.length === 0 && (
         <div className="gig-list-empty neu-card">
-          <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '20px 0' }}>No upcoming gigs</p>
-          <button className="btn btn-green btn-small" style={{ width: '100%' }} onClick={() => {
+          <p className="empty-message">No upcoming gigs</p>
+          <button className="btn btn-green btn-small btn-full" onClick={() => {
             const today = new Date();
             onAddGig(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`, 'gig');
           }}>

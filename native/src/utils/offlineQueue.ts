@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { createGig, updateGig, deleteGig, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, createAwayDate, updateAwayDate, deleteAwayDate } from '@shared/supabase/queries';
 
 const QUEUE_KEY = 'offline-mutation-queue';
 
 interface QueuedMutation {
   id: string;
-  type: 'createGig' | 'updateGig' | 'deleteGig' | 'createAwayDate' | 'deleteAwayDate';
+  type: 'createGig' | 'updateGig' | 'deleteGig' | 'createAwayDate' | 'updateAwayDate' | 'deleteAwayDate';
   args: any;
   createdAt: string;
 }
@@ -54,6 +54,9 @@ async function replayOne(m: QueuedMutation): Promise<void> {
       break;
     case 'createAwayDate':
       await createAwayDate(m.args);
+      break;
+    case 'updateAwayDate':
+      await updateAwayDate(m.args.id, m.args.updates);
       break;
     case 'deleteAwayDate':
       await deleteAwayDate(m.args.id);

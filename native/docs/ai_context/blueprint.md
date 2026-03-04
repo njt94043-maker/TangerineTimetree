@@ -44,7 +44,7 @@ app/client/
 
 ### Data Layer
 - **Single SQLite database** — opened once at startup via `getDb()` singleton
-- **5 tables:** settings, clients, band_members, invoices, receipts
+- **6 tables:** settings, clients, venues, band_members, invoices, receipts
 - **No ORM** — raw SQL via expo-sqlite async API
 - **ID generation:** `genId()` = `Date.now().toString(36) + Math.random().toString(36).slice(2, 8)`
 - **Settings singleton:** `id = 'default'`
@@ -88,11 +88,11 @@ app/client/
 
 ## Locked Rules
 
-1. **Local only** — No cloud, no Supabase, no network calls (except PDF sharing)
+1. **Local only for invoicing** — No cloud sync for invoices/receipts/clients (except PDF sharing). Gig calendar uses Supabase (shared with web app) — see schema_map.md Part B
 2. **Single user** — `id = 'default'` settings, no auth
 3. **Equal splits only** — invoice amount ÷ total members
 4. **Receipts for others only** — Nathan doesn't get a receipt (is_self = 1)
-5. **4 invoice styles** — classic, premium dark, clean professional, bold rock; HTML templates with htmlEscape
+5. **7 invoice styles** — classic, premium dark, clean professional, bold rock, autumn warmth, winter frost, summer breeze; HTML templates with htmlEscape
 6. **4 band members fixed** — seeded at DB init, names editable
 7. **Invoice numbers sequential** — INV-001 format, auto-incremented
 8. **TypeScript strict** — `npx tsc --noEmit` must pass clean

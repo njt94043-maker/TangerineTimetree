@@ -380,7 +380,15 @@ export default function NewInvoiceScreen() {
 
             <Text style={styles.fieldLabel}>Amount (GBP) *</Text>
             <NeuWell style={styles.inputWell}>
-              <TextInput style={styles.input} value={amount} onChangeText={setAmount} placeholder="e.g. 400" placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" />
+              <TextInput
+                style={styles.input}
+                value={amount}
+                onChangeText={setAmount}
+                onBlur={() => { const n = parseFloat(amount); if (!isNaN(n) && n > 0) setAmount(n.toFixed(2)); }}
+                placeholder="e.g. 400"
+                placeholderTextColor={COLORS.textMuted}
+                keyboardType="decimal-pad"
+              />
             </NeuWell>
 
             <Text style={styles.fieldLabel}>Description</Text>

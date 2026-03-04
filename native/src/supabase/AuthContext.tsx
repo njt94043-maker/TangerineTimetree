@@ -50,11 +50,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(null);
     });
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) fetchProfile(s.user.id);
+    // Get initial session and refresh to validate JWT
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (s) {
+        try {
+          const { data } = await supabase.auth.refreshSession();
+          const refreshed = data.session;
+          setSession(refreshed);
+          setUser(refreshed?.user ?? null);
+          if (refreshed?.user) fetchProfile(refreshed.user.id);
+        } catch {
+          // Refresh failed — session expired, clear auth state
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
+      }
       setLoading(false);
     });
 

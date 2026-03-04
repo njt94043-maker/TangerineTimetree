@@ -28,6 +28,22 @@ export default function SettingsScreen() {
     setDirty(true);
   }
 
+  /** Auto-format sort code: strip non-digits, insert dashes as XX-XX-XX */
+  function handleSortCodeChange(raw: string) {
+    const digits = raw.replace(/\D/g, '').slice(0, 6);
+    let formatted = digits;
+    if (digits.length > 4) formatted = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+    else if (digits.length > 2) formatted = `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    updateField('bank_sort_code', formatted);
+  }
+
+  /** Clamp payment terms between 1 and 365 */
+  function handlePaymentTermsChange(raw: string) {
+    const parsed = parseInt(raw) || 0;
+    const clamped = Math.max(1, Math.min(365, parsed));
+    updateField('payment_terms_days', clamped);
+  }
+
   function updateMemberName(id: string, name: string) {
     setMembers(prev => prev.map(m => m.id === id ? { ...m, name } : m));
     setDirty(true);
@@ -77,7 +93,7 @@ export default function SettingsScreen() {
           <View style={styles.spacer} />
           <SettingsField label="Account Name" value={settings.bank_account_name} onChangeText={v => updateField('bank_account_name', v)} />
           <SettingsField label="Bank" value={settings.bank_name} onChangeText={v => updateField('bank_name', v)} />
-          <SettingsField label="Sort Code" value={settings.bank_sort_code} onChangeText={v => updateField('bank_sort_code', v)} placeholder="XX-XX-XX" />
+          <SettingsField label="Sort Code" value={settings.bank_sort_code} onChangeText={handleSortCodeChange} placeholder="XX-XX-XX" maxLength={8} />
           <SettingsField label="Account Number" value={settings.bank_account_number} onChangeText={v => updateField('bank_account_number', v)} keyboardType="number-pad" />
         </NeuCard>
 
@@ -88,8 +104,9 @@ export default function SettingsScreen() {
           <SettingsField
             label="Payment Terms (days)"
             value={String(settings.payment_terms_days)}
-            onChangeText={v => updateField('payment_terms_days', parseInt(v) || 14)}
+            onChangeText={handlePaymentTermsChange}
             keyboardType="number-pad"
+            hint="1–365 days"
           />
           <View style={styles.row}>
             <Text style={styles.fieldLabel}>Next Invoice</Text>
@@ -127,17 +144,19 @@ export default function SettingsScreen() {
   );
 }
 
-function SettingsField({ label, value, onChangeText, placeholder, keyboardType, editable = true }: {
+function SettingsField({ label, value, onChangeText, placeholder, keyboardType, editable = true, maxLength, hint }: {
   label: string;
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
   keyboardType?: TextInput['props']['keyboardType'];
   editable?: boolean;
+  maxLength?: number;
+  hint?: string;
 }) {
   return (
     <View style={styles.fieldRow}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>{label}{hint ? <Text style={styles.hintText}> ({hint})</Text> : null}</Text>
       <NeuWell style={styles.fieldInput}>
         <TextInput
           style={[styles.input, !editable && styles.inputDisabled]}
@@ -147,6 +166,7 @@ function SettingsField({ label, value, onChangeText, placeholder, keyboardType, 
           placeholderTextColor={COLORS.textMuted}
           keyboardType={keyboardType}
           editable={editable}
+          maxLength={maxLength}
         />
       </NeuWell>
     </View>
@@ -201,6 +221,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.mono,
     fontSize: 14,
     color: COLORS.teal,
+  },
+  hintText: {
+    fontFamily: FONTS.body,
+    fontSize: 10,
+    color: COLORS.textMuted,
   },
   actions: {
     marginTop: 12,

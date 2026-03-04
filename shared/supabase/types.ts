@@ -6,6 +6,7 @@ export interface Profile {
   name: string;
   is_admin: boolean;
   avatar_url: string;
+  band_role: string;
   created_at: string;
   last_opened_at: string;
 }
@@ -32,6 +33,7 @@ export interface Gig {
   start_time: string | null;
   end_time: string | null;
   notes: string;
+  is_public: boolean;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -106,4 +108,33 @@ export function computeDayStatus(
   if (awayUserIds.size >= totalMembers) return 'unavailable';
   if (awayUserIds.size > 0) return 'partial';
   return 'available';
+}
+
+export interface ContactSubmission {
+  id: string;
+  name: string;
+  email: string;
+  event_type: string;
+  preferred_date: string | null;
+  message: string;
+  read: boolean;
+  archived: boolean;
+  notes: string;
+  created_at: string;
+}
+
+export interface PublicMedia {
+  id: string;
+  media_type: 'photo' | 'video';
+  url: string;
+  title: string;
+  description: string;
+  thumbnail_url: string;
+  video_embed_url: string;
+  date_taken: string | null;
+  location: string;
+  sort_order: number;
+  visible: boolean;
+  created_by: string;
+  created_at: string;
 }

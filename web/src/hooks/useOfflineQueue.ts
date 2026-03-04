@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createGig, updateGig, deleteGig, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, createAwayDate, updateAwayDate, deleteAwayDate } from '@shared/supabase/queries';
+import { getSupabase } from '@shared/supabase/clientRef';
 
 const QUEUE_KEY = 'timetree-offline-queue';
 
-interface QueuedMutation {
+export interface QueuedMutation {
   id: string;
-  type: 'createGig' | 'updateGig' | 'deleteGig' | 'createAwayDate' | 'deleteAwayDate';
+  type: 'createGig' | 'updateGig' | 'deleteGig' | 'createAwayDate' | 'updateAwayDate' | 'deleteAwayDate';
   args: any;
   createdAt: string;
 }
@@ -40,21 +41,34 @@ export function queueMutation(type: QueuedMutation['type'], args: any): void {
   saveQueue(queue);
 }
 
+/** Check if an entity still exists before replaying an update/delete */
+async function entityExists(table: string, id: string): Promise<boolean> {
+  const { data } = await getSupabase().from(table).select('id').eq('id', id).single();
+  return data != null;
+}
+
 async function replayOne(m: QueuedMutation): Promise<void> {
   switch (m.type) {
     case 'createGig':
       await createGig(m.args);
       break;
     case 'updateGig':
+      if (!await entityExists('gigs', m.args.id)) return; // entity deleted while offline
       await updateGig(m.args.id, m.args.updates);
       break;
     case 'deleteGig':
+      if (!await entityExists('gigs', m.args.id)) return;
       await deleteGig(m.args.id);
       break;
     case 'createAwayDate':
       await createAwayDate(m.args);
       break;
+    case 'updateAwayDate':
+      if (!await entityExists('away_dates', m.args.id)) return;
+      await updateAwayDate(m.args.id, m.args.updates);
+      break;
     case 'deleteAwayDate':
+      if (!await entityExists('away_dates', m.args.id)) return;
       await deleteAwayDate(m.args.id);
       break;
   }

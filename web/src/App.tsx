@@ -5,49 +5,64 @@ import { useCalendarData } from './hooks/useCalendarData';
 import { getChangesSince, updateLastOpened } from '@shared/supabase/queries';
 import type { ChangeSummaryItem } from '@shared/supabase/types';
 import { useOfflineQueue } from './hooks/useOfflineQueue';
-import { LoginPage } from './components/LoginPage';
+import { ViewProvider, useView } from './hooks/useViewContext';
+import { PublicSite } from './components/PublicSite';
+import { LoginModal } from './components/LoginModal';
 import { Calendar } from './components/Calendar';
 import { GigList } from './components/GigList';
 import { DayDetail } from './components/DayDetail';
 import { GigForm } from './components/GigForm';
 import { AwayManager } from './components/AwayManager';
-
-type View = 'calendar' | 'list' | 'day-detail' | 'gig-form' | 'away';
+import { ProfilePage } from './components/ProfilePage';
+import { MediaManager } from './components/MediaManager';
+import { Enquiries } from './components/Enquiries';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   const { user, profile, loading: authLoading, signIn, signOut } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   if (authLoading) {
     return (
-      <div className="app" style={{ justifyContent: 'center', alignItems: 'center' }}>
-        <p style={{ color: 'var(--color-tangerine)' }}>Loading...</p>
+      <div className="app app-centered">
+        <LoadingSpinner />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="app">
-        <LoginPage onSignIn={signIn} />
-      </div>
+      <>
+        <PublicSite onLogin={() => setShowLoginModal(true)} />
+        {showLoginModal && (
+          <LoginModal onSignIn={signIn} onClose={() => setShowLoginModal(false)} />
+        )}
+      </>
     );
   }
 
   return (
-    <div className="app">
-      <MainView profile={profile} onSignOut={signOut} />
-    </div>
+    <ErrorBoundary>
+      <ViewProvider>
+        <div className="app">
+          <MainView profile={profile} userEmail={user.email ?? ''} onSignOut={signOut} />
+        </div>
+      </ViewProvider>
+    </ErrorBoundary>
   );
 }
 
-function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void }) {
+function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: string; onSignOut: () => void }) {
+  const {
+    view, selectedDate, editGigId, initialGigType,
+    setView, goToDay, goToAddGig, goToEditGig,
+    goToAddGigFromList, goToEditGigFromList, goBack,
+  } = useView();
+
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [view, setView] = useState<View>('calendar');
-  const [selectedDate, setSelectedDate] = useState('');
-  const [editGigId, setEditGigId] = useState<string | null>(null);
-  const [initialGigType, setInitialGigType] = useState<'gig' | 'practice'>('gig');
 
   const { gigs, awayDates, profiles, error: calendarError, refresh } = useCalendarData(year, month);
 
@@ -91,68 +106,33 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
     else setMonth(m => m + 1);
   }
 
-  function handleDatePress(date: string) {
-    setSelectedDate(date);
-    setReturnView('calendar');
-    setView('day-detail');
-  }
-
-  function handleAddGig(date: string, type: 'gig' | 'practice' = 'gig') {
-    setSelectedDate(date);
-    setEditGigId(null);
-    setInitialGigType(type);
-    setReturnView('calendar');
-    setView('gig-form');
-  }
-
-  function handleEditGig(gigId: string) {
-    setEditGigId(gigId);
-    setReturnView('calendar');
-    setView('gig-form');
-  }
-
-  const [returnView, setReturnView] = useState<'calendar' | 'list'>('calendar');
-
   function handleGigSaved() {
     refresh();
     refreshQueueCount();
-    setView(returnView);
+    goBack();
   }
 
-  function handleMarkAway() {
-    setView('away');
-  }
-
-  function handleGigPressFromList(gigId: string, date: string) {
-    setSelectedDate(date);
-    setEditGigId(gigId);
-    setReturnView('list');
-    setView('gig-form');
-  }
-
-  function handleAddGigFromList(date: string, type: 'gig' | 'practice') {
-    setSelectedDate(date);
-    setEditGigId(null);
-    setInitialGigType(type);
-    setReturnView('list');
-    setView('gig-form');
-  }
-
-  const isMainView = view === 'calendar' || view === 'list';
+  const isMainView = view === 'calendar' || view === 'list' || view === 'website';
 
   return (
     <>
       {/* Header */}
       <header className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="flex-row-gap-10">
           <img src="/logo.png" alt="TGT" className="header-logo" />
           <span className="header-title">
             {view === 'calendar' ? 'Calendar' : view === 'list' ? 'Upcoming' : view === 'away' ? 'Away Dates' : 'Timetree'}
           </span>
         </div>
-        <button className="header-user" onClick={onSignOut}>
-          {profile?.name ?? 'User'} &middot; Sign out
-        </button>
+        <div className="flex-row-gap-8">
+          <button className="header-user header-user-name" onClick={() => setView('profile')}>
+            {profile?.name ?? 'User'}
+          </button>
+          <span className="header-separator">&middot;</span>
+          <button className="header-user header-signout" onClick={onSignOut}>
+            Sign out
+          </button>
+        </div>
       </header>
 
       {/* Offline banner */}
@@ -174,7 +154,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
       {calendarError && isMainView && (
         <div className="error-banner" role="alert">
           <span className="error-banner-text">{calendarError}</span>
-          <button className="btn btn-small btn-green" style={{ marginLeft: 12 }} onClick={refresh}>Retry</button>
+          <button className="btn btn-small btn-green error-banner-retry" onClick={refresh}>Retry</button>
         </div>
       )}
 
@@ -197,6 +177,15 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
       )}
 
       {/* Views */}
+      {view === 'website' && (
+        <div className="website-preview">
+          <button className="btn btn-green website-back-btn" onClick={() => setView('calendar')}>
+            Back to App
+          </button>
+          <PublicSite onLogin={() => {}} />
+        </div>
+      )}
+
       {view === 'calendar' && (
         <Calendar
           year={year}
@@ -204,7 +193,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
           gigs={gigs}
           awayDates={awayDates}
           totalMembers={profiles.length}
-          onDatePress={handleDatePress}
+          onDatePress={goToDay}
           onPrevMonth={goToPrev}
           onNextMonth={goToNext}
           onGoToToday={() => { const n = new Date(); setYear(n.getFullYear()); setMonth(n.getMonth()); }}
@@ -213,14 +202,14 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
 
       {view === 'list' && (
         <GigList
-          onGigPress={handleGigPressFromList}
-          onAddGig={handleAddGigFromList}
+          onGigPress={goToEditGigFromList}
+          onAddGig={goToAddGigFromList}
         />
       )}
 
       {isMainView && (
-        <div style={{ padding: '12px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div className="view-toggle" style={{ alignSelf: 'center' }}>
+        <div className="main-actions">
+          <div className="view-toggle">
             <button
               className={`view-toggle-btn ${view === 'calendar' ? 'active' : ''}`}
               onClick={() => setView('calendar')}
@@ -234,8 +223,17 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
               List
             </button>
           </div>
-          <button className="btn btn-green btn-small" style={{ width: '100%' }} onClick={() => setView('away')}>
+          <button className="btn btn-green btn-small btn-full" onClick={() => setView('away')}>
             My Away Dates
+          </button>
+          <button className="btn btn-tangerine btn-small btn-full" onClick={() => setView('media')}>
+            Manage Media
+          </button>
+          <button className="btn btn-small btn-full enquiry-archive-btn" onClick={() => setView('enquiries')}>
+            Booking Enquiries
+          </button>
+          <button className="btn btn-small btn-full btn-outline" onClick={() => setView('website')}>
+            View Website
           </button>
         </div>
       )}
@@ -244,10 +242,11 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
         <DayDetail
           date={selectedDate}
           awayDates={awayDates}
-          onClose={() => setView(returnView)}
-          onAddGig={handleAddGig}
-          onEditGig={handleEditGig}
-          onMarkAway={handleMarkAway}
+          onClose={goBack}
+          onAddGig={goToAddGig}
+          onEditGig={goToEditGig}
+          onMarkAway={() => setView('away')}
+          onGigDeleted={() => { refresh(); refreshQueueCount(); }}
         />
       )}
 
@@ -256,7 +255,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
           date={selectedDate}
           gigId={editGigId}
           initialType={initialGigType}
-          onClose={() => setView(returnView)}
+          onClose={goBack}
           onSaved={handleGigSaved}
         />
       )}
@@ -264,8 +263,24 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
       {view === 'away' && (
         <AwayManager
           initialDate={selectedDate || undefined}
-          onClose={() => { refresh(); setView(returnView); }}
+          onClose={() => { refresh(); goBack(); }}
         />
+      )}
+
+      {view === 'profile' && (
+        <ProfilePage
+          userEmail={userEmail}
+          onClose={goBack}
+          onSignOut={onSignOut}
+        />
+      )}
+
+      {view === 'media' && (
+        <MediaManager onClose={goBack} />
+      )}
+
+      {view === 'enquiries' && (
+        <Enquiries onClose={goBack} />
       )}
     </>
   );
