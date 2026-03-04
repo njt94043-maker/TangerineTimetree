@@ -1,0 +1,295 @@
+import React, { useState, useCallback } from 'react';
+import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { COLORS, FONTS } from '../theme';
+import { neuRaisedStyle } from '../theme/shadows';
+import { getUpcomingGigs } from '@shared/supabase/queries';
+import { isGigIncomplete } from '@shared/supabase/types';
+import type { GigWithCreator } from '@shared/supabase/types';
+
+interface GigListProps {
+  onGigPress: (gigId: string, gigType: string) => void;
+  onAddGig: (date: string, type: 'gig' | 'practice') => void;
+}
+
+function fmt(time: string | null): string {
+  return time ? time.slice(0, 5) : '\u2014';
+}
+
+function fmtFee(fee: number | null): string {
+  return fee != null ? `\u00A3${fee.toFixed(2)}` : '';
+}
+
+function formatGroupDate(iso: string): string {
+  const d = new Date(iso + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function daysUntil(iso: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(iso + 'T00:00:00');
+  const diff = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  return `${diff} days`;
+}
+
+interface DateGroup {
+  date: string;
+  gigs: GigWithCreator[];
+}
+
+export function GigList({ onGigPress, onAddGig }: GigListProps) {
+  const [groups, setGroups] = useState<DateGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getUpcomingGigs()
+        .then(gigs => {
+          if (!active) return;
+          const map = new Map<string, GigWithCreator[]>();
+          for (const gig of gigs) {
+            const existing = map.get(gig.date) ?? [];
+            existing.push(gig);
+            map.set(gig.date, existing);
+          }
+          setGroups(Array.from(map.entries()).map(([date, gigs]) => ({ date, gigs })));
+        })
+        .catch(() => { if (active) setGroups([]); })
+        .finally(() => { if (active) setLoading(false); });
+      return () => { active = false; };
+    }, []),
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={COLORS.teal} size="small" />
+      </View>
+    );
+  }
+
+  if (groups.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>No upcoming gigs</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      data={groups}
+      keyExtractor={item => item.date}
+      contentContainerStyle={styles.list}
+      renderItem={({ item }) => (
+        <View style={styles.group}>
+          <View style={styles.dateHeader}>
+            <Text style={styles.dateText}>{formatGroupDate(item.date)}</Text>
+            <Text style={styles.countdown}>{daysUntil(item.date)}</Text>
+          </View>
+          {item.gigs.map(gig => (
+            <GigCard
+              key={gig.id}
+              gig={gig}
+              onPress={() => onGigPress(gig.id, gig.gig_type)}
+            />
+          ))}
+        </View>
+      )}
+    />
+  );
+}
+
+function GigCard({ gig, onPress }: { gig: GigWithCreator; onPress: () => void }) {
+  const isPractice = gig.gig_type === 'practice';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        neuRaisedStyle('normal'),
+        styles.card,
+        isPractice ? styles.cardPractice : styles.cardGig,
+        pressed && styles.cardPressed,
+      ]}
+    >
+      <View style={styles.cardHeader}>
+        <View style={styles.cardLeft}>
+          {isPractice && (
+            <View style={styles.practiceBadge}>
+              <Text style={styles.practiceBadgeText}>PRACTICE</Text>
+            </View>
+          )}
+          {!isPractice && isGigIncomplete(gig) && (
+            <View style={styles.incompleteBadge}>
+              <Text style={styles.incompleteBadgeText}>INCOMPLETE</Text>
+            </View>
+          )}
+          <Text style={[styles.venue, isPractice && { color: COLORS.purple }]}>
+            {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
+          </Text>
+          {!isPractice && (
+            <Text style={styles.client}>{gig.client_name || 'Client TBC'}</Text>
+          )}
+        </View>
+        {!isPractice && gig.fee != null && (
+          <Text style={styles.fee}>{fmtFee(gig.fee)}</Text>
+        )}
+      </View>
+
+      <View style={styles.meta}>
+        <Text style={styles.metaText}>
+          {fmt(gig.start_time)}{gig.end_time ? ` \u2013 ${fmt(gig.end_time)}` : ''}
+        </Text>
+        {!isPractice && gig.load_time && (
+          <Text style={styles.metaText}>Load {fmt(gig.load_time)}</Text>
+        )}
+        {!isPractice && gig.payment_type && (
+          <Text style={styles.paymentType}>{gig.payment_type}</Text>
+        )}
+      </View>
+
+      {gig.notes ? (
+        <Text style={styles.notes} numberOfLines={1}>{gig.notes}</Text>
+      ) : null}
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  empty: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.textDim,
+  },
+  list: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  group: {
+    marginBottom: 4,
+  },
+  dateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  dateText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.text,
+  },
+  countdown: {
+    fontFamily: FONTS.monoRegular,
+    fontSize: 11,
+    color: COLORS.orange,
+  },
+  card: {
+    padding: 14,
+    marginBottom: 8,
+  },
+  cardGig: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.calGig,
+  },
+  cardPractice: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.purple,
+  },
+  cardPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardLeft: {
+    flex: 1,
+  },
+  practiceBadge: {
+    backgroundColor: 'rgba(187,134,252,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  practiceBadgeText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 9,
+    color: COLORS.purple,
+    letterSpacing: 0.5,
+  },
+  incompleteBadge: {
+    backgroundColor: 'rgba(255,82,82,0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  incompleteBadgeText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 9,
+    color: COLORS.danger,
+    letterSpacing: 0.5,
+  },
+  venue: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 15,
+    color: COLORS.text,
+  },
+  client: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textDim,
+    marginTop: 1,
+  },
+  fee: {
+    fontFamily: FONTS.mono,
+    fontSize: 14,
+    color: COLORS.calGig,
+    marginLeft: 12,
+  },
+  meta: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  metaText: {
+    fontFamily: FONTS.monoRegular,
+    fontSize: 12,
+    color: COLORS.textDim,
+  },
+  paymentType: {
+    fontFamily: FONTS.monoRegular,
+    fontSize: 12,
+    color: COLORS.orange,
+    textTransform: 'capitalize',
+  },
+  notes: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textDim,
+    fontStyle: 'italic',
+    marginTop: 6,
+  },
+});
