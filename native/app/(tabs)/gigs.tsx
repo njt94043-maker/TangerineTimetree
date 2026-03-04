@@ -111,6 +111,8 @@ function GigsMainView({ insetTop, insetBottom }: { insetTop: number; insetBottom
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+
   const fetchData = useCallback(async () => {
     try {
       const [g, a, p] = await Promise.all([
@@ -121,8 +123,9 @@ function GigsMainView({ insetTop, insetBottom }: { insetTop: number; insetBottom
       setGigs(g);
       setAwayDates(a);
       setProfiles(p);
+      setCalendarError(null);
     } catch (e) {
-      // Silently handle — user sees empty calendar
+      setCalendarError('Failed to load calendar data');
     }
   }, [viewYear, viewMonth]);
 
@@ -181,6 +184,12 @@ function GigsMainView({ insetTop, insetBottom }: { insetTop: number; insetBottom
   return (
     <View style={[styles.container, { paddingTop: insetTop + 8, paddingBottom: insetBottom + 70 }]}>
       <Text style={styles.screenTitle}>Gigs</Text>
+
+      {calendarError && viewMode === 'calendar' && (
+        <Pressable onPress={fetchData} style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{calendarError}. Tap to retry.</Text>
+        </Pressable>
+      )}
 
       {viewMode === 'calendar' && (
         <GigCalendar
@@ -281,6 +290,20 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     textAlign: 'center',
     marginBottom: 14,
+  },
+  errorBanner: {
+    backgroundColor: 'rgba(255,82,82,0.1)',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  errorBannerText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.danger,
+    textAlign: 'center',
   },
   bottomActions: {
     paddingHorizontal: 20,

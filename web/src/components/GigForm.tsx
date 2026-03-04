@@ -1,6 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
 import { createGig, updateGig, deleteGig } from '@shared/supabase/queries';
+import { isGigIncomplete } from '@shared/supabase/types';
+import type { Gig } from '@shared/supabase/types';
 
 interface GigFormProps {
   date: string;
@@ -64,6 +66,19 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
         notes,
       };
 
+      // Warn if gig is incomplete but allow save
+      const checkGig = { ...data, id: '', created_by: '', created_at: '', updated_at: '', fee: data.fee, payment_type: data.payment_type || '' } as Gig;
+      if (isGigIncomplete(checkGig)) {
+        const missing: string[] = [];
+        if (!venue) missing.push('venue');
+        if (gigType !== 'practice' && !clientName) missing.push('client');
+        if (gigType !== 'practice' && data.fee == null) missing.push('fee');
+        if (!startTime) missing.push('start time');
+        if (gigType !== 'practice' && !loadTime) missing.push('load-in time');
+        const ok = confirm(`This ${gigType} is missing: ${missing.join(', ')}.\n\nSave anyway? It will be marked INCOMPLETE.`);
+        if (!ok) { setSaving(false); return; }
+      }
+
       if (isEditing && gigId) {
         await updateGig(gigId, data);
       } else {
@@ -99,63 +114,64 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="label">DATE</div>
+        <label className="label" htmlFor="gig-date">DATE</label>
         <div className="neu-inset">
-          <input className="input-field" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+          <input id="gig-date" className="input-field" type="date" value={date} onChange={e => setDate(e.target.value)} required />
         </div>
 
         {!isPractice && (
           <>
-            <div className="label">VENUE</div>
+            <label className="label" htmlFor="gig-venue">VENUE</label>
             <div className="neu-inset">
-              <input className="input-field" placeholder="e.g. Gin & Juice, Mumbles" value={venue} onChange={e => setVenue(e.target.value)} />
+              <input id="gig-venue" className="input-field" placeholder="e.g. Gin & Juice, Mumbles" value={venue} onChange={e => setVenue(e.target.value)} />
             </div>
 
-            <div className="label">CLIENT / BOOKER</div>
+            <label className="label" htmlFor="gig-client">CLIENT / BOOKER</label>
             <div className="neu-inset">
-              <input className="input-field" placeholder="e.g. Suave Agency" value={clientName} onChange={e => setClientName(e.target.value)} />
+              <input id="gig-client" className="input-field" placeholder="e.g. Suave Agency" value={clientName} onChange={e => setClientName(e.target.value)} />
             </div>
 
-            <div className="label">FEE</div>
+            <label className="label" htmlFor="gig-fee">FEE</label>
             <div className="neu-inset">
-              <input className="input-field" placeholder="e.g. 400" type="number" step="0.01" inputMode="decimal" value={fee} onChange={e => setFee(e.target.value)} />
+              <input id="gig-fee" className="input-field" placeholder="e.g. 400" type="number" step="0.01" inputMode="decimal" value={fee} onChange={e => setFee(e.target.value)} />
             </div>
 
             <div className="label">PAYMENT TYPE</div>
             <div className="toggle-row">
-              <div className={`toggle-btn neu-card ${paymentType === 'cash' ? 'active' : ''}`} onClick={() => setPaymentType('cash')}>Cash</div>
-              <div className={`toggle-btn neu-card ${paymentType === 'invoice' ? 'active' : ''}`} onClick={() => setPaymentType('invoice')}>Invoice</div>
+              <button type="button" className={`toggle-btn neu-card ${paymentType === 'cash' ? 'active' : ''}`} onClick={() => setPaymentType('cash')}>Cash</button>
+              <button type="button" className={`toggle-btn neu-card ${paymentType === 'invoice' ? 'active' : ''}`} onClick={() => setPaymentType('invoice')}>Invoice</button>
             </div>
 
-            <div className="label">LOAD-IN TIME</div>
+            <label className="label" htmlFor="gig-load">LOAD-IN TIME</label>
             <div className="neu-inset">
-              <input className="input-field" type="time" value={loadTime} onChange={e => setLoadTime(e.target.value)} />
+              <input id="gig-load" className="input-field" type="time" value={loadTime} onChange={e => setLoadTime(e.target.value)} />
             </div>
           </>
         )}
 
-        <div className="label">START TIME</div>
+        <label className="label" htmlFor="gig-start">START TIME</label>
         <div className="neu-inset">
-          <input className="input-field" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+          <input id="gig-start" className="input-field" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
         </div>
 
-        <div className="label">END TIME (OPTIONAL)</div>
+        <label className="label" htmlFor="gig-end">END TIME (OPTIONAL)</label>
         <div className="neu-inset">
-          <input className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+          <input id="gig-end" className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
         </div>
 
         {isPractice && (
           <>
-            <div className="label">LOCATION (OPTIONAL)</div>
+            <label className="label" htmlFor="gig-location">LOCATION (OPTIONAL)</label>
             <div className="neu-inset">
-              <input className="input-field" placeholder="e.g. Neil's garage" value={venue} onChange={e => setVenue(e.target.value)} />
+              <input id="gig-location" className="input-field" placeholder="e.g. Neil's garage" value={venue} onChange={e => setVenue(e.target.value)} />
             </div>
           </>
         )}
 
-        <div className="label">NOTES (OPTIONAL)</div>
+        <label className="label" htmlFor="gig-notes">NOTES (OPTIONAL)</label>
         <div className="neu-inset">
           <textarea
+            id="gig-notes"
             className="input-field"
             placeholder="Any extra details..."
             rows={3}
@@ -165,7 +181,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           />
         </div>
 
-        {error && <p style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 14 }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 12, textAlign: 'center', marginTop: 14 }}>{error}</p>}
 
         <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <button className="btn btn-primary" type="submit" disabled={saving}>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../supabase/client';
 import type { GigWithCreator } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
 import { getUpcomingGigs } from '@shared/supabase/queries';
@@ -34,16 +35,47 @@ function daysUntil(iso: string): string {
 export function GigList({ onGigPress, onAddGig }: GigListProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchGigs = useCallback(async () => {
+    try {
+      const data = await getUpcomingGigs();
+      setGigs(data);
+      setError(null);
+    } catch {
+      setError('Failed to load gigs');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    getUpcomingGigs()
-      .then(setGigs)
-      .catch(() => setGigs([]))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchGigs();
+  }, [fetchGigs]);
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('gig-list-web')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gigs' }, () => {
+        fetchGigs();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchGigs]);
 
   if (loading) {
     return <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '40px 0' }}>Loading...</p>;
+  }
+
+  if (error) {
+    return (
+      <div role="alert" style={{ textAlign: 'center', padding: '40px 20px' }}>
+        <p style={{ color: 'var(--color-danger)', marginBottom: 12 }}>{error}</p>
+        <button className="btn btn-small btn-green" onClick={fetchGigs}>Retry</button>
+      </div>
+    );
   }
 
   // Group gigs by date

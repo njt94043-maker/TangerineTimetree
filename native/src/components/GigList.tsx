@@ -1,11 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, FlatList, Pressable, RefreshControl, ActivityIndicator, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle } from '../theme/shadows';
+import { NeuButton } from './NeuButton';
 import { getUpcomingGigs } from '@shared/supabase/queries';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { GigWithCreator } from '@shared/supabase/types';
+import { supabase } from '../supabase/client';
 
 interface GigListProps {
   onGigPress: (gigId: string, gigType: string) => void;
@@ -35,6 +37,11 @@ function daysUntil(iso: string): string {
   return `${diff} days`;
 }
 
+function todayISO(): string {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+}
+
 interface DateGroup {
   date: string;
   gigs: GigWithCreator[];
@@ -43,26 +50,59 @@ interface DateGroup {
 export function GigList({ onGigPress, onAddGig }: GigListProps) {
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const activeRef = useRef(true);
 
+  const loadGigs = useCallback(async () => {
+    try {
+      const gigs = await getUpcomingGigs();
+      if (!activeRef.current) return;
+      const map = new Map<string, GigWithCreator[]>();
+      for (const gig of gigs) {
+        const existing = map.get(gig.date) ?? [];
+        existing.push(gig);
+        map.set(gig.date, existing);
+      }
+      setGroups(Array.from(map.entries()).map(([date, gigs]) => ({ date, gigs })));
+      setError(null);
+    } catch {
+      if (activeRef.current) {
+        setError('Failed to load gigs');
+      }
+    } finally {
+      if (activeRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
+
+  // Fetch on focus
   useFocusEffect(
     useCallback(() => {
-      let active = true;
-      getUpcomingGigs()
-        .then(gigs => {
-          if (!active) return;
-          const map = new Map<string, GigWithCreator[]>();
-          for (const gig of gigs) {
-            const existing = map.get(gig.date) ?? [];
-            existing.push(gig);
-            map.set(gig.date, existing);
-          }
-          setGroups(Array.from(map.entries()).map(([date, gigs]) => ({ date, gigs })));
-        })
-        .catch(() => { if (active) setGroups([]); })
-        .finally(() => { if (active) setLoading(false); });
-      return () => { active = false; };
-    }, []),
+      activeRef.current = true;
+      loadGigs();
+      return () => { activeRef.current = false; };
+    }, [loadGigs]),
   );
+
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel('gig-list')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gigs' }, () => {
+        loadGigs();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadGigs]);
+
+  function handleRefresh() {
+    setRefreshing(true);
+    loadGigs();
+  }
 
   if (loading) {
     return (
@@ -72,10 +112,30 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.empty}>
+        <Text style={styles.errorText}>{error}</Text>
+        <Pressable onPress={loadGigs} style={styles.retryBtn}>
+          <Text style={styles.retryText}>Tap to retry</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const footer = (
+    <View style={styles.footer}>
+      <NeuButton label="Add Gig" onPress={() => onAddGig(todayISO(), 'gig')} color={COLORS.calGig} small />
+      <View style={{ height: 8 }} />
+      <NeuButton label="Add Practice" onPress={() => onAddGig(todayISO(), 'practice')} color={COLORS.purple} small />
+    </View>
+  );
+
   if (groups.length === 0) {
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyText}>No upcoming gigs</Text>
+        {footer}
       </View>
     );
   }
@@ -85,6 +145,10 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
       data={groups}
       keyExtractor={item => item.date}
       contentContainerStyle={styles.list}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.teal} />
+      }
+      ListFooterComponent={footer}
       renderItem={({ item }) => (
         <View style={styles.group}>
           <View style={styles.dateHeader}>
@@ -129,11 +193,11 @@ function GigCard({ gig, onPress }: { gig: GigWithCreator; onPress: () => void })
               <Text style={styles.incompleteBadgeText}>INCOMPLETE</Text>
             </View>
           )}
-          <Text style={[styles.venue, isPractice && { color: COLORS.purple }]}>
+          <Text style={[styles.venue, isPractice && { color: COLORS.purple }]} numberOfLines={2}>
             {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
           </Text>
           {!isPractice && (
-            <Text style={styles.client}>{gig.client_name || 'Client TBC'}</Text>
+            <Text style={styles.client} numberOfLines={1}>{gig.client_name || 'Client TBC'}</Text>
           )}
         </View>
         {!isPractice && gig.fee != null && (
@@ -170,11 +234,28 @@ const styles = StyleSheet.create({
   empty: {
     paddingVertical: 40,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   emptyText: {
     fontFamily: FONTS.body,
     fontSize: 14,
     color: COLORS.textDim,
+  },
+  errorText: {
+    fontFamily: FONTS.body,
+    fontSize: 14,
+    color: COLORS.danger,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  retryBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.teal,
   },
   list: {
     paddingHorizontal: 16,
@@ -291,5 +372,10 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
     fontStyle: 'italic',
     marginTop: 6,
+  },
+  footer: {
+    marginTop: 16,
+    paddingHorizontal: 4,
+    marginBottom: 20,
   },
 });

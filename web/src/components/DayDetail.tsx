@@ -30,14 +30,20 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function fetchDayGigs() {
     setExpandedLog(null);
     setLoading(true);
+    setError(null);
     getGigsByDate(date)
       .then(setGigs)
-      .catch(() => setGigs([]))
+      .catch(() => setError('Failed to load gigs for this day'))
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    fetchDayGigs();
   }, [date]);
 
   async function toggleLog(gigId: string) {
@@ -61,14 +67,21 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
 
         {loading && <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '20px 0' }}>Loading...</p>}
 
-        {!loading && gigs.length === 0 && (
+        {error && (
+          <div role="alert" style={{ textAlign: 'center', padding: '20px 0' }}>
+            <p style={{ color: 'var(--color-danger)', marginBottom: 8 }}>{error}</p>
+            <button className="btn btn-small btn-green" onClick={fetchDayGigs}>Retry</button>
+          </div>
+        )}
+
+        {!loading && !error && gigs.length === 0 && (
           <p style={{ color: 'var(--color-text-dim)', textAlign: 'center', padding: '20px 0' }}>Nothing booked</p>
         )}
 
         {gigs.map(gig => {
           const isPractice = gig.gig_type === 'practice';
           return (
-            <div key={gig.id} className="neu-inset" style={{ padding: 14, marginBottom: 12, cursor: 'pointer' }} onClick={() => onEditGig(gig.id)}>
+            <div key={gig.id} className="neu-inset" style={{ padding: 16, marginBottom: 12, cursor: 'pointer' }} onClick={() => onEditGig(gig.id)}>
               {isPractice && <span className="practice-badge">PRACTICE</span>}
               {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
 
@@ -86,7 +99,7 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
               </div>
 
               {gig.notes && <p style={{ fontSize: 12, color: 'var(--color-text-dim)', fontStyle: 'italic', marginTop: 6 }}>{gig.notes}</p>}
-              <p style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 8 }}>Added by {gig.creator_name}</p>
+              <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>Added by {gig.creator_name}</p>
 
               <button className="changelog-toggle" onClick={(e) => { e.stopPropagation(); toggleLog(gig.id); }}>
                 {expandedLog === gig.id ? 'Hide history' : 'Show history'}

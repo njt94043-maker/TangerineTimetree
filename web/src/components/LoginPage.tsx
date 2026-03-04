@@ -63,8 +63,10 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
       </p>
 
       <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 320 }}>
+        <label htmlFor="login-email" className="label" style={{ textAlign: 'left' }}>EMAIL</label>
         <div className="neu-inset" style={{ marginBottom: 14 }}>
           <input
+            id="login-email"
             className="input-field"
             type="email"
             placeholder="Email"
@@ -74,8 +76,10 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
           />
         </div>
 
+        <label htmlFor="login-password" className="label" style={{ textAlign: 'left' }}>PASSWORD</label>
         <div className="neu-inset" style={{ marginBottom: 14 }}>
           <input
+            id="login-password"
             className="input-field"
             type="password"
             placeholder="Password"
@@ -86,7 +90,7 @@ export function LoginPage({ onSignIn }: LoginPageProps) {
         </div>
 
         {error && (
-          <p style={{
+          <p role="alert" style={{
             color: 'var(--color-danger)',
             fontSize: 12,
             textAlign: 'center',

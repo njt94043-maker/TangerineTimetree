@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './client';
+import { onAuthError } from '@shared/supabase/clientRef';
 import type { Session, User } from '@supabase/supabase-js';
 import type { Profile } from '@shared/supabase/types';
 
@@ -41,6 +42,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Handle auth errors from shared queries (expired JWT, etc.)
+    onAuthError(() => {
+      supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+    });
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);

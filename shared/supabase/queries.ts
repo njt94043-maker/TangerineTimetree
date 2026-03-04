@@ -1,4 +1,4 @@
-import { getSupabase } from './clientRef';
+import { getSupabase, handleAuthError } from './clientRef';
 import type {
   Profile,
   Gig,
@@ -9,6 +9,15 @@ import type {
   GigChangelogWithUser,
 } from './types';
 
+function checkAuthError(error: any): void {
+  if (!error) return;
+  const code = error?.code ?? '';
+  const msg = (error?.message ?? '').toLowerCase();
+  if (code === 'PGRST301' || code === '401' || msg.includes('jwt expired') || msg.includes('not authenticated')) {
+    handleAuthError();
+  }
+}
+
 // ─── Profiles ───────────────────────────────────────────
 
 export async function getProfiles(): Promise<Profile[]> {
@@ -17,7 +26,7 @@ export async function getProfiles(): Promise<Profile[]> {
     .from('profiles')
     .select('*')
     .order('name');
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
   return data ?? [];
 }
 
@@ -30,7 +39,7 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .select('*')
     .eq('id', user.id)
     .single();
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
   return data;
 }
 
@@ -49,7 +58,7 @@ export async function getGigsForMonth(year: number, month: number): Promise<GigW
     .lte('date', endDate)
     .order('date');
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   return (data ?? []).map((row: any) => ({
     ...row,
@@ -66,7 +75,7 @@ export async function getGigsByDate(date: string): Promise<GigWithCreator[]> {
     .eq('date', date)
     .order('start_time');
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   return (data ?? []).map((row: any) => ({
     ...row,
@@ -109,7 +118,7 @@ export async function createGig(gig: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   // Log creation
   await supabase.from('gig_changelog').insert({
@@ -133,7 +142,7 @@ export async function updateGig(
   const { data: current } = await supabase.from('gigs').select('*').eq('id', id).single();
 
   const { error } = await supabase.from('gigs').update(updates).eq('id', id);
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   // Log each changed field
   if (current) {
@@ -176,7 +185,7 @@ export async function deleteGig(id: string): Promise<void> {
   });
 
   const { error } = await supabase.from('gigs').delete().eq('id', id);
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 }
 
 // ─── Upcoming Gigs (list view) ──────────────────────────
@@ -193,7 +202,7 @@ export async function getUpcomingGigs(limit = 50): Promise<GigWithCreator[]> {
     .order('date')
     .order('start_time')
     .limit(limit);
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   return (data ?? []).map((row: any) => ({
     ...row,
@@ -216,7 +225,7 @@ export async function getAwayDatesForMonth(year: number, month: number): Promise
     .lte('start_date', endDate)
     .gte('end_date', startDate);
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   return (data ?? []).map((row: any) => ({
     ...row,
@@ -236,7 +245,7 @@ export async function getMyAwayDates(): Promise<AwayDate[]> {
     .eq('user_id', user.id)
     .order('start_date');
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
   return data ?? [];
 }
 
@@ -260,14 +269,14 @@ export async function createAwayDate(params: {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
   return data;
 }
 
 export async function deleteAwayDate(id: string): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('away_dates').delete().eq('id', id);
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 }
 
 // ─── Changelog ──────────────────────────────────────────
@@ -280,7 +289,7 @@ export async function getGigChangelog(gigId: string): Promise<GigChangelogWithUs
     .eq('gig_id', gigId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) { checkAuthError(error); throw error; }
 
   return (data ?? []).map((row: any) => ({
     ...row,
