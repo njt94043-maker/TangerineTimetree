@@ -6,15 +6,16 @@
 ---
 
 ## Current Priority
-- **Phase 4: In-App Change Summary** — away_date_changelog table, last_opened_at, change summary banner/alert
-- **Push to GitHub** → Vercel deploys Phase 2 + 3 web changes
-- **Build release APK** → test on device (scroll fix, count badges, toast)
+- **Phase 6: Polish & Remaining Items** — today button, time picker, calendar preservation, etc.
+- **Push to GitHub** → Vercel deploys Phase 2 + 3 + 4 + 5 web changes
+- **Build release APK** → test on device (offline mode, change summary, scroll fix, count badges, toast)
 - **Test Tangerine Timetree on band members' iPhones**: Share URL, test PWA install, verify login
 
-## Recently Completed (Phase 3 remaining — 2026-03-04)
-- [x] 3.4 — Day sheet scroll fix (flexGrow: 0 → 1)
-- [x] 3.5 — Calendar gig count indicator (both apps, >1 gig shows count badge)
-- [x] 3.6 — Success feedback on save (ToastAndroid on native)
+## Recently Completed (Phase 5 — 2026-03-04)
+- [x] 5.1 — Web: Service worker runtimeCaching for Supabase API (NetworkFirst, 24h) + Google Fonts (CacheFirst)
+- [x] 5.2 — Web: Offline mutation queue (localStorage, auto-replay on reconnect, pending count badge)
+- [x] 5.3 — Native: AsyncStorage cache (cache on fetch, serve from cache on network failure, offline banner)
+- [x] 5.4 — Native: Offline mutation queue (AsyncStorage queue, NetInfo listener, auto-replay)
 
 ## Backlog
 - Test themed templates on device (7 invoice + 7 receipt styles, SVG decorations)
@@ -34,6 +35,8 @@
 _None identified._
 
 ## Completed
+- [x] Phase 5: Full Offline Support — SW caching, offline queues, AsyncStorage cache, NetInfo listener (2026-03-04)
+- [x] Phase 4: In-App Change Summary — DB migration, shared queries, web banner, native alert (2026-03-04)
 - [x] Phase 2: Web Visual Redesign — safe areas, touch targets, fonts, contrast, spacing, accessibility (2026-03-04)
 - [x] Phase 3 remaining: day sheet scroll, gig count badge, save toast (2026-03-04)
 - [x] Phase 1: Critical data & sync fixes — realtime list sync, error handling, form validation, auth expiry (2026-03-04)

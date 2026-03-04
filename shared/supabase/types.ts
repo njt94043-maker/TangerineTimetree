@@ -7,6 +7,15 @@ export interface Profile {
   is_admin: boolean;
   avatar_url: string;
   created_at: string;
+  last_opened_at: string;
+}
+
+export interface ChangeSummaryItem {
+  type: 'gig' | 'away';
+  action: string;
+  user_name: string;
+  description: string;
+  created_at: string;
 }
 
 export type GigType = 'gig' | 'practice';

@@ -10,7 +10,8 @@ import { NeuCard } from '../../src/components/NeuCard';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
 import { getMyAwayDates, createAwayDate, deleteAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
-import { TextInput } from 'react-native';
+import { TextInput, ToastAndroid, Platform } from 'react-native';
+import { isNetworkError, queueMutation } from '../../src/utils/offlineQueue';
 
 export default function AwayDatesScreen() {
   const router = useRouter();
@@ -58,6 +59,13 @@ export default function AwayDatesScreen() {
       setReason('');
       fetchAwayDates();
     } catch (e) {
+      if (isNetworkError(e)) {
+        await queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
+        setShowForm(false);
+        setReason('');
+        if (Platform.OS === 'android') ToastAndroid.show('Saved offline — will sync when connected', ToastAndroid.SHORT);
+        return;
+      }
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setSaving(false);
@@ -74,7 +82,13 @@ export default function AwayDatesScreen() {
           try {
             await deleteAwayDate(id);
             fetchAwayDates();
-          } catch {
+          } catch (e) {
+            if (isNetworkError(e)) {
+              await queueMutation('deleteAwayDate', { id });
+              setAwayDates(prev => prev.filter(a => a.id !== id));
+              if (Platform.OS === 'android') ToastAndroid.show('Queued for sync', ToastAndroid.SHORT);
+              return;
+            }
             Alert.alert('Error', 'Failed to delete');
           }
         },

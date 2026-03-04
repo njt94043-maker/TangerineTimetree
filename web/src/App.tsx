@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { useAuth } from './hooks/useAuth';
 import { useCalendarData } from './hooks/useCalendarData';
+import { getChangesSince, updateLastOpened } from '@shared/supabase/queries';
+import type { ChangeSummaryItem } from '@shared/supabase/types';
+import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { LoginPage } from './components/LoginPage';
 import { Calendar } from './components/Calendar';
 import { GigList } from './components/GigList';
@@ -48,6 +51,36 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
 
   const { gigs, awayDates, profiles, error: calendarError, refresh } = useCalendarData(year, month);
 
+  // Offline mutation queue
+  const { pendingCount, refreshCount: refreshQueueCount } = useOfflineQueue(refresh);
+
+  // Change summary banner
+  const [changeSummary, setChangeSummary] = useState<ChangeSummaryItem[]>([]);
+  const changeSummaryChecked = useRef(false);
+
+  useEffect(() => {
+    if (!profile?.last_opened_at || changeSummaryChecked.current) return;
+    changeSummaryChecked.current = true;
+    getChangesSince(profile.last_opened_at)
+      .then(items => { if (items.length > 0) setChangeSummary(items); })
+      .catch(() => {});
+  }, [profile]);
+
+  function dismissChangeSummary() {
+    setChangeSummary([]);
+    updateLastOpened().catch(() => {});
+  }
+
+  // Offline indicator
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  useEffect(() => {
+    const goOffline = () => setIsOffline(true);
+    const goOnline = () => { setIsOffline(false); refresh(); };
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
+    return () => { window.removeEventListener('offline', goOffline); window.removeEventListener('online', goOnline); };
+  }, [refresh]);
+
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
     else setMonth(m => m - 1);
@@ -82,6 +115,7 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
 
   function handleGigSaved() {
     refresh();
+    refreshQueueCount();
     setView(returnView);
   }
 
@@ -119,11 +153,44 @@ function MainView({ profile, onSignOut }: { profile: any; onSignOut: () => void 
         </button>
       </header>
 
+      {/* Offline banner */}
+      {isOffline && (
+        <div className="offline-banner" role="status">
+          You're offline — showing cached data
+          {pendingCount > 0 && ` (${pendingCount} change${pendingCount > 1 ? 's' : ''} pending sync)`}
+        </div>
+      )}
+
+      {/* Pending sync badge (when online but queue still has items) */}
+      {!isOffline && pendingCount > 0 && (
+        <div className="offline-banner" role="status">
+          {pendingCount} change{pendingCount > 1 ? 's' : ''} syncing...
+        </div>
+      )}
+
       {/* Error banner */}
       {calendarError && isMainView && (
         <div className="error-banner" role="alert">
           <span className="error-banner-text">{calendarError}</span>
           <button className="btn btn-small btn-green" style={{ marginLeft: 12 }} onClick={refresh}>Retry</button>
+        </div>
+      )}
+
+      {/* Change summary banner */}
+      {changeSummary.length > 0 && isMainView && (
+        <div className="change-banner">
+          <div className="change-banner-header">
+            <span className="change-banner-title">What's changed</span>
+            <button className="change-banner-dismiss" onClick={dismissChangeSummary}>Dismiss</button>
+          </div>
+          <ul className="change-banner-list">
+            {changeSummary.map((item, i) => (
+              <li key={i} className="change-banner-item">
+                <span className={`change-dot ${item.type}`} />
+                <span><strong>{item.user_name}</strong> {item.description}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
