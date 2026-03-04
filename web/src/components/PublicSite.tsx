@@ -1,18 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getPublicGigs, getPublicProfiles, getPublicMedia, submitContactForm } from '@shared/supabase/queries';
-import type { Gig, Profile, PublicMedia } from '@shared/supabase/types';
+import { getPublicGigs, getPublicMedia, submitContactForm } from '@shared/supabase/queries';
+import type { Gig, PublicMedia } from '@shared/supabase/types';
 
 interface PublicSiteProps {
   onLogin: () => void;
 }
-
-// Hardcoded fallback band members (in case anon can't read profiles)
-const FALLBACK_MEMBERS = [
-  { name: 'Nathan', band_role: 'Lead Guitar & Vocals', avatar_url: '' },
-  { name: 'Neil', band_role: 'Rhythm Guitar & Vocals', avatar_url: '' },
-  { name: 'James', band_role: 'Bass Guitar', avatar_url: '' },
-  { name: 'Adam', band_role: 'Drums', avatar_url: '' },
-];
 
 const PRICING_TIERS = [
   {
@@ -64,7 +56,6 @@ const BENEFITS = [
 export function PublicSite({ onLogin }: PublicSiteProps) {
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [media, setMedia] = useState<PublicMedia[]>([]);
-  const [members, setMembers] = useState<{ name: string; band_role: string; avatar_url: string }[]>(FALLBACK_MEMBERS);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', event_type: '', date: '', message: '' });
@@ -73,17 +64,6 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
   useEffect(() => {
     getPublicGigs()
       .then(data => setGigs(data))
-      .catch(() => {});
-    getPublicProfiles()
-      .then((profiles: Profile[]) => {
-        if (profiles.length > 0) {
-          setMembers(profiles.map(p => ({
-            name: p.name,
-            band_role: p.band_role || '',
-            avatar_url: p.avatar_url || '',
-          })));
-        }
-      })
       .catch(() => {});
     getPublicMedia()
       .then(data => setMedia(data))
@@ -204,21 +184,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
           </p>
           <p className="ps-about-slogan">We don't just play &mdash; we display!</p>
 
-          <div className="ps-members-grid">
-            {members.map((m, i) => (
-              <div key={i} className="ps-member-card">
-                <div className="ps-member-avatar">
-                  {m.avatar_url ? (
-                    <img src={m.avatar_url} alt={m.name} className="ps-member-img" />
-                  ) : (
-                    <div className="ps-member-placeholder">{m.name.charAt(0)}</div>
-                  )}
-                </div>
-                <div className="ps-member-name">{m.name}</div>
-                {m.band_role && <div className="ps-member-role">{m.band_role}</div>}
-              </div>
-            ))}
-          </div>
+          <p className="ps-about-text">A 4-piece live band from the Rhondda covering rock &amp; indie classics.</p>
         </div>
       </section>
 
