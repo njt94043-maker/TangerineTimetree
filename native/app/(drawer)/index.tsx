@@ -162,7 +162,6 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
         <GigCalendar
           gigs={gigs}
           awayDates={awayDates}
-          totalMembers={profiles.length || 4}
           onDatePress={handleDatePress}
         />
       )}

@@ -199,16 +199,25 @@
 - [x] S9-S19 committed & pushed to master (Vercel auto-deployed)
 - [x] TypeScript clean: both `web -b` and `native --noEmit` pass
 
+## Sprint S20 — Branding + Polish ✅ COMPLETE
+- [x] Clear-bg logo (`Main512 pic.png`) copied to web/public/ (logo-512, logo-192, logo) + native/assets/ (icon, adaptive-icon, splash-icon, favicon, logo-512)
+- [x] Logo image added to web Drawer header + native Drawer header (alongside brand text)
+- [x] SplashScreen component (animated "Juice Drop" — logo drop-in, juice splat particles, word reveal, loading dots) wired into App.tsx
+- [x] SkeletonLoaders components (PageLoader, CardSkeleton, InlineSkeleton, DotLoader) — replaced LoadingSpinner in Dashboard, InvoiceList, QuoteList
+- [x] Native app.json splash/adaptive-icon bg updated to #08080c (matching theme)
+- [x] Service role key stored in .env (gitignored) with NATHAN_USER_ID
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass, vite build passes
+
 ## Upcoming Sprints
 | Sprint | Focus | Key Deliverables |
 |--------|-------|------------------|
-| S20 | Branding + polish | Logo swap (clear-bg image), animated splash screen, skeleton loaders, app icons |
 | S21 | APK build fix + device testing | Debug native crash, fix cmake error, install on Samsung, run migration, seed data, end-to-end test |
 
 > Pickup prompts for each sprint: `native/docs/ai_context/SPRINT_PROMPTS.md`
 
 ## Backlog
-- Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx` (116 gigs + 62 away dates)
+- ~~Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx`~~ DONE (117 gigs + 62 away dates in Supabase)
+- User to verify 44 WhatsApp-confirmed fees, then batch-update in app or via script
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
 
 ## Key Decisions (This Session)
