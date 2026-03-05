@@ -141,7 +141,8 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   }
 
   function goToStep4() {
-    if (!userSettings || !bandSettings || !selectedClient) return;
+    if (!userSettings || !bandSettings) { setError('Settings not loaded — please configure Settings first'); return; }
+    if (!selectedClient) return;
     setError('');
 
     const templateData: QuoteTemplateData = {
