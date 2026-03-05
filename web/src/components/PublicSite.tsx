@@ -198,7 +198,10 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       </header>
 
       {/* ─── Hero ─── */}
-      <section id="hero" className="ps-hero">
+      <section id="hero" className="ps-hero" style={{
+        ...(content['bg_hero_desktop'] ? { '--bg-hero': `url('${content['bg_hero_desktop']}')` } : {}),
+        ...(content['bg_hero_mobile'] ? { '--bg-hero-mobile': `url('${content['bg_hero_mobile']}')` } : {}),
+      } as React.CSSProperties}>
         <div className="ps-hero-overlay" />
         <div className="ps-hero-content">
           <h1 className="ps-hero-title">The Green Tangerine</h1>
@@ -248,7 +251,9 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       )}
 
       {/* ─── About ─── */}
-      <section id="about" className="ps-section ps-section-bg-about">
+      <section id="about" className="ps-section ps-section-bg-about" style={{
+        ...(content['bg_about'] ? { '--bg-about': `url('${content['bg_about']}')` } : {}),
+      } as React.CSSProperties}>
         <h2 className="ps-section-title">About the Band</h2>
         <div className="ps-about-content">
           <p className="ps-about-text">
@@ -264,7 +269,9 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       </section>
 
       {/* ─── For Venues ─── */}
-      <section id="venues" className="ps-section ps-section-alt ps-section-bg-venues">
+      <section id="venues" className="ps-section ps-section-alt ps-section-bg-venues" style={{
+        ...(content['bg_venues'] ? { '--bg-venues': `url('${content['bg_venues']}')` } : {}),
+      } as React.CSSProperties}>
         <h2 className="ps-section-title">For Venues</h2>
         <p className="ps-section-subtitle">Reliable. Professional. Crowd-Pleasing.</p>
         <div className="ps-benefits-grid">
@@ -340,11 +347,21 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
         <div className="ps-pricing-extras">
           <h3>Additional Services</h3>
           <ul>
-            <li>Travel within 50 miles included</li>
-            <li>Additional travel: \u00a30.50/mile</li>
-            <li>Extra sets: \u00a3100\u2013\u00a3200/hour</li>
-            <li>Custom song requests (with advance notice)</li>
-            <li>PA hire for speeches: \u00a3150</li>
+            {(() => {
+              const raw = content['extras_list'];
+              if (raw) {
+                try {
+                  return (JSON.parse(raw) as string[]).map((item, i) => <li key={i}>{item}</li>);
+                } catch { /* fall through */ }
+              }
+              return [
+                <li key={0}>Travel within 50 miles included</li>,
+                <li key={1}>Additional travel: {'\u00a3'}0.50/mile</li>,
+                <li key={2}>Extra sets: {'\u00a3'}100{'\u2013'}{'\u00a3'}200/hour</li>,
+                <li key={3}>Custom song requests (with advance notice)</li>,
+                <li key={4}>PA hire for speeches: {'\u00a3'}150</li>,
+              ];
+            })()}
           </ul>
         </div>
       </section>
