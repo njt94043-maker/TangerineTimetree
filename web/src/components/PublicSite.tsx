@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getPublicGigs, getPublicMedia, submitContactForm } from '@shared/supabase/queries';
-import type { Gig, PublicMedia } from '@shared/supabase/types';
+import { getPublicGigs, getPublicMedia, getPublicReviews, getSiteContent, submitContactForm } from '@shared/supabase/queries';
+import type { Gig, PublicMedia, SiteReview } from '@shared/supabase/types';
 
 interface PublicSiteProps {
   onLogin: () => void;
@@ -53,22 +53,93 @@ const BENEFITS = [
   { title: 'Proven Track Record', desc: '100% recommended across pubs, weddings, and private events in South Wales.' },
 ];
 
+// Static gallery photos from Facebook
+const GALLERY_PHOTOS = [
+  '597106079_122203114304318312_6658064872395739304_n.jpg',
+  '599940850_122203114316318312_7234787539894986138_n.jpg',
+  '597816557_122203114208318312_1511647365440667672_n.jpg',
+  '597686988_122203114196318312_7380671637909424026_n.jpg',
+  '597766945_122203114262318312_2855019826452984325_n.jpg',
+  '599942438_122203114250318312_4715496230997956731_n.jpg',
+  '598806438_122203114154318312_3738731288650294377_n.jpg',
+  '597667933_122203114232318312_3376259773236282285_n.jpg',
+  '597686467_122203114220318312_8499032770169649442_n.jpg',
+  '599950695_122203114184318312_4075550291178093672_n.jpg',
+  '599937526_122203114166318312_8822826353486095203_n.jpg',
+  '596616100_122203114280318312_4774789225283861685_n.jpg',
+  '599931778_122203114142318312_2510743017703448193_n.jpg',
+  '599945802_122203522964318312_8505338935023776184_n.jpg',
+  '559917240_122198179376318312_338513422612439942_n.jpg',
+  '573046765_122198179160318312_6611713516069725623_n.jpg',
+  '517373707_122184618476318312_9079173012852202353_n.jpg',
+  '518292004_122184618194318312_7470469164487337077_n.jpg',
+  '518178779_122184618356318312_5797258311142432207_n.jpg',
+  '517932280_122184618398318312_7899127581410056593_n.jpg',
+  '517593387_122184618308318312_1469287926402591328_n.jpg',
+  '517658459_122184618320318312_918293111362977779_n.jpg',
+  '517915069_122184618218318312_1289342786448300270_n.jpg',
+  '516694328_122184618176318312_3053346118825880157_n.jpg',
+  '472670979_122156629358318312_8073782115706429438_n.jpg',
+  '472735587_122156647370318312_1328698029704239520_n.jpg',
+  '475068530_122159718272318312_1808472951566202610_n.jpg',
+  '475166599_122159718284318312_7103355741818100711_n.jpg',
+  '475458199_122159718188318312_513881708284064786_n.jpg',
+  '475756232_122160803756318312_5485839986337765140_n.jpg',
+  '475794011_122160803684318312_2167642453336680850_n.jpg',
+  '475870045_122160803702318312_5106760121842329194_n.jpg',
+  '475944088_122160803738318312_3019678196786161403_n.jpg',
+  '476220689_122160803516318312_6973583794071836750_n.jpg',
+  '476603930_122160803714318312_2269170579322988337_n.jpg',
+  '475101818_122159718266318312_8134630960279957291_n.jpg',
+  '475167972_122159718278318312_3589011426051096025_n.jpg',
+  '475818158_122160803678318312_6529702723166442073_n.jpg',
+  '475904381_122160803510318312_6087368118378830505_n.jpg',
+  '475951073_122160803540318312_5779162694975329062_n.jpg',
+  '475990453_122160803648318312_48028581563210430_n.jpg',
+  '476082222_122160242924318312_5404536789557330705_n.jpg',
+  '599929404_122203522574318312_4278800614656553218_n.jpg',
+  '601819856_122203522562318312_938249262472603777_n.jpg',
+];
+
 export function PublicSite({ onLogin }: PublicSiteProps) {
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [media, setMedia] = useState<PublicMedia[]>([]);
+  const [reviews, setReviews] = useState<SiteReview[]>([]);
+  const [content, setContent] = useState<Record<string, string>>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({ name: '', email: '', event_type: '', date: '', message: '' });
   const [contactStatus, setContactStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
   useEffect(() => {
-    getPublicGigs()
-      .then(data => setGigs(data))
-      .catch(() => {});
-    getPublicMedia()
-      .then(data => setMedia(data))
-      .catch(() => {});
+    getPublicGigs().then(data => setGigs(data)).catch(() => {});
+    getPublicMedia().then(data => setMedia(data)).catch(() => {});
+    getPublicReviews().then(data => setReviews(data)).catch(() => {});
+    getSiteContent().then(rows => {
+      const map: Record<string, string> = {};
+      for (const row of rows) map[row.key] = row.value;
+      setContent(map);
+    }).catch(() => {});
   }, []);
+
+  // Helper: get content with fallback
+  const c = (key: string, fallback: string) => content[key] || fallback;
+
+  // Build pricing from content or fallbacks
+  const pricingTiers = PRICING_TIERS.map(tier => {
+    const prefix = `pricing_${tier.name.toLowerCase().replace(/\s+/g, '_')}`;
+    const featuresRaw = content[`${prefix}_features`];
+    let features = tier.features;
+    if (featuresRaw) {
+      try { features = JSON.parse(featuresRaw); } catch { /* keep default */ }
+    }
+    return {
+      ...tier,
+      price: content[`${prefix}_price`] || tier.price,
+      duration: content[`${prefix}_duration`] || tier.duration,
+      features,
+    };
+  });
 
   async function handleContactSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,6 +179,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             <button className="ps-nav-link" onClick={() => scrollTo('about')}>About</button>
             <button className="ps-nav-link" onClick={() => scrollTo('venues')}>For Venues</button>
             <button className="ps-nav-link" onClick={() => scrollTo('pricing')}>Pricing</button>
+            {reviews.length > 0 && <button className="ps-nav-link" onClick={() => scrollTo('reviews')}>Reviews</button>}
             {media.length > 0 && <button className="ps-nav-link" onClick={() => scrollTo('gallery')}>Gallery</button>}
             <button className="ps-nav-link" onClick={() => scrollTo('contact')}>Contact</button>
             <button className="ps-login-btn" onClick={onLogin}>Band Login</button>
@@ -132,7 +204,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
           <h1 className="ps-hero-title">The Green Tangerine</h1>
           <p className="ps-hero-subtitle">South Wales Function Band</p>
           <p className="ps-hero-tagline">
-            Live rock covers for pubs, weddings & events across Cardiff, Swansea, Bridgend, Neath & the Rhondda
+            {c('hero_tagline', 'Live rock covers for pubs, weddings & events across Cardiff, Swansea, Bridgend, Neath & the Rhondda')}
           </p>
           <div className="ps-hero-cta">
             <button className="ps-btn ps-btn-primary" onClick={() => scrollTo('contact')}>Book Us</button>
@@ -176,27 +248,23 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       )}
 
       {/* ─── About ─── */}
-      <section id="about" className="ps-section">
+      <section id="about" className="ps-section ps-section-bg-about">
         <h2 className="ps-section-title">About the Band</h2>
         <div className="ps-about-content">
           <p className="ps-about-text">
-            The Green Tangerine is a tribute to classic rock, bringing you revamped high energy rock
-            classics guaranteed to get the hips swinging. From Led Zeppelin to The Rolling Stones, from
-            Pink Floyd to The Red Hot Chilli Peppers, we cover all the legends with authenticity and passion.
+            {c('about_text_1', 'The Green Tangerine is a tribute to classic rock, bringing you revamped high energy rock classics guaranteed to get the hips swinging. From Led Zeppelin to The Rolling Stones, from Pink Floyd to The Red Hot Chilli Peppers, we cover all the legends with authenticity and passion.')}
           </p>
           <p className="ps-about-text">
-            Based in the Rhondda, performing at venues across South Wales including Cardiff, Swansea,
-            Bridgend, Neath, Pontypridd, and beyond. Whether it's a pub gig, wedding, corporate event,
-            or festival, we deliver unforgettable performances.
+            {c('about_text_2', 'Based in the Rhondda, performing at venues across South Wales including Cardiff, Swansea, Bridgend, Neath, Pontypridd, and beyond. Whether it\'s a pub gig, wedding, corporate event, or festival, we deliver unforgettable performances.')}
           </p>
-          <p className="ps-about-slogan">We don't just play &mdash; we display!</p>
+          <p className="ps-about-slogan">{c('about_slogan', 'We don\'t just play \u2014 we display!')}</p>
 
           <p className="ps-about-text">A 4-piece live band from the Rhondda covering rock &amp; indie classics.</p>
         </div>
       </section>
 
       {/* ─── For Venues ─── */}
-      <section id="venues" className="ps-section ps-section-alt">
+      <section id="venues" className="ps-section ps-section-alt ps-section-bg-venues">
         <h2 className="ps-section-title">For Venues</h2>
         <p className="ps-section-subtitle">Reliable. Professional. Crowd-Pleasing.</p>
         <div className="ps-benefits-grid">
@@ -207,31 +275,52 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             </div>
           ))}
         </div>
-
-        <div className="ps-testimonials">
-          <div className="ps-testimonial">
-            <p className="ps-testimonial-text">
-              "The Green Tangerine brought amazing energy to our venue. The crowd loved every minute
-              and we've had requests to book them again."
-            </p>
-            <span className="ps-testimonial-author">&mdash; Cardiff Venue</span>
-          </div>
-          <div className="ps-testimonial">
-            <p className="ps-testimonial-text">
-              "Professional setup, great communication, and an incredible live show. Exactly what we
-              were looking for."
-            </p>
-            <span className="ps-testimonial-author">&mdash; Bridgend Function Room</span>
-          </div>
-        </div>
       </section>
+
+      {/* ─── Reviews ─── */}
+      {reviews.length > 0 && (
+        <section id="reviews" className="ps-section">
+          <h2 className="ps-section-title">What People Say</h2>
+          <div className="ps-reviews-header">
+            <div className="ps-reviews-badge">
+              <span className="ps-reviews-badge-icon">&#x1F44D;</span>
+              {reviews.length} out of {reviews.length} recommend us on Facebook
+            </div>
+          </div>
+          <div className="ps-reviews-grid">
+            {reviews.map(review => (
+              <div
+                key={review.id}
+                className={`ps-review-card ${review.source === 'Google' ? 'ps-review-card-google' : review.source === 'Direct' ? 'ps-review-card-direct' : ''}`}
+              >
+                <span className="ps-review-quote">&ldquo;</span>
+                <div className="ps-review-header">
+                  <div className="ps-review-avatar">
+                    {getInitials(review.author_name)}
+                  </div>
+                  <div className="ps-review-meta">
+                    <div className="ps-review-author">{review.author_name}</div>
+                    <span className={`ps-review-source ps-review-source-${review.source.toLowerCase()}`}>
+                      {review.source}
+                    </span>
+                  </div>
+                </div>
+                <div className="ps-review-stars">
+                  {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                </div>
+                <p className="ps-review-text">{review.review_text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ─── Pricing ─── */}
       <section id="pricing" className="ps-section">
         <h2 className="ps-section-title">Pricing</h2>
         <p className="ps-section-subtitle">Transparent pricing with no hidden extras</p>
         <div className="ps-pricing-grid">
-          {PRICING_TIERS.map((tier, i) => (
+          {pricingTiers.map((tier, i) => (
             <div key={i} className={`ps-pricing-card ${tier.popular ? 'popular' : ''}`}>
               {tier.popular && <span className="ps-popular-badge">Most Popular</span>}
               <h3 className="ps-pricing-name">{tier.name}</h3>
@@ -261,7 +350,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       </section>
 
       {/* ─── Gallery ─── */}
-      {media.length > 0 && (
+      {(media.length > 0 || GALLERY_PHOTOS.length > 0) && (
         <section id="gallery" className="ps-section">
           <h2 className="ps-section-title">Gallery</h2>
           <p className="ps-section-subtitle">Photos & videos from our gigs</p>
@@ -288,6 +377,17 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
                   </div>
                 )}
                 {item.title && <div className="ps-gallery-caption">{item.title}</div>}
+              </div>
+            ))}
+            {GALLERY_PHOTOS.map(photo => (
+              <div key={photo} className="ps-gallery-item">
+                <img
+                  src={`/images/gallery/${photo}`}
+                  alt="The Green Tangerine live"
+                  className="ps-gallery-img"
+                  loading="lazy"
+                  onClick={() => setLightboxImg(`/images/gallery/${photo}`)}
+                />
               </div>
             ))}
           </div>
@@ -436,6 +536,10 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       </footer>
     </div>
   );
+}
+
+function getInitials(name: string): string {
+  return name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 }
 
 function formatGigDate(dateStr: string): string {

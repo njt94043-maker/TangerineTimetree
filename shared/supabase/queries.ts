@@ -34,6 +34,8 @@ import type {
   FormalInvoiceWithClient,
   FormalInvoiceLineItem,
   FormalReceiptWithMember,
+  SiteContent,
+  SiteReview,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -1662,6 +1664,100 @@ export async function updateBandSettingsExtended(
     .from('band_settings')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', 'default');
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Site Content (Editable Website Text) ───────────────
+
+export async function getSiteContent(): Promise<SiteContent[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('site_content')
+    .select('*');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function upsertSiteContent(key: string, value: string): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('site_content')
+    .upsert(
+      { key, value, updated_at: new Date().toISOString(), updated_by: user.id },
+      { onConflict: 'key' },
+    );
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Site Reviews ───────────────────────────────────────
+
+export async function getPublicReviews(): Promise<SiteReview[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('site_reviews')
+    .select('*')
+    .eq('visible', true)
+    .order('sort_order');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getAllReviews(): Promise<SiteReview[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('site_reviews')
+    .select('*')
+    .order('sort_order');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function createReview(review: {
+  author_name: string;
+  review_text: string;
+  rating: number;
+  source: string;
+  review_date?: string | null;
+  sort_order?: number;
+}): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('site_reviews')
+    .insert({ ...review, created_by: user.id });
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function updateReview(
+  id: string,
+  updates: Partial<Pick<SiteReview, 'author_name' | 'review_text' | 'rating' | 'source' | 'review_date' | 'visible' | 'sort_order'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('site_reviews')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteReview(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('site_reviews')
+    .delete()
+    .eq('id', id);
 
   if (error) { checkAuthError(error); throw error; }
 }

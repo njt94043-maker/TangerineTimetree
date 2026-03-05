@@ -360,3 +360,26 @@ export interface FormalReceipt {
 export interface FormalReceiptWithMember extends FormalReceipt {
   member_name: string;
 }
+
+// ─── Public Website Content ─────────────────────────────
+
+export interface SiteContent {
+  id: string;
+  key: string;
+  value: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export interface SiteReview {
+  id: string;
+  author_name: string;
+  review_text: string;
+  rating: number;
+  source: string;
+  review_date: string | null;
+  visible: boolean;
+  sort_order: number;
+  created_at: string;
+  created_by: string | null;
+}
