@@ -3,8 +3,10 @@ import {
   getUserSettings, upsertUserSettings, getBandSettings, updateBandSettings,
   updateBandSettingsExtended, getAllServiceCatalogue, createServiceItem,
   updateServiceItem, deleteServiceItem,
+  getSiteContent, upsertSiteContent,
+  getAllReviews, createReview, updateReview, deleteReview,
 } from '@shared/supabase/queries';
-import type { ServiceCatalogueItem } from '@shared/supabase/types';
+import type { ServiceCatalogueItem, SiteReview } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
 interface SettingsProps {
@@ -46,13 +48,27 @@ export function Settings({ onClose }: SettingsProps) {
   const [svcPrice, setSvcPrice] = useState('');
   const [svcUnitLabel, setSvcUnitLabel] = useState('');
 
+  // Website Content
+  const [siteContent, setSiteContent] = useState<Record<string, string>>({});
+  const [contentSaved, setContentSaved] = useState<string | null>(null);
+
+  // Reviews
+  const [siteReviews, setSiteReviews] = useState<SiteReview[]>([]);
+  const [showAddReview, setShowAddReview] = useState(false);
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [revAuthor, setRevAuthor] = useState('');
+  const [revText, setRevText] = useState('');
+  const [revRating, setRevRating] = useState(5);
+  const [revSource, setRevSource] = useState('Facebook');
+  const [revDate, setRevDate] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    Promise.all([getUserSettings(), getBandSettings(), getAllServiceCatalogue()]).then(([us, bs, svc]) => {
+    Promise.all([getUserSettings(), getBandSettings(), getAllServiceCatalogue(), getSiteContent(), getAllReviews()]).then(([us, bs, svc, sc, rev]) => {
       if (us) {
         setYourName(us.your_name);
         setEmail(us.email);
@@ -75,6 +91,10 @@ export function Settings({ onClose }: SettingsProps) {
         setQuoteValidityDays(bs.default_quote_validity_days ?? 30);
       }
       setServices(svc);
+      const contentMap: Record<string, string> = {};
+      for (const row of sc) contentMap[row.key] = row.value;
+      setSiteContent(contentMap);
+      setSiteReviews(rev);
       setLoaded(true);
     });
   }, []);
@@ -190,6 +210,100 @@ export function Settings({ onClose }: SettingsProps) {
       ]);
       const updated = await getAllServiceCatalogue();
       setServices(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reorder');
+    }
+  }
+
+  // Website content handlers
+  async function handleContentSave(key: string, value: string) {
+    try {
+      await upsertSiteContent(key, value);
+      setSiteContent(prev => ({ ...prev, [key]: value }));
+      setContentSaved(key);
+      setTimeout(() => setContentSaved(null), 1500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save content');
+    }
+  }
+
+  function getContent(key: string) { return siteContent[key] ?? ''; }
+
+  // Review handlers
+  function resetReviewForm() {
+    setRevAuthor(''); setRevText(''); setRevRating(5); setRevSource('Facebook'); setRevDate('');
+    setShowAddReview(false); setEditingReviewId(null);
+  }
+
+  function startEditReview(r: SiteReview) {
+    setEditingReviewId(r.id);
+    setRevAuthor(r.author_name);
+    setRevText(r.review_text);
+    setRevRating(r.rating);
+    setRevSource(r.source);
+    setRevDate(r.review_date ?? '');
+    setShowAddReview(true);
+  }
+
+  async function handleSaveReview() {
+    if (!revAuthor.trim() || !revText.trim()) { setError('Author and review text required'); return; }
+    setError('');
+    try {
+      if (editingReviewId) {
+        await updateReview(editingReviewId, {
+          author_name: revAuthor.trim(),
+          review_text: revText.trim(),
+          rating: revRating,
+          source: revSource,
+          review_date: revDate || null,
+        });
+      } else {
+        await createReview({
+          author_name: revAuthor.trim(),
+          review_text: revText.trim(),
+          rating: revRating,
+          source: revSource,
+          review_date: revDate || null,
+          sort_order: siteReviews.length,
+        });
+      }
+      const updated = await getAllReviews();
+      setSiteReviews(updated);
+      resetReviewForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save review');
+    }
+  }
+
+  async function handleDeleteReview(id: string) {
+    try {
+      await deleteReview(id);
+      setSiteReviews(r => r.filter(x => x.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete review');
+    }
+  }
+
+  async function handleToggleReviewVisibility(id: string, visible: boolean) {
+    try {
+      await updateReview(id, { visible: !visible });
+      setSiteReviews(r => r.map(x => x.id === id ? { ...x, visible: !visible } : x));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update review');
+    }
+  }
+
+  async function handleMoveReview(id: string, direction: -1 | 1) {
+    const idx = siteReviews.findIndex(r => r.id === id);
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= siteReviews.length) return;
+    try {
+      await Promise.all([
+        updateReview(siteReviews[idx].id, { sort_order: swapIdx }),
+        updateReview(siteReviews[swapIdx].id, { sort_order: idx }),
+      ]);
+      const updated = await getAllReviews();
+      setSiteReviews(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reorder');
     }
@@ -383,6 +497,137 @@ export function Settings({ onClose }: SettingsProps) {
             onBlur={() => setQuoteValidityDays(Math.max(1, Math.min(365, quoteValidityDays)))}
           />
         </div>
+      </div>
+
+      {/* Website Content */}
+      <div className="settings-section">
+        <h3 className="settings-section-title">Website Content</h3>
+        <p className="hint-text">Edit public website text — changes appear immediately</p>
+
+        <label className="label">HERO TAGLINE</label>
+        <div className="neu-inset">
+          <textarea
+            className="input-field input-textarea"
+            rows={2}
+            value={getContent('hero_tagline')}
+            onChange={e => setSiteContent(prev => ({ ...prev, hero_tagline: e.target.value }))}
+            onBlur={e => e.target.value && handleContentSave('hero_tagline', e.target.value)}
+            placeholder="Live rock covers for pubs, weddings & events..."
+          />
+        </div>
+        {contentSaved === 'hero_tagline' && <span className="content-saved-flash">Saved</span>}
+
+        <label className="label" style={{ marginTop: 16 }}>ABOUT — PARAGRAPH 1</label>
+        <div className="neu-inset">
+          <textarea
+            className="input-field input-textarea"
+            rows={4}
+            value={getContent('about_text_1')}
+            onChange={e => setSiteContent(prev => ({ ...prev, about_text_1: e.target.value }))}
+            onBlur={e => e.target.value && handleContentSave('about_text_1', e.target.value)}
+            placeholder="The Green Tangerine is a tribute to classic rock..."
+          />
+        </div>
+        {contentSaved === 'about_text_1' && <span className="content-saved-flash">Saved</span>}
+
+        <label className="label" style={{ marginTop: 16 }}>ABOUT — PARAGRAPH 2</label>
+        <div className="neu-inset">
+          <textarea
+            className="input-field input-textarea"
+            rows={4}
+            value={getContent('about_text_2')}
+            onChange={e => setSiteContent(prev => ({ ...prev, about_text_2: e.target.value }))}
+            onBlur={e => e.target.value && handleContentSave('about_text_2', e.target.value)}
+            placeholder="Based in the Rhondda, performing at venues across South Wales..."
+          />
+        </div>
+        {contentSaved === 'about_text_2' && <span className="content-saved-flash">Saved</span>}
+
+        <label className="label" style={{ marginTop: 16 }}>SLOGAN</label>
+        <div className="neu-inset">
+          <input
+            className="input-field"
+            value={getContent('about_slogan')}
+            onChange={e => setSiteContent(prev => ({ ...prev, about_slogan: e.target.value }))}
+            onBlur={e => e.target.value && handleContentSave('about_slogan', e.target.value)}
+            placeholder="We don't just play — we display!"
+          />
+        </div>
+        {contentSaved === 'about_slogan' && <span className="content-saved-flash">Saved</span>}
+      </div>
+
+      {/* Reviews */}
+      <div className="settings-section">
+        <h3 className="settings-section-title">Reviews</h3>
+        <p className="hint-text">Manage reviews displayed on the public website</p>
+
+        {siteReviews.length > 0 && (
+          <div className="service-catalogue-list">
+            {siteReviews.map((rev, i) => (
+              <div key={rev.id} className={`service-catalogue-item neu-card ${!rev.visible ? 'review-hidden' : ''}`}>
+                <div className="service-catalogue-info">
+                  <span className="service-catalogue-name">{rev.author_name}</span>
+                  <span className="service-catalogue-price" style={{ fontSize: 12, opacity: 0.6 }}>
+                    {rev.review_text.slice(0, 60)}{rev.review_text.length > 60 ? '...' : ''}
+                  </span>
+                </div>
+                <div className="service-catalogue-actions">
+                  <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, -1)} disabled={i === 0}>&#x2191;</button>
+                  <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, 1)} disabled={i === siteReviews.length - 1}>&#x2193;</button>
+                  <button className="btn btn-small btn-outline" onClick={() => handleToggleReviewVisibility(rev.id, rev.visible)}>
+                    {rev.visible ? 'Hide' : 'Show'}
+                  </button>
+                  <button className="btn btn-small btn-outline" onClick={() => startEditReview(rev)}>Edit</button>
+                  <button className="btn btn-small btn-danger" onClick={() => handleDeleteReview(rev.id)}>Del</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {siteReviews.length === 0 && !showAddReview && (
+          <p className="empty-text">No reviews yet</p>
+        )}
+
+        {showAddReview ? (
+          <div className="service-form neu-card">
+            <label className="label">REVIEWER NAME *</label>
+            <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
+            <label className="label">REVIEW TEXT *</label>
+            <div className="neu-inset"><textarea className="input-field input-textarea" rows={3} value={revText} onChange={e => setRevText(e.target.value)} placeholder="Their review..." /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div>
+                <label className="label">RATING</label>
+                <div className="neu-inset">
+                  <select className="input-field" value={revRating} onChange={e => setRevRating(Number(e.target.value))}>
+                    {[5,4,3,2,1].map(n => <option key={n} value={n}>{'★'.repeat(n)} ({n})</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="label">SOURCE</label>
+                <div className="neu-inset">
+                  <select className="input-field" value={revSource} onChange={e => setRevSource(e.target.value)}>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Google">Google</option>
+                    <option value="Direct">Direct</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="label">DATE</label>
+                <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
+              </div>
+            </div>
+            <div className="form-actions">
+              <button className="btn btn-primary btn-small" onClick={handleSaveReview}>{editingReviewId ? 'Update' : 'Add Review'}</button>
+              <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button className="btn btn-green btn-small btn-full" onClick={() => { resetReviewForm(); setShowAddReview(true); }} style={{ marginTop: 8 }}>
+            + Add Review
+          </button>
+        )}
       </div>
 
       {error && <ErrorAlert message={error} compact />}
