@@ -411,3 +411,116 @@ TASKS:
 
 Final SOT docs update — mark S23 complete, update sprint roadmap.
 ```
+
+---
+
+## Sprint S24A — Bill-To Flexibility: Schema + Types + Queries
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S24A section).
+
+This is Session 1 of 2 for the bill-to flexibility epic (S24A-B).
+
+CONTEXT: We're changing invoices/quotes so they can target a VENUE or a CLIENT (at least one required).
+Currently client_id is NOT NULL on invoices/quotes/formal_invoices. We're making it nullable.
+Venues need contact fields (email, phone, contact_name) so they can be invoiced directly.
+We're also adding gig_id FK on invoices to link gigs to their invoices.
+
+Key decisions: D-078 (venue OR client billing), D-079 (venue contact fields), D-081 (resolveBillTo), D-082 (gig_id FK).
+
+Real-world cases driving this:
+- Pub books you directly → invoice the venue (no client needed)
+- Agency books you into a pub → invoice the client, venue is reference
+- Same venue played 3 times via 3 different clients → venue_id same, client_id different
+- Wedding at a venue → invoice the bride (client), venue is location context
+
+TASKS FOR THIS SESSION (S24A):
+1. Write + push Supabase migration SQL:
+   - ALTER venues: add email TEXT DEFAULT '', phone TEXT DEFAULT '', contact_name TEXT DEFAULT ''
+   - ALTER invoices: ALTER client_id DROP NOT NULL, ADD gig_id UUID REFERENCES gigs(id) ON DELETE SET NULL
+   - ALTER quotes: ALTER client_id DROP NOT NULL
+   - ALTER formal_invoices: ALTER client_id DROP NOT NULL
+   - ADD CHECK constraints: (client_id IS NOT NULL OR venue_id IS NOT NULL) on invoices, quotes, formal_invoices
+   - CREATE INDEX idx_invoices_gig_id ON invoices(gig_id)
+
+2. Update shared/supabase/types.ts:
+   - Venue: add email?, phone?, contact_name?
+   - Invoice/Quote/FormalInvoice: client_id becomes string | null
+   - Invoice: add gig_id (string | null)
+   - Add BillTo type: { name: string; contact_name: string; address: string; email: string; phone: string }
+   - Update InvoiceWithClient → make client fields optional (LEFT JOIN)
+   - Same for QuoteWithClient, FormalInvoiceWithClient
+
+3. Update shared/supabase/queries.ts:
+   - createInvoice: client_id optional, accept gig_id
+   - createQuote: client_id optional
+   - createFormalInvoice: client_id optional
+   - All getInvoice/getQuote/getFormalInvoice queries: LEFT JOIN clients (was INNER)
+   - Add resolveBillTo(invoice/quote) helper — returns BillTo from client or venue
+   - Add getInvoiceByGigId(gigId) — check if gig already has an invoice
+   - Update getDashboardStats if needed
+
+4. Update shared/templates/ utilities:
+   - Update billTo rendering in PDF templates to use resolveBillTo()
+   - All 28 templates use shared utility functions, so change propagates
+
+5. Update native/src/db/queries.ts wrapper if needed
+
+6. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
+
+DO NOT touch any UI files this session. Only: migration SQL, types, queries, templates, native wrapper.
+Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md, schema_map.md).
+```
+
+---
+
+## Sprint S24B — Bill-To Flexibility: UI (both apps)
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S24B section).
+
+This is Session 2 of 2 for the bill-to flexibility epic. S24A (schema + types + queries) is complete.
+
+CONTEXT: client_id is now nullable on invoices/quotes/formal_invoices. Venues have contact fields.
+Invoices have gig_id FK for gig→invoice linking. resolveBillTo() helper exists in queries.
+
+TASKS:
+
+1. Gig form (BOTH native + web):
+   - Remove "Client is the venue" toggle and its auto-create-client logic
+   - Keep venue picker (EntityPicker mode="venue") + optional client picker
+   - Simple: pick venue, optionally pick client. No magic.
+
+2. Invoice form (BOTH native + web):
+   - Add "Bill To" selector: radio/toggle for "Venue" or "Client"
+   - If "Venue": show venue picker, venue must have email or contact_name
+   - If "Client": show client picker (existing) + optional venue for reference
+   - Accept gig_id prefill param for gig→invoice shortcut
+
+3. Quote form (BOTH native + web):
+   - Same bill-to pattern as invoice form
+   - Quotes to venues rarer but supported
+
+4. Gig day view — "Create Invoice" button (BOTH native + web):
+   - Full-width button at bottom of gig card in GigDaySheet / DayDetail
+   - Only shows when: payment_type === 'invoice' AND gig_type !== 'practice'
+   - If gig already has an invoice (via getInvoiceByGigId): show "Invoiced" badge instead
+   - On press: navigate to invoice form pre-filled with venue_id, client_id, fee, date, description, gig_id
+   - Native: router.push('/invoice/new?prefill_gig_id=...')
+   - Web: goToNewInvoice({ gigId: ... })
+
+5. Invoice/Quote list views (BOTH):
+   - "Client" column → "Billed To"
+   - Shows client company_name OR venue venue_name depending on which is set
+   - Optional badge/icon to distinguish venue-billed vs client-billed
+
+6. Venue form/detail (BOTH):
+   - Add email, phone, contact_name fields to create/edit forms
+   - Show on venue detail page
+   - Venue list: subtle indicator for venues with contact info (e.g. email icon)
+
+7. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) + npx vite build
+8. Full chain smoke test: venue with contact → gig → "Create Invoice" from day view → invoice targets venue → PDF correct
+
+Update SOT docs when done. Commit and push.
+```

@@ -11,6 +11,9 @@ export default function NewVenueScreen() {
   const [venueName, setVenueName] = useState('');
   const [address, setAddress] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
 
   async function handleSave() {
     if (!venueName.trim()) {
@@ -21,6 +24,9 @@ export default function NewVenueScreen() {
       venue_name: venueName.trim(),
       address: address.trim(),
       postcode: postcode.trim(),
+      contact_name: contactName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
     });
     router.back();
   }
@@ -51,6 +57,26 @@ export default function NewVenueScreen() {
           <Text style={styles.fieldLabel}>Postcode</Text>
           <NeuWell style={styles.inputWell}>
             <TextInput style={styles.input} value={postcode} onChangeText={setPostcode} placeholder="e.g. SW1A 1AA" placeholderTextColor={COLORS.textMuted} autoCapitalize="characters" />
+          </NeuWell>
+        </NeuCard>
+
+        <NeuCard>
+          <Text style={LABEL}>CONTACT INFO</Text>
+          <View style={{ height: 8 }} />
+
+          <Text style={styles.fieldLabel}>Contact Name</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={contactName} onChangeText={setContactName} placeholder="e.g. John Smith" placeholderTextColor={COLORS.textMuted} />
+          </NeuWell>
+
+          <Text style={styles.fieldLabel}>Email</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="e.g. bookings@venue.com" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" />
+          </NeuWell>
+
+          <Text style={styles.fieldLabel}>Phone</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="e.g. 01234 567890" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
           </NeuWell>
         </NeuCard>
       </ScrollView>

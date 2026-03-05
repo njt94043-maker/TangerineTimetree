@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase/client';
 import type { GigWithCreator } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getUpcomingGigs } from '@shared/supabase/queries';
+import { getUpcomingGigs, getInvoiceByGigId } from '@shared/supabase/queries';
 import { fmt, fmtFee, formatGroupDate, daysUntil } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -10,12 +10,14 @@ import { LoadingSpinner } from './LoadingSpinner';
 interface GigListProps {
   onGigPress: (gigId: string, date: string) => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
+  onCreateInvoice?: (gig: GigWithCreator) => void;
 }
 
-export function GigList({ onGigPress, onAddGig }: GigListProps) {
+export function GigList({ onGigPress, onAddGig, onCreateInvoice }: GigListProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invoicedGigIds, setInvoicedGigIds] = useState<Set<string>>(new Set());
 
   const fetchGigs = useCallback(async () => {
     try {
@@ -32,6 +34,20 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
   useEffect(() => {
     fetchGigs();
   }, [fetchGigs]);
+
+  // Check which gigs already have invoices
+  useEffect(() => {
+    const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice' && g.payment_type === 'invoice');
+    if (invoiceGigs.length === 0) { setInvoicedGigIds(new Set()); return; }
+    Promise.all(
+      invoiceGigs.map(async g => {
+        const inv = await getInvoiceByGigId(g.id);
+        return inv ? g.id : null;
+      })
+    ).then(ids => {
+      setInvoicedGigIds(new Set(ids.filter(Boolean) as string[]));
+    }).catch(() => {});
+  }, [gigs]);
 
   // Realtime subscription
   useEffect(() => {
@@ -102,6 +118,7 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
                     <div className="gig-list-card-left">
                       {isPractice && <span className="practice-badge">PRACTICE</span>}
                       {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
+                      {!isPractice && invoicedGigIds.has(gig.id) && <span className="invoiced-badge">INVOICED</span>}
                       <div className="gig-list-venue">
                         {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
                       </div>
@@ -126,6 +143,15 @@ export function GigList({ onGigPress, onAddGig }: GigListProps) {
 
                   {gig.notes && (
                     <div className="gig-list-notes">{gig.notes}</div>
+                  )}
+
+                  {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
+                    <button
+                      className="btn btn-small btn-primary gig-create-invoice-btn"
+                      onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
+                    >
+                      Create Invoice
+                    </button>
                   )}
                 </div>
               );

@@ -8,8 +8,9 @@ import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getClients, searchClients, addClient, Client,
   getSettings, GigBooksSettings,
-  createInvoice,
+  createInvoice, getVenue,
 } from '../../src/db';
+import type { Venue } from '../../src/db';
 import { formatDateLong, formatDateDisplay, todayISO, addDays } from '../../src/utils/formatDate';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatInvoiceNumber } from '../../src/utils/invoiceNumber';
@@ -17,10 +18,10 @@ import type { InvoiceTemplateData, InvoiceStyleMeta } from '@shared/templates';
 import { getInvoiceHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
 import type { InvoiceStyle } from '@shared/supabase/types';
 
-const STEP_LABELS = ['Client', 'Details', 'Preview'];
+type BillToType = 'client' | 'venue';
+const STEP_LABELS = ['Bill To', 'Details', 'Preview'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-/** Replace device-width viewport with A4-width so WebView matches PDF proportions */
 function previewHtml(html: string): string {
   return html.replace('width=device-width, initial-scale=1.0', 'width=800');
 }
@@ -34,18 +35,26 @@ export default function NewInvoiceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     prefill_client_id?: string;
+    prefill_venue_id?: string;
     prefill_venue?: string;
     prefill_amount?: string;
     prefill_style?: string;
+    prefill_gig_id?: string;
+    prefill_gig_date?: string;
+    prefill_description?: string;
   }>();
 
   const [step, setStep] = useState(1);
   const [settings, setSettings] = useState<GigBooksSettings | null>(null);
 
-  // Step 1 - client
+  // Step 1 - bill-to
+  const [billToType, setBillToType] = useState<BillToType>('client');
   const [clients, setClients] = useState<Client[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [billToVenueName, setBillToVenueName] = useState('');
+  const [billToVenueId, setBillToVenueId] = useState<string | null>(null);
+  const [billToVenue, setBillToVenue] = useState<Venue | null>(null);
   const [showNewClient, setShowNewClient] = useState(false);
 
   // New client modal fields
@@ -58,11 +67,12 @@ export default function NewInvoiceScreen() {
   // Step 2 - details
   const [venue, setVenue] = useState(params.prefill_venue || '');
   const [venueId, setVenueId] = useState<string | null>(null);
-  const [gigDate, setGigDate] = useState(todayISO());
+  const [gigDate, setGigDate] = useState(params.prefill_gig_date || todayISO());
   const [showCalendar, setShowCalendar] = useState(false);
   const [amount, setAmount] = useState(params.prefill_amount || '');
-  const [description, setDescription] = useState('');
-  const [descriptionEdited, setDescriptionEdited] = useState(false);
+  const [description, setDescription] = useState(params.prefill_description || '');
+  const [descriptionEdited, setDescriptionEdited] = useState(!!params.prefill_description);
+  const [gigId, setGigId] = useState<string | null>(params.prefill_gig_id || null);
 
   // Step 3 - preview carousel
   const [selectedStyle, setSelectedStyle] = useState<InvoiceStyle>(
@@ -91,13 +101,26 @@ export default function NewInvoiceScreen() {
         const c = await getClients();
         setClients(c);
 
-        // Handle prefill from duplicate
+        // Handle prefill from gig or duplicate
         if (params.prefill_client_id) {
           const match = c.find(cl => cl.id === params.prefill_client_id);
           if (match) {
             setSelectedClient(match);
+            setBillToType('client');
             setStep(2);
           }
+        } else if (params.prefill_venue_id) {
+          setBillToType('venue');
+          setBillToVenueId(params.prefill_venue_id);
+          setBillToVenueName(params.prefill_venue || '');
+          const v = await getVenue(params.prefill_venue_id);
+          if (v) {
+            setBillToVenue(v);
+            setBillToVenueName(v.venue_name);
+            setVenue(v.venue_name);
+            setVenueId(v.id);
+          }
+          setStep(2);
         }
       } catch (err) {
         Alert.alert('Error', err instanceof Error ? err.message : 'Failed to load data');
@@ -127,6 +150,17 @@ export default function NewInvoiceScreen() {
     setStep(2);
   }
 
+  async function selectBillToVenue() {
+    if (!billToVenueId) { Alert.alert('Required', 'Select a venue to bill.'); return; }
+    const v = await getVenue(billToVenueId);
+    if (v) {
+      setBillToVenue(v);
+      setVenue(v.venue_name);
+      setVenueId(v.id);
+    }
+    setStep(2);
+  }
+
   async function saveNewClient() {
     if (!newCompany.trim()) {
       Alert.alert('Required', 'Company name is required.');
@@ -144,13 +178,33 @@ export default function NewInvoiceScreen() {
     selectClient(newClient);
   }
 
+  function getBillToInfo() {
+    if (billToType === 'client' && selectedClient) {
+      return {
+        toCompany: selectedClient.company_name,
+        toContact: selectedClient.contact_name,
+        toAddress: selectedClient.address,
+      };
+    }
+    if (billToType === 'venue' && billToVenue) {
+      return {
+        toCompany: billToVenue.venue_name,
+        toContact: billToVenue.contact_name,
+        toAddress: billToVenue.address,
+      };
+    }
+    return { toCompany: '', toContact: '', toAddress: '' };
+  }
+
   function goToStep3() {
     if (!venue.trim()) { Alert.alert('Required', 'Venue name is required.'); return; }
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) { Alert.alert('Required', 'Enter a valid amount.'); return; }
-    if (!settings || !selectedClient) return;
+    if (!settings) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenueId) return;
 
-    // Build template data for previews
+    const billTo = getBillToInfo();
     const templateData: InvoiceTemplateData = {
       invoiceNumber: formatInvoiceNumber(settings.next_invoice_number),
       issueDate: formatDateLong(todayISO()),
@@ -159,9 +213,9 @@ export default function NewInvoiceScreen() {
       tradingAs: settings.trading_as,
       businessType: settings.business_type,
       website: settings.website,
-      toCompany: selectedClient.company_name,
-      toContact: selectedClient.contact_name,
-      toAddress: selectedClient.address,
+      toCompany: billTo.toCompany,
+      toContact: billTo.toContact,
+      toAddress: billTo.toAddress,
       description: description.trim() || `Live music performance at ${venue.trim()} on ${formatDateLong(gigDate)}`,
       amount: parsedAmount,
       bankAccountName: settings.bank_account_name,
@@ -171,20 +225,16 @@ export default function NewInvoiceScreen() {
       paymentTermsDays: settings.payment_terms_days,
     };
 
-    // Pre-render all 4 styles
     const previews = INVOICE_STYLES.map(styleMeta => ({
       style: styleMeta,
       html: getInvoiceHtml(styleMeta.id, templateData),
     }));
 
     setPreviewHtmls(previews);
-
-    // Scroll to the preferred style
     const prefIndex = previews.findIndex(p => p.style.id === selectedStyle);
     setCurrentPreviewIndex(prefIndex >= 0 ? prefIndex : 0);
     setStep(3);
 
-    // Scroll carousel to preferred style after render
     if (prefIndex > 0) {
       setTimeout(() => {
         carouselRef.current?.scrollToIndex({ index: prefIndex, animated: false });
@@ -193,7 +243,7 @@ export default function NewInvoiceScreen() {
   }
 
   async function handleApproveStyle() {
-    if (!settings || !selectedClient) return;
+    if (!settings) return;
     const style = previewHtmls[currentPreviewIndex]?.style.id || 'classic';
     setSelectedStyle(style);
     setGenerating(true);
@@ -202,16 +252,16 @@ export default function NewInvoiceScreen() {
       const parsedAmount = parseFloat(amount);
 
       const invoice = await createInvoice({
-        client_id: selectedClient.id,
+        client_id: billToType === 'client' ? selectedClient?.id : undefined,
         venue: venue.trim(),
         venue_id: venueId,
+        gig_id: gigId,
         gig_date: gigDate,
         amount: parsedAmount,
         description: description.trim(),
         style,
       });
 
-      // PDF is generated on demand when sharing — no need to pre-generate
       router.replace(`/invoice/${invoice.id}`);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create invoice');
@@ -229,6 +279,11 @@ export default function NewInvoiceScreen() {
   if (!settings) return <View style={styles.container} />;
 
   const currentStyleMeta = previewHtmls[currentPreviewIndex]?.style;
+  const billToLabel = billToType === 'client' && selectedClient
+    ? `Client: ${selectedClient.company_name}`
+    : billToType === 'venue' && billToVenueName
+      ? `Venue: ${billToVenueName}`
+      : '';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -240,44 +295,84 @@ export default function NewInvoiceScreen() {
 
       <StepIndicator currentStep={step} labels={STEP_LABELS} />
 
-      {/* ─── Step 1: Pick Client ─── */}
+      {/* ─── Step 1: Bill To ─── */}
       {step === 1 && (
         <View style={styles.stepContent}>
-          <NeuWell style={styles.searchWell}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search clients..."
-              placeholderTextColor={COLORS.textMuted}
-              value={clientSearch}
-              onChangeText={setClientSearch}
-            />
-          </NeuWell>
+          {/* Bill-to toggle */}
+          <View style={styles.billToToggle}>
+            <Pressable
+              style={[styles.billToBtn, billToType === 'client' && styles.billToBtnActive]}
+              onPress={() => setBillToType('client')}
+            >
+              <Text style={[styles.billToBtnText, billToType === 'client' && styles.billToBtnTextActive]}>Bill Client</Text>
+            </Pressable>
+            <View style={{ width: 10 }} />
+            <Pressable
+              style={[styles.billToBtn, billToType === 'venue' && styles.billToBtnActive]}
+              onPress={() => setBillToType('venue')}
+            >
+              <Text style={[styles.billToBtnText, billToType === 'venue' && styles.billToBtnTextActive]}>Bill Venue</Text>
+            </Pressable>
+          </View>
 
-          <NeuButton
-            label="+ Add New Client"
-            onPress={() => setShowNewClient(true)}
-            color={COLORS.teal}
-            small
-            style={{ marginBottom: 8 }}
-          />
+          {billToType === 'client' && (
+            <>
+              <NeuWell style={styles.searchWell}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search clients..."
+                  placeholderTextColor={COLORS.textMuted}
+                  value={clientSearch}
+                  onChangeText={setClientSearch}
+                />
+              </NeuWell>
 
-          <FlatList
-            data={clients}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => selectClient(item)}>
-                <NeuCard intensity="subtle">
-                  <Text style={styles.clientName}>{item.company_name}</Text>
-                  {item.contact_name ? <Text style={styles.clientDetail}>{item.contact_name}</Text> : null}
-                </NeuCard>
-              </Pressable>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>
-                {clientSearch ? 'No matching clients' : 'No clients yet. Add one above.'}
-              </Text>
-            }
-          />
+              <NeuButton
+                label="+ Add New Client"
+                onPress={() => setShowNewClient(true)}
+                color={COLORS.teal}
+                small
+                style={{ marginBottom: 8 }}
+              />
+
+              <FlatList
+                data={clients}
+                keyExtractor={item => item.id}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => selectClient(item)}>
+                    <NeuCard intensity="subtle">
+                      <Text style={styles.clientName}>{item.company_name}</Text>
+                      {item.contact_name ? <Text style={styles.clientDetail}>{item.contact_name}</Text> : null}
+                    </NeuCard>
+                  </Pressable>
+                )}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>
+                    {clientSearch ? 'No matching clients' : 'No clients yet. Add one above.'}
+                  </Text>
+                }
+              />
+            </>
+          )}
+
+          {billToType === 'venue' && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={styles.fieldLabel}>Select venue to invoice *</Text>
+              <EntityPicker
+                mode="venue"
+                value={billToVenueName}
+                entityId={billToVenueId}
+                onChange={(text, id) => { setBillToVenueName(text); setBillToVenueId(id); }}
+                placeholder="e.g. The Rose & Crown"
+              />
+              <NeuButton
+                label="Continue"
+                onPress={selectBillToVenue}
+                color={COLORS.teal}
+                style={{ marginTop: 12 }}
+              />
+            </View>
+          )}
 
           {/* New Client Modal */}
           <Modal visible={showNewClient} animationType="slide" transparent>
@@ -321,10 +416,10 @@ export default function NewInvoiceScreen() {
       )}
 
       {/* ─── Step 2: Gig Details ─── */}
-      {step === 2 && selectedClient && (
+      {step === 2 && (
         <ScrollView contentContainerStyle={styles.stepScrollContent}>
           <NeuCard>
-            <Text style={styles.selectedClientLabel}>Client: {selectedClient.company_name}</Text>
+            <Text style={styles.selectedClientLabel}>{billToLabel}</Text>
           </NeuCard>
 
           <NeuCard>
@@ -390,14 +485,12 @@ export default function NewInvoiceScreen() {
       {/* ─── Step 3: Full-Screen Style Preview ─── */}
       {step === 3 && previewHtmls.length > 0 && (
         <View style={{ flex: 1 }}>
-          {/* Style name bar */}
           <View style={styles.styleNameBar}>
             <Text style={styles.styleName}>{currentStyleMeta?.name ?? ''}</Text>
             <Text style={styles.styleDesc}>{currentStyleMeta?.description ?? ''}</Text>
             <Text style={styles.styleCounter}>{currentPreviewIndex + 1} / {previewHtmls.length}</Text>
           </View>
 
-          {/* Preview carousel */}
           <FlatList
             ref={carouselRef}
             data={previewHtmls}
@@ -427,19 +520,17 @@ export default function NewInvoiceScreen() {
             )}
           />
 
-          {/* Navigation arrows */}
           {currentPreviewIndex > 0 && (
             <Pressable style={[styles.arrow, styles.arrowLeft]} onPress={() => goToCarouselIndex(currentPreviewIndex - 1)}>
-              <Text style={styles.arrowText}>{'‹'}</Text>
+              <Text style={styles.arrowText}>{'\u2039'}</Text>
             </Pressable>
           )}
           {currentPreviewIndex < previewHtmls.length - 1 && (
             <Pressable style={[styles.arrow, styles.arrowRight]} onPress={() => goToCarouselIndex(currentPreviewIndex + 1)}>
-              <Text style={styles.arrowText}>{'›'}</Text>
+              <Text style={styles.arrowText}>{'\u203A'}</Text>
             </Pressable>
           )}
 
-          {/* Approve button */}
           <View style={styles.approveBar}>
             <NeuButton
               label={generating ? 'Saving...' : 'Approve & Save'}
@@ -460,6 +551,21 @@ const styles = StyleSheet.create({
   topTitle: { fontFamily: FONTS.bodyBold, fontSize: 18, color: COLORS.text },
   stepContent: { flex: 1, paddingHorizontal: 16 },
   stepScrollContent: { paddingHorizontal: 16, paddingBottom: 30 },
+  billToToggle: { flexDirection: 'row', marginBottom: 12 },
+  billToBtn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.textMuted,
+    alignItems: 'center',
+  },
+  billToBtnActive: {
+    backgroundColor: COLORS.green + '25',
+    borderColor: COLORS.green,
+  },
+  billToBtnText: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.textDim },
+  billToBtnTextActive: { color: COLORS.green },
   searchWell: { padding: 0, marginBottom: 8 },
   searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 12 },
   clientName: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.text },
@@ -474,7 +580,6 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: COLORS.card, borderRadius: 16, padding: 20, maxHeight: '85%' },
   modalTitle: { fontFamily: FONTS.bodyBold, fontSize: 18, color: COLORS.text, marginBottom: 12 },
   modalActions: { flexDirection: 'row', marginTop: 16 },
-  // Step 3 - preview carousel
   styleNameBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, backgroundColor: COLORS.card },
   styleName: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.text },
   styleDesc: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textDim, marginLeft: 8, flex: 1 },

@@ -72,7 +72,8 @@ export default function InvoicesScreen() {
       list = list.filter(inv =>
         inv.invoice_number.toLowerCase().includes(q) ||
         inv.client_company_name.toLowerCase().includes(q) ||
-        inv.venue.toLowerCase().includes(q)
+        inv.venue.toLowerCase().includes(q) ||
+        inv.venue_name.toLowerCase().includes(q)
       );
     }
     const sorted = [...list];
@@ -96,7 +97,7 @@ export default function InvoicesScreen() {
                 <Text style={styles.invoiceNumber}>{item.invoice_number}</Text>
                 <StatusBadge status={item.status} />
               </View>
-              <Text style={styles.invoiceClient}>{item.client_company_name}</Text>
+              <Text style={styles.invoiceClient}>{item.client_company_name || item.venue_name || 'No client'}</Text>
               <Text style={styles.invoiceVenue}>{item.venue} - {formatDateShort(item.gig_date)}</Text>
             </View>
             <Text style={styles.invoiceAmount}>{formatGBP(item.amount)}</Text>

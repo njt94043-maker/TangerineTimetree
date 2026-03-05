@@ -159,7 +159,7 @@ export function QuoteList({ quotes, loading, onNewQuote, onQuotePress, onClose }
               </span>
             </div>
             <div className="invoice-card-client">
-              {q.client_company_name || 'No client'}
+              {q.client_company_name || q.venue_name || 'No client'}
               {q.event_type && <span className="quote-event-type"> · {EVENT_TYPE_LABELS[q.event_type] ?? q.event_type}</span>}
             </div>
             <div className="invoice-card-bottom">

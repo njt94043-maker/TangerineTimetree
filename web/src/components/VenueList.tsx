@@ -41,6 +41,9 @@ export function VenueList({ onClose, onVenuePress }: VenueListProps) {
   const [venueName, setVenueName] = useState('');
   const [address, setAddress] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [venueEmail, setVenueEmail] = useState('');
+  const [venuePhone, setVenuePhone] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Delete confirmation
@@ -59,6 +62,7 @@ export function VenueList({ onClose, onVenuePress }: VenueListProps) {
 
   function openAdd() {
     setVenueName(''); setAddress(''); setPostcode('');
+    setContactName(''); setVenueEmail(''); setVenuePhone('');
     setShowForm(true);
   }
 
@@ -67,7 +71,7 @@ export function VenueList({ onClose, onVenuePress }: VenueListProps) {
     setSaving(true);
     setError('');
     try {
-      await createVenue({ venue_name: venueName.trim(), address: address.trim(), postcode: postcode.trim() });
+      await createVenue({ venue_name: venueName.trim(), address: address.trim(), postcode: postcode.trim(), contact_name: contactName.trim(), email: venueEmail.trim(), phone: venuePhone.trim() });
       setShowForm(false);
       await loadVenues();
     } catch (err) {
@@ -158,6 +162,21 @@ export function VenueList({ onClose, onVenuePress }: VenueListProps) {
             <label className="label">POSTCODE</label>
             <div className="neu-inset">
               <input className="input-field" value={postcode} onChange={e => setPostcode(e.target.value)} placeholder="e.g. SW1A 1AA" style={{ textTransform: 'uppercase' }} />
+            </div>
+
+            <label className="label">CONTACT NAME</label>
+            <div className="neu-inset">
+              <input className="input-field" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="e.g. John Smith" />
+            </div>
+
+            <label className="label">EMAIL</label>
+            <div className="neu-inset">
+              <input className="input-field" type="email" value={venueEmail} onChange={e => setVenueEmail(e.target.value)} placeholder="e.g. bookings@venue.com" />
+            </div>
+
+            <label className="label">PHONE</label>
+            <div className="neu-inset">
+              <input className="input-field" type="tel" value={venuePhone} onChange={e => setVenuePhone(e.target.value)} placeholder="e.g. 01234 567890" />
             </div>
 
             <div className="form-actions">

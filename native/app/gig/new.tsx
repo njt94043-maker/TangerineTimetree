@@ -10,7 +10,7 @@ import { neuRaisedStyle, neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
 import { NeuSelect } from '../../src/components/NeuSelect';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
-import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, searchClients, createClient, type GigFieldSuggestions } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
 import { AutocompleteInput } from '../../src/components/AutocompleteInput';
 import { EntityPicker } from '../../src/components/EntityPicker';
 import { supabase } from '../../src/supabase/client';
@@ -38,7 +38,6 @@ export default function GigFormScreen() {
   const [venueId, setVenueId] = useState<string | null>(null);
   const [clientName, setClientName] = useState('');
   const [clientId, setClientId] = useState<string | null>(null);
-  const [sameAsVenue, setSameAsVenue] = useState(false);
   const [fee, setFee] = useState('');
   const [paymentType, setPaymentType] = useState<'cash' | 'invoice' | ''>('');
   const [loadTime, setLoadTime] = useState('');
@@ -271,45 +270,14 @@ export default function GigFormScreen() {
               placeholder="e.g. Gin & Juice, Mumbles"
             />
 
-            <Pressable
-              style={styles.checkboxRow}
-              onPress={async () => {
-                const next = !sameAsVenue;
-                setSameAsVenue(next);
-                if (next && venue.trim()) {
-                  const found = await searchClients(venue.trim());
-                  const match = found.find(c => c.company_name.toLowerCase() === venue.trim().toLowerCase());
-                  if (match) {
-                    setClientName(match.company_name);
-                    setClientId(match.id);
-                  } else {
-                    try {
-                      const newClient = await createClient({ company_name: venue.trim() });
-                      setClientName(newClient.company_name);
-                      setClientId(newClient.id);
-                    } catch { setClientName(venue.trim()); setClientId(null); }
-                  }
-                }
-              }}
-            >
-              <View style={[styles.checkbox, sameAsVenue && styles.checkboxChecked]}>
-                {sameAsVenue && <Text style={styles.checkmark}>{'\u2713'}</Text>}
-              </View>
-              <Text style={styles.checkboxLabel}>Client is the venue</Text>
-            </Pressable>
-
-            {!sameAsVenue && (
-              <>
-                <Text style={styles.label}>CLIENT / BOOKER</Text>
-                <EntityPicker
-                  mode="client"
-                  value={clientName}
-                  entityId={clientId}
-                  onChange={(text, id) => { setClientName(text); setClientId(id); }}
-                  placeholder="e.g. Suave Agency"
-                />
-              </>
-            )}
+            <Text style={styles.label}>CLIENT / BOOKER</Text>
+            <EntityPicker
+              mode="client"
+              value={clientName}
+              entityId={clientId}
+              onChange={(text, id) => { setClientName(text); setClientId(id); }}
+              placeholder="e.g. Suave Agency"
+            />
 
             <Text style={styles.label}>FEE</Text>
             <AutocompleteInput
@@ -589,36 +557,5 @@ const styles = StyleSheet.create({
   },
   saveArea: {
     marginTop: 24,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 8,
-    marginBottom: 4,
-    paddingVertical: 6,
-  },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: COLORS.textMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: COLORS.green,
-    borderColor: COLORS.green,
-  },
-  checkmark: {
-    color: '#000',
-    fontSize: 14,
-    fontFamily: FONTS.bodyBold,
-  },
-  checkboxLabel: {
-    fontFamily: FONTS.body,
-    fontSize: 14,
-    color: COLORS.textDim,
   },
 });

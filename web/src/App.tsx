@@ -5,7 +5,7 @@ import { useCalendarData } from './hooks/useCalendarData';
 import { useInvoiceData } from './hooks/useInvoiceData';
 import { useQuoteData } from './hooks/useQuoteData';
 import { getChangesSince, updateLastOpened, createGig } from '@shared/supabase/queries';
-import type { ChangeSummaryItem } from '@shared/supabase/types';
+import type { ChangeSummaryItem, GigWithCreator } from '@shared/supabase/types';
 import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
 import { PublicSite } from './components/PublicSite';
@@ -88,6 +88,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [invoicePrefill, setInvoicePrefill] = useState<{ venue?: string; venue_id?: string; client_id?: string; gig_id?: string; gig_date?: string; amount?: string; description?: string } | undefined>();
 
   const { gigs, awayDates, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
@@ -158,7 +159,21 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
   function handleInvoiceSaved(id: string) {
     refreshInvoices();
+    setInvoicePrefill(undefined);
     goToInvoiceDetail(id);
+  }
+
+  function handleCreateInvoiceFromGig(gig: GigWithCreator) {
+    setInvoicePrefill({
+      venue: gig.venue,
+      venue_id: gig.venue_id ?? undefined,
+      client_id: gig.client_id ?? undefined,
+      gig_id: gig.id,
+      gig_date: gig.date,
+      amount: gig.fee != null ? String(gig.fee) : undefined,
+      description: `Live music performance at ${gig.venue}`,
+    });
+    goToNewInvoice();
   }
 
   function handleQuoteSaved(id: string) {
@@ -307,6 +322,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
           <GigList
             onGigPress={goToEditGigFromList}
             onAddGig={goToAddGigFromList}
+            onCreateInvoice={handleCreateInvoiceFromGig}
           />
         )}
 
@@ -321,6 +337,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onMarkAway={() => setView('away')}
             onGigDeleted={() => { refresh(); refreshQueueCount(); }}
             onDateChange={goToDay}
+            onCreateInvoice={handleCreateInvoiceFromGig}
           />
         )}
 
@@ -369,8 +386,9 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'invoice-form' && (
           <InvoiceForm
-            onClose={goToInvoices}
+            onClose={() => { setInvoicePrefill(undefined); goToInvoices(); }}
             onSaved={handleInvoiceSaved}
+            prefill={invoicePrefill}
           />
         )}
 

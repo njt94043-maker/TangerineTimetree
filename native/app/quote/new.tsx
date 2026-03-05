@@ -19,9 +19,10 @@ import { formatDateLong, formatDateDisplay, todayISO, addDays } from '../../src/
 import { formatGBP } from '../../src/utils/formatCurrency';
 import type { QuoteTemplateData, InvoiceStyleMeta } from '@shared/templates';
 import { getQuoteHtml, INVOICE_STYLES } from '@shared/templates';
-import type { InvoiceStyle, EventType, PLIOption, BandSettings } from '@shared/supabase/types';
+import type { InvoiceStyle, EventType, PLIOption, BandSettings, Venue } from '@shared/supabase/types';
 
-const STEP_LABELS = ['Client', 'Package', 'Extras', 'Preview'];
+type BillToType = 'client' | 'venue';
+const STEP_LABELS = ['Bill To', 'Package', 'Extras', 'Preview'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const EVENT_TYPES: { label: string; value: EventType }[] = [
@@ -55,7 +56,11 @@ export default function NewQuoteScreen() {
   const [settings, setSettings] = useState<GigBooksSettings | null>(null);
   const [bandSettings, setBandSettings] = useState<BandSettings | null>(null);
 
-  // Step 1 — Client & Event
+  // Step 1 — Bill To & Event
+  const [billToType, setBillToType] = useState<BillToType>('client');
+  const [billToVenue, setBillToVenue] = useState<Venue | null>(null);
+  const [billToVenueName, setBillToVenueName] = useState('');
+  const [billToVenueId, setBillToVenueId] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -153,6 +158,25 @@ export default function NewQuoteScreen() {
     setSelectedClient(client);
   }
 
+  async function selectBillToVenue(name: string, id: string | null) {
+    setBillToVenueName(name);
+    setBillToVenueId(id);
+    if (id) {
+      try {
+        const v = await getVenue(id);
+        if (v) {
+          setBillToVenue(v);
+          // Pre-fill gig venue from bill-to venue
+          setVenueName(v.venue_name);
+          setVenueId(v.id);
+          setVenueAddress([v.address, v.postcode].filter(Boolean).join(', '));
+        }
+      } catch { /* non-critical */ }
+    } else {
+      setBillToVenue(null);
+    }
+  }
+
   async function saveNewClient() {
     if (!newCompany.trim()) {
       Alert.alert('Required', 'Company name is required.');
@@ -171,7 +195,8 @@ export default function NewQuoteScreen() {
   }
 
   function goToStep2() {
-    if (!selectedClient) { Alert.alert('Required', 'Select a client.'); return; }
+    if (billToType === 'client' && !selectedClient) { Alert.alert('Required', 'Select a client.'); return; }
+    if (billToType === 'venue' && !billToVenueId) { Alert.alert('Required', 'Select a venue to bill.'); return; }
     if (!venueName.trim()) { Alert.alert('Required', 'Venue name is required.'); return; }
     setStep(2);
   }
@@ -213,11 +238,36 @@ export default function NewQuoteScreen() {
     setStep(3);
   }
 
+  function getBillToInfo() {
+    if (billToType === 'client' && selectedClient) {
+      return {
+        toCompany: selectedClient.company_name,
+        toContact: selectedClient.contact_name,
+        toAddress: selectedClient.address,
+        toEmail: selectedClient.email || '',
+        toPhone: selectedClient.phone || '',
+      };
+    }
+    if (billToType === 'venue' && billToVenue) {
+      return {
+        toCompany: billToVenue.venue_name,
+        toContact: billToVenue.contact_name || '',
+        toAddress: [billToVenue.address, billToVenue.postcode].filter(Boolean).join(', '),
+        toEmail: billToVenue.email || '',
+        toPhone: billToVenue.phone || '',
+      };
+    }
+    return { toCompany: '', toContact: '', toAddress: '', toEmail: '', toPhone: '' };
+  }
+
   function goToStep4() {
-    if (!settings || !selectedClient) return;
+    if (!settings) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenue) return;
     const parsedValidity = Math.max(1, Math.min(365, parseInt(validityDays) || 30));
     const createdDate = todayISO();
     const validUntilDate = addDays(createdDate, parsedValidity);
+    const billTo = getBillToInfo();
 
     const templateData: QuoteTemplateData = {
       quoteNumber: `QTE-???`,
@@ -227,11 +277,11 @@ export default function NewQuoteScreen() {
       tradingAs: settings.trading_as,
       businessType: settings.business_type,
       website: settings.website,
-      toCompany: selectedClient.company_name,
-      toContact: selectedClient.contact_name,
-      toAddress: selectedClient.address,
-      toEmail: selectedClient.email || '',
-      toPhone: selectedClient.phone || '',
+      toCompany: billTo.toCompany,
+      toContact: billTo.toContact,
+      toAddress: billTo.toAddress,
+      toEmail: billTo.toEmail,
+      toPhone: billTo.toPhone,
       eventType,
       eventDate: formatDateLong(eventDate),
       venueName: venueName.trim(),
@@ -266,7 +316,9 @@ export default function NewQuoteScreen() {
   }
 
   async function handleApproveStyle() {
-    if (!settings || !selectedClient) return;
+    if (!settings) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenueId) return;
     const style = previewHtmls[currentPreviewIndex]?.style.id || 'classic';
     setGenerating(true);
 
@@ -274,8 +326,8 @@ export default function NewQuoteScreen() {
       const parsedValidity = Math.max(1, Math.min(365, parseInt(validityDays) || 30));
 
       const quote = await createQuote({
-        client_id: selectedClient.id,
-        venue_id: venueId,
+        client_id: billToType === 'client' ? selectedClient!.id : null,
+        venue_id: billToType === 'venue' ? billToVenueId : venueId,
         event_type: eventType,
         event_date: eventDate,
         venue_name: venueName.trim(),
@@ -330,47 +382,82 @@ export default function NewQuoteScreen() {
 
       <StepIndicator currentStep={step} labels={STEP_LABELS} />
 
-      {/* ─── Step 1: Client & Event ─── */}
+      {/* ─── Step 1: Bill To & Event ─── */}
       {step === 1 && (
         <ScrollView contentContainerStyle={styles.stepScrollContent}>
-          {/* Client selection */}
+          {/* Bill To toggle */}
           <NeuCard>
-            <Text style={LABEL}>CLIENT</Text>
-            <View style={{ height: 8 }} />
-            {selectedClient ? (
-              <View>
-                <Text style={styles.selectedClientLabel}>{selectedClient.company_name}</Text>
-                <Pressable onPress={() => setSelectedClient(null)}>
-                  <Text style={styles.changeLink}>Change client</Text>
-                </Pressable>
-              </View>
+            <Text style={LABEL}>BILL TO</Text>
+            <View style={styles.billToToggle}>
+              <Pressable
+                style={[styles.billToBtn, billToType === 'client' && styles.billToBtnActive]}
+                onPress={() => setBillToType('client')}
+              >
+                <Text style={[styles.billToText, billToType === 'client' && styles.billToTextActive]}>Bill Client</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.billToBtn, billToType === 'venue' && styles.billToBtnActive]}
+                onPress={() => setBillToType('venue')}
+              >
+                <Text style={[styles.billToText, billToType === 'venue' && styles.billToTextActive]}>Bill Venue</Text>
+              </Pressable>
+            </View>
+
+            {billToType === 'client' ? (
+              <>
+                {selectedClient ? (
+                  <View>
+                    <Text style={styles.selectedClientLabel}>{selectedClient.company_name}</Text>
+                    <Pressable onPress={() => setSelectedClient(null)}>
+                      <Text style={styles.changeLink}>Change client</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View>
+                    <NeuWell style={styles.inputWell}>
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search clients..."
+                        placeholderTextColor={COLORS.textMuted}
+                        value={clientSearch}
+                        onChangeText={setClientSearch}
+                      />
+                    </NeuWell>
+                    <NeuButton
+                      label="+ Add New Client"
+                      onPress={() => setShowNewClient(true)}
+                      color={COLORS.teal}
+                      small
+                      style={{ marginVertical: 8 }}
+                    />
+                    {clients.slice(0, 10).map(c => (
+                      <Pressable key={c.id} onPress={() => selectClient(c)}>
+                        <View style={styles.clientRow}>
+                          <Text style={styles.clientName}>{c.company_name}</Text>
+                          {c.contact_name ? <Text style={styles.clientDetail}>{c.contact_name}</Text> : null}
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
             ) : (
-              <View>
-                <NeuWell style={styles.inputWell}>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search clients..."
-                    placeholderTextColor={COLORS.textMuted}
-                    value={clientSearch}
-                    onChangeText={setClientSearch}
-                  />
-                </NeuWell>
-                <NeuButton
-                  label="+ Add New Client"
-                  onPress={() => setShowNewClient(true)}
-                  color={COLORS.teal}
-                  small
-                  style={{ marginVertical: 8 }}
+              <>
+                <Text style={styles.fieldLabel}>Select Venue to Bill</Text>
+                <EntityPicker
+                  mode="venue"
+                  value={billToVenueName}
+                  entityId={billToVenueId}
+                  onChange={(text, id) => selectBillToVenue(text, id)}
+                  placeholder="Search venues..."
                 />
-                {clients.slice(0, 10).map(c => (
-                  <Pressable key={c.id} onPress={() => selectClient(c)}>
-                    <View style={styles.clientRow}>
-                      <Text style={styles.clientName}>{c.company_name}</Text>
-                      {c.contact_name ? <Text style={styles.clientDetail}>{c.contact_name}</Text> : null}
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
+                {billToVenue && (
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={styles.selectedClientLabel}>{billToVenue.venue_name}</Text>
+                    {billToVenue.contact_name ? <Text style={styles.clientDetail}>{billToVenue.contact_name}</Text> : null}
+                  </View>
+                )}
+              </>
             )}
           </NeuCard>
 
@@ -771,6 +858,12 @@ const styles = StyleSheet.create({
   clientRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.cardLight },
   clientName: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.text },
   clientDetail: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textDim, marginTop: 2 },
+  // Bill-to toggle
+  billToToggle: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  billToBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.card, alignItems: 'center' as const },
+  billToBtnActive: { backgroundColor: COLORS.teal + '33' },
+  billToText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textDim },
+  billToTextActive: { color: COLORS.teal, fontFamily: FONTS.bodyBold },
   // Event type
   eventTypeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   eventTypeBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, backgroundColor: COLORS.card },

@@ -80,18 +80,12 @@
 | D-071 | Session protocol updated — STATUS.md first | 2026-03-04 | Session start reads STATUS.md before todo.md. Deeper docs (SESSION_LOG, decisions_log, gotchas) only when needed. Reduces startup time from reading 6 files to 2. |
 | D-072 | createReceipts wrapped in atomic transaction | 2026-03-04 | createReceipts() now uses withExclusiveTransactionAsync() — matches markInvoicePaid() pattern. Prevents partial receipt creation on crash. |
 | D-073 | AuthContext refreshes session on mount | 2026-03-04 | getSession() returns cached JWT which may be expired. Now calls refreshSession() to validate + extend TTL. If refresh fails, clears auth state cleanly. |
-
-## D-072: Venues and clients are independent lists (2026-03-05)
-- **Context**: Needed to handle: pubs that book themselves, companies with multiple venues, wedding couples at shared venues, festival organisers
-- **Decision**: Two separate lists — Venues (physical places with ratings/photos/nav) and Clients (people/companies who pay with billing info). No forced FK between them. Gigs/quotes/invoices reference both via optional venue_id + client_id FKs.
-- **Rationale**: Covers all 8 real-world booking scenarios without over-engineering. Simplest model that works.
-
-## D-073: Clean DB restructure, not backwards-compat migration (2026-03-05)
-- **Context**: App has no production data yet (only seed/test data). Migration could either add nullable columns with backwards compat or do a clean restructure.
-- **Decision**: Snapshot data, clean ALTER tables, re-seed. No backwards-compat shims.
-- **Rationale**: No real data to protect. Clean schema is simpler to maintain long-term.
-
-## D-074: S22 deferred in favour of S23 (2026-03-05)
-- **Context**: S22 (native visual overhaul) was next priority, but venue/client restructure (S23) affects the data model that S22 screens would display.
-- **Decision**: Do S23 first (4 sessions), then S22.
-- **Rationale**: No point pixel-perfecting screens that will change shape when venue/client pickers replace text fields.
+| D-074 | Venues and clients are independent lists | 2026-03-05 | Two separate lists — no forced FK. Gigs/quotes/invoices reference both via optional venue_id + client_id FKs. Covers all 8 booking scenarios. |
+| D-075 | Clean DB restructure, not backwards-compat migration | 2026-03-05 | No production data yet. Snapshot → clean ALTER → re-seed. No backwards-compat shims. |
+| D-076 | S22 deferred in favour of S23 | 2026-03-05 | S23 (venue/client restructure) done first — changes data model S22 screens display. |
+| D-077 | Legacy JWT API keys disabled | 2026-03-05 | Leaked service_role key invalidated by disabling legacy JWT-based keys. New publishable/secret keys active. |
+| D-078 | Invoices/quotes can target venue OR client (at least one required) | 2026-03-05 | Real-world: pubs pay directly (invoice venue), agencies book venues (invoice client). client_id becomes nullable on invoices/quotes/formal_invoices. CHECK constraint ensures at least one of client_id/venue_id is set. Supersedes forced client_id NOT NULL. |
+| D-079 | Venues gain email/phone/contact_name for direct invoicing | 2026-03-05 | When a venue is the billing target, need contact info for the invoice "Bill To" section. |
+| D-080 | "Client is the venue" toggle removed | 2026-03-05 | Replaced by explicit bill-to choice on invoice/quote forms. No auto-creating ghost client records when venue pays directly. |
+| D-081 | BillTo resolved at render time from whichever entity is present | 2026-03-05 | PDF templates and list views use a shared resolveBillTo() function. Returns {name, contact, address, email} from client or venue. |
+| D-082 | gig_id FK on invoices for gig→invoice linking | 2026-03-05 | Enables "Create Invoice" shortcut from gig day view, "Invoiced" badge on gigs, and prevents duplicate invoices per gig. invoices.gig_id nullable UUID FK → gigs(id) SET NULL. |

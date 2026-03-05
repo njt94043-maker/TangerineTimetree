@@ -883,7 +883,7 @@ export async function searchVenues(query: string): Promise<Venue[]> {
  * Legacy compat: createVenue(ignoredClientId, venueName, address?)
  */
 export async function createVenue(
-  venueOrClientId: { venue_name: string; address?: string; postcode?: string } | string,
+  venueOrClientId: { venue_name: string; address?: string; postcode?: string; contact_name?: string; email?: string; phone?: string } | string,
   venueName?: string,
   address?: string,
 ): Promise<Venue> {
@@ -895,6 +895,9 @@ export async function createVenue(
   const name = typeof venueOrClientId === 'string' ? (venueName ?? '') : venueOrClientId.venue_name;
   const addr = typeof venueOrClientId === 'string' ? (address ?? '') : (venueOrClientId.address ?? '');
   const pc = typeof venueOrClientId === 'string' ? '' : (venueOrClientId.postcode ?? '');
+  const cn = typeof venueOrClientId === 'string' ? '' : (venueOrClientId.contact_name ?? '');
+  const em = typeof venueOrClientId === 'string' ? '' : (venueOrClientId.email ?? '');
+  const ph = typeof venueOrClientId === 'string' ? '' : (venueOrClientId.phone ?? '');
 
   const { data, error } = await supabase
     .from('venues')
@@ -902,6 +905,9 @@ export async function createVenue(
       venue_name: name,
       address: addr,
       postcode: pc,
+      contact_name: cn,
+      email: em,
+      phone: ph,
       created_by: user.id,
     })
     .select()

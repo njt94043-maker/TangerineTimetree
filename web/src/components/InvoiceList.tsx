@@ -61,6 +61,7 @@ export function InvoiceList({ invoices, loading, onNewInvoice, onInvoicePress, o
         i.invoice_number.toLowerCase().includes(q) ||
         i.client_company_name.toLowerCase().includes(q) ||
         i.venue.toLowerCase().includes(q) ||
+        i.venue_name.toLowerCase().includes(q) ||
         i.description.toLowerCase().includes(q)
       );
     }
@@ -148,7 +149,7 @@ export function InvoiceList({ invoices, loading, onNewInvoice, onInvoicePress, o
                 {inv.status.toUpperCase()}
               </span>
             </div>
-            <div className="invoice-card-client">{inv.client_company_name || 'No client'}</div>
+            <div className="invoice-card-client">{inv.client_company_name || inv.venue_name || 'No client'}</div>
             <div className="invoice-card-bottom">
               <span className="invoice-card-amount">{formatGBP(inv.amount)}</span>
               <span className="invoice-card-date">{formatShortDate(inv.gig_date)}</span>

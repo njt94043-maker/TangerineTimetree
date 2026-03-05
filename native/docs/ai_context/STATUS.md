@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S24A complete. **Bill-to flexibility: schema + types + queries done.**
-- **Blocker**: None. Native APK needs rebuild. Migration SQL needs pushing to Supabase.
-- **Last session**: 2026-03-05 — S24A: migration SQL written (venues contact fields, nullable client_id, gig_id FK, CHECK constraints). Types updated (BillTo, nullable client_id, venue contact fields). Queries updated (LEFT JOINs with venues, resolveBillTo(), getInvoiceByGigId()). Native wrapper updated. Both tsc clean.
-- **Next action**: Push migration SQL to Supabase, then S24B (bill-to flexibility UI — both apps). APK rebuild still pending.
+- **Phase**: S24B complete. **Bill-to flexibility: full UI shipped (both apps).**
+- **Blocker**: None. Native APK needs rebuild.
+- **Last session**: 2026-03-05 — S24B: Bill-to toggle on invoice+quote forms (both apps). Invoice/quote list views show billed-to name (client or venue). Removed "Client is the venue" toggle from gig forms. Create Invoice button on gig day views (both apps) with prefill. Invoiced badge on gigs with linked invoices. Venue contact fields on venue forms (both apps). Migration SQL pushed to Supabase. Both tsc clean.
+- **Next action**: APK rebuild. User to verify 44 WhatsApp-confirmed fees, then batch-update.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -28,7 +28,7 @@
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 20 tables live, S24A migration pending push)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 20 tables live, S24A migration pushed)
 
 ## Supabase Tables (20 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
@@ -67,6 +67,6 @@
 | **S23C** | **Gig booking flow update (venue/client pickers, nav button)** | **DONE** |
 | **S23D** | **Quote + Invoice flow update (venue pickers, audit fixes)** | **DONE** |
 | **S24A** | **Bill-to flexibility: schema + types + queries** | **DONE** |
-| **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **PLANNED** |
+| **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **DONE** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

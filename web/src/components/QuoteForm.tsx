@@ -5,7 +5,7 @@ import {
 } from '@shared/supabase/queries';
 import { loadSettingsCached } from '../utils/settingsCache';
 import { EntityPicker } from './EntityPicker';
-import type { Client, UserSettings, BandSettings, ServiceCatalogueItem, EventType, PLIOption, InvoiceStyle } from '@shared/supabase/types';
+import type { Client, UserSettings, BandSettings, ServiceCatalogueItem, EventType, PLIOption, InvoiceStyle, Venue } from '@shared/supabase/types';
 import type { QuoteTemplateData } from '@shared/templates';
 import { getQuoteHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
 import { formatDateLong, todayISO, addDaysISO, formatGBP } from '../utils/format';
@@ -24,7 +24,8 @@ interface LineItem {
   unit_price: number;
 }
 
-const STEP_LABELS = ['Client & Event', 'Package', 'Extras', 'Preview'];
+type BillToType = 'client' | 'venue';
+const STEP_LABELS = ['Bill To', 'Package', 'Extras', 'Preview'];
 
 const EVENT_TYPES: { value: EventType; label: string }[] = [
   { value: 'wedding', label: 'Wedding' },
@@ -43,7 +44,11 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   const [bandSettings, setBandSettings] = useState<BandSettings | null>(null);
   const [error, setError] = useState('');
 
-  // Step 1 — Client & Event
+  // Step 1 — Bill To & Event
+  const [billToType, setBillToType] = useState<BillToType>('client');
+  const [billToVenue, setBillToVenue] = useState<Venue | null>(null);
+  const [billToVenueName, setBillToVenueName] = useState('');
+  const [billToVenueId, setBillToVenueId] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -144,9 +149,28 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   const discount = parseFloat(discountAmount) || 0;
   const total = Math.max(0, subtotal - discount);
 
-  // --- Client selection ---
+  // --- Bill-to selection ---
   function selectClient(client: Client) {
     setSelectedClient(client);
+  }
+
+  async function selectBillToVenue(name: string, id: string | null) {
+    setBillToVenueName(name);
+    setBillToVenueId(id);
+    if (id) {
+      try {
+        const v = await getVenue(id);
+        if (v) {
+          setBillToVenue(v);
+          // Pre-fill event venue from bill-to venue
+          setVenueName(v.venue_name);
+          setVenueId(v.id);
+          setVenueAddress([v.address, v.postcode].filter(Boolean).join(', '));
+        }
+      } catch { /* non-critical */ }
+    } else {
+      setBillToVenue(null);
+    }
   }
 
   async function saveNewClient() {
@@ -170,7 +194,8 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
 
   // --- Step navigation ---
   function goToStep2() {
-    if (!selectedClient) { setError('Select a client'); return; }
+    if (billToType === 'client' && !selectedClient) { setError('Select a client'); return; }
+    if (billToType === 'venue' && !billToVenueId) { setError('Select a venue to bill'); return; }
     if (!venueName.trim()) { setError('Venue name is required'); return; }
     setError('');
     setStep(2);
@@ -182,10 +207,34 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
     setStep(3);
   }
 
+  function getBillToInfo() {
+    if (billToType === 'client' && selectedClient) {
+      return {
+        toCompany: selectedClient.company_name,
+        toContact: selectedClient.contact_name,
+        toAddress: selectedClient.address,
+        toEmail: selectedClient.email || '',
+        toPhone: selectedClient.phone || '',
+      };
+    }
+    if (billToType === 'venue' && billToVenue) {
+      return {
+        toCompany: billToVenue.venue_name,
+        toContact: billToVenue.contact_name || '',
+        toAddress: [billToVenue.address, billToVenue.postcode].filter(Boolean).join(', '),
+        toEmail: billToVenue.email || '',
+        toPhone: billToVenue.phone || '',
+      };
+    }
+    return { toCompany: '', toContact: '', toAddress: '', toEmail: '', toPhone: '' };
+  }
+
   function goToStep4() {
     if (!userSettings || !bandSettings) { setError('Settings not loaded — please configure Settings first'); return; }
-    if (!selectedClient) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenue) return;
     setError('');
+    const billTo = getBillToInfo();
 
     const templateData: QuoteTemplateData = {
       quoteNumber: 'PREVIEW',
@@ -195,11 +244,11 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
       tradingAs: bandSettings.trading_as,
       businessType: bandSettings.business_type,
       website: bandSettings.website,
-      toCompany: selectedClient.company_name,
-      toContact: selectedClient.contact_name,
-      toAddress: selectedClient.address,
-      toEmail: selectedClient.email,
-      toPhone: selectedClient.phone,
+      toCompany: billTo.toCompany,
+      toContact: billTo.toContact,
+      toAddress: billTo.toAddress,
+      toEmail: billTo.toEmail,
+      toPhone: billTo.toPhone,
       eventType: EVENT_TYPES.find(e => e.value === eventType)?.label ?? eventType,
       eventDate: formatDateLong(eventDate),
       venueName: venueName.trim(),
@@ -267,15 +316,16 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
 
   // --- Create quote ---
   async function handleCreate() {
-    if (!selectedClient) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenueId) return;
     const style = previewHtmls[currentIndex]?.id || DEFAULT_INVOICE_STYLE;
     setSelectedStyle(style);
     setGenerating(true);
     setError('');
     try {
       const quote = await createQuote({
-        client_id: selectedClient.id,
-        venue_id: venueId,
+        client_id: billToType === 'client' ? selectedClient!.id : null,
+        venue_id: billToType === 'venue' ? billToVenueId : venueId,
         event_type: eventType,
         event_date: eventDate,
         venue_name: venueName.trim(),
@@ -334,15 +384,128 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
 
       {error && <ErrorAlert message={error} compact />}
 
-      {/* Step 1: Client & Event */}
+      {/* Step 1: Bill To & Event */}
       {step === 1 && (
         <div className="invoice-step">
-          {selectedClient ? (
+          {/* Bill-to toggle */}
+          <label className="label">BILL TO</label>
+          <div className="toggle-row" style={{ marginBottom: 12 }}>
+            <button
+              className={`btn btn-small ${billToType === 'client' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setBillToType('client')}
+            >Bill Client</button>
+            <button
+              className={`btn btn-small ${billToType === 'venue' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setBillToType('venue')}
+            >Bill Venue</button>
+          </div>
+
+          {billToType === 'client' ? (
             <>
-              <div className="neu-card invoice-client-badge">
-                Client: <strong>{selectedClient.company_name}</strong>
-                <button className="btn btn-small btn-outline" onClick={() => setSelectedClient(null)} style={{ marginLeft: 'auto' }}>Change</button>
-              </div>
+              {selectedClient ? (
+                <>
+                  <div className="neu-card invoice-client-badge">
+                    Client: <strong>{selectedClient.company_name}</strong>
+                    <button className="btn btn-small btn-outline" onClick={() => setSelectedClient(null)} style={{ marginLeft: 'auto' }}>Change</button>
+                  </div>
+
+                  <label className="label">EVENT TYPE</label>
+                  <div className="neu-inset">
+                    <select className="input-field" value={eventType} onChange={e => setEventType(e.target.value as EventType)}>
+                      {EVENT_TYPES.map(et => <option key={et.value} value={et.value}>{et.label}</option>)}
+                    </select>
+                  </div>
+
+                  <label className="label">EVENT DATE</label>
+                  <div className="neu-inset">
+                    <input className="input-field" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
+                  </div>
+
+                  <label className="label">VENUE *</label>
+                  <EntityPicker
+                    mode="venue"
+                    value={venueName}
+                    entityId={venueId}
+                    onChange={(text, id) => { setVenueName(text); setVenueId(id); if (!id) setVenueAddress(''); }}
+                    placeholder="e.g. The Grand Hotel"
+                  />
+
+                  <label className="label">VENUE ADDRESS</label>
+                  <div className="neu-inset">
+                    <textarea className="input-field input-textarea" value={venueAddress} onChange={e => setVenueAddress(e.target.value)} placeholder="Full address" rows={3} />
+                  </div>
+
+                  <button className="btn btn-primary btn-full" onClick={goToStep2} style={{ marginTop: 12 }}>
+                    Next: Build Package
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="neu-inset" style={{ marginBottom: 8 }}>
+                    <input
+                      className="input-field"
+                      value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)}
+                      placeholder="Search clients..."
+                    />
+                  </div>
+
+                  <button className="btn btn-primary btn-small btn-full" onClick={() => setShowNewClient(true)} style={{ marginBottom: 8 }}>
+                    + Add New Client
+                  </button>
+
+                  <div className="client-select-list">
+                    {clients.map(c => (
+                      <div key={c.id} className="client-select-item neu-card" onClick={() => selectClient(c)}>
+                        <span className="client-select-name">{c.company_name}</span>
+                        {c.contact_name && <span className="client-select-contact">{c.contact_name}</span>}
+                      </div>
+                    ))}
+                    {clients.length === 0 && (
+                      <p className="empty-text">{clientSearch ? 'No matching clients' : 'No clients yet'}</p>
+                    )}
+                  </div>
+
+                  {showNewClient && (
+                    <div className="overlay" onClick={() => setShowNewClient(false)}>
+                      <div className="modal-card" onClick={e => e.stopPropagation()}>
+                        <h3 className="modal-title">New Client</h3>
+                        <label className="label">COMPANY NAME *</label>
+                        <div className="neu-inset"><input className="input-field" value={newCompany} onChange={e => setNewCompany(e.target.value)} placeholder="Company name" /></div>
+                        <label className="label">CONTACT NAME</label>
+                        <div className="neu-inset"><input className="input-field" value={newContact} onChange={e => setNewContact(e.target.value)} placeholder="Optional" /></div>
+                        <label className="label">ADDRESS</label>
+                        <div className="neu-inset"><textarea className="input-field input-textarea" value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="Full address" rows={3} /></div>
+                        <label className="label">EMAIL</label>
+                        <div className="neu-inset"><input className="input-field" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Optional" type="email" /></div>
+                        <label className="label">PHONE</label>
+                        <div className="neu-inset"><input className="input-field" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="Optional" type="tel" /></div>
+                        <div className="form-actions">
+                          <button className="btn btn-primary" onClick={saveNewClient}>Save & Select</button>
+                          <button className="btn btn-outline" onClick={() => setShowNewClient(false)}>Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <label className="label">SELECT VENUE TO BILL</label>
+              <EntityPicker
+                mode="venue"
+                value={billToVenueName}
+                entityId={billToVenueId}
+                onChange={(text, id) => selectBillToVenue(text, id)}
+                placeholder="Search venues..."
+              />
+              {billToVenue && (
+                <div className="neu-card invoice-client-badge" style={{ marginTop: 8 }}>
+                  Billing: <strong>{billToVenue.venue_name}</strong>
+                  {billToVenue.contact_name && <span style={{ marginLeft: 8, opacity: 0.7 }}>{billToVenue.contact_name}</span>}
+                </div>
+              )}
 
               <label className="label">EVENT TYPE</label>
               <div className="neu-inset">
@@ -373,55 +536,6 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
               <button className="btn btn-primary btn-full" onClick={goToStep2} style={{ marginTop: 12 }}>
                 Next: Build Package
               </button>
-            </>
-          ) : (
-            <>
-              <div className="neu-inset" style={{ marginBottom: 8 }}>
-                <input
-                  className="input-field"
-                  value={clientSearch}
-                  onChange={e => setClientSearch(e.target.value)}
-                  placeholder="Search clients..."
-                />
-              </div>
-
-              <button className="btn btn-primary btn-small btn-full" onClick={() => setShowNewClient(true)} style={{ marginBottom: 8 }}>
-                + Add New Client
-              </button>
-
-              <div className="client-select-list">
-                {clients.map(c => (
-                  <div key={c.id} className="client-select-item neu-card" onClick={() => selectClient(c)}>
-                    <span className="client-select-name">{c.company_name}</span>
-                    {c.contact_name && <span className="client-select-contact">{c.contact_name}</span>}
-                  </div>
-                ))}
-                {clients.length === 0 && (
-                  <p className="empty-text">{clientSearch ? 'No matching clients' : 'No clients yet'}</p>
-                )}
-              </div>
-
-              {showNewClient && (
-                <div className="overlay" onClick={() => setShowNewClient(false)}>
-                  <div className="modal-card" onClick={e => e.stopPropagation()}>
-                    <h3 className="modal-title">New Client</h3>
-                    <label className="label">COMPANY NAME *</label>
-                    <div className="neu-inset"><input className="input-field" value={newCompany} onChange={e => setNewCompany(e.target.value)} placeholder="Company name" /></div>
-                    <label className="label">CONTACT NAME</label>
-                    <div className="neu-inset"><input className="input-field" value={newContact} onChange={e => setNewContact(e.target.value)} placeholder="Optional" /></div>
-                    <label className="label">ADDRESS</label>
-                    <div className="neu-inset"><textarea className="input-field input-textarea" value={newAddress} onChange={e => setNewAddress(e.target.value)} placeholder="Full address" rows={3} /></div>
-                    <label className="label">EMAIL</label>
-                    <div className="neu-inset"><input className="input-field" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Optional" type="email" /></div>
-                    <label className="label">PHONE</label>
-                    <div className="neu-inset"><input className="input-field" value={newPhone} onChange={e => setNewPhone(e.target.value)} placeholder="Optional" type="tel" /></div>
-                    <div className="form-actions">
-                      <button className="btn btn-primary" onClick={saveNewClient}>Save & Select</button>
-                      <button className="btn btn-outline" onClick={() => setShowNewClient(false)}>Cancel</button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>

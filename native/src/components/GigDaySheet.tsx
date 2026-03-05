@@ -5,7 +5,7 @@ import { neuRaisedStyle, neuInsetStyle } from '../theme/shadows';
 import { NeuButton } from './NeuButton';
 import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getGigChangelog, getVenue } from '@shared/supabase/queries';
+import { getGigsByDate, getGigChangelog, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface GigDaySheetProps {
@@ -18,6 +18,7 @@ interface GigDaySheetProps {
   onEditGig: (gigId: string) => void;
   onMarkAway: () => void;
   onDateChange?: (date: string) => void;
+  onCreateInvoice?: (gig: GigWithCreator) => void;
 }
 
 function formatDisplayDate(iso: string): string {
@@ -35,13 +36,14 @@ function formatFee(fee: number | null): string {
   return `\u00A3${fee.toFixed(2)}`;
 }
 
-export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onDateChange }: GigDaySheetProps) {
+export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onDateChange, onCreateInvoice }: GigDaySheetProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedChangelog, setExpandedChangelog] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
+  const [invoicedGigIds, setInvoicedGigIds] = useState<Set<string>>(new Set());
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,6 +70,20 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
       })
     ).then(entries => {
       setVenueAddresses(new Map(entries.filter(([, addr]) => !!addr)));
+    }).catch(() => {});
+  }, [gigs]);
+
+  // Check which gigs already have invoices
+  useEffect(() => {
+    const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice' && g.payment_type === 'invoice');
+    if (invoiceGigs.length === 0) { setInvoicedGigIds(new Set()); return; }
+    Promise.all(
+      invoiceGigs.map(async g => {
+        const inv = await getInvoiceByGigId(g.id);
+        return inv ? g.id : null;
+      })
+    ).then(ids => {
+      setInvoicedGigIds(new Set(ids.filter(Boolean) as string[]));
     }).catch(() => {});
   }, [gigs]);
 
@@ -218,6 +234,11 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
                   </Pressable>
                 )}
                 {!isPractice && <Text style={styles.gigClient}>{gig.client_name || 'Client TBC'}</Text>}
+                {!isPractice && invoicedGigIds.has(gig.id) && (
+                  <View style={styles.invoicedBadge}>
+                    <Text style={styles.invoicedBadgeText}>Invoiced</Text>
+                  </View>
+                )}
 
                 <View style={styles.gigDetails}>
                   {!isPractice && <DetailRow label="Fee" value={formatFee(gig.fee)} />}
@@ -258,6 +279,16 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
                       <Text style={styles.changelogText}>No history yet</Text>
                     )}
                   </View>
+                )}
+
+                {/* Create Invoice button — invoice-type gigs only, not yet invoiced */}
+                {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
+                  <Pressable
+                    style={styles.createInvoiceBtn}
+                    onPress={(e) => { e.stopPropagation?.(); onCreateInvoice(gig); }}
+                  >
+                    <Text style={styles.createInvoiceBtnText}>Create Invoice</Text>
+                  </Pressable>
                 )}
               </Pressable>
               );
@@ -461,6 +492,31 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.textMuted,
     marginTop: 8,
+  },
+  invoicedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.success + '33',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  invoicedBadgeText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 10,
+    color: COLORS.success,
+  },
+  createInvoiceBtn: {
+    marginTop: 10,
+    backgroundColor: COLORS.teal + '22',
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center' as const,
+  },
+  createInvoiceBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.teal,
   },
   changelogToggle: {
     marginTop: 8,

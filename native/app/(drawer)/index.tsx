@@ -9,7 +9,7 @@ import { GigList } from '../../src/components/GigList';
 import { useAuth } from '../../src/supabase/AuthContext';
 import { getGigsForMonth, getAwayDatesForMonth, getProfiles, getChangesSince, updateLastOpened } from '@shared/supabase/queries';
 import { supabase } from '../../src/supabase/client';
-import type { Gig, AwayDateWithUser, Profile } from '@shared/supabase/types';
+import type { Gig, AwayDateWithUser, Profile, GigWithCreator } from '@shared/supabase/types';
 import { cacheCalendarData, getCachedCalendarData } from '../../src/utils/offlineCache';
 import { startOfflineQueueListener } from '../../src/utils/offlineQueue';
 
@@ -153,6 +153,23 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
     router.push({ pathname: '/gig/away', params: { date: selectedDate ?? '' } });
   }
 
+  function handleCreateInvoice(gig: GigWithCreator) {
+    setSheetVisible(false);
+    const desc = `Live music performance at ${gig.venue}`;
+    router.push({
+      pathname: '/invoice/new',
+      params: {
+        prefill_venue: gig.venue,
+        prefill_venue_id: gig.venue_id ?? '',
+        prefill_client_id: gig.client_id ?? '',
+        prefill_gig_id: gig.id,
+        prefill_gig_date: gig.date,
+        prefill_amount: gig.fee != null ? String(gig.fee) : '',
+        prefill_description: desc,
+      },
+    });
+  }
+
   function handleGigPressFromList(gigId: string, gigType: string) {
     router.push({ pathname: '/gig/new', params: { gigId, gigType } });
   }
@@ -226,6 +243,7 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
         onEditGig={handleEditGig}
         onMarkAway={handleMarkAway}
         onDateChange={setSelectedDate}
+        onCreateInvoice={handleCreateInvoice}
       />
     </View>
   );

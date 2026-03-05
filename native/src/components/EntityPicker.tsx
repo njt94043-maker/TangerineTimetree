@@ -81,7 +81,8 @@ export function EntityPicker({ mode, value, entityId, onChange, placeholder }: E
       setNewAddress('');
       Keyboard.dismiss();
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : `Failed to create ${label.toLowerCase()}`);
+      const entityLabel = mode === 'venue' ? 'venue' : 'client';
+      Alert.alert('Error', err instanceof Error ? err.message : `Failed to create ${entityLabel}`);
     } finally {
       setCreating(false);
     }

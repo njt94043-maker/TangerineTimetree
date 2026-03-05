@@ -198,7 +198,7 @@ export const updateVenue = SQ.updateVenue;
 export const deleteVenue = SQ.deleteVenue;
 
 export async function addVenue(
-  venueOrClientId: { venue_name: string; address?: string; postcode?: string } | string,
+  venueOrClientId: { venue_name: string; address?: string; postcode?: string; contact_name?: string; email?: string; phone?: string } | string,
   venueName?: string,
 ): Promise<Venue> {
   return SQ.createVenue(venueOrClientId, venueName);

@@ -9,38 +9,23 @@
 - [ ] APK rebuild for S23 changes + venue/client seeding
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
-## Next Up: S24 — Bill-To Flexibility (venue OR client invoicing)
+## Completed: S24 — Bill-To Flexibility (venue OR client invoicing)
 
 ### S24A — Schema + Types + Queries — DONE
-- [x] DB migration: add email/phone/contact_name to venues
-- [x] DB migration: make client_id nullable on invoices, quotes, formal_invoices
-- [x] DB migration: add CHECK constraint (client_id OR venue_id must be set)
-- [x] DB migration: add gig_id nullable FK on invoices (D-082)
-- [x] Types: update Venue (add email/phone/contact_name), Invoice (add gig_id)
-- [x] Types: make client_id nullable on Invoice, Quote, FormalInvoice
-- [x] Types: add BillTo utility type
-- [x] Types: update WithClient join types — added venue contact fields
-- [x] Queries: update createInvoice (optional client_id + gig_id), createQuote (optional client_id)
-- [x] Queries: all GET queries now LEFT JOIN venues for contact fields
-- [x] Queries: added resolveBillTo() helper + getInvoiceByGigId()
-- [x] Queries: getDashboardStats updated (uses shared mapInvoiceRow)
-- [x] PDF templates: already bill-to agnostic (use toCompany/toContact/toAddress)
-- [x] Native wrapper: updated (BillTo type, resolveBillTo, getInvoiceByGigId exports)
-- [x] TypeScript clean: both apps pass
-- [ ] **Push migration SQL to Supabase** (user action)
+- [x] DB migration, types, queries, native wrapper — all complete
+- [x] Migration SQL pushed to Supabase
 
-### S24B — UI (both apps)
-- [ ] Gig form: remove "Client is the venue" toggle (both apps)
-- [ ] Invoice form: add "Bill To" choice — venue or client (both apps)
-- [ ] Quote form: same bill-to pattern (both apps)
-- [ ] Invoice/Quote list views: "Billed To" column shows client OR venue name
-- [ ] Venue form/detail: add email, phone, contact_name fields (both apps)
-- [ ] Venue list: indicator for venues with invoicing contact info
-- [ ] Gig day view: "Create Invoice" button at bottom of gig card (both apps)
-  - Only shows for payment_type='invoice', non-practice gigs
+### S24B — UI (both apps) — DONE
+- [x] Gig form: removed "Client is the venue" toggle (both apps)
+- [x] Invoice form: "Bill To" toggle — venue or client (both apps)
+- [x] Quote form: same bill-to pattern (both apps)
+- [x] Invoice/Quote list views: show client OR venue name (billed-to)
+- [x] Venue form/detail: email, phone, contact_name fields (both apps)
+- [x] Gig day view: "Create Invoice" button + "Invoiced" badge (both apps)
+  - Only for payment_type='invoice', non-practice gigs
   - Pre-fills venue, client, fee, date, description
-  - "Invoiced" badge on gigs that already have a linked invoice (via gig_id FK)
-- [ ] TypeScript clean + build both apps
+- [x] Web InvoiceForm: added prefill props for gig→invoice flow
+- [x] TypeScript clean: both apps pass
 
 ## Backlog
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
@@ -88,3 +73,5 @@
 | — | Venue/client seeding (65 venues, 29 clients, 114 gigs linked) | 2026-03-05 |
 | — | "Client is the venue" toggle (both apps) | 2026-03-05 |
 | — | Key rotation: legacy JWT disabled, new publishable/secret keys | 2026-03-05 |
+| S24A | Bill-to flexibility: schema + types + queries | 2026-03-05 |
+| S24B | Bill-to flexibility: UI (both apps) + gig→invoice shortcut | 2026-03-05 |
