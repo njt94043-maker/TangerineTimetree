@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
-const sb = createClient(
-  'https://jlufqgslgjowfaqmqlds.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsdWZxZ3NsZ2pvd2ZhcW1xbGRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDAzNzc2MSwiZXhwIjoyMDg1NjEzNzYxfQ.DYY9PeitsdGfXwqJr091bQXqpy_-jdZmhtOF0_wbvTg'
-);
+// Requires SUPABASE_SERVICE_ROLE_KEY env var
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceKey) { console.error('Set SUPABASE_SERVICE_ROLE_KEY env var'); process.exit(1); }
+const sb = createClient('https://jlufqgslgjowfaqmqlds.supabase.co', serviceKey);
 
 (async () => {
   // Get all gigs that have a venue_id
