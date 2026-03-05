@@ -168,6 +168,7 @@ export function ClientList({ onClose }: ClientListProps) {
             <div className="client-card-info">
               <span className="client-card-name">{client.company_name}</span>
               {client.contact_name && <span className="client-card-contact">{client.contact_name}</span>}
+              {client.address && <span className="client-card-address">{client.address}</span>}
               {client.email && <span className="client-card-email">{client.email}</span>}
             </div>
             <div className="client-card-actions">

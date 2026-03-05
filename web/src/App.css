@@ -3214,38 +3214,36 @@ select.ps-form-input {
 }
 .client-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
 }
 .client-card-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-width: 0;
 }
 .client-card-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .client-card-contact {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--color-text-dim);
 }
 .client-card-email {
   font-size: 11px;
   color: var(--color-text-muted);
 }
+.client-card-address {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
 .client-card-actions {
   display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-  margin-left: 8px;
+  gap: 6px;
 }
 
 /* --- Venue Management --- */
