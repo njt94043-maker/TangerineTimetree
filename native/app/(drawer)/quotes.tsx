@@ -3,6 +3,7 @@ import { View, Text, TextInput, FlatList, Pressable, RefreshControl, StyleSheet 
 import { useFocusEffect, useRouter } from 'expo-router';
 import { NeuCard, NeuWell, NeuSelect, StatusBadge } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
+import { neuRaisedStyle } from '../../src/theme/shadows';
 import { getQuotes, QuoteWithClient } from '../../src/db';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateShort } from '../../src/utils/formatDate';
@@ -90,7 +91,7 @@ export default function QuotesScreen() {
   function renderQuote({ item }: { item: QuoteWithClient }) {
     return (
       <Pressable onPress={() => router.push(`/quote/${item.id}`)}>
-        <NeuCard intensity="subtle">
+        <NeuCard intensity="subtle" style={{ borderLeftWidth: 3, borderLeftColor: item.status === 'accepted' ? COLORS.success : item.status === 'sent' ? COLORS.orange : item.status === 'declined' ? COLORS.danger : COLORS.textMuted }}>
           <View style={styles.quoteRow}>
             <View style={styles.quoteInfo}>
               <View style={styles.quoteTopRow}>
@@ -178,12 +179,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   headerRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
   statsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
-  stat: { flex: 1, backgroundColor: COLORS.card, borderRadius: 10, padding: 10, alignItems: 'center' },
+  stat: { flex: 1, ...neuRaisedStyle('subtle'), borderRadius: 10, padding: 10, alignItems: 'center' },
   statLabel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textDim },
   statValue: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.text, marginTop: 2 },
   searchWrap: { paddingHorizontal: 16, marginBottom: 8 },
   searchWell: { padding: 0 },
-  searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 10 },
+  searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, paddingVertical: 12, paddingHorizontal: 14 },
   controlsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
   controlItem: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 100 },
@@ -196,14 +197,15 @@ const styles = StyleSheet.create({
   quoteAmount: { fontFamily: FONTS.mono, fontSize: 16, color: COLORS.text },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyTitle: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.textDim },
-  emptyText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textMuted, marginTop: 8, textAlign: 'center' },
+  emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textMuted, marginTop: 8, textAlign: 'center' },
   addBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     backgroundColor: COLORS.green,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addBtnText: { fontSize: 13, color: '#fff', fontFamily: FONTS.bodyBold },
+  addBtnText: { fontSize: 13, color: '#000', fontFamily: FONTS.bodyBold },
 });

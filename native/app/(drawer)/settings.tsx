@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { NeuCard, NeuWell, NeuButton } from '../../src/components';
+import { NeuCard, NeuWell, NeuButton, NeuSelect } from '../../src/components';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getSettings, updateSettings, GigBooksSettings,
@@ -41,18 +42,21 @@ export default function SettingsScreen() {
   const [defaultValidity, setDefaultValidity] = useState('30');
 
   const [extendedDirty, setExtendedDirty] = useState(false);
+  const [mapApp, setMapApp] = useState('google');
 
   const load = useCallback(async () => {
-    const [s, bs, m, svc] = await Promise.all([
+    const [s, bs, m, svc, storedMapApp] = await Promise.all([
       getSettings(),
       getBandSettings(),
       getBandMembers(),
       getServiceCatalogue(),
+      AsyncStorage.getItem('tgt_map_app'),
     ]);
     setSettings(s);
     setBandSettings(bs);
     setMembers(m);
     setServices(svc);
+    setMapApp(storedMapApp || 'google');
     setDirty(false);
     setExtendedDirty(false);
 
@@ -185,6 +189,25 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        {/* Preferences */}
+        <NeuCard>
+          <Text style={LABEL}>PREFERENCES</Text>
+          <View style={styles.spacer} />
+          <Text style={styles.fieldLabel}>Map App</Text>
+          <NeuSelect
+            value={mapApp as 'google' | 'waze' | 'apple'}
+            options={[
+              { value: 'google', label: 'Google Maps' },
+              { value: 'waze', label: 'Waze' },
+              { value: 'apple', label: 'Apple Maps' },
+            ]}
+            onChange={async (v) => {
+              setMapApp(v);
+              await AsyncStorage.setItem('tgt_map_app', v);
+            }}
+          />
+        </NeuCard>
 
         {/* Your Details */}
         <NeuCard>
@@ -427,7 +450,7 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.text,
   },
   serviceDesc: {
@@ -437,7 +460,7 @@ const styles = StyleSheet.create({
   },
   servicePrice: {
     fontFamily: FONTS.mono,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.teal,
     marginHorizontal: 8,
   },

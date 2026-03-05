@@ -286,8 +286,8 @@ const styles = StyleSheet.create({
     color: COLORS.orange,
   },
   card: {
-    padding: 14,
-    marginBottom: 8,
+    padding: 16,
+    marginBottom: 12,
   },
   cardGig: {
     borderLeftWidth: 3,

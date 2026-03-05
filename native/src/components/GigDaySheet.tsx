@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder, Animated } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder, Animated, Linking } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle, neuInsetStyle } from '../theme/shadows';
 import { NeuButton } from './NeuButton';
 import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getGigChangelog } from '@shared/supabase/queries';
+import { getGigsByDate, getGigChangelog, getVenue } from '@shared/supabase/queries';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface GigDaySheetProps {
   visible: boolean;
@@ -40,6 +41,7 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
   const [expandedChangelog, setExpandedChangelog] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -53,6 +55,21 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
         .finally(() => setLoading(false));
     }
   }, [visible, date]);
+
+  // Fetch venue addresses for gigs with venue_id
+  useEffect(() => {
+    const gigsWithVenue = gigs.filter(g => g.venue_id);
+    if (gigsWithVenue.length === 0) { setVenueAddresses(new Map()); return; }
+    Promise.all(
+      gigsWithVenue.map(async g => {
+        const venue = await getVenue(g.venue_id!);
+        const addr = venue ? [venue.address, venue.postcode].filter(Boolean).join(', ') : '';
+        return [g.id, addr] as const;
+      })
+    ).then(entries => {
+      setVenueAddresses(new Map(entries.filter(([, addr]) => !!addr)));
+    }).catch(() => {});
+  }, [gigs]);
 
   async function toggleChangelog(gigId: string) {
     if (expandedChangelog === gigId) {
@@ -183,6 +200,23 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
                 )}
 
                 <Text style={styles.gigVenue}>{isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}</Text>
+                {!isPractice && venueAddresses.has(gig.id) && (
+                  <Pressable
+                    style={styles.navigateBtn}
+                    onPress={async () => {
+                      const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
+                      const pref = (await AsyncStorage.getItem('tgt_map_app')) || 'google';
+                      const urls: Record<string, string> = {
+                        google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
+                        waze: `https://waze.com/ul?q=${addr}`,
+                        apple: `https://maps.apple.com/?q=${addr}`,
+                      };
+                      Linking.openURL(urls[pref] || urls.google);
+                    }}
+                  >
+                    <Text style={styles.navigateBtnText}>Navigate</Text>
+                  </Pressable>
+                )}
                 {!isPractice && <Text style={styles.gigClient}>{gig.client_name || 'Client TBC'}</Text>}
 
                 <View style={styles.gigDetails}>
@@ -275,7 +309,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   dismissArea: { flex: 1 },
@@ -340,7 +374,7 @@ const styles = StyleSheet.create({
     color: COLORS.textDim,
   },
   gigCard: {
-    padding: 14,
+    padding: 16,
     marginBottom: 12,
   },
   practiceBadge: {
@@ -378,9 +412,24 @@ const styles = StyleSheet.create({
   },
   gigClient: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textDim,
     marginBottom: 10,
+  },
+  navigateBtn: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: COLORS.teal,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  navigateBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    color: COLORS.teal,
   },
   gigDetails: {
     marginBottom: 8,
@@ -458,7 +507,7 @@ const styles = StyleSheet.create({
   },
   awayName: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.warning,
   },
   awayReason: {

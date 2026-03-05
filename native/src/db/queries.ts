@@ -10,6 +10,7 @@ import { cacheSettings, getCachedSettings } from '../utils/offlineCache';
 import type {
   Client as SupaClient,
   Venue as SupaVenue,
+  VenuePhoto as SupaVenuePhoto,
   Invoice as SupaInvoice,
   InvoiceWithClient as SupaInvoiceWithClient,
   Receipt as SupaReceipt,
@@ -37,6 +38,7 @@ import type {
 
 export type Client = SupaClient;
 export type Venue = SupaVenue;
+export type VenuePhoto = SupaVenuePhoto;
 export type Invoice = SupaInvoice;
 export type InvoiceWithClient = SupaInvoiceWithClient;
 export type Receipt = SupaReceipt;
@@ -189,12 +191,26 @@ export async function addClient(client: {
 
 // ─── Venues ─────────────────────────────────────────────
 
-export const getVenuesForClient = SQ.getVenuesForClient;
+export const getVenues = SQ.getVenues;
+export const getVenue = SQ.getVenue;
+export const searchVenues = SQ.searchVenues;
+export const updateVenue = SQ.updateVenue;
 export const deleteVenue = SQ.deleteVenue;
+/** @deprecated Use getVenues() — venues no longer tied to clients */
+export const getVenuesForClient = SQ.getVenuesForClient;
 
-export async function addVenue(clientId: string, venueName: string): Promise<Venue> {
-  return SQ.createVenue(clientId, venueName);
+export async function addVenue(
+  venueOrClientId: { venue_name: string; address?: string; postcode?: string } | string,
+  venueName?: string,
+): Promise<Venue> {
+  return SQ.createVenue(venueOrClientId, venueName);
 }
+
+// ─── Venue Photos ──────────────────────────────────────
+
+export const getVenuePhotos = SQ.getVenuePhotos;
+export const uploadVenuePhoto = SQ.uploadVenuePhoto;
+export const deleteVenuePhoto = SQ.deleteVenuePhoto;
 
 // ─── Invoices ───────────────────────────────────────────
 
@@ -207,6 +223,7 @@ export const getDashboardStats = SQ.getDashboardStats;
 export async function createInvoice(data: {
   client_id: string;
   venue: string;
+  venue_id?: string | null;
   gig_date: string;
   amount: number;
   description: string;
@@ -220,7 +237,7 @@ export async function createInvoice(data: {
 
 export async function updateInvoice(
   id: string,
-  updates: Partial<Pick<Invoice, 'venue' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
 ): Promise<void> {
   return SQ.updateInvoice(id, updates);
 }
@@ -268,6 +285,7 @@ export const expireQuote = SQ.expireQuote;
 
 export async function createQuote(data: {
   client_id: string;
+  venue_id?: string | null;
   event_type: EventType;
   event_date: string;
   venue_name: string;

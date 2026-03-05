@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NeuCard, NeuWell, NeuButton } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
-import { getClient, updateClient, deleteClient, getVenuesForClient, addVenue, deleteVenue, Venue } from '../../src/db';
+import { getClient, updateClient, deleteClient } from '../../src/db';
 
 export default function EditClientScreen() {
   const router = useRouter();
@@ -16,11 +16,6 @@ export default function EditClientScreen() {
   const [phone, setPhone] = useState('');
   const [loaded, setLoaded] = useState(false);
   const originals = useRef({ companyName: '', contactName: '', address: '', email: '', phone: '' });
-
-  // Venues
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [newVenueName, setNewVenueName] = useState('');
-  const [showAddVenue, setShowAddVenue] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -40,8 +35,6 @@ export default function EditClientScreen() {
           phone: client.phone,
         };
       }
-      const venueList = await getVenuesForClient(id);
-      setVenues(venueList);
       setLoaded(true);
     }
     load();
@@ -69,31 +62,6 @@ export default function EditClientScreen() {
         text: 'Delete', style: 'destructive', onPress: async () => {
           await deleteClient(id!);
           router.back();
-        },
-      },
-    ]);
-  }
-
-  async function handleAddVenue() {
-    if (!newVenueName.trim()) {
-      Alert.alert('Required', 'Venue name is required.');
-      return;
-    }
-    const venue = await addVenue(id!, newVenueName.trim());
-    setVenues(prev => [...prev, venue].sort((a, b) => a.venue_name.localeCompare(b.venue_name)));
-    setNewVenueName('');
-    setShowAddVenue(false);
-  }
-
-  function handleDeleteVenue(venueId: string, venueName: string) {
-    Alert.alert('Delete Venue', `Remove "${venueName}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteVenue(venueId);
-          setVenues(prev => prev.filter(v => v.id !== venueId));
         },
       },
     ]);
@@ -153,40 +121,6 @@ export default function EditClientScreen() {
           </NeuWell>
         </NeuCard>
 
-        <NeuCard>
-          <Text style={LABEL}>VENUES</Text>
-          <View style={{ height: 8 }} />
-
-          {venues.map(v => (
-            <View key={v.id} style={styles.venueRow}>
-              <Text style={styles.venueName}>{v.venue_name}</Text>
-              <NeuButton label="X" onPress={() => handleDeleteVenue(v.id, v.venue_name)} small />
-            </View>
-          ))}
-
-          {venues.length === 0 && (
-            <Text style={styles.emptyVenues}>No venues yet</Text>
-          )}
-
-          {showAddVenue ? (
-            <View style={styles.addVenueRow}>
-              <NeuWell style={{ ...styles.inputWell, flex: 1 }}>
-                <TextInput
-                  style={styles.input}
-                  value={newVenueName}
-                  onChangeText={setNewVenueName}
-                  placeholder="Venue name"
-                  placeholderTextColor={COLORS.textMuted}
-                  autoFocus
-                />
-              </NeuWell>
-              <NeuButton label="Add" onPress={handleAddVenue} color={COLORS.teal} small style={{ marginLeft: 8 }} />
-            </View>
-          ) : (
-            <NeuButton label="+ Add Venue" onPress={() => setShowAddVenue(true)} color={COLORS.teal} small style={{ marginTop: 8 }} />
-          )}
-        </NeuCard>
-
         <NeuButton label="Delete Client" onPress={handleDelete} color={COLORS.danger} style={{ marginTop: 16 }} />
       </ScrollView>
     </SafeAreaView>
@@ -201,8 +135,4 @@ const styles = StyleSheet.create({
   fieldLabel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textDim, marginBottom: 4, marginTop: 8 },
   inputWell: { padding: 0 },
   input: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 10 },
-  venueRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.cardLight },
-  venueName: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, flex: 1 },
-  emptyVenues: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textDim, fontStyle: 'italic' },
-  addVenueRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
 });

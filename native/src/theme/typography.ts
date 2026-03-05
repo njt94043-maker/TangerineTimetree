@@ -24,12 +24,12 @@ export const DATA_VALUE: TextStyle = {
 
 export const BODY: TextStyle = {
   fontFamily: FONTS.body,
-  fontSize: 13,
+  fontSize: 14,
   color: COLORS.text,
 };
 
 export const BODY_BOLD: TextStyle = {
   fontFamily: FONTS.bodyBold,
-  fontSize: 13,
+  fontSize: 14,
   color: COLORS.text,
 };

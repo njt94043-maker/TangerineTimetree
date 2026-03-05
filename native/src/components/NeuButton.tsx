@@ -10,15 +10,18 @@ interface NeuButtonProps {
   style?: ViewStyle;
   textStyle?: TextStyle;
   small?: boolean;
+  disabled?: boolean;
 }
 
-export function NeuButton({ label, onPress, color, icon, style, textStyle, small }: NeuButtonProps) {
+export function NeuButton({ label, onPress, color, icon, style, textStyle, small, disabled }: NeuButtonProps) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         pressed ? neuInsetStyle('normal') : neuRaisedStyle('normal'),
         small ? styles.baseSmall : styles.base,
+        disabled ? { opacity: 0.5 } : null,
         style,
       ]}
     >
@@ -31,12 +34,16 @@ export function NeuButton({ label, onPress, color, icon, style, textStyle, small
 
 const styles = StyleSheet.create({
   base: {
-    padding: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   baseSmall: {
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -47,6 +54,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   textSmall: {
-    fontSize: 11,
+    fontSize: 12,
   },
 });

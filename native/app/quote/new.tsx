@@ -6,14 +6,14 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
-import { NeuCard, NeuWell, NeuButton, StepIndicator, CalendarPicker } from '../../src/components';
+import { NeuCard, NeuWell, NeuButton, StepIndicator, CalendarPicker, EntityPicker } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getClients, searchClients, addClient, Client,
   getSettings, GigBooksSettings,
   getBandSettings,
   getServiceCatalogue, ServiceCatalogueItem,
-  createQuote,
+  createQuote, getVenue,
 } from '../../src/db';
 import { formatDateLong, formatDateDisplay, todayISO, addDays } from '../../src/utils/formatDate';
 import { formatGBP } from '../../src/utils/formatCurrency';
@@ -69,6 +69,7 @@ export default function NewQuoteScreen() {
   const [eventDate, setEventDate] = useState(todayISO());
   const [showCalendar, setShowCalendar] = useState(false);
   const [venueName, setVenueName] = useState('');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [venueAddress, setVenueAddress] = useState('');
 
   // Step 2 — Package builder
@@ -100,21 +101,25 @@ export default function NewQuoteScreen() {
 
   useEffect(() => {
     async function init() {
-      const [s, bs, c, svc] = await Promise.all([
-        getSettings(),
-        getBandSettings(),
-        getClients(),
-        getServiceCatalogue(),
-      ]);
-      setSettings(s);
-      setBandSettings(bs);
-      setClients(c);
-      setServices(svc);
+      try {
+        const [s, bs, c, svc] = await Promise.all([
+          getSettings(),
+          getBandSettings(),
+          getClients(),
+          getServiceCatalogue(),
+        ]);
+        setSettings(s);
+        setBandSettings(bs);
+        setClients(c);
+        setServices(svc);
 
-      // Pre-fill defaults from band settings
-      if (bs) {
-        setTermsAndConditions(bs.default_terms_and_conditions || '');
-        setValidityDays(String(bs.default_quote_validity_days || 30));
+        // Pre-fill defaults from band settings
+        if (bs) {
+          setTermsAndConditions(bs.default_terms_and_conditions || '');
+          setValidityDays(String(bs.default_quote_validity_days || 30));
+        }
+      } catch (err) {
+        Alert.alert('Error', err instanceof Error ? err.message : 'Failed to load data');
       }
     }
     init();
@@ -122,11 +127,22 @@ export default function NewQuoteScreen() {
 
   useEffect(() => {
     async function search() {
-      const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
-      setClients(list);
+      try {
+        const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
+        setClients(list);
+      } catch { /* search non-critical */ }
     }
     search();
   }, [clientSearch]);
+
+  // Auto-fill venue address when venue is selected from DB
+  useEffect(() => {
+    if (venueId) {
+      getVenue(venueId).then(v => {
+        if (v) setVenueAddress([v.address, v.postcode].filter(Boolean).join(', '));
+      }).catch(() => {});
+    }
+  }, [venueId]);
 
   // Line item calculations
   const subtotal = lineItems.reduce((sum, li) => sum + li.quantity * li.unit_price, 0);
@@ -259,6 +275,7 @@ export default function NewQuoteScreen() {
 
       const quote = await createQuote({
         client_id: selectedClient.id,
+        venue_id: venueId,
         event_type: eventType,
         event_date: eventDate,
         venue_name: venueName.trim(),
@@ -392,10 +409,14 @@ export default function NewQuoteScreen() {
               onCancel={() => setShowCalendar(false)}
             />
 
-            <Text style={styles.fieldLabel}>Venue Name *</Text>
-            <NeuWell style={styles.inputWell}>
-              <TextInput style={styles.input} value={venueName} onChangeText={setVenueName} placeholder="e.g. The Grand Hotel" placeholderTextColor={COLORS.textMuted} />
-            </NeuWell>
+            <Text style={styles.fieldLabel}>Venue *</Text>
+            <EntityPicker
+              mode="venue"
+              value={venueName}
+              entityId={venueId}
+              onChange={(text, id) => { setVenueName(text); setVenueId(id); if (!id) setVenueAddress(''); }}
+              placeholder="e.g. The Grand Hotel"
+            />
 
             <Text style={styles.fieldLabel}>Venue Address</Text>
             <NeuWell style={styles.inputWell}>
@@ -726,6 +747,7 @@ export default function NewQuoteScreen() {
               label={generating ? 'Saving...' : 'Approve & Create Quote'}
               onPress={handleApproveStyle}
               color={COLORS.teal}
+              disabled={generating}
             />
           </View>
         </View>
@@ -770,7 +792,7 @@ const styles = StyleSheet.create({
   lineItemTotalText: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.teal },
   // Totals
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
-  totalLabel: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.text },
+  totalLabel: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text },
   totalValue: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.text },
   // Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },

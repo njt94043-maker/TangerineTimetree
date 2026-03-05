@@ -19,5 +19,6 @@ export function NeuWell({ children, intensity = 'normal', style }: NeuWellProps)
 const styles = StyleSheet.create({
   base: {
     padding: 12,
+    minHeight: 44,
   },
 });

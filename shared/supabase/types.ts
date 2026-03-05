@@ -28,6 +28,8 @@ export interface Gig {
   gig_type: GigType;
   venue: string;
   client_name: string;
+  venue_id: string | null;
+  client_id: string | null;
   fee: number | null;
   payment_type: 'cash' | 'invoice' | '';
   load_time: string | null; // HH:MM
@@ -166,9 +168,24 @@ export interface Client {
 
 export interface Venue {
   id: string;
-  client_id: string;
   venue_name: string;
   address: string;
+  postcode: string;
+  rating_atmosphere: number | null;  // 1-5
+  rating_crowd: number | null;       // 1-5
+  rating_stage: number | null;       // 1-5
+  rating_parking: number | null;     // 1-5
+  notes: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface VenuePhoto {
+  id: string;
+  venue_id: string;
+  file_url: string;
+  storage_path: string;
+  caption: string;
   created_by: string;
   created_at: string;
 }
@@ -177,6 +194,7 @@ export interface Invoice {
   id: string;
   invoice_number: string;
   client_id: string;
+  venue_id: string | null;
   venue: string;
   gig_date: string;        // YYYY-MM-DD
   amount: number;
@@ -271,6 +289,7 @@ export interface Quote {
   id: string;
   quote_number: string;
   client_id: string;
+  venue_id: string | null;
   created_by: string;
   event_type: EventType;
   event_date: string;        // YYYY-MM-DD
@@ -315,6 +334,7 @@ export interface FormalInvoice {
   invoice_number: string;
   quote_id: string;
   client_id: string;
+  venue_id: string | null;
   created_by: string;
   venue_name: string;
   event_date: string;        // YYYY-MM-DD

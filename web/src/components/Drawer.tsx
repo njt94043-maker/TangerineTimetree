@@ -30,6 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
       { icon: '\uD83D\uDCC4', label: 'Invoices', view: 'invoices' },
       { icon: '\uD83D\uDCDD', label: 'Quotes', view: 'quotes' },
       { icon: '\uD83D\uDC65', label: 'Clients', view: 'clients' },
+      { icon: '\uD83C\uDFE2', label: 'Venues', view: 'venues' },
     ],
   },
   {
@@ -62,6 +63,8 @@ const VIEW_TO_NAV: Record<string, View> = {
   'quote-detail': 'quotes',
   'quote-preview': 'quotes',
   'clients': 'clients',
+  'venues': 'venues',
+  'venue-detail': 'venues',
   'media': 'media',
   'enquiries': 'enquiries',
   'website': 'website',
@@ -78,7 +81,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
-  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients } = useView();
+  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues } = useView();
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
 
@@ -89,11 +92,12 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       case 'quotes': goToQuotes(); break;
       case 'settings': goToSettings(); break;
       case 'clients': goToClients(); break;
+      case 'venues': goToVenues(); break;
       default: setView(targetView);
     }
     // Close on mobile
     if (window.innerWidth < 768) onClose();
-  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, onClose]);
+  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, onClose]);
 
   // Close on Escape
   useEffect(() => {

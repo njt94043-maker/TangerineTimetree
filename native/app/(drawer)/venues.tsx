@@ -1,51 +1,65 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { NeuCard, NeuWell, NeuButton } from '../../src/components';
-import { COLORS, FONTS, LABEL } from '../../src/theme';
-import { getClients, searchClients, deleteClient, Client } from '../../src/db';
+import { NeuCard, NeuWell, NeuButton, StarRating } from '../../src/components';
+import { COLORS, FONTS } from '../../src/theme';
+import { getVenues, searchVenues, deleteVenue } from '../../src/db';
+import type { Venue } from '../../src/db';
 
-export default function ClientsScreen() {
+function avgRating(v: Venue): number | null {
+  const vals = [v.rating_atmosphere, v.rating_crowd, v.rating_stage, v.rating_parking].filter(
+    (r): r is number => r !== null,
+  );
+  if (vals.length === 0) return null;
+  return Math.round(vals.reduce((s, n) => s + n, 0) / vals.length);
+}
+
+export default function VenuesScreen() {
   const router = useRouter();
-  const [clients, setClients] = useState<Client[]>([]);
+  const [venues, setVenues] = useState<Venue[]>([]);
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const list = search.trim() ? await searchClients(search.trim()) : await getClients();
-      setClients(list);
+      const list = search.trim() ? await searchVenues(search.trim()) : await getVenues();
+      setVenues(list);
     } catch (err) {
-      console.error('Failed to load clients', err);
+      console.error('Failed to load venues', err);
     }
   }, [search]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  function handleDeleteClient(client: Client) {
-    Alert.alert('Delete Client', `Delete "${client.company_name}"?`, [
+  function handleDelete(venue: Venue) {
+    Alert.alert('Delete Venue', `Delete "${venue.venue_name}"?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteClient(client.id); load(); } catch { Alert.alert('Error', 'Failed to delete client'); }
+          try { await deleteVenue(venue.id); load(); } catch { Alert.alert('Error', 'Failed to delete venue'); }
         },
       },
     ]);
   }
 
-  function renderClient({ item }: { item: Client }) {
+  function renderVenue({ item }: { item: Venue }) {
+    const avg = avgRating(item);
     return (
       <NeuCard>
-        <Pressable onPress={() => router.push(`/client/${item.id}`)}>
-          <Text style={styles.clientName}>{item.company_name}</Text>
-          {item.contact_name ? <Text style={styles.clientContact}>{item.contact_name}</Text> : null}
-          {item.address ? <Text style={styles.clientAddress}>{item.address}</Text> : null}
-          {item.email ? <Text style={styles.clientEmail}>{item.email}</Text> : null}
+        <Pressable onPress={() => router.push(`/venue/${item.id}`)}>
+          <Text style={styles.venueName}>{item.venue_name}</Text>
+          {item.address ? <Text style={styles.venueAddress}>{item.address}</Text> : null}
+          {item.postcode ? <Text style={styles.venuePostcode}>{item.postcode}</Text> : null}
+          {avg !== null && (
+            <View style={styles.ratingRow}>
+              <StarRating value={avg} compact />
+            </View>
+          )}
         </Pressable>
-        <View style={styles.clientActions}>
-          <Pressable style={styles.actionBtn} onPress={() => router.push(`/client/${item.id}`)}>
+        <View style={styles.venueActions}>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/venue/${item.id}`)}>
             <Text style={[styles.actionBtnText, { color: COLORS.orange }]}>Edit</Text>
           </Pressable>
-          <Pressable style={styles.actionBtn} onPress={() => handleDeleteClient(item)}>
+          <Pressable style={styles.actionBtn} onPress={() => handleDelete(item)}>
             <Text style={[styles.actionBtnText, { color: COLORS.danger }]}>Del</Text>
           </Pressable>
         </View>
@@ -56,26 +70,26 @@ export default function ClientsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <NeuButton label="+ Add Client" onPress={() => router.push('/client/new')} color={COLORS.green} small />
+        <NeuButton label="+ Add Venue" onPress={() => router.push('/venue/new')} color={COLORS.green} small />
       </View>
 
       <NeuWell style={styles.searchWell}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search clients..."
+          placeholder="Search venues..."
           placeholderTextColor={COLORS.textMuted}
           value={search}
           onChangeText={setSearch}
         />
       </NeuWell>
 
-      {clients.length === 0 ? (
+      {venues.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>{search ? 'No clients match your search' : 'No clients yet'}</Text>
+          <Text style={styles.emptyText}>{search ? 'No venues match your search' : 'No venues yet'}</Text>
           {!search && (
             <NeuButton
-              label="Add Your First Client"
-              onPress={() => router.push('/client/new')}
+              label="Add Your First Venue"
+              onPress={() => router.push('/venue/new')}
               color={COLORS.teal}
               style={{ marginTop: 16 }}
             />
@@ -83,9 +97,9 @@ export default function ClientsScreen() {
         </View>
       ) : (
         <FlatList
-          data={clients}
+          data={venues}
           keyExtractor={item => item.id}
-          renderItem={renderClient}
+          renderItem={renderVenue}
           contentContainerStyle={styles.list}
         />
       )}
@@ -120,30 +134,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
-  clientName: {
+  venueName: {
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
     color: COLORS.text,
   },
-  clientContact: {
+  venueAddress: {
     fontFamily: FONTS.body,
     fontSize: 14,
     color: COLORS.textDim,
     marginTop: 2,
   },
-  clientAddress: {
+  venuePostcode: {
     fontFamily: FONTS.body,
     fontSize: 12,
     color: COLORS.textMuted,
-    marginTop: 4,
-  },
-  clientEmail: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: COLORS.teal,
     marginTop: 2,
   },
-  clientActions: {
+  ratingRow: {
+    marginTop: 4,
+  },
+  venueActions: {
     flexDirection: 'row',
     gap: 12,
     marginTop: 10,

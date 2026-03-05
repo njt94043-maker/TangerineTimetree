@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   getClients, createClient, updateClient, deleteClient, searchClients,
-  getVenuesForClient, createVenue, deleteVenue,
 } from '@shared/supabase/queries';
-import type { Client, Venue } from '@shared/supabase/types';
+import type { Client } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -25,12 +24,6 @@ export function ClientList({ onClose }: ClientListProps) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
-
-  // Venue management
-  const [venueClient, setVenueClient] = useState<Client | null>(null);
-  const [venues, setVenues] = useState<Venue[]>([]);
-  const [newVenueName, setNewVenueName] = useState('');
-  const [newVenueAddress, setNewVenueAddress] = useState('');
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
@@ -105,40 +98,6 @@ export function ClientList({ onClose }: ClientListProps) {
     }
   }
 
-  async function openVenues(client: Client) {
-    setVenueClient(client);
-    try {
-      const v = await getVenuesForClient(client.id);
-      setVenues(v);
-    } catch {
-      setVenues([]);
-    }
-  }
-
-  async function handleAddVenue() {
-    if (!venueClient || !newVenueName.trim()) return;
-    try {
-      await createVenue(venueClient.id, newVenueName.trim(), newVenueAddress.trim() || undefined);
-      setNewVenueName('');
-      setNewVenueAddress('');
-      const v = await getVenuesForClient(venueClient.id);
-      setVenues(v);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add venue');
-    }
-  }
-
-  async function handleDeleteVenue(venueId: string) {
-    if (!venueClient) return;
-    try {
-      await deleteVenue(venueId);
-      const v = await getVenuesForClient(venueClient.id);
-      setVenues(v);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete venue');
-    }
-  }
-
   return (
     <div className="form-wrap form-top">
       <div className="page-header">
@@ -172,7 +131,6 @@ export function ClientList({ onClose }: ClientListProps) {
               {client.email && <span className="client-card-email">{client.email}</span>}
             </div>
             <div className="client-card-actions">
-              <button className="btn btn-small btn-outline" onClick={() => openVenues(client)}>Venues</button>
               <button className="btn btn-small btn-tangerine" onClick={() => openEdit(client)}>Edit</button>
               <button className="btn btn-small btn-danger" onClick={() => setDeleteTarget(client)}>Del</button>
             </div>
@@ -220,40 +178,6 @@ export function ClientList({ onClose }: ClientListProps) {
               </button>
               <button className="btn btn-outline" onClick={() => setShowForm(false)}>Cancel</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Venue Management Modal */}
-      {venueClient && (
-        <div className="overlay" onClick={() => setVenueClient(null)}>
-          <div className="modal-card" onClick={e => e.stopPropagation()}>
-            <h3 className="modal-title">Venues for {venueClient.company_name}</h3>
-
-            {venues.map(v => (
-              <div key={v.id} className="venue-row">
-                <div>
-                  <span className="venue-name">{v.venue_name}</span>
-                  {v.address && <span className="venue-address">{v.address}</span>}
-                </div>
-                <button className="btn btn-small btn-danger" onClick={() => handleDeleteVenue(v.id)}>Del</button>
-              </div>
-            ))}
-            {venues.length === 0 && <p className="empty-text">No venues yet</p>}
-
-            <div className="venue-add-form">
-              <div className="neu-inset" style={{ marginBottom: 6 }}>
-                <input className="input-field" value={newVenueName} onChange={e => setNewVenueName(e.target.value)} placeholder="Venue name" />
-              </div>
-              <div className="neu-inset" style={{ marginBottom: 6 }}>
-                <input className="input-field" value={newVenueAddress} onChange={e => setNewVenueAddress(e.target.value)} placeholder="Address (optional)" />
-              </div>
-              <button className="btn btn-primary btn-small" onClick={handleAddVenue} disabled={!newVenueName.trim()}>
-                + Add Venue
-              </button>
-            </div>
-
-            <button className="btn btn-outline btn-full" onClick={() => setVenueClient(null)} style={{ marginTop: 12 }}>Close</button>
           </div>
         </div>
       )}

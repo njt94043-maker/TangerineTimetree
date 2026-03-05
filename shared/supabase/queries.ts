@@ -15,6 +15,7 @@ import type {
   ContactSubmission,
   Client,
   Venue,
+  VenuePhoto,
   Invoice,
   InvoiceWithClient,
   InvoiceStatus,
@@ -147,6 +148,8 @@ export async function createGig(gig: {
   gig_type?: GigType;
   venue?: string;
   client_name?: string;
+  venue_id?: string | null;
+  client_id?: string | null;
   fee?: number | null;
   payment_type?: 'cash' | 'invoice' | '';
   load_time?: string | null;
@@ -166,6 +169,8 @@ export async function createGig(gig: {
       gig_type: gig.gig_type ?? 'gig',
       venue: gig.venue ?? '',
       client_name: gig.client_name ?? '',
+      venue_id: gig.venue_id ?? null,
+      client_id: gig.client_id ?? null,
       fee: gig.fee ?? null,
       payment_type: gig.payment_type ?? '',
       load_time: gig.load_time ?? null,
@@ -836,28 +841,66 @@ export async function searchClients(query: string): Promise<Client[]> {
 
 // ─── Venues ────────────────────────────────────────────
 
-export async function getVenuesForClient(clientId: string): Promise<Venue[]> {
+export async function getVenues(): Promise<Venue[]> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('venues')
     .select('*')
-    .eq('client_id', clientId)
     .order('venue_name');
   if (error) { checkAuthError(error); throw error; }
   return data ?? [];
 }
 
-export async function createVenue(clientId: string, venueName: string, address?: string): Promise<Venue> {
+export async function getVenue(id: string): Promise<Venue | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('venues')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error?.code === 'PGRST116') return null;
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function searchVenues(query: string): Promise<Venue[]> {
+  const supabase = getSupabase();
+  const safe = query.replace(/[%_(),.*]/g, '');
+  if (!safe) return [];
+  const { data, error } = await supabase
+    .from('venues')
+    .select('*')
+    .or(`venue_name.ilike.%${safe}%,address.ilike.%${safe}%,postcode.ilike.%${safe}%`)
+    .order('venue_name');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+/**
+ * Create a venue.
+ * New signature: createVenue({ venue_name, address?, postcode? })
+ * Legacy compat: createVenue(ignoredClientId, venueName, address?)
+ */
+export async function createVenue(
+  venueOrClientId: { venue_name: string; address?: string; postcode?: string } | string,
+  venueName?: string,
+  address?: string,
+): Promise<Venue> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Support legacy positional args: createVenue(clientId, name, address?)
+  const name = typeof venueOrClientId === 'string' ? (venueName ?? '') : venueOrClientId.venue_name;
+  const addr = typeof venueOrClientId === 'string' ? (address ?? '') : (venueOrClientId.address ?? '');
+  const pc = typeof venueOrClientId === 'string' ? '' : (venueOrClientId.postcode ?? '');
+
   const { data, error } = await supabase
     .from('venues')
     .insert({
-      client_id: clientId,
-      venue_name: venueName,
-      address: address ?? '',
+      venue_name: name,
+      address: addr,
+      postcode: pc,
       created_by: user.id,
     })
     .select()
@@ -867,9 +910,67 @@ export async function createVenue(clientId: string, venueName: string, address?:
   return data;
 }
 
+export async function updateVenue(
+  id: string,
+  updates: Partial<Pick<Venue, 'venue_name' | 'address' | 'postcode' | 'rating_atmosphere' | 'rating_crowd' | 'rating_stage' | 'rating_parking' | 'notes'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('venues').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
 export async function deleteVenue(id: string): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('venues').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+/** @deprecated Use getVenues() instead — venues are no longer tied to clients. Returns all venues. */
+export async function getVenuesForClient(_clientId: string): Promise<Venue[]> {
+  return getVenues();
+}
+
+// ─── Venue Photos ──────────────────────────────────────
+
+export async function getVenuePhotos(venueId: string): Promise<VenuePhoto[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('venue_photos')
+    .select('*')
+    .eq('venue_id', venueId)
+    .order('created_at', { ascending: false });
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function uploadVenuePhoto(venueId: string, fileUrl: string, storagePath: string, caption?: string): Promise<VenuePhoto> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('venue_photos')
+    .insert({
+      venue_id: venueId,
+      file_url: fileUrl,
+      storage_path: storagePath,
+      caption: caption ?? '',
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function deleteVenuePhoto(id: string, storagePath: string): Promise<void> {
+  const supabase = getSupabase();
+  // Delete from storage first
+  if (storagePath) {
+    await supabase.storage.from('venue-photos').remove([storagePath]);
+  }
+  const { error } = await supabase.from('venue_photos').delete().eq('id', id);
   if (error) { checkAuthError(error); throw error; }
 }
 
@@ -933,6 +1034,7 @@ export async function getInvoice(id: string): Promise<InvoiceWithClient | null> 
 export async function createInvoice(inv: {
   client_id: string;
   venue: string;
+  venue_id?: string | null;
   gig_date: string;
   amount: number;
   description: string;
@@ -956,6 +1058,7 @@ export async function createInvoice(inv: {
     .insert({
       invoice_number: invoiceNumber,
       client_id: inv.client_id,
+      venue_id: inv.venue_id ?? null,
       venue: inv.venue,
       gig_date: inv.gig_date,
       amount: inv.amount,
@@ -974,7 +1077,7 @@ export async function createInvoice(inv: {
 
 export async function updateInvoice(
   id: string,
-  updates: Partial<Pick<Invoice, 'venue' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('invoices').update(updates).eq('id', id);
@@ -1273,6 +1376,7 @@ export async function getQuote(id: string): Promise<QuoteWithClient | null> {
 
 export async function createQuote(q: {
   client_id: string;
+  venue_id?: string | null;
   event_type: EventType;
   event_date: string;
   venue_name: string;
@@ -1309,6 +1413,7 @@ export async function createQuote(q: {
     .insert({
       quote_number: quoteNumber,
       client_id: q.client_id,
+      venue_id: q.venue_id ?? null,
       created_by: user.id,
       event_type: q.event_type,
       event_date: q.event_date,
@@ -1352,7 +1457,7 @@ export async function createQuote(q: {
 
 export async function updateQuote(
   id: string,
-  updates: Partial<Pick<Quote, 'event_type' | 'event_date' | 'venue_name' | 'venue_address' | 'subtotal' | 'discount_amount' | 'total' | 'pli_option' | 'terms_and_conditions' | 'validity_days' | 'notes' | 'style'>>,
+  updates: Partial<Pick<Quote, 'venue_id' | 'event_type' | 'event_date' | 'venue_name' | 'venue_address' | 'subtotal' | 'discount_amount' | 'total' | 'pli_option' | 'terms_and_conditions' | 'validity_days' | 'notes' | 'style'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('quotes').update(updates).eq('id', id);
@@ -1464,6 +1569,7 @@ export async function acceptQuote(quoteId: string): Promise<FormalInvoice> {
       invoice_number: invoiceNumber,
       quote_id: quoteId,
       client_id: quote.client_id,
+      venue_id: quote.venue_id ?? null,
       created_by: user.id,
       venue_name: quote.venue_name,
       event_date: quote.event_date,

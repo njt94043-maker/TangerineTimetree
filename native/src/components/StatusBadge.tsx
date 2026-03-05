@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 9,
+    fontSize: 10,
     letterSpacing: 1,
   },
 });

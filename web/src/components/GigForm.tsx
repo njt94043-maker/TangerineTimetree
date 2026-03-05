@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
 import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
 import { AutocompleteInput } from './AutocompleteInput';
+import { EntityPicker } from './EntityPicker';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
@@ -50,7 +51,9 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   const [date, setDate] = useState(initialDate);
   const [gigType, setGigType] = useState<'gig' | 'practice'>(initialType);
   const [venue, setVenue] = useState('');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [clientName, setClientName] = useState('');
+  const [clientId, setClientId] = useState<string | null>(null);
   const [fee, setFee] = useState('');
   const [paymentType, setPaymentType] = useState<'cash' | 'invoice' | ''>('');
   const [loadTime, setLoadTime] = useState('');
@@ -84,7 +87,9 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           setDate(data.date ?? initialDate);
           setGigType(data.gig_type ?? 'gig');
           setVenue(data.venue ?? '');
+          setVenueId(data.venue_id ?? null);
           setClientName(data.client_name ?? '');
+          setClientId(data.client_id ?? null);
           setFee(data.fee != null ? String(data.fee) : '');
           setPaymentType(data.payment_type ?? '');
           setLoadTime(data.load_time ? data.load_time.slice(0, 5) : '');
@@ -110,7 +115,9 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       date,
       gig_type: gigType,
       venue,
+      venue_id: isPractice ? null : venueId,
       client_name: clientName,
+      client_id: isPractice ? null : clientId,
       fee: fee ? parseFloat(fee) : null,
       payment_type: paymentType,
       load_time: loadTime || null,
@@ -247,15 +254,23 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
 
         {!isPractice && (
           <>
-            <label className="label" htmlFor="gig-venue">VENUE</label>
-            <div className="neu-inset">
-              <AutocompleteInput id="gig-venue" placeholder="e.g. Gin & Juice, Mumbles" value={venue} onChange={setVenue} suggestions={suggestions.venues} />
-            </div>
+            <label className="label">VENUE</label>
+            <EntityPicker
+              mode="venue"
+              value={venue}
+              entityId={venueId}
+              onChange={(text, id) => { setVenue(text); setVenueId(id); }}
+              placeholder="e.g. Gin & Juice, Mumbles"
+            />
 
-            <label className="label" htmlFor="gig-client">CLIENT / BOOKER</label>
-            <div className="neu-inset">
-              <AutocompleteInput id="gig-client" placeholder="e.g. Suave Agency" value={clientName} onChange={setClientName} suggestions={suggestions.clients} />
-            </div>
+            <label className="label">CLIENT / BOOKER</label>
+            <EntityPicker
+              mode="client"
+              value={clientName}
+              entityId={clientId}
+              onChange={(text, id) => { setClientName(text); setClientId(id); }}
+              placeholder="e.g. Suave Agency"
+            />
 
             <label className="label" htmlFor="gig-fee">FEE</label>
             <div className="neu-inset">

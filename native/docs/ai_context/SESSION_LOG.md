@@ -7,6 +7,11 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-05 | S22 — Native visual overhaul | Pixel-perfect match webapp: BODY 13→14, NeuButton minHeight+padding, NeuWell minHeight 44, NeuSelect sizing, StatusBadge 10px, overlay 0.7, left-border accents on invoice/quote cards, stats shadows, addBtn green/black, font bumps across all screens. ~20 files, style-only. Both tsc clean. |
+| 2026-03-05 | S23D — Quote+Invoice flow + audit (both apps) | EntityPicker in QuoteForm+InvoiceForm (both apps). venue_id through full chain: quote→formal_invoice→gig→invoice. Native quote accept→gig with venue_id+client_id. Audit: dropdown zero-results fix, create error handling, debounce cleanup, 7 native action handlers try/catch, stale address fix, NeuButton disabled, init/reload error handling. S23 epic complete. 10 files modified. Both tsc+vite clean. |
+| 2026-03-05 | S23C — Gig booking flow update (both apps) | EntityPicker components (web: searchable dropdown + inline "Add New" form; native: FlatList dropdown + neumorphic styling). GigForm venue/client pickers save venue_id/client_id. Navigate button on DayDetail (web) + GigDaySheet (native) — fetches venue address, opens map app. Map app preference in Settings (web localStorage, native AsyncStorage). Free-text still works (venue_id null for unlinked). 2 new files, 8 modified. Both tsc + vite clean. |
+| 2026-03-05 | S23B — Venue management UI (both apps) | Native: StarRating component, venues drawer screen (list/search/add), venue/new.tsx, venue/[id].tsx (edit+ratings+photos+notes+upload). Web: VenueList, VenueDetail (edit+ratings+photos+upload), ViewContext+Drawer wired, CSS+vite config. Decoupled venues from client screens (both apps). 6 new files, 10 modified. Both tsc clean. |
+| 2026-03-05 | S23A — Venue/client restructure: DB + types + queries | Snapshot backup, migration SQL pushed (venues decoupled, ratings/photos/postcode added, venue_id FK on gigs/quotes/invoices/formal_invoices, venue_photos table + storage bucket), types + queries updated, native wrapper updated, backwards-compat for UI code, both tsc clean. |
 | 2026-03-05 | S21 final — Time picker, autocomplete, layout parity | Fixed native crash (nav dep version). iOS WheelTimePicker (FlatList snap, enlarged, scroll-bleed fix). Field autocomplete (both apps). Layout parity: dashboard rewrite, DaySheet buttons, client actions, gig form ordering. Vercel .npmrc fix. APK built+installed. **User: native still doesn't visually match webapp → S22 visual overhaul is #1 priority.** |
 | 2026-03-05 | S21 — Codebase audit + hardening | Full audit (web+native+shared): 8 confirmed issues fixed across 17 files. Division-by-zero guard, PostgREST injection sanitization, preview error handling, realtime subscription status callbacks (6 locs), GigForm/InvoiceForm/QuoteForm error handling, native list screen try/catch, GigDaySheet error state. Removed dead (tabs)/ directory. Disk cleanup: freed ~12 GB (non-TGT node_modules, VS Code caches). Both tsc + vite clean. |
 | 2026-03-05 | S21 cont — Swipe nav + back-button fix | Day detail swipe left/right between event dates (both apps). Prev/next arrows, slide animation. View history stack replaces returnView — back buttons now step through views one at a time. Committed + pushed to master. Both tsc + vite clean. |
@@ -36,6 +41,62 @@
 | 2026-03-04 | Audit phases 1-3 | Sync, errors, validation, auth, web redesign, native UX |
 | 2026-03-03 | Native gig list + monorepo | Gig list view, Cal/List toggle, monorepo restructure |
 | 2026-03-03 | Shared gig calendar | Supabase backend, Timetree PWA, gig types |
+
+---
+
+## Session: 2026-03-05 — Sprint S23A: Venue/Client Restructure (DB + Types + Queries)
+
+### What was built
+
+**Data snapshot:**
+- Created `native/scripts/snapshot-s23a.ts` — backs up clients (3), venues (3), gigs (117), quotes (0), invoices (0), formal_invoices (0) to `backups/snapshot-s23a-2026-03-05.json`
+
+**Supabase migration (`20260305200000_s23a_venue_client_restructure.sql`):**
+- ALTER venues: dropped `client_id` FK + column, added `postcode` TEXT, `rating_atmosphere/crowd/stage/parking` SMALLINT (1-5 CHECK), `notes` TEXT
+- CREATE `venue_photos` table (id UUID PK, venue_id FK CASCADE, file_url, storage_path, caption, created_by FK, created_at)
+- ALTER gigs: added `venue_id` UUID FK SET NULL, `client_id` UUID FK SET NULL
+- ALTER quotes: added `venue_id` UUID FK SET NULL
+- ALTER invoices: added `venue_id` UUID FK SET NULL
+- ALTER formal_invoices: added `venue_id` UUID FK SET NULL
+- RLS policies: venue_photos (auth read, creator insert/delete), venues rebuilt (auth read/update, creator insert/delete)
+- Storage: `venue-photos` bucket (public) + auth policies
+- Pushed via `supabase db push` (20 tables live)
+
+**shared/supabase/types.ts:**
+- Venue: removed `client_id`, added `postcode`, `rating_*` (4 fields), `notes`
+- New: `VenuePhoto` interface
+- Gig: added `venue_id`, `client_id` (both `string | null`)
+- Quote: added `venue_id` (`string | null`)
+- Invoice: added `venue_id` (`string | null`)
+- FormalInvoice: added `venue_id` (`string | null`)
+
+**shared/supabase/queries.ts:**
+- Replaced `getVenuesForClient` with `getVenues()`, `getVenue(id)`, `searchVenues(query)`
+- `createVenue()` — overloaded: new object signature + legacy positional args compat
+- New: `updateVenue()` (ratings, notes, address, postcode)
+- New: `getVenuePhotos()`, `uploadVenuePhoto()`, `deleteVenuePhoto()`
+- `createGig()` — accepts `venue_id`, `client_id`
+- `createInvoice()` — accepts `venue_id`
+- `createQuote()` — accepts `venue_id`
+- `updateQuote()` — accepts `venue_id`
+- `updateInvoice()` — accepts `venue_id`
+- `acceptQuote()` — carries `venue_id` to formal invoice
+- Deprecated `getVenuesForClient()` kept for backwards compat
+
+**native/src/db/queries.ts:**
+- Added VenuePhoto type export
+- New exports: getVenues, getVenue, searchVenues, updateVenue, getVenuePhotos, uploadVenuePhoto, deleteVenuePhoto
+- Deprecated getVenuesForClient re-exported for backwards compat
+- addVenue overloaded (new + legacy signatures)
+- createInvoice/updateInvoice/createQuote accept venue_id
+
+### What was tested
+- `web: npx tsc -b` — PASS
+- `native: npx tsc --noEmit` — PASS
+- Migration pushed to live Supabase without errors
+
+### Blocked / Next
+- S23B: Venue management UI (both apps) — venues drawer screen, venue detail with ratings/photos/notes
 
 ---
 

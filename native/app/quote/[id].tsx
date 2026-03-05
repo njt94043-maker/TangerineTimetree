@@ -20,6 +20,7 @@ import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateLong, addDays } from '../../src/utils/formatDate';
 import { getQuoteHtml, getFormalInvoiceHtml, INVOICE_STYLES } from '@shared/templates';
 import type { InvoiceStyle, BandSettings } from '@shared/supabase/types';
+import { createGig } from '@shared/supabase/queries';
 import { generatePdf, sharePdf } from '../../src/pdf/generatePdf';
 
 const PROGRESS_STAGES = ['Draft', 'Sent', 'Accepted', 'Invoice Sent', 'Paid'];
@@ -50,35 +51,43 @@ export default function QuoteDetailScreen() {
 
   const reload = useCallback(async () => {
     if (!id) return;
-    const [q, li, s, bs, m] = await Promise.all([
-      getQuote(id),
-      getQuoteLineItems(id),
-      getSettings(),
-      getBandSettings(),
-      getBandMembers(),
-    ]);
-    setQuote(q);
-    setLineItems(li);
-    setSettings(s);
-    setBandSettings(bs);
-    setMembers(m);
+    try {
+      const [q, li, s, bs, m] = await Promise.all([
+        getQuote(id),
+        getQuoteLineItems(id),
+        getSettings(),
+        getBandSettings(),
+        getBandMembers(),
+      ]);
+      setQuote(q);
+      setLineItems(li);
+      setSettings(s);
+      setBandSettings(bs);
+      setMembers(m);
 
-    // Load formal invoice if quote is accepted
-    if (q && (q.status === 'accepted')) {
-      try {
-        const fi = await getFormalInvoiceByQuote(id);
-        if (fi) {
-          setFormalInvoice(fi);
-          const [fiLi, fr] = await Promise.all([
-            getFormalInvoiceLineItems(fi.id),
-            getFormalReceipts(fi.id),
-          ]);
-          setFormalLineItems(fiLi);
-          setFormalReceipts(fr);
+      // Load formal invoice for accepted/sent/paid quotes
+      if (q && q.status === 'accepted') {
+        try {
+          const fi = await getFormalInvoiceByQuote(id);
+          if (fi) {
+            setFormalInvoice(fi);
+            const [fiLi, fr] = await Promise.all([
+              getFormalInvoiceLineItems(fi.id),
+              getFormalReceipts(fi.id),
+            ]);
+            setFormalLineItems(fiLi);
+            setFormalReceipts(fr);
+          }
+        } catch {
+          // No formal invoice yet
         }
-      } catch {
-        // No formal invoice yet
+      } else {
+        setFormalInvoice(null);
+        setFormalLineItems([]);
+        setFormalReceipts([]);
       }
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to load quote');
     }
   }, [id]);
 
@@ -95,8 +104,12 @@ export default function QuoteDetailScreen() {
   // ─── Actions ───
 
   async function handleSend() {
-    await sendQuote(quote!.id);
-    await reload();
+    try {
+      await sendQuote(quote!.id);
+      await reload();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to send quote');
+    }
   }
 
   async function handleAccept() {
@@ -105,8 +118,37 @@ export default function QuoteDetailScreen() {
       {
         text: 'Accept',
         onPress: async () => {
-          await acceptQuote(quote!.id);
-          await reload();
+          try {
+            await acceptQuote(quote!.id);
+            await reload();
+            // Prompt to add gig to calendar
+            Alert.alert(
+              'Quote Accepted!',
+              `Add a gig to the calendar for ${formatDateLong(quote!.event_date)} at ${quote!.venue_name}?`,
+              [
+                { text: 'Not Now', style: 'cancel' },
+                {
+                  text: 'Add Gig',
+                  onPress: async () => {
+                    try {
+                      await createGig({
+                        date: quote!.event_date,
+                        venue: quote!.venue_name,
+                        venue_id: quote!.venue_id,
+                        client_id: quote!.client_id,
+                        client_name: quote!.client_company_name || '',
+                        fee: quote!.total,
+                        payment_type: 'invoice',
+                        visibility: 'hidden',
+                      });
+                    } catch { /* gig creation is optional */ }
+                  },
+                },
+              ],
+            );
+          } catch (err) {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Failed to accept quote');
+          }
         },
       },
     ]);
@@ -119,76 +161,96 @@ export default function QuoteDetailScreen() {
         text: 'Decline',
         style: 'destructive',
         onPress: async () => {
-          await declineQuote(quote!.id);
-          await reload();
+          try {
+            await declineQuote(quote!.id);
+            await reload();
+          } catch (err) {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Failed to decline quote');
+          }
         },
       },
     ]);
   }
 
   async function handleExpire() {
-    await expireQuote(quote!.id);
-    await reload();
+    try {
+      await expireQuote(quote!.id);
+      await reload();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to expire quote');
+    }
   }
 
   async function handleSendFormalInvoice() {
     if (!formalInvoice) return;
-    await sendFormalInvoice(formalInvoice.id);
-    await reload();
+    try {
+      await sendFormalInvoice(formalInvoice.id);
+      await reload();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to send invoice');
+    }
   }
 
   async function handleMarkPaid() {
     if (!formalInvoice) return;
-    await markFormalInvoicePaid(formalInvoice.id);
-    await reload();
+    try {
+      await markFormalInvoicePaid(formalInvoice.id);
+      await reload();
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to mark as paid');
+    }
   }
 
   async function handleShareQuotePdf() {
     if (!quote || !settings || !bandSettings) return;
-    const style = (quote.style || 'classic') as InvoiceStyle;
-    const html = getQuoteHtml(style, {
-      quoteNumber: quote.quote_number,
-      quoteDate: formatDateLong(createdDate),
-      validUntil: formatDateLong(validUntilDate),
-      fromName: settings.your_name,
-      tradingAs: settings.trading_as,
-      businessType: settings.business_type,
-      website: settings.website,
-      toCompany: quote.client_company_name,
-      toContact: quote.client_contact_name,
-      toAddress: quote.client_address,
-      toEmail: quote.client_email || '',
-      toPhone: quote.client_phone || '',
-      eventType: quote.event_type,
-      eventDate: formatDateLong(quote.event_date),
-      venueName: quote.venue_name,
-      venueAddress: quote.venue_address || '',
-      lineItems: lineItems.map(li => ({
-        description: li.description,
-        quantity: li.quantity,
-        unitPrice: li.unit_price,
-        lineTotal: li.line_total,
-      })),
-      subtotal,
-      discountAmount: quote.discount_amount || 0,
-      total: quote.total,
-      pliOption: quote.pli_option || 'none',
-      pliInsurer: bandSettings.pli_insurer || '',
-      pliPolicyNumber: bandSettings.pli_policy_number || '',
-      pliCoverAmount: bandSettings.pli_cover_amount || '',
-      pliExpiryDate: bandSettings.pli_expiry_date ? formatDateLong(bandSettings.pli_expiry_date) : '',
-      termsAndConditions: quote.terms_and_conditions || '',
-      validityDays: quote.validity_days || 30,
-      notes: quote.notes || '',
-    });
+    try {
+      const style = (quote.style || 'classic') as InvoiceStyle;
+      const html = getQuoteHtml(style, {
+        quoteNumber: quote.quote_number,
+        quoteDate: formatDateLong(createdDate),
+        validUntil: formatDateLong(validUntilDate),
+        fromName: settings.your_name,
+        tradingAs: settings.trading_as,
+        businessType: settings.business_type,
+        website: settings.website,
+        toCompany: quote.client_company_name,
+        toContact: quote.client_contact_name,
+        toAddress: quote.client_address,
+        toEmail: quote.client_email || '',
+        toPhone: quote.client_phone || '',
+        eventType: quote.event_type,
+        eventDate: formatDateLong(quote.event_date),
+        venueName: quote.venue_name,
+        venueAddress: quote.venue_address || '',
+        lineItems: lineItems.map(li => ({
+          description: li.description,
+          quantity: li.quantity,
+          unitPrice: li.unit_price,
+          lineTotal: li.line_total,
+        })),
+        subtotal,
+        discountAmount: quote.discount_amount || 0,
+        total: quote.total,
+        pliOption: quote.pli_option || 'none',
+        pliInsurer: bandSettings.pli_insurer || '',
+        pliPolicyNumber: bandSettings.pli_policy_number || '',
+        pliCoverAmount: bandSettings.pli_cover_amount || '',
+        pliExpiryDate: bandSettings.pli_expiry_date ? formatDateLong(bandSettings.pli_expiry_date) : '',
+        termsAndConditions: quote.terms_and_conditions || '',
+        validityDays: quote.validity_days || 30,
+        notes: quote.notes || '',
+      });
 
-    const uri = await generatePdf(html, quote.quote_number);
-    await sharePdf(uri, `Share ${quote.quote_number}`);
+      const uri = await generatePdf(html, quote.quote_number);
+      await sharePdf(uri, `Share ${quote.quote_number}`);
 
-    // Auto-mark as sent if draft
-    if (quote.status === 'draft') {
-      await sendQuote(quote.id);
-      await reload();
+      // Auto-mark as sent if draft
+      if (quote.status === 'draft') {
+        await sendQuote(quote.id);
+        await reload();
+      }
+    } catch (err) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Failed to generate PDF');
     }
   }
 
@@ -203,8 +265,12 @@ export default function QuoteDetailScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteQuote(quote!.id);
-          router.back();
+          try {
+            await deleteQuote(quote!.id);
+            router.back();
+          } catch (err) {
+            Alert.alert('Error', err instanceof Error ? err.message : 'Failed to delete quote');
+          }
         },
       },
     ]);

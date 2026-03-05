@@ -12,6 +12,7 @@ import { NeuSelect } from '../../src/components/NeuSelect';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
 import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
 import { AutocompleteInput } from '../../src/components/AutocompleteInput';
+import { EntityPicker } from '../../src/components/EntityPicker';
 import { supabase } from '../../src/supabase/client';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigType, GigVisibility, GigAttachment } from '@shared/supabase/types';
@@ -34,7 +35,9 @@ export default function GigFormScreen() {
 
   const [date, setDate] = useState(params.date ?? new Date().toISOString().split('T')[0]);
   const [venue, setVenue] = useState('');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [clientName, setClientName] = useState('');
+  const [clientId, setClientId] = useState<string | null>(null);
   const [fee, setFee] = useState('');
   const [paymentType, setPaymentType] = useState<'cash' | 'invoice' | ''>('');
   const [loadTime, setLoadTime] = useState('');
@@ -73,7 +76,9 @@ export default function GigFormScreen() {
     if (data) {
       setDate(data.date);
       setVenue(data.venue ?? '');
+      setVenueId(data.venue_id ?? null);
       setClientName(data.client_name ?? '');
+      setClientId(data.client_id ?? null);
       setFee(data.fee != null ? String(data.fee) : '');
       setPaymentType(data.payment_type ?? '');
       setLoadTime(data.load_time ? data.load_time.slice(0, 5) : '');
@@ -90,7 +95,9 @@ export default function GigFormScreen() {
       date,
       gig_type: gigType,
       venue,
+      venue_id: isPractice ? null : venueId,
       client_name: isPractice ? '' : clientName,
+      client_id: isPractice ? null : clientId,
       fee: isPractice ? null : (fee ? parseFloat(fee) : null),
       payment_type: isPractice ? ('' as const) : paymentType,
       load_time: isPractice ? null : (loadTime || null),
@@ -255,18 +262,20 @@ export default function GigFormScreen() {
         {!isPractice && (
           <>
             <Text style={styles.label}>VENUE</Text>
-            <AutocompleteInput
+            <EntityPicker
+              mode="venue"
               value={venue}
-              onChangeText={setVenue}
-              suggestions={suggestions.venues}
+              entityId={venueId}
+              onChange={(text, id) => { setVenue(text); setVenueId(id); }}
               placeholder="e.g. Gin & Juice, Mumbles"
             />
 
             <Text style={styles.label}>CLIENT / BOOKER</Text>
-            <AutocompleteInput
+            <EntityPicker
+              mode="client"
               value={clientName}
-              onChangeText={setClientName}
-              suggestions={suggestions.clients}
+              entityId={clientId}
+              onChange={(text, id) => { setClientName(text); setClientId(id); }}
               placeholder="e.g. Suave Agency"
             />
 
@@ -518,7 +527,7 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.textDim,
   },
   toggleTextActive: {

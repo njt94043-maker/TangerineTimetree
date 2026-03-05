@@ -30,6 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
       { icon: '\uD83D\uDCC4', label: 'Invoices', route: 'invoices' },
       { icon: '\uD83D\uDCDD', label: 'Quotes', route: 'quotes' },
       { icon: '\uD83D\uDC65', label: 'Clients', route: 'clients' },
+      { icon: '\uD83C\uDFE2', label: 'Venues', route: 'venues' },
     ],
   },
 ];
@@ -154,6 +155,10 @@ export default function DrawerLayout() {
         options={{ title: 'Clients' }}
       />
       <Drawer.Screen
+        name="venues"
+        options={{ title: 'Venues' }}
+      />
+      <Drawer.Screen
         name="settings"
         options={{ title: 'Settings' }}
       />
@@ -208,7 +213,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 12,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderLeftWidth: 3,
     borderLeftColor: 'transparent',
