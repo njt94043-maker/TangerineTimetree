@@ -35,6 +35,7 @@ import type {
   FormalInvoiceWithClient,
   FormalInvoiceLineItem,
   FormalReceiptWithMember,
+  BillTo,
   SiteContent,
   SiteReview,
 } from './types';
@@ -912,7 +913,7 @@ export async function createVenue(
 
 export async function updateVenue(
   id: string,
-  updates: Partial<Pick<Venue, 'venue_name' | 'address' | 'postcode' | 'rating_atmosphere' | 'rating_crowd' | 'rating_stage' | 'rating_parking' | 'notes'>>,
+  updates: Partial<Pick<Venue, 'venue_name' | 'address' | 'postcode' | 'email' | 'phone' | 'contact_name' | 'rating_atmosphere' | 'rating_crowd' | 'rating_stage' | 'rating_parking' | 'notes'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('venues').update(updates).eq('id', id);
@@ -987,50 +988,70 @@ function addDaysISO(dateStr: string, days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export async function getInvoices(): Promise<InvoiceWithClient[]> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('invoices')
-    .select('*, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
-    .order('created_at', { ascending: false });
-
-  if (error) { checkAuthError(error); throw error; }
-
-  return (data ?? []).map((row: any) => ({
+function mapInvoiceRow(row: any): InvoiceWithClient {
+  return {
     ...row,
     client_company_name: row.clients?.company_name ?? '',
     client_contact_name: row.clients?.contact_name ?? '',
     client_address: row.clients?.address ?? '',
     client_email: row.clients?.email ?? '',
+    venue_name: row.venues?.venue_name ?? row.venue ?? '',
+    venue_address: row.venues?.address ?? '',
+    venue_email: row.venues?.email ?? '',
+    venue_phone: row.venues?.phone ?? '',
+    venue_contact_name: row.venues?.contact_name ?? '',
     clients: undefined,
-  }));
+    venues: undefined,
+  };
+}
+
+const INVOICE_SELECT = '*, clients!invoices_client_id_fkey(company_name, contact_name, address, email), venues!invoices_venue_id_fkey(venue_name, address, email, phone, contact_name)';
+
+export async function getInvoices(): Promise<InvoiceWithClient[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invoices')
+    .select(INVOICE_SELECT)
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map(mapInvoiceRow);
 }
 
 export async function getInvoice(id: string): Promise<InvoiceWithClient | null> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('invoices')
-    .select('*, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .select(INVOICE_SELECT)
     .eq('id', id)
     .single();
 
   if (error) { checkAuthError(error); throw error; }
   if (!data) return null;
 
-  return {
-    ...data,
-    client_company_name: (data as any).clients?.company_name ?? '',
-    client_contact_name: (data as any).clients?.contact_name ?? '',
-    client_address: (data as any).clients?.address ?? '',
-    client_email: (data as any).clients?.email ?? '',
-    clients: undefined,
-  } as InvoiceWithClient;
+  return mapInvoiceRow(data);
+}
+
+export async function getInvoiceByGigId(gigId: string): Promise<InvoiceWithClient | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invoices')
+    .select(INVOICE_SELECT)
+    .eq('gig_id', gigId)
+    .maybeSingle();
+
+  if (error) { checkAuthError(error); throw error; }
+  if (!data) return null;
+
+  return mapInvoiceRow(data);
 }
 
 export async function createInvoice(inv: {
-  client_id: string;
+  client_id?: string | null;
   venue: string;
   venue_id?: string | null;
+  gig_id?: string | null;
   gig_date: string;
   amount: number;
   description: string;
@@ -1053,8 +1074,9 @@ export async function createInvoice(inv: {
     .from('invoices')
     .insert({
       invoice_number: invoiceNumber,
-      client_id: inv.client_id,
+      client_id: inv.client_id ?? null,
       venue_id: inv.venue_id ?? null,
+      gig_id: inv.gig_id ?? null,
       venue: inv.venue,
       gig_date: inv.gig_date,
       amount: inv.amount,
@@ -1073,7 +1095,7 @@ export async function createInvoice(inv: {
 
 export async function updateInvoice(
   id: string,
-  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'client_id' | 'gig_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase.from('invoices').update(updates).eq('id', id);
@@ -1233,7 +1255,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   const { data: invoices, error } = await supabase
     .from('invoices')
-    .select('amount, status, created_at, id, invoice_number, client_id, venue, gig_date, description, issue_date, due_date, paid_date, style, created_by, updated_at, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .select(INVOICE_SELECT)
     .order('created_at', { ascending: false });
 
   if (error) { checkAuthError(error); throw error; }
@@ -1243,14 +1265,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const totalPaid = all.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + Number(i.amount), 0);
   const totalOutstanding = all.filter((i: any) => i.status === 'sent').reduce((sum: number, i: any) => sum + Number(i.amount), 0);
 
-  const recentInvoices: InvoiceWithClient[] = all.slice(0, 5).map((row: any) => ({
-    ...row,
-    client_company_name: row.clients?.company_name ?? '',
-    client_contact_name: row.clients?.contact_name ?? '',
-    client_address: row.clients?.address ?? '',
-    client_email: row.clients?.email ?? '',
-    clients: undefined,
-  }));
+  const recentInvoices: InvoiceWithClient[] = all.slice(0, 5).map(mapInvoiceRow);
 
   return {
     totalInvoiced,
@@ -1328,50 +1343,52 @@ function formatQuoteNumber(num: number): string {
   return `QTE-${String(num).padStart(3, '0')}`;
 }
 
-export async function getQuotes(): Promise<QuoteWithClient[]> {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('quotes')
-    .select('*, clients!quotes_client_id_fkey(company_name, contact_name, address, email, phone)')
-    .order('created_at', { ascending: false });
-
-  if (error) { checkAuthError(error); throw error; }
-
-  return (data ?? []).map((row: any) => ({
+function mapQuoteRow(row: any): QuoteWithClient {
+  return {
     ...row,
     client_company_name: row.clients?.company_name ?? '',
     client_contact_name: row.clients?.contact_name ?? '',
     client_address: row.clients?.address ?? '',
     client_email: row.clients?.email ?? '',
     client_phone: row.clients?.phone ?? '',
+    venue_email: row.venues?.email ?? '',
+    venue_phone: row.venues?.phone ?? '',
+    venue_contact_name: row.venues?.contact_name ?? '',
     clients: undefined,
-  }));
+    venues: undefined,
+  };
+}
+
+const QUOTE_SELECT = '*, clients!quotes_client_id_fkey(company_name, contact_name, address, email, phone), venues!quotes_venue_id_fkey(venue_name, address, email, phone, contact_name)';
+
+export async function getQuotes(): Promise<QuoteWithClient[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('quotes')
+    .select(QUOTE_SELECT)
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map(mapQuoteRow);
 }
 
 export async function getQuote(id: string): Promise<QuoteWithClient | null> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('quotes')
-    .select('*, clients!quotes_client_id_fkey(company_name, contact_name, address, email, phone)')
+    .select(QUOTE_SELECT)
     .eq('id', id)
     .single();
 
   if (error) { checkAuthError(error); throw error; }
   if (!data) return null;
 
-  return {
-    ...data,
-    client_company_name: (data as any).clients?.company_name ?? '',
-    client_contact_name: (data as any).clients?.contact_name ?? '',
-    client_address: (data as any).clients?.address ?? '',
-    client_email: (data as any).clients?.email ?? '',
-    client_phone: (data as any).clients?.phone ?? '',
-    clients: undefined,
-  } as QuoteWithClient;
+  return mapQuoteRow(data);
 }
 
 export async function createQuote(q: {
-  client_id: string;
+  client_id?: string | null;
   venue_id?: string | null;
   event_type: EventType;
   event_date: string;
@@ -1408,7 +1425,7 @@ export async function createQuote(q: {
     .from('quotes')
     .insert({
       quote_number: quoteNumber,
-      client_id: q.client_id,
+      client_id: q.client_id ?? null,
       venue_id: q.venue_id ?? null,
       created_by: user.id,
       event_type: q.event_type,
@@ -1622,47 +1639,49 @@ export async function expireQuote(quoteId: string): Promise<void> {
 
 // ─── Formal Invoices ────────────────────────────────────
 
+function mapFormalInvoiceRow(row: any): FormalInvoiceWithClient {
+  return {
+    ...row,
+    client_company_name: row.clients?.company_name ?? '',
+    client_contact_name: row.clients?.contact_name ?? '',
+    client_address: row.clients?.address ?? '',
+    client_email: row.clients?.email ?? '',
+    venue_email: row.venues?.email ?? '',
+    venue_phone: row.venues?.phone ?? '',
+    venue_contact_name: row.venues?.contact_name ?? '',
+    clients: undefined,
+    venues: undefined,
+  };
+}
+
+const FORMAL_INVOICE_SELECT = '*, clients!formal_invoices_client_id_fkey(company_name, contact_name, address, email), venues!formal_invoices_venue_id_fkey(venue_name, address, email, phone, contact_name)';
+
 export async function getFormalInvoice(id: string): Promise<FormalInvoiceWithClient | null> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('formal_invoices')
-    .select('*, clients!formal_invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .select(FORMAL_INVOICE_SELECT)
     .eq('id', id)
     .single();
 
   if (error) { checkAuthError(error); throw error; }
   if (!data) return null;
 
-  return {
-    ...data,
-    client_company_name: (data as any).clients?.company_name ?? '',
-    client_contact_name: (data as any).clients?.contact_name ?? '',
-    client_address: (data as any).clients?.address ?? '',
-    client_email: (data as any).clients?.email ?? '',
-    clients: undefined,
-  } as FormalInvoiceWithClient;
+  return mapFormalInvoiceRow(data);
 }
 
 export async function getFormalInvoiceByQuote(quoteId: string): Promise<FormalInvoiceWithClient | null> {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('formal_invoices')
-    .select('*, clients!formal_invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .select(FORMAL_INVOICE_SELECT)
     .eq('quote_id', quoteId)
-    .single();
+    .maybeSingle();
 
-  if (error?.code === 'PGRST116') return null; // No row found
   if (error) { checkAuthError(error); throw error; }
   if (!data) return null;
 
-  return {
-    ...data,
-    client_company_name: (data as any).clients?.company_name ?? '',
-    client_contact_name: (data as any).clients?.contact_name ?? '',
-    client_address: (data as any).clients?.address ?? '',
-    client_email: (data as any).clients?.email ?? '',
-    clients: undefined,
-  } as FormalInvoiceWithClient;
+  return mapFormalInvoiceRow(data);
 }
 
 export async function getFormalInvoiceLineItems(invoiceId: string): Promise<FormalInvoiceLineItem[]> {
@@ -1863,4 +1882,43 @@ export async function deleteReview(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Bill-To Resolution ─────────────────────────────────
+
+/**
+ * Resolve the bill-to entity from an invoice/quote/formal invoice.
+ * Priority: client (if present) > venue (fallback).
+ * Works with any *WithClient row that has both client and venue fields joined.
+ */
+export function resolveBillTo(row: {
+  client_id?: string | null;
+  venue_id?: string | null;
+  client_company_name?: string;
+  client_contact_name?: string;
+  client_address?: string;
+  client_email?: string;
+  client_phone?: string;
+  venue_name?: string;
+  venue_address?: string;
+  venue_email?: string;
+  venue_phone?: string;
+  venue_contact_name?: string;
+}): BillTo {
+  if (row.client_id) {
+    return {
+      name: row.client_company_name ?? '',
+      contact_name: row.client_contact_name ?? '',
+      address: row.client_address ?? '',
+      email: row.client_email ?? '',
+      phone: row.client_phone ?? '',
+    };
+  }
+  return {
+    name: row.venue_name ?? '',
+    contact_name: row.venue_contact_name ?? '',
+    address: row.venue_address ?? '',
+    email: row.venue_email ?? '',
+    phone: row.venue_phone ?? '',
+  };
 }

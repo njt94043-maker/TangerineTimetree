@@ -29,6 +29,7 @@ import type {
   FormalInvoiceWithClient as SupaFormalInvoiceWithClient,
   FormalInvoiceLineItem as SupaFormalInvoiceLineItem,
   FormalReceipt as SupaFormalReceipt,
+  BillTo as SupaBillTo,
 } from '@shared/supabase/types';
 
 // ─── Re-exported types ──────────────────────────────────
@@ -50,6 +51,7 @@ export type FormalInvoice = SupaFormalInvoice;
 export type FormalInvoiceWithClient = SupaFormalInvoiceWithClient;
 export type FormalInvoiceLineItem = SupaFormalInvoiceLineItem;
 export type FormalReceipt = SupaFormalReceipt;
+export type BillTo = SupaBillTo;
 export type { QuoteStatus, EventType, PLIOption };
 
 export interface GigBooksSettings {
@@ -212,14 +214,17 @@ export const deleteVenuePhoto = SQ.deleteVenuePhoto;
 
 export const getInvoices = SQ.getInvoices;
 export const getInvoice = SQ.getInvoice;
+export const getInvoiceByGigId = SQ.getInvoiceByGigId;
 export const updateInvoiceStatus = SQ.updateInvoiceStatus;
 export const markInvoicePaid = SQ.markInvoicePaid;
 export const getDashboardStats = SQ.getDashboardStats;
+export const resolveBillTo = SQ.resolveBillTo;
 
 export async function createInvoice(data: {
-  client_id: string;
+  client_id?: string | null;
   venue: string;
   venue_id?: string | null;
+  gig_id?: string | null;
   gig_date: string;
   amount: number;
   description: string;
@@ -233,7 +238,7 @@ export async function createInvoice(data: {
 
 export async function updateInvoice(
   id: string,
-  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+  updates: Partial<Pick<Invoice, 'venue' | 'venue_id' | 'client_id' | 'gig_id' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
 ): Promise<void> {
   return SQ.updateInvoice(id, updates);
 }
@@ -280,7 +285,7 @@ export const declineQuote = SQ.declineQuote;
 export const expireQuote = SQ.expireQuote;
 
 export async function createQuote(data: {
-  client_id: string;
+  client_id?: string | null;
   venue_id?: string | null;
   event_type: EventType;
   event_date: string;

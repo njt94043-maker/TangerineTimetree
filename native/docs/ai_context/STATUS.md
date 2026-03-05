@@ -6,11 +6,11 @@
 ---
 
 ## Current State
-- **Phase**: S22 complete. **Native visual overhaul shipped.**
-- **Blocker**: None. App runs on device, no crashes.
-- **Last session**: 2026-03-05 — S22 native visual overhaul: pixel-perfect match webapp. Foundation (BODY 13→14, NeuButton minHeight 48 + horizontal padding, NeuWell minHeight 44, NeuSelect sizing, StatusBadge 10px, GigDaySheet overlay 0.7). List cards (left-border accents on invoices/quotes, stats row shadows, addBtn black text on green). Font bumps across all screens. ~20 files modified, all style-only. Both tsc clean.
-- **Next action**: APK build + device test, or next sprint.
-- **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. 3 clients, 3 venues.
+- **Phase**: S24A complete. **Bill-to flexibility: schema + types + queries done.**
+- **Blocker**: None. Native APK needs rebuild. Migration SQL needs pushing to Supabase.
+- **Last session**: 2026-03-05 — S24A: migration SQL written (venues contact fields, nullable client_id, gig_id FK, CHECK constraints). Types updated (BillTo, nullable client_id, venue contact fields). Queries updated (LEFT JOINs with venues, resolveBillTo(), getInvoiceByGigId()). Native wrapper updated. Both tsc clean.
+- **Next action**: Push migration SQL to Supabase, then S24B (bill-to flexibility UI — both apps). APK rebuild still pending.
+- **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Big Picture
@@ -21,13 +21,14 @@
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. **Native visual parity** — S22 shipped. Needs device verification (APK build + side-by-side check).
-2. Disk space: C: drive monitored. APK builds work.
+1. ~~Supabase service_role key leaked~~ — **RESOLVED**: legacy JWT keys disabled, new publishable/secret keys active. Old key rejected (verified).
+2. **Native APK outdated** — S23 code + venue seeding not on device yet. Need APK rebuild.
+3. Disk space: C: drive monitored. APK builds work.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 19 tables live)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 20 tables live, S24A migration pending push)
 
 ## Supabase Tables (20 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
@@ -65,5 +66,7 @@
 | **S23B** | **Venue management UI (both apps) + venue ratings/photos** | **DONE** |
 | **S23C** | **Gig booking flow update (venue/client pickers, nav button)** | **DONE** |
 | **S23D** | **Quote + Invoice flow update (venue pickers, audit fixes)** | **DONE** |
+| **S24A** | **Bill-to flexibility: schema + types + queries** | **DONE** |
+| **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **PLANNED** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`
