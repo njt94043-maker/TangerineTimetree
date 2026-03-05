@@ -283,3 +283,131 @@ Goals — APK build fix + full device testing:
 
 Update SOT docs — mark all sprints complete. Archive backlog items or move to future roadmap.
 ```
+
+---
+
+## Sprint S23A — Venue/Client Restructure: Database + Types + Queries
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S23A section).
+
+This is Session 1 of a 4-session venue/client restructure epic (S23A-D).
+
+CONTEXT: We've redesigned venues and clients as two separate, independent lists:
+- Venues = physical places (with ratings, notes, photos, addresses for navigation)
+- Clients = people/companies who pay (with billing address, contact info)
+- Gigs, quotes, and invoices link to BOTH via optional FKs (venue_id + client_id)
+- No forced venue→client relationship
+- Text fields (venue name, client_name) kept alongside IDs for denormalised display/PDF rendering
+- No production data exists — clean restructure approved (snapshot first, then alter tables)
+
+BLAST RADIUS (24 files total across S23A-D):
+- shared/supabase/types.ts
+- shared/supabase/queries.ts
+- native/src/db/queries.ts
+- 14 native app screens
+- 10 web components
+THIS SESSION only touches the first 3 (+ Supabase migration SQL).
+
+TASKS FOR THIS SESSION (S23A):
+1. Snapshot current data — dump clients, venues, gigs, quotes, invoices to a local JSON backup file
+2. Write + push Supabase migration SQL:
+   - ALTER venues: drop client_id FK + constraint, add postcode TEXT, rating_atmosphere SMALLINT (1-5), rating_crowd SMALLINT, rating_stage SMALLINT, rating_parking SMALLINT, notes TEXT
+   - CREATE venue_photos (id UUID PK, venue_id UUID FK→venues ON DELETE CASCADE, file_url TEXT, storage_path TEXT, caption TEXT, created_by UUID FK→profiles, created_at TIMESTAMPTZ)
+   - CREATE Supabase Storage bucket "venue-photos" (or reuse public-media if appropriate)
+   - ALTER gigs: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL, add client_id UUID REFERENCES clients(id) ON DELETE SET NULL
+   - ALTER quotes: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
+   - ALTER invoices: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
+   - ALTER formal_invoices: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
+   - RLS policies for venue_photos (same pattern as existing tables — auth read, creator write)
+   - Update venue RLS if needed (remove client_id dependency)
+3. Update shared/supabase/types.ts:
+   - Venue: remove client_id, add postcode, rating_atmosphere, rating_crowd, rating_stage, rating_parking, notes
+   - New: VenuePhoto interface
+   - Gig: add venue_id (string | null), client_id (string | null)
+   - Quote: add venue_id (string | null)
+   - Invoice: add venue_id (string | null)
+   - FormalInvoice: add venue_id (string | null)
+4. Update shared/supabase/queries.ts:
+   - Venue queries: decouple from clients (getVenues not getVenuesForClient), add searchVenues, updateVenue (with ratings), getVenue by ID
+   - New: venue photo CRUD (getVenuePhotos, uploadVenuePhoto, deleteVenuePhoto)
+   - Update createGig/updateGig to accept venue_id + client_id
+   - Update createQuote to accept venue_id
+   - Update createInvoice to accept venue_id
+   - Keep all existing text-field params working (backwards compat for UI code not yet updated)
+5. Update native/src/db/queries.ts wrapper — add/update venue functions, pass through new params
+6. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
+
+DO NOT touch any UI files this session. Only: migration SQL, types, queries, native wrapper.
+Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md).
+```
+
+## Sprint S23B — Venue Management UI
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S23B section).
+
+This is Session 2 of the venue/client restructure epic. S23A (DB + types + queries) is complete.
+
+TASKS:
+1. Native: Add "Venues" to drawer nav (between Gigs and Clients)
+2. Native: Create venues drawer screen — list with search, venue cards showing name + address + star ratings
+3. Native: Create venue detail screen — edit name/address/postcode, star rating pickers (atmosphere/crowd/stage/parking), notes field, photo gallery with camera/gallery upload
+4. Web: Create VenueList component — same features as native (search, cards, detail view)
+5. Web: Add Venues to drawer nav + ViewContext
+6. Remove venue sub-section from client edit screens (native client/[id].tsx + web ClientList.tsx) — venues are now independent
+7. Photo upload: Supabase Storage "venue-photos" bucket, thumbnail display
+8. TypeScript clean + build both apps
+
+Update SOT docs when done.
+```
+
+## Sprint S23C — Gig Booking Flow
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S23C section).
+
+This is Session 3 of the venue/client restructure epic. S23A + S23B complete.
+
+TASKS:
+1. Gig form (BOTH native + web): Replace free-text venue input with searchable venue picker
+   - Dropdown/autocomplete searching venues table
+   - "Add New Venue" option that opens inline venue creation (name + address minimum)
+   - On select: sets venue_id + writes venue name to text field
+2. Gig form (BOTH): Replace free-text client_name with searchable client picker
+   - Same pattern: dropdown, "Add New Client" inline
+   - On select: sets client_id + writes client_name to text field
+3. Day view (BOTH): Add "Navigate" button on gig cards
+   - Reads venue address from venue_id lookup (or text field fallback)
+   - Opens Google Maps / Waze / Apple Maps with address pre-filled
+   - User preference for nav app stored in settings (default: Google Maps)
+4. Settings: Add "Preferred Navigation App" picker
+5. Practice sessions: venue picker works, client picker hidden/optional
+6. TypeScript clean + build both apps
+
+Update SOT docs when done.
+```
+
+## Sprint S23D — Quote + Invoice Chain
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S23D section).
+
+This is Session 4 (final) of the venue/client restructure epic. S23A-C complete.
+
+TASKS:
+1. Quote form (BOTH): Replace free-text venue_name/venue_address with venue picker
+   - Same searchable dropdown as gig form
+   - "Add New Venue" inline
+   - On select: sets venue_id + writes venue_name + venue_address to text fields
+2. Invoice form (BOTH): Replace free-text venue with venue picker (same pattern)
+3. Quote → Gig conversion: carry venue_id + client_id from quote to new gig
+4. Gig → Invoice creation: carry venue_id + client_id
+5. Update detail views: show venue info from venue_id (with fallback to text)
+6. Update list views: search still works on text fields
+7. Update preview/PDF views: venue info renders from text fields (no change needed if denormalised)
+8. Full chain smoke test: create venue → create client → create quote → accept → gig created → invoice → all linked correctly
+9. TypeScript clean + build both apps + vite build
+
+Final SOT docs update — mark S23 complete, update sprint roadmap.
+```

@@ -1422,3 +1422,42 @@
 2. Fix HIGH code issues: type safety in shared queries, changelog error handling, getSettings nullable
 3. Add conflict detection to offline queue
 4. Add offline support to web DayDetail component
+
+---
+
+## Session — 2026-03-05 (Review UX + Venue/Client Design)
+
+### What Was Done
+1. **Review editor UX audit + fixes** (web PWA)
+   - Auto-growing review text textarea (JS-based, cross-browser — `field-sizing: content` rejected due to Samsung Internet support)
+   - Rating/Source/Date grid: 3-col → 2-col on mobile (Date full-width), preventing truncation
+   - Full-width stacked 48px action buttons on mobile full-screen form
+   - URL input type (`type="url"` + `inputMode="url"`) for review link field
+   - Label spacing (`margin-top: 12px`) inside review form
+   - Close button enlarged to 44x44px minimum touch target
+   - Committed + pushed to Vercel: `045e58f`
+
+2. **Venue/Client data model design** (discussion + planning, no code)
+   - Designed two-list model: venues (physical places) and clients (people who pay) — independent, no forced link
+   - Walk-through of 8 real-world booking flows confirming the model holds
+   - Identified full blast radius: 24 files across native + web + shared + 1 migration
+   - Split into 4-session epic (S23A-D)
+   - Decision: clean restructure (snapshot + wipe) since no production data yet
+
+### Files Changed
+- `web/src/components/Settings.tsx` — auto-grow textarea, review-edit-grid class, URL input type (both edit + add forms)
+- `web/src/App.css` — `.input-textarea-auto`, mobile review form styles (grid, buttons, spacing, close button)
+- `native/docs/ai_context/STATUS.md` — S23 plan, updated risks, sprint roadmap
+- `native/docs/ai_context/todo.md` — S23A-D task breakdown, S22 deferred
+
+### Decisions Made
+- D-072: Venues and clients are separate independent lists. No forced venue→client FK. Gigs/quotes/invoices reference both via optional FKs. Text fields kept for denormalised display.
+- D-073: Clean DB restructure (not backwards-compat migration) since no production data exists yet.
+- D-074: S22 (native visual overhaul) deferred in favour of S23 (venue/client restructure).
+
+### What's Blocked
+- Nothing
+
+### Next Session: S23A
+- Supabase migration SQL, updated types, updated queries, TypeScript clean
+- See SPRINT_PROMPTS.md for pickup prompt
