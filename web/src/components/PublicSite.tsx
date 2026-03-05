@@ -298,12 +298,19 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             {reviews.map(review => (
               <div
                 key={review.id}
-                className={`ps-review-card ${review.source === 'Google' ? 'ps-review-card-google' : review.source === 'Direct' ? 'ps-review-card-direct' : ''}`}
+                className={`ps-review-card ${review.source === 'Google' ? 'ps-review-card-google' : review.source === 'Direct' ? 'ps-review-card-direct' : ''} ${review.source_url ? 'ps-review-clickable' : ''}`}
+                onClick={() => {
+                  if (review.source_url) {
+                    if (window.confirm(`This will open the original ${review.source} review in a new window. Continue?`)) {
+                      window.open(review.source_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }
+                }}
               >
                 <span className="ps-review-quote">&ldquo;</span>
                 <div className="ps-review-header">
-                  <div className="ps-review-avatar">
-                    {getInitials(review.author_name)}
+                  <div className="ps-review-avatar-logo">
+                    <img src="/logo.png" alt="TGT" className="ps-review-logo-img" />
                   </div>
                   <div className="ps-review-meta">
                     <div className="ps-review-author">{review.author_name}</div>
@@ -316,6 +323,9 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
                   {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                 </div>
                 <p className="ps-review-text">{review.review_text}</p>
+                {review.source_url && (
+                  <span className="ps-review-link-hint">View original on {review.source}</span>
+                )}
               </div>
             ))}
           </div>
@@ -555,9 +565,6 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
   );
 }
 
-function getInitials(name: string): string {
-  return name.split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
-}
 
 function formatGigDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');

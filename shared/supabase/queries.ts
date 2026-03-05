@@ -1725,6 +1725,7 @@ export async function createReview(review: {
   review_text: string;
   rating: number;
   source: string;
+  source_url?: string | null;
   review_date?: string | null;
   sort_order?: number;
 }): Promise<void> {
@@ -1741,7 +1742,7 @@ export async function createReview(review: {
 
 export async function updateReview(
   id: string,
-  updates: Partial<Pick<SiteReview, 'author_name' | 'review_text' | 'rating' | 'source' | 'review_date' | 'visible' | 'sort_order'>>,
+  updates: Partial<Pick<SiteReview, 'author_name' | 'review_text' | 'rating' | 'source' | 'source_url' | 'review_date' | 'visible' | 'sort_order'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase

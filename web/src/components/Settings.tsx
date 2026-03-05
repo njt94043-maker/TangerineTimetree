@@ -124,6 +124,7 @@ export function Settings({ onClose }: SettingsProps) {
   const [revText, setRevText] = useState('');
   const [revRating, setRevRating] = useState(5);
   const [revSource, setRevSource] = useState('Facebook');
+  const [revSourceUrl, setRevSourceUrl] = useState('');
   const [revDate, setRevDate] = useState('');
 
   const [saving, setSaving] = useState(false);
@@ -295,7 +296,7 @@ export function Settings({ onClose }: SettingsProps) {
 
   // Review handlers
   function resetReviewForm() {
-    setRevAuthor(''); setRevText(''); setRevRating(5); setRevSource('Facebook'); setRevDate('');
+    setRevAuthor(''); setRevText(''); setRevRating(5); setRevSource('Facebook'); setRevSourceUrl(''); setRevDate('');
     setShowAddReview(false); setEditingReviewId(null);
   }
 
@@ -305,6 +306,7 @@ export function Settings({ onClose }: SettingsProps) {
     setRevText(r.review_text);
     setRevRating(r.rating);
     setRevSource(r.source);
+    setRevSourceUrl(r.source_url ?? '');
     setRevDate(r.review_date ?? '');
     setShowAddReview(true);
   }
@@ -319,6 +321,7 @@ export function Settings({ onClose }: SettingsProps) {
           review_text: revText.trim(),
           rating: revRating,
           source: revSource,
+          source_url: revSourceUrl.trim() || null,
           review_date: revDate || null,
         });
       } else {
@@ -327,6 +330,7 @@ export function Settings({ onClose }: SettingsProps) {
           review_text: revText.trim(),
           rating: revRating,
           source: revSource,
+          source_url: revSourceUrl.trim() || null,
           review_date: revDate || null,
           sort_order: siteReviews.length,
         });
@@ -798,6 +802,8 @@ export function Settings({ onClose }: SettingsProps) {
                         <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
                       </div>
                     </div>
+                    <label className="label">ORIGINAL REVIEW LINK</label>
+                    <div className="neu-inset"><input className="input-field" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
                     <div className="form-actions">
                       <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Update</button>
                       <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
@@ -843,6 +849,8 @@ export function Settings({ onClose }: SettingsProps) {
                 <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
               </div>
             </div>
+            <label className="label">ORIGINAL REVIEW LINK</label>
+            <div className="neu-inset"><input className="input-field" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
             <div className="form-actions">
               <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Add Review</button>
               <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
