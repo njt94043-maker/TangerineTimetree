@@ -165,7 +165,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
   async function handleAddGigFromQuote(date: string, venue: string, fee: number) {
     try {
-      await createGig({ date, venue, fee, payment_type: 'invoice', is_public: false });
+      await createGig({ date, venue, fee, payment_type: 'invoice', visibility: 'hidden' });
       refresh();
     } catch {
       // Silently fail — gig creation is optional

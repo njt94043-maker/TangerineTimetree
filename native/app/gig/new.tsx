@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid, Switch } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid, Image, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { COLORS, FONTS } from '../../src/theme';
 import { neuRaisedStyle, neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
-import { NeuCard } from '../../src/components/NeuCard';
+import { NeuSelect } from '../../src/components/NeuSelect';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
-import { createGig, updateGig, deleteGig, getGigsByDate } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment } from '@shared/supabase/queries';
 import { supabase } from '../../src/supabase/client';
 import { isGigIncomplete } from '@shared/supabase/types';
-import type { Gig, GigType } from '@shared/supabase/types';
+import type { Gig, GigType, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../../src/utils/offlineQueue';
+
+const VISIBILITY_OPTIONS: { value: GigVisibility; label: string }[] = [
+  { value: 'hidden', label: 'Not Shared' },
+  { value: 'public', label: 'Public Gig' },
+  { value: 'private', label: 'Private Booking' },
+];
 
 export default function GigFormScreen() {
   const router = useRouter();
@@ -32,8 +40,11 @@ export default function GigFormScreen() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [visibility, setVisibility] = useState<GigVisibility>('hidden');
   const [calendarVisible, setCalendarVisible] = useState(false);
+  const [attachments, setAttachments] = useState<GigAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [timePickerTarget, setTimePickerTarget] = useState<'load' | 'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +75,7 @@ export default function GigFormScreen() {
   }, [params.gigId]);
 
   async function loadGig(gigId: string) {
-    const { data, error } = await supabase.from('gigs').select('*').eq('id', gigId).single();
+    const { data } = await supabase.from('gigs').select('*').eq('id', gigId).single();
     if (data) {
       setDate(data.date);
       setVenue(data.venue ?? '');
@@ -75,8 +86,9 @@ export default function GigFormScreen() {
       setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
       setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
       setNotes(data.notes ?? '');
-      setIsPublic(data.is_public ?? false);
+      setVisibility(data.visibility ?? 'hidden');
     }
+    getGigAttachments(gigId).then(setAttachments).catch(() => {});
   }
 
   function buildGigData() {
@@ -91,7 +103,7 @@ export default function GigFormScreen() {
       start_time: startTime || null,
       end_time: endTime || null,
       notes,
-      is_public: isPractice ? false : isPublic,
+      visibility: isPractice ? 'hidden' as GigVisibility : visibility,
     };
   }
 
@@ -141,7 +153,6 @@ export default function GigFormScreen() {
       if (!isPractice && !clientName) missing.push('client');
       if (!isPractice && gigData.fee == null) missing.push('fee');
       if (!startTime) missing.push('start time');
-      if (!isPractice && !loadTime) missing.push('load-in time');
 
       Alert.alert(
         'Incomplete',
@@ -182,6 +193,43 @@ export default function GigFormScreen() {
         },
       },
     ]);
+  }
+
+  async function handleAddScreenshot() {
+    if (!params.gigId || uploading) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+
+    setUploading(true);
+    for (const asset of result.assets) {
+      try {
+        // Compress
+        const manipulated = await ImageManipulator.manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 1200 } }],
+          { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+        );
+        const response = await fetch(manipulated.uri);
+        const blob = await response.blob();
+        const path = `${params.gigId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from('gig-attachments')
+          .upload(path, blob, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
+
+        if (uploadErr) continue;
+
+        const { data: urlData } = await supabase.storage.from('gig-attachments').createSignedUrl(path, 60 * 60 * 24 * 365);
+        const fileUrl = urlData?.signedUrl ?? '';
+        await createGigAttachment(params.gigId!, fileUrl, path, blob.size);
+      } catch { /* skip failed uploads */ }
+    }
+    setUploading(false);
+    getGigAttachments(params.gigId!).then(setAttachments).catch(() => {});
   }
 
   return (
@@ -324,18 +372,46 @@ export default function GigFormScreen() {
           />
         </View>
 
-        {/* Show on website — gigs only */}
+        {/* Website visibility — gigs only */}
         {!isPractice && (
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.switchLabel}>Show on website</Text>
-              <Text style={styles.switchSub}>Display this gig on thegreentangerine.com</Text>
-            </View>
-            <Switch
-              value={isPublic}
-              onValueChange={setIsPublic}
-              trackColor={{ false: COLORS.textMuted, true: COLORS.teal + '60' }}
-              thumbColor={isPublic ? COLORS.teal : COLORS.textDim}
+          <>
+            <Text style={styles.label}>WEBSITE VISIBILITY</Text>
+            <NeuSelect
+              value={visibility}
+              options={VISIBILITY_OPTIONS}
+              onChange={setVisibility}
+            />
+          </>
+        )}
+
+        {/* Attachments — only for saved gigs */}
+        {isEditing && params.gigId && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={styles.label}>ATTACHMENTS</Text>
+            {attachments.length > 0 && (
+              <View style={styles.attachmentGrid}>
+                {attachments.map(a => (
+                  <Pressable key={a.id} onPress={() => setViewingImage(a.file_url)} onLongPress={() => {
+                    Alert.alert('Delete', 'Delete this attachment?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: async () => {
+                        try {
+                          await deleteGigAttachment(a.id, a.storage_path);
+                          getGigAttachments(params.gigId!).then(setAttachments).catch(() => {});
+                        } catch { Alert.alert('Error', 'Failed to delete'); }
+                      }},
+                    ]);
+                  }}>
+                    <Image source={{ uri: a.file_url }} style={styles.attachmentThumb} />
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            <NeuButton
+              label={uploading ? 'Uploading...' : '+ Add Screenshots'}
+              onPress={handleAddScreenshot}
+              color={COLORS.teal}
+              small
             />
           </View>
         )}
@@ -362,6 +438,15 @@ export default function GigFormScreen() {
         onConfirm={(d) => { setDate(d); setCalendarVisible(false); }}
         onCancel={() => setCalendarVisible(false)}
       />
+
+      {/* Image lightbox */}
+      <Modal visible={!!viewingImage} transparent animationType="fade" onRequestClose={() => setViewingImage(null)}>
+        <Pressable style={styles.lightboxOverlay} onPress={() => setViewingImage(null)}>
+          {viewingImage && (
+            <Image source={{ uri: viewingImage }} style={styles.lightboxImage} resizeMode="contain" />
+          )}
+        </Pressable>
+      </Modal>
 
       {timePickerTarget !== null && (
         <DateTimePicker
@@ -459,22 +544,27 @@ const styles = StyleSheet.create({
   toggleTextActive: {
     color: COLORS.orange,
   },
-  switchRow: {
+  attachmentGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  attachmentThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    backgroundColor: COLORS.card,
+  },
+  lightboxOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
-    paddingHorizontal: 4,
   },
-  switchLabel: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  switchSub: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: COLORS.textDim,
-    marginTop: 2,
+  lightboxImage: {
+    width: '90%',
+    height: '80%',
   },
   saveArea: {
     marginTop: 24,

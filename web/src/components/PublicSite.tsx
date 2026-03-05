@@ -158,9 +158,15 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
                   {formatGigDate(gig.date)}
                 </div>
                 <div className="ps-gig-info">
-                  <span className="ps-gig-venue">{gig.venue || 'TBC'}</span>
-                  {gig.start_time && (
-                    <span className="ps-gig-time">{formatTime(gig.start_time)}</span>
+                  {gig.visibility === 'private' ? (
+                    <span className="ps-gig-venue ps-gig-private">Private Booking</span>
+                  ) : (
+                    <>
+                      <span className="ps-gig-venue">{gig.venue || 'TBC'}</span>
+                      {gig.start_time && (
+                        <span className="ps-gig-time">{formatTime(gig.start_time)}</span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

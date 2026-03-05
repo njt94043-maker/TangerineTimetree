@@ -20,6 +20,7 @@ export interface ChangeSummaryItem {
 }
 
 export type GigType = 'gig' | 'practice';
+export type GigVisibility = 'public' | 'private' | 'hidden';
 
 export interface Gig {
   id: string;
@@ -33,10 +34,20 @@ export interface Gig {
   start_time: string | null;
   end_time: string | null;
   notes: string;
-  is_public: boolean;
+  visibility: GigVisibility;
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface GigAttachment {
+  id: string;
+  gig_id: string;
+  file_url: string;
+  storage_path: string;
+  file_size: number;
+  uploaded_by: string;
+  created_at: string;
 }
 
 export interface GigWithCreator extends Gig {

@@ -3,7 +3,9 @@ import type {
   Profile,
   Gig,
   GigType,
+  GigVisibility,
   GigWithCreator,
+  GigAttachment,
   AwayDate,
   AwayDateWithUser,
   GigChangelogEntry,
@@ -149,7 +151,7 @@ export async function createGig(gig: {
   start_time?: string | null;
   end_time?: string | null;
   notes?: string;
-  is_public?: boolean;
+  visibility?: GigVisibility;
 }): Promise<Gig> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -168,7 +170,7 @@ export async function createGig(gig: {
       start_time: gig.start_time ?? null,
       end_time: gig.end_time ?? null,
       notes: gig.notes ?? '',
-      is_public: gig.is_public ?? false,
+      visibility: gig.visibility ?? 'hidden',
       created_by: user.id,
     })
     .select()
@@ -503,12 +505,56 @@ export async function getPublicGigs(): Promise<Gig[]> {
   const { data, error } = await supabase
     .from('gigs')
     .select('*')
-    .eq('is_public', true)
+    .in('visibility', ['public', 'private'])
     .gte('date', todayISO)
     .order('date');
 
   if (error) throw error;
   return data ?? [];
+}
+
+// ─── Gig Attachments ────────────────────────────────────
+
+export async function getGigAttachments(gigId: string): Promise<GigAttachment[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_attachments')
+    .select('*')
+    .eq('gig_id', gigId)
+    .order('created_at');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function createGigAttachment(
+  gigId: string,
+  fileUrl: string,
+  storagePath: string,
+  fileSize: number,
+): Promise<GigAttachment> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('gig_attachments')
+    .insert({ gig_id: gigId, file_url: fileUrl, storage_path: storagePath, file_size: fileSize, uploaded_by: user.id })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function deleteGigAttachment(id: string, storagePath: string): Promise<void> {
+  const supabase = getSupabase();
+
+  // Delete from storage first
+  await supabase.storage.from('gig-attachments').remove([storagePath]);
+
+  const { error } = await supabase.from('gig_attachments').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
 }
 
 export async function getPublicMedia(): Promise<PublicMedia[]> {
