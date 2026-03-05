@@ -1,8 +1,6 @@
 /**
- * Supabase adapter — wraps shared/supabase/queries to match the old SQLite
- * function signatures so that screen-level imports stay unchanged.
- *
- * SQLite originals backed up in queries.sqlite.ts (read-only fallback).
+ * Supabase adapter — wraps shared/supabase/queries so that
+ * screen-level imports stay unchanged.
  */
 
 import * as SQ from '@shared/supabase/queries';
@@ -196,8 +194,6 @@ export const getVenue = SQ.getVenue;
 export const searchVenues = SQ.searchVenues;
 export const updateVenue = SQ.updateVenue;
 export const deleteVenue = SQ.deleteVenue;
-/** @deprecated Use getVenues() — venues no longer tied to clients */
-export const getVenuesForClient = SQ.getVenuesForClient;
 
 export async function addVenue(
   venueOrClientId: { venue_name: string; address?: string; postcode?: string } | string,

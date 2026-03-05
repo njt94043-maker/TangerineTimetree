@@ -925,10 +925,6 @@ export async function deleteVenue(id: string): Promise<void> {
   if (error) { checkAuthError(error); throw error; }
 }
 
-/** @deprecated Use getVenues() instead — venues are no longer tied to clients. Returns all venues. */
-export async function getVenuesForClient(_clientId: string): Promise<Venue[]> {
-  return getVenues();
-}
 
 // ─── Venue Photos ──────────────────────────────────────
 
