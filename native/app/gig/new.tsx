@@ -251,18 +251,17 @@ export default function GigFormScreen() {
           </View>
         </Pressable>
 
-        {/* Venue */}
-        <Text style={styles.label}>VENUE</Text>
-        <AutocompleteInput
-          value={venue}
-          onChangeText={setVenue}
-          suggestions={suggestions.venues}
-          placeholder="e.g. Gin & Juice, Mumbles"
-        />
-
-        {/* Client — gigs only */}
+        {/* Gig-only fields: Venue, Client, Fee, Payment, Load-in */}
         {!isPractice && (
           <>
+            <Text style={styles.label}>VENUE</Text>
+            <AutocompleteInput
+              value={venue}
+              onChangeText={setVenue}
+              suggestions={suggestions.venues}
+              placeholder="e.g. Gin & Juice, Mumbles"
+            />
+
             <Text style={styles.label}>CLIENT / BOOKER</Text>
             <AutocompleteInput
               value={clientName}
@@ -270,12 +269,7 @@ export default function GigFormScreen() {
               suggestions={suggestions.clients}
               placeholder="e.g. Suave Agency"
             />
-          </>
-        )}
 
-        {/* Fee — gigs only */}
-        {!isPractice && (
-          <>
             <Text style={styles.label}>FEE</Text>
             <AutocompleteInput
               value={fee}
@@ -284,12 +278,7 @@ export default function GigFormScreen() {
               placeholder="e.g. 400"
               keyboardType="decimal-pad"
             />
-          </>
-        )}
 
-        {/* Payment type — gigs only */}
-        {!isPractice && (
-          <>
             <Text style={styles.label}>PAYMENT TYPE</Text>
             <View style={styles.toggleRow}>
               <Pressable
@@ -306,12 +295,7 @@ export default function GigFormScreen() {
                 <Text style={[styles.toggleText, paymentType === 'invoice' && styles.toggleTextActive]}>Invoice</Text>
               </Pressable>
             </View>
-          </>
-        )}
 
-        {/* Load time — gigs only */}
-        {!isPractice && (
-          <>
             <Text style={styles.label}>LOAD-IN TIME</Text>
             <Pressable onPress={() => setTimePickerTarget('load')}>
               <View style={[styles.fieldWrap, neuInsetStyle()]}>
@@ -342,6 +326,19 @@ export default function GigFormScreen() {
             </Text>
           </View>
         </Pressable>
+
+        {/* Practice-only: Location after time fields */}
+        {isPractice && (
+          <>
+            <Text style={styles.label}>LOCATION (OPTIONAL)</Text>
+            <AutocompleteInput
+              value={venue}
+              onChangeText={setVenue}
+              suggestions={suggestions.venues}
+              placeholder="e.g. Neil's garage"
+            />
+          </>
+        )}
 
         {/* Notes */}
         <Text style={styles.label}>NOTES (OPTIONAL)</Text>

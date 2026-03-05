@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { NeuCard, NeuWell, NeuButton } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
-import { getClients, searchClients, Client } from '../../src/db';
+import { getClients, searchClients, deleteClient, Client } from '../../src/db';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -21,16 +21,38 @@ export default function ClientsScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  function handleDeleteClient(client: Client) {
+    Alert.alert('Delete Client', `Delete "${client.company_name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await deleteClient(client.id); load(); } catch { Alert.alert('Error', 'Failed to delete client'); }
+        },
+      },
+    ]);
+  }
+
   function renderClient({ item }: { item: Client }) {
     return (
-      <Pressable onPress={() => router.push(`/client/${item.id}`)}>
-        <NeuCard>
+      <NeuCard>
+        <Pressable onPress={() => router.push(`/client/${item.id}`)}>
           <Text style={styles.clientName}>{item.company_name}</Text>
           {item.contact_name ? <Text style={styles.clientContact}>{item.contact_name}</Text> : null}
           {item.address ? <Text style={styles.clientAddress}>{item.address}</Text> : null}
           {item.email ? <Text style={styles.clientEmail}>{item.email}</Text> : null}
-        </NeuCard>
-      </Pressable>
+        </Pressable>
+        <View style={styles.clientActions}>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/client/${item.id}`)}>
+            <Text style={styles.actionBtnText}>Venues</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={() => router.push(`/client/${item.id}`)}>
+            <Text style={[styles.actionBtnText, { color: COLORS.orange }]}>Edit</Text>
+          </Pressable>
+          <Pressable style={styles.actionBtn} onPress={() => handleDeleteClient(item)}>
+            <Text style={[styles.actionBtnText, { color: COLORS.danger }]}>Del</Text>
+          </Pressable>
+        </View>
+      </NeuCard>
     );
   }
 
@@ -123,6 +145,23 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: COLORS.teal,
     marginTop: 2,
+  },
+  clientActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.04)',
+  },
+  actionBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  actionBtnText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.teal,
   },
   empty: {
     flex: 1,

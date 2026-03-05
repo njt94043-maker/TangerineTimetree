@@ -242,13 +242,19 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
               </View>
             )}
 
-            {/* Action buttons */}
+            {/* Action buttons — matches web layout */}
             <View style={styles.actions}>
               <NeuButton label="Add Gig" onPress={() => onAddGig(date, 'gig')} color={COLORS.calGig} />
               <View style={{ height: 10 }} />
-              <NeuButton label="Add Practice" onPress={() => onAddGig(date, 'practice')} color={COLORS.calPractice} />
-              <View style={{ height: 10 }} />
-              <NeuButton label="I'm Away" onPress={onMarkAway} color={COLORS.teal} />
+              <View style={styles.actionsRow}>
+                <View style={{ flex: 1 }}>
+                  <NeuButton label="Add Practice" onPress={() => onAddGig(date, 'practice')} color={COLORS.calPractice} />
+                </View>
+                <View style={{ width: 10 }} />
+                <View style={{ flex: 1 }}>
+                  <NeuButton label="I'm Away" onPress={onMarkAway} color={COLORS.teal} />
+                </View>
+              </View>
             </View>
           </ScrollView>
         </View>
@@ -464,5 +470,8 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 20,
     marginBottom: 10,
+  },
+  actionsRow: {
+    flexDirection: 'row',
   },
 });
