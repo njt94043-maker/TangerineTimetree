@@ -377,6 +377,7 @@ export interface SiteReview {
   review_text: string;
   rating: number;
   source: string;
+  source_url: string | null;
   review_date: string | null;
   visible: boolean;
   sort_order: number;

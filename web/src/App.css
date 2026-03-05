@@ -1621,6 +1621,42 @@ html, body, #root {
   font-weight: 900;
   flex-shrink: 0;
 }
+.ps-review-avatar-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(8, 8, 12, 0.6);
+  box-shadow:
+    0 0 10px rgba(0, 230, 118, 0.3),
+    0 0 20px rgba(0, 230, 118, 0.15),
+    0 0 4px rgba(243, 156, 18, 0.2);
+  border: 1px solid rgba(0, 230, 118, 0.25);
+}
+.ps-review-logo-img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 4px rgba(0, 230, 118, 0.4));
+}
+.ps-review-clickable {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.ps-review-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 230, 118, 0.15);
+}
+.ps-review-link-hint {
+  display: block;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  opacity: 0.7;
+}
 .ps-review-meta {
   flex: 1;
   min-width: 0;
