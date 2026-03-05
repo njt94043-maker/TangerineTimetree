@@ -20,13 +20,13 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Calendar',
     items: [
-      { icon: '\uD83D\uDCC5', label: 'Gigs', route: 'gigs' },
+      { icon: '\uD83D\uDCC5', label: 'Gigs', route: 'index' },
     ],
   },
   {
     title: 'Business',
     items: [
-      { icon: '\uD83D\uDCCA', label: 'Dashboard', route: 'index' },
+      { icon: '\uD83D\uDCCA', label: 'Dashboard', route: 'dashboard' },
       { icon: '\uD83D\uDCC4', label: 'Invoices', route: 'invoices' },
       { icon: '\uD83D\uDCDD', label: 'Quotes', route: 'quotes' },
       { icon: '\uD83D\uDC65', label: 'Clients', route: 'clients' },
@@ -132,11 +132,11 @@ export default function DrawerLayout() {
     >
       <Drawer.Screen
         name="index"
-        options={{ title: 'Dashboard' }}
+        options={{ title: 'Gigs' }}
       />
       <Drawer.Screen
-        name="gigs"
-        options={{ title: 'Gigs' }}
+        name="dashboard"
+        options={{ title: 'Dashboard' }}
       />
       <Drawer.Screen
         name="invoices"
