@@ -49,7 +49,7 @@ interface ViewContextValue extends ViewState {
 const ViewContext = createContext<ViewContextValue | null>(null);
 
 export function ViewProvider({ children }: { children: ReactNode }) {
-  const [view, setViewRaw] = useState<View>('dashboard');
+  const [view, setViewRaw] = useState<View>('calendar');
   const [selectedDate, setSelectedDate] = useState('');
   const [editGigId, setEditGigId] = useState<string | null>(null);
   const [initialGigType, setInitialGigType] = useState<'gig' | 'practice'>('gig');
