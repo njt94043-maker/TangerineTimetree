@@ -1,8 +1,8 @@
 const { createClient } = require('@supabase/supabase-js');
-const sb = createClient(
-  'https://jlufqgslgjowfaqmqlds.supabase.co',
-  '[REDACTED -- legacy service_role JWT, disabled 2026-03-05]'
-);
+// Requires SUPABASE_SERVICE_ROLE_KEY env var
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceKey) { console.error('Set SUPABASE_SERVICE_ROLE_KEY env var'); process.exit(1); }
+const sb = createClient('https://jlufqgslgjowfaqmqlds.supabase.co', serviceKey);
 
 (async () => {
   // Get all gigs that have a venue_id
