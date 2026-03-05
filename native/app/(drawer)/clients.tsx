@@ -27,7 +27,8 @@ export default function ClientsScreen() {
         <NeuCard>
           <Text style={styles.clientName}>{item.company_name}</Text>
           {item.contact_name ? <Text style={styles.clientContact}>{item.contact_name}</Text> : null}
-          {item.address ? <Text style={styles.clientAddress} numberOfLines={1}>{item.address}</Text> : null}
+          {item.address ? <Text style={styles.clientAddress}>{item.address}</Text> : null}
+          {item.email ? <Text style={styles.clientEmail}>{item.email}</Text> : null}
         </NeuCard>
       </Pressable>
     );
@@ -102,19 +103,25 @@ const styles = StyleSheet.create({
   },
   clientName: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.text,
   },
   clientContact: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textDim,
     marginTop: 2,
   },
   clientAddress: {
     fontFamily: FONTS.body,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.textMuted,
+    marginTop: 4,
+  },
+  clientEmail: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.teal,
     marginTop: 2,
   },
   empty: {
