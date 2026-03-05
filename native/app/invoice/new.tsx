@@ -3,7 +3,7 @@ import { View, Text, TextInput, FlatList, Pressable, ScrollView, Modal, StyleShe
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
-import { NeuCard, NeuWell, NeuButton, StepIndicator, CalendarPicker, VenuePicker } from '../../src/components';
+import { NeuCard, NeuWell, NeuButton, StepIndicator, CalendarPicker, EntityPicker } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getClients, searchClients, addClient, Client,
@@ -57,6 +57,7 @@ export default function NewInvoiceScreen() {
 
   // Step 2 - details
   const [venue, setVenue] = useState(params.prefill_venue || '');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [gigDate, setGigDate] = useState(todayISO());
   const [showCalendar, setShowCalendar] = useState(false);
   const [amount, setAmount] = useState(params.prefill_amount || '');
@@ -84,18 +85,22 @@ export default function NewInvoiceScreen() {
 
   useEffect(() => {
     async function init() {
-      const s = await getSettings();
-      setSettings(s);
-      const c = await getClients();
-      setClients(c);
+      try {
+        const s = await getSettings();
+        setSettings(s);
+        const c = await getClients();
+        setClients(c);
 
-      // Handle prefill from duplicate
-      if (params.prefill_client_id) {
-        const match = c.find(cl => cl.id === params.prefill_client_id);
-        if (match) {
-          setSelectedClient(match);
-          setStep(2);
+        // Handle prefill from duplicate
+        if (params.prefill_client_id) {
+          const match = c.find(cl => cl.id === params.prefill_client_id);
+          if (match) {
+            setSelectedClient(match);
+            setStep(2);
+          }
         }
+      } catch (err) {
+        Alert.alert('Error', err instanceof Error ? err.message : 'Failed to load data');
       }
     }
     init();
@@ -109,8 +114,10 @@ export default function NewInvoiceScreen() {
   }, [venue, gigDate, descriptionEdited]);
 
   async function loadClients() {
-    const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
-    setClients(list);
+    try {
+      const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
+      setClients(list);
+    } catch { /* search non-critical */ }
   }
 
   useEffect(() => { loadClients(); }, [clientSearch]);
@@ -197,6 +204,7 @@ export default function NewInvoiceScreen() {
       const invoice = await createInvoice({
         client_id: selectedClient.id,
         venue: venue.trim(),
+        venue_id: venueId,
         gig_date: gigDate,
         amount: parsedAmount,
         description: description.trim(),
@@ -323,11 +331,13 @@ export default function NewInvoiceScreen() {
             <Text style={LABEL}>GIG DETAILS</Text>
             <View style={{ height: 8 }} />
 
-            <Text style={styles.fieldLabel}>Venue Name *</Text>
-            <VenuePicker
-              clientId={selectedClient.id}
-              selectedVenue={venue}
-              onSelectVenue={setVenue}
+            <Text style={styles.fieldLabel}>Venue *</Text>
+            <EntityPicker
+              mode="venue"
+              value={venue}
+              entityId={venueId}
+              onChange={(text, id) => { setVenue(text); setVenueId(id); }}
+              placeholder="e.g. Gin & Juice, Mumbles"
             />
 
             <Text style={styles.fieldLabel}>Gig Date</Text>
@@ -435,6 +445,7 @@ export default function NewInvoiceScreen() {
               label={generating ? 'Saving...' : 'Approve & Save'}
               onPress={handleApproveStyle}
               color={COLORS.teal}
+              disabled={generating}
             />
           </View>
         </View>
@@ -453,7 +464,7 @@ const styles = StyleSheet.create({
   searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 12 },
   clientName: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.text },
   clientDetail: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.textDim, marginTop: 2 },
-  emptyText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textDim, textAlign: 'center', paddingTop: 40 },
+  emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textDim, textAlign: 'center', paddingTop: 40 },
   selectedClientLabel: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.teal },
   fieldLabel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textDim, marginBottom: 4, marginTop: 8 },
   inputWell: { padding: 0 },

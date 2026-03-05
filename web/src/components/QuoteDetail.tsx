@@ -45,7 +45,7 @@ interface QuoteDetailProps {
   onPreview: (id: string) => void;
   onEdit: (id: string) => void;
   onDeleted: () => void;
-  onAddGig: (date: string, venue: string, fee: number) => void;
+  onAddGig: (date: string, venue: string, fee: number, venueId?: string | null, clientId?: string | null, clientName?: string) => void;
 }
 
 export function QuoteDetail({ quoteId, onClose, onPreview, onEdit, onDeleted, onAddGig }: QuoteDetailProps) {
@@ -481,7 +481,7 @@ export function QuoteDetail({ quoteId, onClose, onPreview, onEdit, onDeleted, on
           confirmLabel="Add Gig"
           onConfirm={() => {
             setShowCalendarPrompt(false);
-            onAddGig(quote.event_date, quote.venue_name, quote.total);
+            onAddGig(quote.event_date, quote.venue_name, quote.total, quote.venue_id, quote.client_id, quote.client_company_name);
           }}
           onCancel={() => setShowCalendarPrompt(false)}
         />

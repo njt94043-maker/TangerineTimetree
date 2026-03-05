@@ -5,7 +5,8 @@ type View =
   | 'profile' | 'media' | 'enquiries' | 'website'
   | 'invoices' | 'invoice-form' | 'invoice-detail' | 'invoice-preview'
   | 'quotes' | 'quote-form' | 'quote-detail' | 'quote-preview'
-  | 'settings' | 'clients';
+  | 'settings' | 'clients'
+  | 'venues' | 'venue-detail';
 
 interface ViewState {
   view: View;
@@ -18,6 +19,8 @@ interface ViewState {
   // Quote-specific state
   quoteId: string | null;
   editQuoteId: string | null;
+  // Venue-specific state
+  venueId: string | null;
 }
 
 interface ViewContextValue extends ViewState {
@@ -43,6 +46,9 @@ interface ViewContextValue extends ViewState {
   goToEditQuote: (id: string) => void;
   goToQuoteDetail: (id: string) => void;
   goToQuotePreview: (id: string) => void;
+  // Venue navigation
+  goToVenues: () => void;
+  goToVenueDetail: (id: string) => void;
 }
 
 const ViewContext = createContext<ViewContextValue | null>(null);
@@ -56,6 +62,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
+  const [venueId, setVenueId] = useState<string | null>(null);
 
   // View history stack for step-by-step back navigation
   const historyRef = useRef<View[]>(['calendar']);
@@ -126,6 +133,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToInvoices = useCallback(() => resetToView('invoices'), []);
   const goToSettings = useCallback(() => resetToView('settings'), []);
   const goToClients = useCallback(() => resetToView('clients'), []);
+  const goToVenues = useCallback(() => resetToView('venues'), []);
   const goToQuotes = useCallback(() => resetToView('quotes'), []);
 
   // Drill-down navigation — pushes onto stack
@@ -161,6 +169,10 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setQuoteId(id);
     pushView('quote-preview');
   }, []);
+  const goToVenueDetail = useCallback((id: string) => {
+    setVenueId(id);
+    pushView('venue-detail');
+  }, []);
 
   return (
     <ViewContext.Provider
@@ -168,12 +180,14 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         view, selectedDate, editGigId, initialGigType,
         invoiceId, editInvoiceId,
         quoteId, editQuoteId,
+        venueId,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,
         goToInvoiceDetail, goToInvoicePreview,
         goToSettings, goToClients,
         goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
+        goToVenues, goToVenueDetail,
       }}
     >
       {children}

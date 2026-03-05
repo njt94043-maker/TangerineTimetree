@@ -64,6 +64,8 @@ export default defineConfig({
             './src/components/QuotePreview.tsx',
             './src/components/Settings.tsx',
             './src/components/ClientList.tsx',
+            './src/components/VenueList.tsx',
+            './src/components/VenueDetail.tsx',
           ],
         },
       },

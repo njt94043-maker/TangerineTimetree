@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getGigChangelog, deleteGig } from '@shared/supabase/queries';
+import { getGigsByDate, getGigChangelog, deleteGig, getVenue } from '@shared/supabase/queries';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { formatDisplayDate, fmt, fmtFee } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
@@ -28,6 +28,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
+  const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
   const touchStartX = useRef(0);
 
   function fetchDayGigs() {
@@ -58,6 +59,21 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   useEffect(() => {
     fetchDayGigs();
   }, [date]);
+
+  // Fetch venue addresses for gigs with venue_id
+  useEffect(() => {
+    const gigsWithVenue = gigs.filter(g => g.venue_id);
+    if (gigsWithVenue.length === 0) { setVenueAddresses(new Map()); return; }
+    Promise.all(
+      gigsWithVenue.map(async g => {
+        const venue = await getVenue(g.venue_id!);
+        const addr = venue ? [venue.address, venue.postcode].filter(Boolean).join(', ') : '';
+        return [g.id, addr] as const;
+      })
+    ).then(entries => {
+      setVenueAddresses(new Map(entries.filter(([, addr]) => !!addr)));
+    }).catch(() => {});
+  }, [gigs]);
 
   async function toggleLog(gigId: string) {
     if (expandedLog === gigId) { setExpandedLog(null); return; }
@@ -150,6 +166,24 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
 
               <div className={`gig-venue-name ${isPractice ? 'gig-venue-practice' : ''}`}>
                 {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
+                {!isPractice && venueAddresses.has(gig.id) && (
+                  <button
+                    className="btn-navigate"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
+                      const pref = localStorage.getItem('tgt_map_app') || 'google';
+                      const urls: Record<string, string> = {
+                        google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
+                        waze: `https://waze.com/ul?q=${addr}`,
+                        apple: `https://maps.apple.com/?q=${addr}`,
+                      };
+                      window.open(urls[pref] || urls.google, '_blank', 'noopener');
+                    }}
+                  >
+                    Navigate
+                  </button>
+                )}
               </div>
               {!isPractice && <div className="gig-client-name">{gig.client_name || 'Client TBC'}</div>}
 

@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   },
   errorBannerText: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.danger,
     textAlign: 'center',
   },

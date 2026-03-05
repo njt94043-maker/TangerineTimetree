@@ -77,6 +77,9 @@ interface SettingsProps {
 }
 
 export function Settings({ onClose }: SettingsProps) {
+  // Preferences (device-local)
+  const [mapApp, setMapApp] = useState(localStorage.getItem('tgt_map_app') || 'google');
+
   // User settings
   const [yourName, setYourName] = useState('');
   const [email, setEmail] = useState('');
@@ -391,6 +394,24 @@ export function Settings({ onClose }: SettingsProps) {
         <button className="btn btn-small btn-green" onClick={onClose}>{'\u25C0'} Back</button>
         <h2 className="page-title">Settings</h2>
         <div className="page-header-spacer" />
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Preferences</h3>
+
+        <label className="label" htmlFor="s-map-app">MAP APP</label>
+        <div className="neu-inset">
+          <select
+            id="s-map-app"
+            className="input-field"
+            value={mapApp}
+            onChange={e => { setMapApp(e.target.value); localStorage.setItem('tgt_map_app', e.target.value); }}
+          >
+            <option value="google">Google Maps</option>
+            <option value="waze">Waze</option>
+            <option value="apple">Apple Maps</option>
+          </select>
+        </div>
       </div>
 
       <div className="settings-section">

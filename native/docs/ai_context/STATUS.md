@@ -6,11 +6,11 @@
 ---
 
 ## Current State
-- **Phase**: S21 complete. **S23 next — VENUE/CLIENT RESTRUCTURE** (4-session epic).
+- **Phase**: S22 complete. **Native visual overhaul shipped.**
 - **Blocker**: None. App runs on device, no crashes.
-- **Last session**: 2026-03-05 — Review editor UX fixes (auto-grow textarea, mobile layout, touch targets). Designed venue/client data model. S22 (visual overhaul) deprioritised in favour of S23 venue/client restructure.
-- **Next action**: **S23A — Database migration + types + queries.** See SPRINT_PROMPTS.md for full 4-session plan.
-- **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. No real production data yet — clean restructure approved.
+- **Last session**: 2026-03-05 — S22 native visual overhaul: pixel-perfect match webapp. Foundation (BODY 13→14, NeuButton minHeight 48 + horizontal padding, NeuWell minHeight 44, NeuSelect sizing, StatusBadge 10px, GigDaySheet overlay 0.7). List cards (left-border accents on invoices/quotes, stats row shadows, addBtn black text on green). Font bumps across all screens. ~20 files modified, all style-only. Both tsc clean.
+- **Next action**: APK build + device test, or next sprint.
+- **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. 3 clients, 3 venues.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Big Picture
@@ -21,21 +21,21 @@
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. **Venue/client restructure** — 24-file blast radius across native + web + shared. Split into 4 sessions to manage risk.
-2. **Native visual parity** — Still needed (S22), but deferred until after venue/client restructure.
-3. Disk space: C: drive monitored. APK builds work.
+1. **Native visual parity** — S22 shipped. Needs device verification (APK build + side-by-side check).
+2. Disk space: C: drive monitored. APK builds work.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 19 tables live)
 
-## Supabase Tables (19 → 20 after S23A)
+## Supabase Tables (20 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
 - **Public site**: public_media, contact_submissions
 - **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
 - **Quoting (S15)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
-- **S23 NEW**: venue_photos (new table), venues restructured (ratings + no client_id), gigs/quotes/invoices get venue_id FK
+- **S23A**: venue_photos (new table), venues restructured (ratings/postcode/notes, no client_id), gigs/quotes/invoices/formal_invoices have venue_id FK, gigs have client_id FK
+- **Storage**: public-media, venue-photos (new S23A)
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)
@@ -60,10 +60,10 @@
 | S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
 | S20 | Logo swap, animated splash, skeleton loaders, app icons | DONE |
 | S21 | APK build fix + device testing + layout parity | DONE |
-| S22 | Native visual overhaul — pixel-perfect match webapp | DEFERRED (after S23) |
-| **S23A** | **Venue/client restructure: DB migration + types + queries** | **NEXT** |
-| S23B | Venue management UI (both apps) + venue ratings/photos | PLANNED |
-| S23C | Gig booking flow update (venue/client pickers, nav button) | PLANNED |
-| S23D | Quote + Invoice flow update (venue pickers, full chain test) | PLANNED |
+| **S22** | **Native visual overhaul — pixel-perfect match webapp** | **DONE** |
+| **S23A** | **Venue/client restructure: DB migration + types + queries** | **DONE** |
+| **S23B** | **Venue management UI (both apps) + venue ratings/photos** | **DONE** |
+| **S23C** | **Gig booking flow update (venue/client pickers, nav button)** | **DONE** |
+| **S23D** | **Quote + Invoice flow update (venue pickers, audit fixes)** | **DONE** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

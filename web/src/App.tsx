@@ -29,6 +29,8 @@ import { QuoteForm } from './components/QuoteForm';
 import { QuoteDetail } from './components/QuoteDetail';
 import { QuotePreview } from './components/QuotePreview';
 import { Dashboard } from './components/Dashboard';
+import { VenueList } from './components/VenueList';
+import { VenueDetail } from './components/VenueDetail';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -79,6 +81,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     goToSettings, goToClients,
     quoteId,
     goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
+    venueId, goToVenues, goToVenueDetail,
   } = useView();
 
   const now = new Date();
@@ -163,9 +166,9 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     goToQuoteDetail(id);
   }
 
-  async function handleAddGigFromQuote(date: string, venue: string, fee: number) {
+  async function handleAddGigFromQuote(date: string, venue: string, fee: number, venueId?: string | null, clientId?: string | null, clientName?: string) {
     try {
-      await createGig({ date, venue, fee, payment_type: 'invoice', visibility: 'hidden' });
+      await createGig({ date, venue, fee, venue_id: venueId, client_id: clientId, client_name: clientName || '', payment_type: 'invoice', visibility: 'hidden' });
       refresh();
     } catch {
       // Silently fail — gig creation is optional
@@ -182,6 +185,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'quotes': case 'quote-form': case 'quote-detail': case 'quote-preview': return 'Quotes';
       case 'settings': return 'Settings';
       case 'clients': return 'Clients';
+      case 'venues': case 'venue-detail': return 'Venues';
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
@@ -428,6 +432,21 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'clients' && (
           <ClientList onClose={() => setView('calendar')} />
+        )}
+
+        {view === 'venues' && (
+          <VenueList
+            onClose={() => setView('calendar')}
+            onVenuePress={goToVenueDetail}
+          />
+        )}
+
+        {view === 'venue-detail' && venueId && (
+          <VenueDetail
+            venueId={venueId}
+            onClose={goToVenues}
+            onDeleted={goToVenues}
+          />
         )}
       </main>
     </>

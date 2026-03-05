@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getClients, searchClients, createClient, createQuote,
-  getServiceCatalogue,
+  getServiceCatalogue, getVenue,
 } from '@shared/supabase/queries';
 import { loadSettingsCached } from '../utils/settingsCache';
+import { EntityPicker } from './EntityPicker';
 import type { Client, UserSettings, BandSettings, ServiceCatalogueItem, EventType, PLIOption, InvoiceStyle } from '@shared/supabase/types';
 import type { QuoteTemplateData } from '@shared/templates';
 import { getQuoteHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
@@ -55,6 +56,7 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   const [eventType, setEventType] = useState<EventType>('wedding');
   const [eventDate, setEventDate] = useState(todayISO());
   const [venueName, setVenueName] = useState('');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [venueAddress, setVenueAddress] = useState('');
 
   // Step 2 — Package builder
@@ -127,6 +129,15 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   }
 
   useEffect(() => { loadClients(); }, [clientSearch]);
+
+  // Auto-fill venue address when venue is selected from DB
+  useEffect(() => {
+    if (venueId) {
+      getVenue(venueId).then(v => {
+        if (v) setVenueAddress([v.address, v.postcode].filter(Boolean).join(', '));
+      }).catch(() => {});
+    }
+  }, [venueId]);
 
   // Computed totals
   const subtotal = lineItems.reduce((s, li) => s + li.quantity * li.unit_price, 0);
@@ -264,6 +275,7 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
     try {
       const quote = await createQuote({
         client_id: selectedClient.id,
+        venue_id: venueId,
         event_type: eventType,
         event_date: eventDate,
         venue_name: venueName.trim(),
@@ -344,10 +356,14 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
                 <input className="input-field" type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} />
               </div>
 
-              <label className="label">VENUE NAME *</label>
-              <div className="neu-inset">
-                <input className="input-field" value={venueName} onChange={e => setVenueName(e.target.value)} placeholder="Venue name" />
-              </div>
+              <label className="label">VENUE *</label>
+              <EntityPicker
+                mode="venue"
+                value={venueName}
+                entityId={venueId}
+                onChange={(text, id) => { setVenueName(text); setVenueId(id); if (!id) setVenueAddress(''); }}
+                placeholder="e.g. The Grand Hotel"
+              />
 
               <label className="label">VENUE ADDRESS</label>
               <div className="neu-inset">

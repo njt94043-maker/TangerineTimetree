@@ -46,7 +46,7 @@ All in `docs/ai_context/`:
 | `blueprint.md` | Architecture north star | Architectural changes |
 | `schema_map.md` | DB schema + TypeScript types | Data model changes |
 | `decisions_log.md` | Locked ADRs (append-only) | New decisions made |
-| `todo.md` | Tasks, priorities, backlog | After every task |
+| `todo.md` | Tasks, priorities, backlog | After every task |émmmmmmmmmmmmmmmm,uicl8
 | `SESSION_LOG.md` | Session handoff notes | End of every session |
 | `gotchas.md` | Lessons learned | When something bites us |
 | `pain_journal.md` | Process improvements | When time is wasted |

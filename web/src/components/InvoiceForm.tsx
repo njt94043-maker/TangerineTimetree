@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getClients, searchClients, createClient, createInvoice,
-  getVenuesForClient,
 } from '@shared/supabase/queries';
 import { loadSettingsCached } from '../utils/settingsCache';
-import type { Client, Venue, UserSettings, BandSettings } from '@shared/supabase/types';
+import { EntityPicker } from './EntityPicker';
+import type { Client, UserSettings, BandSettings } from '@shared/supabase/types';
 import type { InvoiceStyle } from '@shared/supabase/types';
 import type { InvoiceTemplateData } from '@shared/templates';
 import { getInvoiceHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
@@ -37,11 +37,11 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
 
   // Step 2 — Details
   const [venue, setVenue] = useState('');
+  const [venueId, setVenueId] = useState<string | null>(null);
   const [gigDate, setGigDate] = useState(todayISO());
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [descriptionEdited, setDescriptionEdited] = useState(false);
-  const [venues, setVenues] = useState<Venue[]>([]);
 
   // Step 3 — Preview carousel
   const [selectedStyle, setSelectedStyle] = useState<InvoiceStyle>(DEFAULT_INVOICE_STYLE);
@@ -103,12 +103,6 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
     }
   }, [venue, gigDate, descriptionEdited]);
 
-  // Load venues for selected client
-  useEffect(() => {
-    if (selectedClient) {
-      getVenuesForClient(selectedClient.id).then(setVenues).catch(() => setVenues([]));
-    }
-  }, [selectedClient]);
 
   function selectClient(client: Client) {
     setSelectedClient(client);
@@ -185,6 +179,7 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
       const invoice = await createInvoice({
         client_id: selectedClient.id,
         venue: venue.trim(),
+        venue_id: venueId,
         gig_date: gigDate,
         amount: parseFloat(amount),
         description: description.trim(),
@@ -282,13 +277,14 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
             Client: <strong>{selectedClient.company_name}</strong>
           </div>
 
-          <label className="label">VENUE NAME *</label>
-          <div className="neu-inset">
-            <input className="input-field" value={venue} onChange={e => setVenue(e.target.value)} placeholder="Venue name" list="venue-suggestions" />
-            <datalist id="venue-suggestions">
-              {venues.map(v => <option key={v.id} value={v.venue_name} />)}
-            </datalist>
-          </div>
+          <label className="label">VENUE *</label>
+          <EntityPicker
+            mode="venue"
+            value={venue}
+            entityId={venueId}
+            onChange={(text, id) => { setVenue(text); setVenueId(id); }}
+            placeholder="e.g. Gin & Juice, Mumbles"
+          />
 
           <label className="label">GIG DATE</label>
           <div className="neu-inset">

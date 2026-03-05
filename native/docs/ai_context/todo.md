@@ -228,48 +228,70 @@
 
 **Design decision**: Venues and clients are separate, independent lists. Gigs/quotes/invoices link to both via FKs. No forced venue→client relationship. See decisions_log.md D-072.
 
-### S23A — Database + Types + Queries (Session 1)
-- [ ] Snapshot current data (JSON backup to local file)
-- [ ] Supabase migration SQL:
-  - ALTER venues: drop client_id, add postcode, rating_atmosphere (1-5), rating_crowd, rating_stage, rating_parking, notes
-  - CREATE venue_photos (id, venue_id FK, file_url, storage_path, caption, created_by, created_at)
-  - ALTER gigs: add venue_id (FK nullable), add client_id (FK nullable)
-  - ALTER quotes: add venue_id (FK nullable)
-  - ALTER invoices: add venue_id (FK nullable)
-  - ALTER formal_invoices: add venue_id (FK nullable)
+### S23A — Database + Types + Queries (Session 1) ✅ COMPLETE
+- [x] Snapshot current data (JSON backup — `backups/snapshot-s23a-2026-03-05.json`)
+- [x] Supabase migration SQL pushed (`20260305200000_s23a_venue_client_restructure.sql`):
+  - ALTER venues: dropped client_id, added postcode, rating_atmosphere/crowd/stage/parking (1-5 CHECK), notes
+  - CREATE venue_photos (id, venue_id FK CASCADE, file_url, storage_path, caption, created_by, created_at)
+  - ALTER gigs: added venue_id (FK SET NULL), client_id (FK SET NULL)
+  - ALTER quotes: added venue_id (FK SET NULL)
+  - ALTER invoices: added venue_id (FK SET NULL)
+  - ALTER formal_invoices: added venue_id (FK SET NULL)
   - RLS policies for venue_photos + updated venue policies
-- [ ] Update shared/supabase/types.ts — Venue (new fields), VenuePhoto, Gig (+venue_id, +client_id), Quote (+venue_id), Invoice (+venue_id)
-- [ ] Update shared/supabase/queries.ts — venue CRUD (with ratings), venue photo CRUD, updated gig/quote/invoice creates to accept venue_id
-- [ ] Update native/src/db/queries.ts wrapper
-- [ ] TypeScript clean: both apps
+  - Storage bucket: venue-photos (public) + storage policies
+- [x] Updated shared/supabase/types.ts — Venue (new fields), VenuePhoto, Gig (+venue_id, +client_id), Quote (+venue_id), Invoice (+venue_id), FormalInvoice (+venue_id)
+- [x] Updated shared/supabase/queries.ts — getVenues, getVenue, searchVenues, createVenue (overloaded), updateVenue, venue photo CRUD, createGig/createInvoice/createQuote accept venue_id, acceptQuote carries venue_id to formal invoice
+- [x] Updated native/src/db/queries.ts wrapper — new venue/photo exports, backwards-compat getVenuesForClient/addVenue
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass
 
-### S23B — Venue Management UI (Session 2)
-- [ ] Native: Venues drawer screen (list, search, add, venue detail with ratings + photos + notes)
-- [ ] Web: Venues section (same features)
-- [ ] Remove venue sub-section from client edit screens (decouple)
-- [ ] Venue detail: star ratings for atmosphere/crowd/stage/parking, notes field, photo gallery
-- [ ] Photo upload to Supabase Storage (venue-photos bucket)
-- [ ] Update drawer nav on both apps (add Venues item)
+### S23B — Venue Management UI (Session 2) ✅ COMPLETE
+- [x] Native: StarRating component (reusable, 1-5 stars, tap to set/clear)
+- [x] Native: Venues drawer screen (list, search, add, avg rating on cards)
+- [x] Native: venue/new.tsx (name, address, postcode form)
+- [x] Native: venue/[id].tsx (edit + 4 star ratings + notes + photo gallery + upload)
+- [x] Web: VenueList (list, search, add modal, cards with avg stars)
+- [x] Web: VenueDetail (edit + ratings + notes + photo gallery + upload)
+- [x] Web: ViewContext + Drawer wired (venues + venue-detail views)
+- [x] Web: App.tsx + CSS + vite config updated
+- [x] Decoupled venues from client screens (both apps — removed venue state/functions/UI)
+- [x] TypeScript clean: both native --noEmit and web -b pass
 
-### S23C — Gig Booking Flow (Session 3)
-- [ ] Gig form: venue picker (searchable dropdown from venues table, "Add New Venue" inline)
-- [ ] Gig form: client picker (searchable dropdown from clients table, "Add New Client" inline)
-- [ ] On save: write venue_id + client_id + denormalised text fields
-- [ ] Day view: "Navigate" button → opens chosen map app with venue address
-- [ ] Nav preference in settings (Google Maps / Waze / Apple Maps)
-- [ ] Both apps (native + web)
+### S23C — Gig Booking Flow (Session 3) ✅ COMPLETE
+- [x] EntityPicker component (web: searchable dropdown + inline "Add New" form)
+- [x] EntityPicker component (native: FlatList dropdown, neumorphic styling)
+- [x] GigForm: venue/client pickers replace AutocompleteInput, save venue_id/client_id
+- [x] Native gig/new.tsx: same venue/client picker changes
+- [x] DayDetail (web): Navigate button — fetches venue address, opens map app
+- [x] GigDaySheet (native): Navigate button — Linking.openURL to map app
+- [x] Settings (web): Preferences section with Map App dropdown (localStorage)
+- [x] settings.tsx (native): Preferences section with Map App NeuSelect (AsyncStorage)
+- [x] Free-text entry still works (venue_id stays null for unlinked entries)
+- [x] TypeScript clean: both native --noEmit and web -b pass, vite build passes
 
-### S23D — Quote + Invoice Chain (Session 4)
-- [ ] Quote form: venue picker (same as gig form)
-- [ ] Invoice form: venue picker (same as gig form)
-- [ ] Quote → Gig conversion: carries venue_id + client_id
-- [ ] Gig → Invoice creation: carries venue_id + client_id
-- [ ] Update all detail/list/preview views to show venue from ID (with fallback to text)
-- [ ] Full chain test: create venue → create client → create quote → accept → gig created → invoice created → all linked
-- [ ] Both apps (native + web)
+### S23D — Quote + Invoice Chain (Session 4) ✅ COMPLETE
+- [x] Web QuoteForm: EntityPicker for venue, venue_id passed to createQuote, auto-fill address
+- [x] Web InvoiceForm: EntityPicker replaces datalist, venue_id passed to createInvoice
+- [x] Native quote/new.tsx: EntityPicker for venue, venue_id + auto-fill address
+- [x] Native invoice/new.tsx: EntityPicker replaces VenuePicker, venue_id passed
+- [x] Quote → Gig conversion: carries venue_id + client_id + client_name (web QuoteDetail + App.tsx + native quote/[id])
+- [x] Native quote accept flow: added "Add Gig" prompt matching web UX
+- [x] Surgical audit — 8 fixes:
+  - EntityPicker dropdown visible on zero results (both apps — "Add New" was unreachable)
+  - EntityPicker error handling on create (Alert on native, inline error on web)
+  - EntityPicker debounce cleanup on unmount (both apps)
+  - Native quote/[id] — formal invoice state cleared on re-navigate, try/catch on ALL 7 action handlers
+  - Stale venue address cleared when user re-types venue (both QuoteForms)
+  - NeuButton disabled prop + double-tap prevention on approve buttons
+  - Native quote/new + invoice/new — init Promise.all + search wrapped in try/catch
+- [x] TypeScript clean: both native --noEmit and web -b pass, vite build passes
 
-## S22 — Native Visual Overhaul (DEFERRED — after S23)
-- [ ] Screen-by-screen comparison, matching every visual detail (see previous plan)
+## S22 — Native Visual Overhaul ✅ COMPLETE
+- [x] Phase 1: Foundation — BODY/BODY_BOLD fontSize 13→14, NeuButton minHeight 48 + paddingH 20, NeuWell minHeight 44, NeuSelect trigger sizing, StatusBadge fontSize 10, GigDaySheet overlay 0.7 + card padding 16
+- [x] Phase 2: List cards — left-border accents (invoices: paid=green/sent=orange/draft=muted, quotes: accepted/sent/declined/expired), stats row neuRaisedStyle shadows, addBtn text #000 on green bg, font bumps
+- [x] Phase 3: GigDaySheet gigClient/awayName 14px, GigList card padding 16 + margin 12, EntityPicker input minHeight 44 + font bumps
+- [x] Phase 4: Drawer item paddingV 12→10, gig/invoice/quote form font bumps, venue detail font bumps
+- [x] ~20 files modified, all StyleSheet style-only changes, zero logic changes
+- [x] TypeScript clean: both native --noEmit and web -b pass
 
 ## Backlog
 - ~~Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx`~~ DONE (117 gigs + 62 away dates in Supabase)

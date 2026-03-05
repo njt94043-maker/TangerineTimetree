@@ -49,14 +49,15 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minHeight: 44,
   },
   triggerText: {
     flex: 1,
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.text,
   },
   chevron: {
