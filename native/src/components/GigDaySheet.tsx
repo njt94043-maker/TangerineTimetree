@@ -39,15 +39,17 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedChangelog, setExpandedChangelog] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible && date) {
       setLoading(true);
+      setFetchError(false);
       setExpandedChangelog(null);
       getGigsByDate(date)
         .then(setGigs)
-        .catch(() => setGigs([]))
+        .catch(() => { setGigs([]); setFetchError(true); })
         .finally(() => setLoading(false));
     }
   }, [visible, date]);
@@ -58,8 +60,10 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
       return;
     }
     if (!changelog.has(gigId)) {
-      const entries = await getGigChangelog(gigId);
-      setChangelog(prev => new Map(prev).set(gigId, entries));
+      try {
+        const entries = await getGigChangelog(gigId);
+        setChangelog(prev => new Map(prev).set(gigId, entries));
+      } catch { return; }
     }
     setExpandedChangelog(gigId);
   }
@@ -152,7 +156,12 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
             {loading && <ActivityIndicator color={COLORS.teal} style={{ marginVertical: 20 }} />}
 
             {/* Gigs section */}
-            {!loading && gigs.length === 0 && (
+            {!loading && fetchError && (
+              <View style={styles.emptySection}>
+                <Text style={[styles.emptyText, { color: COLORS.danger }]}>Failed to load gigs</Text>
+              </View>
+            )}
+            {!loading && !fetchError && gigs.length === 0 && (
               <View style={styles.emptySection}>
                 <Text style={styles.emptyText}>No gig booked</Text>
               </View>

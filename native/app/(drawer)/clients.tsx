@@ -11,8 +11,12 @@ export default function ClientsScreen() {
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
-    const list = search.trim() ? await searchClients(search.trim()) : await getClients();
-    setClients(list);
+    try {
+      const list = search.trim() ? await searchClients(search.trim()) : await getClients();
+      setClients(list);
+    } catch (err) {
+      console.error('Failed to load clients', err);
+    }
   }, [search]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));

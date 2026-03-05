@@ -115,7 +115,10 @@ export default function InvoicePreviewScreen() {
 
       setPages(allPages);
     }
-    load();
+    load().catch(err => {
+      console.error('Invoice preview load failed', err);
+      setPages([]);
+    });
   }, [id]);
 
   function goToIndex(index: number) {
@@ -127,9 +130,12 @@ export default function InvoicePreviewScreen() {
   async function handleShare() {
     const page = pages[currentIndex];
     if (!page) return;
-    // Generate PDF on demand from HTML
-    const uri = await generatePdf(page.html, page.pdfFilename);
-    await sharePdf(uri, page.shareTitle);
+    try {
+      const uri = await generatePdf(page.html, page.pdfFilename);
+      await sharePdf(uri, page.shareTitle);
+    } catch (err) {
+      console.error('Share failed', err);
+    }
   }
 
   if (pages.length === 0) return <View style={styles.container} />;

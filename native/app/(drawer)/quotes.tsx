@@ -45,8 +45,12 @@ export default function QuotesScreen() {
   );
 
   async function loadQuotes() {
-    const list = await getQuotes();
-    setQuotes(list);
+    try {
+      const list = await getQuotes();
+      setQuotes(list);
+    } catch (err) {
+      console.error('Failed to load quotes', err);
+    }
   }
 
   async function handleRefresh() {

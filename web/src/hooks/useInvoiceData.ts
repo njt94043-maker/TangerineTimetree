@@ -32,7 +32,11 @@ export function useInvoiceData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
         refresh();
       })
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Invoice realtime error', status, err);
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [refresh]);
