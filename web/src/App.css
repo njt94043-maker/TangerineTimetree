@@ -563,7 +563,7 @@ html, body, #root {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
+  gap: 4px;
 }
 /* 2.3: day headers bumped from 10px to 11px */
 .calendar-day-header {
@@ -576,48 +576,57 @@ html, body, #root {
 }
 .calendar-day-header.weekend { color: var(--color-text-muted); }
 
-/* 2.2: calendar cells min-height from 40px to 44px */
+/* Calendar cells — tall inset rectangles with glow */
 .calendar-cell {
-  aspect-ratio: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: 8px;
   position: relative;
   font-size: 14px;
-  min-height: 44px;
-  transition: box-shadow 0.15s, background 0.15s;
+  min-height: 52px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.04);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), inset 0 -1px 2px rgba(255,255,255,0.02);
+  transition: box-shadow 0.15s, background 0.15s, border-color 0.15s;
 }
-.calendar-cell:hover { background: rgba(255,255,255,0.02); }
-/* 2.5: bolder today indicator */
+.calendar-cell:hover {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.08);
+}
+/* Today — tangerine border + glow */
 .calendar-cell.today {
   border: 2px solid var(--color-tangerine);
-  box-shadow: 0 0 10px rgba(243,156,18,0.35);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(243,156,18,0.3);
 }
 .calendar-cell.past .day-num { color: var(--color-text-muted); }
 
 /* Available = dark/subtle (unbooked) */
 .calendar-cell.available .day-num { color: var(--color-text-dim); }
 
-/* Gig = GREEN with neon glow */
+/* Gig = GREEN inset glow */
 .calendar-cell.gig {
-  background: rgba(0,230,118,0.1);
-  box-shadow: inset 0 0 8px rgba(0,230,118,0.12);
+  background: rgba(0,230,118,0.08);
+  border-color: rgba(0,230,118,0.15);
+  box-shadow: inset 0 2px 8px rgba(0,230,118,0.15), 0 0 8px rgba(0,230,118,0.08);
 }
 .calendar-cell.gig .day-num { color: var(--color-gig); font-weight: 700; }
 
-/* Practice = purple glow */
+/* Practice = purple inset glow */
 .calendar-cell.practice {
-  background: rgba(187,134,252,0.1);
-  box-shadow: inset 0 0 8px rgba(187,134,252,0.12);
+  background: rgba(187,134,252,0.08);
+  border-color: rgba(187,134,252,0.15);
+  box-shadow: inset 0 2px 8px rgba(187,134,252,0.15), 0 0 8px rgba(187,134,252,0.08);
 }
 .calendar-cell.practice .day-num { color: var(--color-practice); font-weight: 700; }
 
-/* Unavailable = red */
+/* Unavailable = red inset glow */
 .calendar-cell.unavailable {
-  background: rgba(255,82,82,0.08);
+  background: rgba(255,82,82,0.06);
+  border-color: rgba(255,82,82,0.12);
+  box-shadow: inset 0 2px 6px rgba(255,82,82,0.1);
 }
 .calendar-cell.unavailable .day-num { color: rgba(255,82,82,0.6); }
 
@@ -2560,11 +2569,16 @@ select.ps-form-input {
   .input-field[type="date"]::-webkit-calendar-picker-indicator,
   .input-field[type="time"]::-webkit-calendar-picker-indicator { filter: none; }
 
-  .calendar-cell:hover { background: rgba(0,0,0,0.03); }
-  .calendar-cell.today { box-shadow: 0 0 6px rgba(212,133,11,0.25); }
-  .calendar-cell.gig { background: rgba(0,168,88,0.08); box-shadow: none; }
-  .calendar-cell.practice { background: rgba(124,77,255,0.08); box-shadow: none; }
-  .calendar-cell.unavailable { background: rgba(211,47,47,0.06); }
+  .calendar-cell {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.06);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.08), inset 0 -1px 2px rgba(255,255,255,0.5);
+  }
+  .calendar-cell:hover { background: rgba(0,0,0,0.06); }
+  .calendar-cell.today { box-shadow: inset 0 2px 4px rgba(0,0,0,0.06), 0 0 6px rgba(212,133,11,0.25); }
+  .calendar-cell.gig { background: rgba(0,168,88,0.08); border-color: rgba(0,168,88,0.15); box-shadow: inset 0 2px 4px rgba(0,168,88,0.08); }
+  .calendar-cell.practice { background: rgba(124,77,255,0.08); border-color: rgba(124,77,255,0.15); box-shadow: inset 0 2px 4px rgba(124,77,255,0.08); }
+  .calendar-cell.unavailable { background: rgba(211,47,47,0.06); border-color: rgba(211,47,47,0.1); }
 
   .gig-list-card:active { box-shadow: var(--shadow-inset); }
   .btn { border-color: rgba(0,0,0,0.06); }
