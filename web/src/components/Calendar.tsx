@@ -75,9 +75,9 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
         <button className="calendar-arrow" onClick={onPrevMonth} aria-label="Previous month">{'\u25C0'}</button>
         <span className="calendar-month">{MONTH_NAMES[month]} {year}</span>
         <button className="calendar-arrow" onClick={onNextMonth} aria-label="Next month">{'\u25B6'}</button>
-        {(year !== new Date().getFullYear() || month !== new Date().getMonth()) && (
-          <button className="today-btn" onClick={onGoToToday}>Today</button>
-        )}
+      </div>
+      <div className="calendar-today-row">
+        <button className="today-btn" onClick={onGoToToday}>Today</button>
       </div>
 
       <div className="calendar-grid" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
