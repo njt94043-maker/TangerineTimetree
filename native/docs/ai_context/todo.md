@@ -217,7 +217,7 @@
 
 ## S21 — In Progress
 - [x] Day detail swipe navigation — swipe left/right to cycle event dates (web + native), prev/next buttons, slide animation
-- [ ] Fix back-button navigation — should step back through view history, not jump to calendar
+- [x] Fix back-button navigation — view history stack, step-by-step back
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 - [ ] Debug native crash, fix cmake/datetimepicker, APK build, device test
 

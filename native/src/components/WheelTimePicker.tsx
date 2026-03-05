@@ -6,7 +6,7 @@ import {
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle } from '../theme/shadows';
 
-const ITEM_HEIGHT = 44;
+const ITEM_HEIGHT = 56;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 
@@ -22,7 +22,6 @@ interface WheelColumnProps {
 
 function WheelColumn({ data, selectedIndex, onSelect }: WheelColumnProps) {
   const listRef = useRef<FlatList>(null);
-  const isUserScrolling = useRef(false);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -50,7 +49,6 @@ function WheelColumn({ data, selectedIndex, onSelect }: WheelColumnProps) {
     if (clamped !== selectedIndex) {
       onSelect(clamped);
     }
-    isUserScrolling.current = false;
   }, [data.length, selectedIndex, onSelect]);
 
   const renderItem = useCallback(({ item, index }: { item: string; index: number }) => {
@@ -85,8 +83,8 @@ function WheelColumn({ data, selectedIndex, onSelect }: WheelColumnProps) {
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
+        nestedScrollEnabled
         onMomentumScrollEnd={handleMomentumEnd}
-        onScrollBeginDrag={() => { isUserScrolling.current = true; }}
         contentContainerStyle={{
           paddingTop: ITEM_HEIGHT * 2,
           paddingBottom: ITEM_HEIGHT * 2,
@@ -106,9 +104,8 @@ interface WheelTimePickerProps {
 }
 
 export function WheelTimePicker({ visible, value, title, onConfirm, onCancel }: WheelTimePickerProps) {
-  const [h, m] = (value || '12:00').split(':').map(Number);
-  const [hourIdx, setHourIdx] = useState(h);
-  const [minIdx, setMinIdx] = useState(m);
+  const [hourIdx, setHourIdx] = useState(0);
+  const [minIdx, setMinIdx] = useState(0);
 
   // Reset when opening
   useEffect(() => {
@@ -127,8 +124,9 @@ export function WheelTimePicker({ visible, value, title, onConfirm, onCancel }: 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <Pressable style={styles.overlay} onPress={onCancel}>
-        <Pressable style={styles.pickerContainer} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.overlay} onStartShouldSetResponder={() => true}>
+        <Pressable style={styles.overlayBg} onPress={onCancel} />
+        <View style={styles.pickerContainer}>
           {title && <Text style={styles.pickerTitle}>{title}</Text>}
 
           <View style={styles.wheelsRow}>
@@ -148,8 +146,8 @@ export function WheelTimePicker({ visible, value, title, onConfirm, onCancel }: 
               <Text style={styles.confirmBtnText}>Set</Text>
             </Pressable>
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -157,17 +155,20 @@ export function WheelTimePicker({ visible, value, title, onConfirm, onCancel }: 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  overlayBg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
   pickerContainer: {
-    width: 280,
+    width: 320,
     ...neuRaisedStyle('strong'),
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 28,
     alignItems: 'center',
   },
   pickerTitle: {
@@ -186,12 +187,12 @@ const styles = StyleSheet.create({
   },
   colonText: {
     fontFamily: FONTS.mono,
-    fontSize: 28,
+    fontSize: 36,
     color: COLORS.green,
-    marginHorizontal: 4,
+    marginHorizontal: 8,
   },
   wheelColumn: {
-    width: 70,
+    width: 90,
     height: PICKER_HEIGHT,
     overflow: 'hidden',
   },
@@ -202,22 +203,22 @@ const styles = StyleSheet.create({
   },
   wheelItemText: {
     fontFamily: FONTS.mono,
-    fontSize: 22,
+    fontSize: 26,
     color: COLORS.textMuted,
   },
   wheelItemTextSelected: {
     color: COLORS.green,
-    fontSize: 28,
+    fontSize: 34,
     fontFamily: FONTS.mono,
   },
   wheelItemTextDim: {
-    opacity: 0.4,
+    opacity: 0.35,
   },
   selectionIndicator: {
     position: 'absolute',
-    top: 20 + ITEM_HEIGHT * 2, // account for paddingVertical + 2 items
-    left: 24,
-    right: 24,
+    top: 24 + ITEM_HEIGHT * 2, // account for paddingVertical + 2 items
+    left: 28,
+    right: 28,
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
@@ -228,12 +229,12 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
+    marginTop: 20,
     width: '100%',
   },
   cancelBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 8,
     borderWidth: 1,
@@ -241,19 +242,19 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontFamily: FONTS.body,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.textDim,
   },
   confirmBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 8,
     backgroundColor: COLORS.green,
   },
   confirmBtnText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 14,
+    fontSize: 15,
     color: COLORS.background,
   },
 });

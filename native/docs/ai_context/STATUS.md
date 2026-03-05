@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S21 in progress. Data seeded. Web polished. Native APK build deferred (disk space).
-- **Blocker**: Native app crashes on device — needs debug build for stack trace (deferred until disk space freed)
-- **Last session**: 2026-03-05 — Day detail swipe navigation (both apps), seeded data, web polish, away logic
-- **Next action**: S21 remaining — Back-button step-through, debug native crash, fix cmake/datetimepicker, APK build, device test
+- **Phase**: S21 in progress. APK built + installed. Device testing underway.
+- **Blocker**: Testing on device — previous "Element type is invalid" crash may be resolved by clean prebuild
+- **Last session**: 2026-03-05 — APK build fix (Gradle cache corruption), release APK built + installed, client list redesign, clients seeded
+- **Next action**: Device test results → fix any remaining issues → S21 wrap-up
 - **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. Only original timetree fees seeded. 44 WhatsApp-confirmed fees pending user verification.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -22,14 +22,14 @@
 
 ## Active Risks
 1. Native app crashes on device ("Element type is invalid: got undefined") — GestureHandlerRootView fix applied but crash persists. Debug build needed for stack trace.
-2. APK build deferred (cmake/datetimepicker) — will fix when native app is feature-complete
-5. Disk space tight — C: was at 2.4 GB free, cleaned to 16.4 GB. Gradle caches wiped (first APK build will re-download deps).
+2. APK build FIXED — cmake/datetimepicker resolved via clean prebuild + Gradle transforms cache fix
+5. Disk space: C: ~27 GB free (cleaned non-TGT node_modules, VS Code caches, Gradle). First APK build will re-download deps.
 3. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID (f30962b3-2588-4b3d-827a-69b03bdfa6b1) env vars
 4. S11 code changes untested on device (no working APK build)
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
-- **Native**: Last working APK predates datetimepicker addition
+- **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 19 tables live)
 
 ## Supabase Tables (19 total)
@@ -60,6 +60,6 @@
 | S19 | Navigation + design unification (both apps) | DONE |
 | S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
 | S20 | Logo swap, animated splash, skeleton loaders, app icons | DONE |
-| **S21** | **APK build fix + full device testing** | **IN PROGRESS** (data seeded, web polished, APK deferred) |
+| **S21** | **APK build fix + full device testing** | **IN PROGRESS** (APK built + installed, device testing) |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`
