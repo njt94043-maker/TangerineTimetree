@@ -72,7 +72,7 @@ export interface GigChangelogWithUser extends GigChangelogEntry {
 }
 
 // Calendar day status for coloring
-export type DayStatus = 'available' | 'gig' | 'practice' | 'partial' | 'unavailable' | 'past';
+export type DayStatus = 'available' | 'gig' | 'practice' | 'unavailable' | 'past';
 
 // Gig completeness check — flags gigs missing key details
 // Practice sessions only need venue + start_time
@@ -89,7 +89,6 @@ export function computeDayStatus(
   today: string,
   gigs: Gig[],
   awayDates: AwayDate[],
-  totalMembers: number,
 ): DayStatus {
   if (date < today) return 'past';
 
@@ -105,8 +104,7 @@ export function computeDayStatus(
       .map(a => a.user_id),
   );
 
-  if (awayUserIds.size >= totalMembers) return 'unavailable';
-  if (awayUserIds.size > 0) return 'partial';
+  if (awayUserIds.size > 0) return 'unavailable';
   return 'available';
 }
 

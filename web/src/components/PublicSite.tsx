@@ -83,6 +83,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
       });
       setContactStatus('sent');
       setContactForm({ name: '', email: '', event_type: '', date: '', message: '' });
+      setTimeout(() => setContactStatus('idle'), 4000);
     } catch {
       setContactStatus('error');
     }
@@ -303,8 +304,8 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
           <div className="ps-contact-info">
             <div className="ps-contact-item">
               <span className="ps-contact-label">Email</span>
-              <a href="mailto:thegreentangerine01@gmail.com" className="ps-contact-value">
-                thegreentangerine01@gmail.com
+              <a href="mailto:bookings@thegreentangerine.com" className="ps-contact-value">
+                bookings@thegreentangerine.com
               </a>
             </div>
             <div className="ps-contact-item">
@@ -399,7 +400,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             {contactStatus === 'error' && (
               <p className="ps-form-error">
                 Something went wrong. You can also email us directly at{' '}
-                <a href="mailto:thegreentangerine01@gmail.com">thegreentangerine01@gmail.com</a>
+                <a href="mailto:bookings@thegreentangerine.com">bookings@thegreentangerine.com</a>
               </p>
             )}
           </form>

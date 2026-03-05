@@ -8,7 +8,6 @@ import { computeDayStatus, isGigIncomplete } from '@shared/supabase/types';
 interface GigCalendarProps {
   gigs: Gig[];
   awayDates: AwayDate[];
-  totalMembers: number;
   onDatePress: (date: string) => void;
 }
 
@@ -35,14 +34,13 @@ const STATUS_COLORS: Record<DayStatus, string> = {
   available: COLORS.calAvailable,
   gig: COLORS.calGig,
   practice: COLORS.calPractice,
-  partial: COLORS.calAway,
   unavailable: COLORS.calAway,
   past: 'transparent',
 };
 
 const CELL_SIZE = 42;
 
-export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigCalendarProps) {
+export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -154,7 +152,7 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
               }
 
               const iso = toISO(viewYear, viewMonth, day);
-              const status = computeDayStatus(iso, today, gigs, awayDates, totalMembers);
+              const status = computeDayStatus(iso, today, gigs, awayDates);
               const isToday = iso === today;
               const dateGigs = gigsByDate.get(iso) ?? [];
               const hasIncomplete = dateGigs.some(isGigIncomplete);
@@ -200,8 +198,8 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
                         })}
                       </View>
                     )}
-                    {/* Partial availability dot */}
-                    {status === 'partial' && dateGigs.length === 0 && (
+                    {/* Away dot (no gigs but member unavailable) */}
+                    {status === 'unavailable' && dateGigs.length === 0 && (
                       <View style={styles.dotsRow}>
                         <View style={[styles.dot, { backgroundColor: COLORS.calAway }]} />
                       </View>

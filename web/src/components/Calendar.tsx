@@ -7,7 +7,6 @@ interface CalendarProps {
   month: number;
   gigs: Gig[];
   awayDates: AwayDate[];
-  totalMembers: number;
   onDatePress: (date: string) => void;
   onPrevMonth: () => void;
   onNextMonth: () => void;
@@ -33,7 +32,7 @@ function toISO(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePress, onPrevMonth, onNextMonth, onGoToToday }: CalendarProps) {
+export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMonth, onNextMonth, onGoToToday }: CalendarProps) {
   const today = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -89,7 +88,7 @@ export function Calendar({ year, month, gigs, awayDates, totalMembers, onDatePre
           if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" style={{ cursor: 'default' }} />;
 
           const iso = toISO(year, month, day);
-          const status = computeDayStatus(iso, today, gigs, awayDates, totalMembers);
+          const status = computeDayStatus(iso, today, gigs, awayDates);
           const isToday = iso === today;
           const dateGigs = gigsByDate.get(iso) ?? [];
 

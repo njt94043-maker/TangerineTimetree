@@ -86,7 +86,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const [month, setMonth] = useState(now.getMonth());
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const { gigs, awayDates, profiles, error: calendarError, refresh } = useCalendarData(year, month);
+  const { gigs, awayDates, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
   const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
 
@@ -278,7 +278,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             month={month}
             gigs={gigs}
             awayDates={awayDates}
-            totalMembers={profiles.length}
             onDatePress={goToDay}
             onPrevMonth={goToPrev}
             onNextMonth={goToNext}
