@@ -774,6 +774,10 @@ export function Settings({ onClose }: SettingsProps) {
                 {/* Inline edit form below the card being edited */}
                 {editingReviewId === rev.id && showAddReview && (
                   <div className="review-edit-form neu-card">
+                    <div className="review-edit-form-header">
+                      <h4>Edit Review</h4>
+                      <button className="btn btn-small btn-outline" onClick={resetReviewForm}>&times;</button>
+                    </div>
                     <label className="label">REVIEWER NAME *</label>
                     <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
                     <label className="label">REVIEW TEXT *</label>
@@ -821,6 +825,10 @@ export function Settings({ onClose }: SettingsProps) {
         {/* Add new review form (only for new reviews, not edits) */}
         {showAddReview && !editingReviewId ? (
           <div className="review-edit-form neu-card">
+            <div className="review-edit-form-header">
+              <h4>Add Review</h4>
+              <button className="btn btn-small btn-outline" onClick={resetReviewForm}>&times;</button>
+            </div>
             <label className="label">REVIEWER NAME *</label>
             <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
             <label className="label">REVIEW TEXT *</label>
