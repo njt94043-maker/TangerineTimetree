@@ -7,6 +7,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-05 | S19+ — Calendar restyle + filter dropdowns + parity | Web: dark inset rectangle calendar cells, calendar as default landing, today button centered. Native: matching inset rectangle cells, NeuSelect dropdown component, invoices+quotes filter/sort dropdowns, Gigs as default screen. GestureHandlerRootView fix for drawer crash. S9-S19 committed+pushed. All tsc clean. |
 | 2026-03-04 | Sprint S19 — Navigation + design unification | Web: Drawer component (3-mode responsive), removed main-actions/view-toggle, responsive breakpoints. Native: @react-navigation/drawer, renamed (tabs)→(drawer), custom drawer content. Theme unified (colors/shadows/typography match mockup). All tsc clean + vite build passes. |
 | 2026-03-04 | Sprint S18 — Native quote UI parity | 4 new screens (quotes list, quote wizard, quote detail, quote preview), StatusBadge extended, queries adapter extended, settings expanded (service catalogue/PLI/T&Cs/quote defaults), Quotes tab added, tsc clean |
 | 2026-03-04 | Sprint S17 — Web quote lifecycle + formal invoicing | QuoteDetail (6-stage progressive lifecycle), QuotePreview (multi-page: quote+invoice+receipts), Accept flow with formal invoice auto-generation, calendar integration, App.tsx wired, ~120 lines CSS, vite code splitting updated, tsc clean |

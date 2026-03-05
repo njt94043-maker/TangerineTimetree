@@ -1,14 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { NeuCard, NeuWell, StatusBadge } from '../../src/components';
+import { NeuCard, NeuWell, NeuSelect, StatusBadge } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import { getQuotes, QuoteWithClient } from '../../src/db';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateShort } from '../../src/utils/formatDate';
 import type { QuoteStatus } from '@shared/supabase/types';
 
-const FILTERS: { label: string; value: QuoteStatus | 'all' }[] = [
+type FilterTab = 'all' | QuoteStatus;
+type SortKey = 'date-desc' | 'date-asc' | 'total-desc' | 'total-asc' | 'status';
+
+const FILTER_OPTIONS: { label: string; value: FilterTab }[] = [
   { label: 'All', value: 'all' },
   { label: 'Draft', value: 'draft' },
   { label: 'Sent', value: 'sent' },
@@ -17,11 +20,22 @@ const FILTERS: { label: string; value: QuoteStatus | 'all' }[] = [
   { label: 'Expired', value: 'expired' },
 ];
 
+const SORT_OPTIONS: { label: string; value: SortKey }[] = [
+  { label: 'Newest', value: 'date-desc' },
+  { label: 'Oldest', value: 'date-asc' },
+  { label: 'Highest', value: 'total-desc' },
+  { label: 'Lowest', value: 'total-asc' },
+  { label: 'Status', value: 'status' },
+];
+
+const STATUS_ORDER: Record<QuoteStatus, number> = { draft: 0, sent: 1, accepted: 2, declined: 3, expired: 4 };
+
 export default function QuotesScreen() {
   const router = useRouter();
   const [quotes, setQuotes] = useState<QuoteWithClient[]>([]);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<QuoteStatus | 'all'>('all');
+  const [filter, setFilter] = useState<FilterTab>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -41,23 +55,33 @@ export default function QuotesScreen() {
     setRefreshing(false);
   }
 
-  const filtered = quotes.filter(q => {
-    if (filter !== 'all' && q.status !== filter) return false;
+  const stats = useMemo(() => {
+    const totalQuoted = quotes.reduce((sum, q) => sum + q.total, 0);
+    const pendingValue = quotes.filter(q => q.status === 'sent').reduce((sum, q) => sum + q.total, 0);
+    const acceptedValue = quotes.filter(q => q.status === 'accepted').reduce((sum, q) => sum + q.total, 0);
+    return { totalQuoted, pendingValue, acceptedValue };
+  }, [quotes]);
+
+  const filtered = useMemo(() => {
+    let list = filter === 'all' ? quotes : quotes.filter(q => q.status === filter);
     if (search.trim()) {
       const s = search.toLowerCase();
-      return (
+      list = list.filter(q =>
         q.quote_number.toLowerCase().includes(s) ||
         q.client_company_name.toLowerCase().includes(s) ||
         q.venue_name.toLowerCase().includes(s)
       );
     }
-    return true;
-  });
-
-  // Stats
-  const totalQuoted = quotes.reduce((sum, q) => sum + q.total, 0);
-  const pendingValue = quotes.filter(q => q.status === 'sent').reduce((sum, q) => sum + q.total, 0);
-  const acceptedValue = quotes.filter(q => q.status === 'accepted').reduce((sum, q) => sum + q.total, 0);
+    const sorted = [...list];
+    switch (sortKey) {
+      case 'date-desc': sorted.sort((a, b) => b.event_date.localeCompare(a.event_date)); break;
+      case 'date-asc': sorted.sort((a, b) => a.event_date.localeCompare(b.event_date)); break;
+      case 'total-desc': sorted.sort((a, b) => b.total - a.total); break;
+      case 'total-asc': sorted.sort((a, b) => a.total - b.total); break;
+      case 'status': sorted.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]); break;
+    }
+    return sorted;
+  }, [quotes, filter, sortKey, search]);
 
   function renderQuote({ item }: { item: QuoteWithClient }) {
     return (
@@ -92,16 +116,16 @@ export default function QuotesScreen() {
       {/* Stats bar */}
       <View style={styles.statsRow}>
         <View style={styles.stat}>
-          <Text style={styles.statLabel}>Total Quoted</Text>
-          <Text style={styles.statValue}>{formatGBP(totalQuoted)}</Text>
+          <Text style={styles.statLabel}>Quoted</Text>
+          <Text style={styles.statValue}>{formatGBP(stats.totalQuoted)}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Pending</Text>
-          <Text style={[styles.statValue, { color: COLORS.orange }]}>{formatGBP(pendingValue)}</Text>
+          <Text style={[styles.statValue, { color: COLORS.orange }]}>{formatGBP(stats.pendingValue)}</Text>
         </View>
         <View style={styles.stat}>
           <Text style={styles.statLabel}>Accepted</Text>
-          <Text style={[styles.statValue, { color: COLORS.success }]}>{formatGBP(acceptedValue)}</Text>
+          <Text style={[styles.statValue, { color: COLORS.success }]}>{formatGBP(stats.acceptedValue)}</Text>
         </View>
       </View>
 
@@ -118,19 +142,14 @@ export default function QuotesScreen() {
         </NeuWell>
       </View>
 
-      {/* Filter tabs */}
-      <View style={styles.filterRow}>
-        {FILTERS.map(f => (
-          <Pressable
-            key={f.value}
-            style={[styles.filterTab, filter === f.value && styles.filterTabActive]}
-            onPress={() => setFilter(f.value)}
-          >
-            <Text style={[styles.filterText, filter === f.value && styles.filterTextActive]}>
-              {f.label}
-            </Text>
-          </Pressable>
-        ))}
+      {/* Filter + Sort dropdowns */}
+      <View style={styles.controlsRow}>
+        <View style={styles.controlItem}>
+          <NeuSelect value={filter} options={FILTER_OPTIONS} onChange={setFilter} />
+        </View>
+        <View style={styles.controlItem}>
+          <NeuSelect value={sortKey} options={SORT_OPTIONS} onChange={setSortKey} />
+        </View>
       </View>
 
       {filtered.length > 0 ? (
@@ -161,11 +180,8 @@ const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: 16, marginBottom: 8 },
   searchWell: { padding: 0 },
   searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 10 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 4 },
-  filterTab: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: COLORS.card },
-  filterTabActive: { backgroundColor: COLORS.teal + '33' },
-  filterText: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.textDim },
-  filterTextActive: { color: COLORS.teal, fontFamily: FONTS.bodyBold },
+  controlsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
+  controlItem: { flex: 1 },
   list: { paddingHorizontal: 16, paddingBottom: 100 },
   quoteRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   quoteInfo: { flex: 1, marginRight: 12 },

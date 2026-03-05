@@ -103,7 +103,9 @@ html, body, #root {
   min-height: 52px;
   display: flex;
   align-items: center;
+  gap: 12px;
 }
+.drawer-logo-img { width: 36px; height: 36px; border-radius: 8px; }
 .drawer-logo { font-size: 15px; font-weight: 700; white-space: nowrap; }
 .drawer-logo-green { color: var(--color-green); }
 .drawer-logo-orange { color: var(--color-tangerine); }

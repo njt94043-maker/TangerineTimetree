@@ -1,16 +1,39 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, TextInput, FlatList, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { NeuCard, NeuWell, StatusBadge } from '../../src/components';
+import { NeuCard, NeuWell, NeuSelect, StatusBadge } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import { getInvoices, InvoiceWithClient } from '../../src/db';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateShort } from '../../src/utils/formatDate';
+import type { InvoiceStatus } from '@shared/supabase/types';
+
+type FilterTab = 'all' | InvoiceStatus;
+type SortKey = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'status';
+
+const FILTER_OPTIONS: { label: string; value: FilterTab }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Sent', value: 'sent' },
+  { label: 'Paid', value: 'paid' },
+];
+
+const SORT_OPTIONS: { label: string; value: SortKey }[] = [
+  { label: 'Newest', value: 'date-desc' },
+  { label: 'Oldest', value: 'date-asc' },
+  { label: 'Highest', value: 'amount-desc' },
+  { label: 'Lowest', value: 'amount-asc' },
+  { label: 'Status', value: 'status' },
+];
+
+const STATUS_ORDER: Record<InvoiceStatus, number> = { sent: 0, draft: 1, paid: 2 };
 
 export default function InvoicesScreen() {
   const router = useRouter();
   const [invoices, setInvoices] = useState<InvoiceWithClient[]>([]);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<FilterTab>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('date-desc');
   const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
@@ -30,16 +53,33 @@ export default function InvoicesScreen() {
     setRefreshing(false);
   }
 
-  const filtered = search.trim()
-    ? invoices.filter(inv => {
-        const q = search.toLowerCase();
-        return (
-          inv.invoice_number.toLowerCase().includes(q) ||
-          inv.client_company_name.toLowerCase().includes(q) ||
-          inv.venue.toLowerCase().includes(q)
-        );
-      })
-    : invoices;
+  const stats = useMemo(() => {
+    const totalInvoiced = invoices.reduce((s, i) => s + i.amount, 0);
+    const totalOutstanding = invoices.filter(i => i.status === 'sent').reduce((s, i) => s + i.amount, 0);
+    const totalPaid = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + i.amount, 0);
+    return { totalInvoiced, totalOutstanding, totalPaid };
+  }, [invoices]);
+
+  const filtered = useMemo(() => {
+    let list = filter === 'all' ? invoices : invoices.filter(i => i.status === filter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(inv =>
+        inv.invoice_number.toLowerCase().includes(q) ||
+        inv.client_company_name.toLowerCase().includes(q) ||
+        inv.venue.toLowerCase().includes(q)
+      );
+    }
+    const sorted = [...list];
+    switch (sortKey) {
+      case 'date-desc': sorted.sort((a, b) => b.gig_date.localeCompare(a.gig_date)); break;
+      case 'date-asc': sorted.sort((a, b) => a.gig_date.localeCompare(b.gig_date)); break;
+      case 'amount-desc': sorted.sort((a, b) => b.amount - a.amount); break;
+      case 'amount-asc': sorted.sort((a, b) => a.amount - b.amount); break;
+      case 'status': sorted.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]); break;
+    }
+    return sorted;
+  }, [invoices, filter, sortKey, search]);
 
   function renderInvoice({ item }: { item: InvoiceWithClient }) {
     return (
@@ -69,6 +109,23 @@ export default function InvoicesScreen() {
         </Pressable>
       </View>
 
+      {/* Stats bar */}
+      <View style={styles.statsRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statLabel}>Invoiced</Text>
+          <Text style={styles.statValue}>{formatGBP(stats.totalInvoiced)}</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statLabel}>Outstanding</Text>
+          <Text style={[styles.statValue, { color: COLORS.orange }]}>{formatGBP(stats.totalOutstanding)}</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statLabel}>Paid</Text>
+          <Text style={[styles.statValue, { color: COLORS.success }]}>{formatGBP(stats.totalPaid)}</Text>
+        </View>
+      </View>
+
+      {/* Search */}
       <View style={styles.searchWrap}>
         <NeuWell style={styles.searchWell}>
           <TextInput
@@ -79,6 +136,16 @@ export default function InvoicesScreen() {
             placeholderTextColor={COLORS.textMuted}
           />
         </NeuWell>
+      </View>
+
+      {/* Filter + Sort dropdowns */}
+      <View style={styles.controlsRow}>
+        <View style={styles.controlItem}>
+          <NeuSelect value={filter} options={FILTER_OPTIONS} onChange={setFilter} />
+        </View>
+        <View style={styles.controlItem}>
+          <NeuSelect value={sortKey} options={SORT_OPTIONS} onChange={setSortKey} />
+        </View>
       </View>
 
       {filtered.length > 0 ? (
@@ -102,7 +169,13 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   headerRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8 },
+  statsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
+  stat: { flex: 1, backgroundColor: COLORS.card, borderRadius: 10, padding: 10, alignItems: 'center' },
+  statLabel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.textDim },
+  statValue: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.text, marginTop: 2 },
   searchWrap: { paddingHorizontal: 16, marginBottom: 8 },
+  controlsRow: { flexDirection: 'row', paddingHorizontal: 16, marginBottom: 8, gap: 8 },
+  controlItem: { flex: 1 },
   searchWell: { padding: 0 },
   searchInput: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.text, padding: 10 },
   list: { paddingHorizontal: 16, paddingBottom: 100 },

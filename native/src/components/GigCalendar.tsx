@@ -168,7 +168,10 @@ export function GigCalendar({ gigs, awayDates, totalMembers, onDatePress }: GigC
                   <View
                     style={[
                       styles.dayCircle,
-                      status !== 'past' && { backgroundColor: STATUS_COLORS[status] + '30' },
+                      status !== 'past' && status !== 'available' && {
+                        backgroundColor: STATUS_COLORS[status] + '1A',
+                        borderColor: STATUS_COLORS[status] + '26',
+                      },
                       isToday && styles.todayBorder,
                     ]}
                   >
@@ -292,9 +295,12 @@ const styles = StyleSheet.create({
   dayCircle: {
     width: CELL_SIZE - 4,
     height: CELL_SIZE - 4,
-    borderRadius: (CELL_SIZE - 4) / 2,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
   },
   todayBorder: {
     borderWidth: 2,

@@ -185,10 +185,25 @@
 - [x] Native: Updated all 6 screens — removed SafeAreaView/redundant headers (drawer header handles safe area)
 - [x] TypeScript clean: both `web -b` and `native --noEmit` pass, `vite build` succeeds
 
-## Upcoming Sprint (S20)
+## Sprint S19+ — Calendar Restyle + Filter Dropdowns + Native/Web Parity ✅ COMPLETE
+- [x] Web: Calendar cells restyled from white circles to dark inset rectangles with colored glow
+- [x] Web: Calendar made default landing page, back buttons go to calendar (not dashboard)
+- [x] Web: Today button centered below month/year header
+- [x] Native: Calendar cells restyled from circles to dark inset rectangles (borderRadius: 6, dark bg, colored glow)
+- [x] Native: Gigs screen made default drawer route (swapped index/dashboard)
+- [x] Web: Invoice + Quote filter tabs replaced with dropdown selects (matching sort dropdown style)
+- [x] Native: Created reusable NeuSelect dropdown component (modal picker, neumorphic styling)
+- [x] Native: Invoices screen — added stats bar, filter dropdown, sort dropdown (matching web)
+- [x] Native: Quotes screen — replaced filter tabs with filter dropdown, added sort dropdown (matching web)
+- [x] GestureHandlerRootView wrapper added to native root layout (drawer crash fix)
+- [x] S9-S19 committed & pushed to master (Vercel auto-deployed)
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass
+
+## Upcoming Sprints
 | Sprint | Focus | Key Deliverables |
 |--------|-------|------------------|
-| S20 | APK build fix + full device testing | Fix cmake error, install on Samsung, run migration, seed data, end-to-end test |
+| S20 | Branding + polish | Logo swap (clear-bg image), animated splash screen, skeleton loaders, app icons |
+| S21 | APK build fix + device testing | Debug native crash, fix cmake error, install on Samsung, run migration, seed data, end-to-end test |
 
 > Pickup prompts for each sprint: `native/docs/ai_context/SPRINT_PROMPTS.md`
 

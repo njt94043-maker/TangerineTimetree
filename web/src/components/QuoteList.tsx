@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { QuoteWithClient, QuoteStatus } from '@shared/supabase/types';
 import { formatGBP, formatShortDate } from '../utils/format';
-import { LoadingSpinner } from './LoadingSpinner';
+import { PageLoader } from './SkeletonLoaders';
 
 interface QuoteListProps {
   quotes: QuoteWithClient[];
@@ -79,7 +79,7 @@ export function QuoteList({ quotes, loading, onNewQuote, onQuotePress, onClose }
     return sortQuotes(list, sortKey);
   }, [quotes, filter, sortKey, search]);
 
-  if (loading) return <div className="app app-centered"><LoadingSpinner /></div>;
+  if (loading) return <div className="app app-centered"><PageLoader text="Loading quotes" /></div>;
 
   return (
     <div className="form-wrap form-top">
@@ -118,19 +118,18 @@ export function QuoteList({ quotes, loading, onNewQuote, onQuotePress, onClose }
 
       {/* Filter tabs + sort */}
       <div className="invoice-controls-row">
-        <div className="invoice-filter-tabs">
-          {FILTER_TABS.map(tab => (
-            <button
-              key={tab}
-              className={`invoice-filter-tab ${filter === tab ? 'active' : ''}`}
-              onClick={() => setFilter(tab)}
-            >
-              {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              <span className="invoice-filter-count">
-                {tab === 'all' ? quotes.length : quotes.filter(q => q.status === tab).length}
-              </span>
-            </button>
-          ))}
+        <div className="invoice-sort-wrap neu-inset">
+          <select
+            className="input-field invoice-sort-select"
+            value={filter}
+            onChange={e => setFilter(e.target.value as FilterTab)}
+          >
+            {FILTER_TABS.map(tab => (
+              <option key={tab} value={tab}>
+                {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)} ({tab === 'all' ? quotes.length : quotes.filter(q => q.status === tab).length})
+              </option>
+            ))}
+          </select>
         </div>
         <div className="invoice-sort-wrap neu-inset">
           <select

@@ -30,18 +30,20 @@ import { QuoteDetail } from './components/QuoteDetail';
 import { QuotePreview } from './components/QuotePreview';
 import { Dashboard } from './components/Dashboard';
 import { Drawer } from './components/Drawer';
-import { LoadingSpinner } from './components/LoadingSpinner';
+import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   const { user, profile, loading: authLoading, signIn, signOut } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
-  if (authLoading) {
+  if (!splashDone) {
     return (
-      <div className="app app-centered">
-        <LoadingSpinner />
-      </div>
+      <SplashScreen
+        ready={!authLoading}
+        onComplete={() => setSplashDone(true)}
+      />
     );
   }
 
