@@ -80,7 +80,7 @@ interface DrawerProps {
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
   const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients } = useView();
 
-  const activeNav = VIEW_TO_NAV[view] ?? 'dashboard';
+  const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
 
   const handleNav = useCallback((targetView: View) => {
     switch (targetView) {

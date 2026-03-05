@@ -73,7 +73,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     invoiceId,
     setView, goToDay, goToAddGig, goToEditGig,
     goToAddGigFromList, goToEditGigFromList, goBack,
-    goToDashboard, goToInvoices, goToNewInvoice, goToInvoiceDetail, goToInvoicePreview,
+    goToInvoices, goToNewInvoice, goToInvoiceDetail, goToInvoicePreview,
     goToSettings, goToClients,
     quoteId,
     goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
@@ -263,7 +263,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'website' && (
           <div className="website-preview">
-            <button className="btn btn-green website-back-btn" onClick={goToDashboard}>
+            <button className="btn btn-green website-back-btn" onClick={() => setView('calendar')}>
               Back to App
             </button>
             <PublicSite onLogin={() => {}} />
@@ -342,7 +342,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             loading={invoicesLoading}
             onNewInvoice={goToNewInvoice}
             onInvoicePress={goToInvoiceDetail}
-            onClose={goToDashboard}
+            onClose={() => setView('calendar')}
           />
         )}
 
@@ -376,7 +376,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             loading={quotesLoading}
             onNewQuote={goToNewQuote}
             onQuotePress={goToQuoteDetail}
-            onClose={goToDashboard}
+            onClose={() => setView('calendar')}
           />
         )}
 
@@ -406,11 +406,11 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         )}
 
         {view === 'settings' && (
-          <Settings onClose={goToDashboard} />
+          <Settings onClose={() => setView('calendar')} />
         )}
 
         {view === 'clients' && (
-          <ClientList onClose={goToDashboard} />
+          <ClientList onClose={() => setView('calendar')} />
         )}
       </main>
     </>
