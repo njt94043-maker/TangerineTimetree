@@ -6,26 +6,36 @@
 ---
 
 ## Current State
-- **Phase**: Sprint S8 complete (Polish pass).
-- **Blocker**: APK cmake build failure (`@react-native-community/datetimepicker` JNI codegen). Try: `npx expo prebuild --clean` → `./gradlew assembleRelease`.
-- **Last session**: 2026-03-04 — Sprint S8 (CSS extraction, ViewContext, error boundaries, light theme, code splitting)
-- **Next action**: Test web PWA + add thegreentangerine.com domain in Vercel. Fix APK build if possible.
+- **Phase**: Sprint S19 COMPLETE. Ready for S20.
+- **Blocker**: APK build deferred — no native builds until app is finished.
+- **Last session**: 2026-03-04 — S19 navigation + design unification complete
+- **Next action**: Start S20 — APK build fix + full device testing
+- **Remaining S11**: Run migration script (`native/scripts/migrate-sqlite-to-supabase.ts`) + manual testing on device
+- **Seed data**: `C:\Apps\timetree-scrape\timetree_gigs.xlsx` — 116 gigs + 62 away dates (still pending import)
 
 ## Big Picture
-- **Vision**: Unified Tangerine Timetree brand — native invoicing (GigBooks) + web calendar (Timetree) + public website
-- **North star**: 4 band members manage gigs, invoices, and public presence through one ecosystem
-- **Architecture**: Monorepo (`shared/` + `native/` + `web/`) with Supabase backend for shared calendar, SQLite for local invoicing
+- **Vision**: Unified Tangerine Timetree brand — BOTH apps get full feature parity (invoicing, quotes, calendar, clients)
+- **North star**: 4 band members manage gigs, invoices, quotes, and public presence through one ecosystem
+- **Architecture**: Monorepo (`shared/` + `native/` + `web/`) — Supabase replaces SQLite for ALL data (ROADMAP_V2 supersedes D-015)
+- **Design**: Collapsible drawer nav on both apps (IMPLEMENTED S19). Unified theme. Mockups define end-state target.
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. APK build broken (cmake/datetimepicker) — blocks native deployment
-2. DNS pointed (IONOS → Vercel), but domain not yet added in Vercel project settings (add thegreentangerine.com + www)
-3. No CI/CD live yet — GitHub Actions workflow created, needs first PR to validate
+1. APK build deferred (cmake/datetimepicker) — will fix when native app is feature-complete
+2. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID env vars
+3. S11 code changes untested on device (no working APK build)
 
 ## What's Deployed
-- **Web**: tangerine-timetree.vercel.app (Vercel, auto-deploys from master)
+- **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Native**: Last working APK predates datetimepicker addition
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 19 tables live)
+
+## Supabase Tables (19 total)
+- **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
+- **Public site**: public_media, contact_submissions
+- **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
+- **Quoting (S15 NEW)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
+- **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)
 **Start**: Read STATUS.md → todo.md → (deeper docs only if needed) → `npx tsc --noEmit`
@@ -34,11 +44,18 @@
 ## Sprint Roadmap
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| S1 | Audit critical fixes + SOT redesign | DONE |
-| S2 | Fix APK build + HIGH code issues (type safety, error handling) | DONE (code done, APK pending reboot) |
-| S3 | Supabase docs + web blueprint + CI/CD pipeline | DONE |
-| S4 | Public Website Sprint 1 (schema migration, is_public toggle, profile page) | DONE |
-| S5 | Public Website Sprint 2 (public site component, login modal, SEO) | DONE |
-| S6 | Public Website Sprint 3 (media gallery, contact form, IONOS domain) | DONE |
-| S7 | MEDIUM issues batch (code duplication, loading states, validation) | DONE |
-| S8 | Polish pass (CSS extraction, ViewContext, error boundaries, light theme, code splitting) | DONE |
+| S1-S8 | Audit, fixes, public site, polish | ALL DONE |
+| S9 | HTML mockups (design target) | DONE |
+| S10 | Supabase invoicing schema + migration script | DONE |
+| S11 | Native SQLite → Supabase swap | DONE |
+| S12 | Shared PDF templates | DONE |
+| S13 | Web invoicing + settings + clients | DONE |
+| S14 | Dashboard + export + invoice polish | DONE |
+| S15 | Quote system backend (schema + types + queries + templates) | DONE |
+| S16 | Web quote wizard + service catalogue UI | DONE |
+| S17 | Web quote lifecycle + formal invoicing | DONE |
+| S18 | Native quote UI parity | DONE |
+| S19 | Navigation + design unification (both apps) | DONE |
+| **S20** | **APK build fix + full device testing** | **NEXT** |
+
+Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

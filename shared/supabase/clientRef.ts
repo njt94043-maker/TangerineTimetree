@@ -20,6 +20,7 @@ export interface SupabaseClientLike {
   // Query builder returns are inherently dynamic (table-dependent generics) —
   // typed at usage sites via cast in queries.ts instead.
   from: (table: string) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  rpc: (fn: string, params?: Record<string, unknown>) => any; // eslint-disable-line @typescript-eslint/no-explicit-any
   auth: SupabaseAuth;
   // Realtime channel types have complex overloads; keep loose to avoid conflicts
   // with the full @supabase/supabase-js RealtimeChannel class.

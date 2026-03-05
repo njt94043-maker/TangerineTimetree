@@ -8,12 +8,12 @@ import {
   getInvoice, InvoiceWithClient,
   getBandMembers, BandMember,
   createReceipts, getReceiptsForInvoice, ReceiptWithMember,
-  updateReceiptPdfUri, getSettings, GigBooksSettings,
+  getSettings, GigBooksSettings,
 } from '../../src/db';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateLong } from '../../src/utils/formatDate';
-import { getReceiptHtml } from '../../src/pdf/getReceiptTemplate';
-import { InvoiceStyle } from '../../src/pdf/invoiceStyles';
+import { getReceiptHtml } from '@shared/templates';
+import type { InvoiceStyle } from '@shared/supabase/types';
 import { generatePdf, sharePdf } from '../../src/pdf/generatePdf';
 
 export default function ReceiptsScreen() {
@@ -56,30 +56,7 @@ export default function ReceiptsScreen() {
 
     try {
       const newReceipts = await createReceipts(invoice.id);
-
-      // Generate PDFs for each receipt
-      for (const receipt of newReceipts) {
-        const style = (invoice.style || 'classic') as InvoiceStyle;
-        const html = getReceiptHtml(style, {
-          receiptDate: formatDateLong(receipt.date),
-          paidTo: receipt.member_name,
-          paidBy: settings.your_name,
-          amount: receipt.amount,
-          venue: invoice.venue,
-          gigDate: formatDateLong(invoice.gig_date),
-          invoiceNumber: invoice.invoice_number,
-          description: invoice.description,
-          website: settings.website,
-        });
-
-        const filename = `RECEIPT-${invoice.invoice_number}-${receipt.member_name.replace(/\s+/g, '-')}`;
-        const uri = await generatePdf(html, filename);
-        await updateReceiptPdfUri(receipt.id, uri);
-      }
-
-      // Reload receipts
-      const updated = await getReceiptsForInvoice(invoice.id);
-      setReceipts(updated);
+      setReceipts(newReceipts);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to generate receipts');
     } finally {
@@ -88,9 +65,22 @@ export default function ReceiptsScreen() {
   }
 
   async function handleShareReceipt(receipt: ReceiptWithMember) {
-    if (receipt.pdf_uri) {
-      await sharePdf(receipt.pdf_uri, `Receipt for ${receipt.member_name}`);
-    }
+    if (!invoice || !settings) return;
+    const style = (invoice.style || 'classic') as InvoiceStyle;
+    const html = getReceiptHtml(style, {
+      receiptDate: formatDateLong(receipt.date),
+      paidTo: receipt.member_name,
+      paidBy: settings.your_name,
+      amount: receipt.amount,
+      venue: invoice.venue,
+      gigDate: formatDateLong(invoice.gig_date),
+      invoiceNumber: invoice.invoice_number,
+      description: invoice.description,
+      website: settings.website,
+    });
+    const filename = `RECEIPT-${invoice.invoice_number}-${receipt.member_name.replace(/\s+/g, '-')}`;
+    const uri = await generatePdf(html, filename);
+    await sharePdf(uri, `Receipt for ${receipt.member_name}`);
   }
 
   return (

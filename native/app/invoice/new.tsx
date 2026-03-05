@@ -8,15 +8,14 @@ import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getClients, searchClients, addClient, Client,
   getSettings, GigBooksSettings,
-  createInvoice, updateInvoicePdfUri,
+  createInvoice,
 } from '../../src/db';
 import { formatDateLong, formatDateDisplay, todayISO, addDays } from '../../src/utils/formatDate';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatInvoiceNumber } from '../../src/utils/invoiceNumber';
-import { InvoiceTemplateData } from '../../src/pdf/invoiceTemplate';
-import { getInvoiceHtml } from '../../src/pdf/getInvoiceTemplate';
-import { InvoiceStyle, DEFAULT_INVOICE_STYLE, INVOICE_STYLES, InvoiceStyleMeta } from '../../src/pdf/invoiceStyles';
-import { generatePdf } from '../../src/pdf/generatePdf';
+import type { InvoiceTemplateData, InvoiceStyleMeta } from '@shared/templates';
+import { getInvoiceHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
+import type { InvoiceStyle } from '@shared/supabase/types';
 
 const STEP_LABELS = ['Client', 'Details', 'Preview'];
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -126,22 +125,13 @@ export default function NewInvoiceScreen() {
       Alert.alert('Required', 'Company name is required.');
       return;
     }
-    const id = await addClient({
+    const newClient = await addClient({
       company_name: newCompany.trim(),
       contact_name: newContact.trim(),
       address: newAddress.trim(),
       email: newEmail.trim(),
       phone: newPhone.trim(),
     });
-    const newClient: Client = {
-      id,
-      company_name: newCompany.trim(),
-      contact_name: newContact.trim(),
-      address: newAddress.trim(),
-      email: newEmail.trim(),
-      phone: newPhone.trim(),
-      created_at: new Date().toISOString(),
-    };
     setShowNewClient(false);
     setNewCompany(''); setNewContact(''); setNewAddress(''); setNewEmail(''); setNewPhone('');
     selectClient(newClient);
@@ -213,33 +203,10 @@ export default function NewInvoiceScreen() {
         style,
       });
 
-      const templateData: InvoiceTemplateData = {
-        invoiceNumber: invoice.invoice_number,
-        issueDate: formatDateLong(invoice.issue_date),
-        dueDate: formatDateLong(invoice.due_date),
-        fromName: settings.your_name,
-        tradingAs: settings.trading_as,
-        businessType: settings.business_type,
-        website: settings.website,
-        toCompany: selectedClient.company_name,
-        toContact: selectedClient.contact_name,
-        toAddress: selectedClient.address,
-        description: invoice.description,
-        amount: parsedAmount,
-        bankAccountName: settings.bank_account_name,
-        bankName: settings.bank_name,
-        bankSortCode: settings.bank_sort_code,
-        bankAccountNumber: settings.bank_account_number,
-        paymentTermsDays: settings.payment_terms_days,
-      };
-
-      const html = getInvoiceHtml(style, templateData);
-      const pdfUri = await generatePdf(html, invoice.invoice_number);
-      await updateInvoicePdfUri(invoice.id, pdfUri);
-
+      // PDF is generated on demand when sharing — no need to pre-generate
       router.replace(`/invoice/${invoice.id}`);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to generate invoice');
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create invoice');
     } finally {
       setGenerating(false);
     }

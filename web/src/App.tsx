@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { useAuth } from './hooks/useAuth';
 import { useCalendarData } from './hooks/useCalendarData';
-import { getChangesSince, updateLastOpened } from '@shared/supabase/queries';
+import { useInvoiceData } from './hooks/useInvoiceData';
+import { useQuoteData } from './hooks/useQuoteData';
+import { getChangesSince, updateLastOpened, createGig } from '@shared/supabase/queries';
 import type { ChangeSummaryItem } from '@shared/supabase/types';
 import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
@@ -16,6 +18,18 @@ import { AwayManager } from './components/AwayManager';
 import { ProfilePage } from './components/ProfilePage';
 import { MediaManager } from './components/MediaManager';
 import { Enquiries } from './components/Enquiries';
+import { Settings } from './components/Settings';
+import { ClientList } from './components/ClientList';
+import { InvoiceList } from './components/InvoiceList';
+import { InvoiceForm } from './components/InvoiceForm';
+import { InvoiceDetail } from './components/InvoiceDetail';
+import { InvoicePreview } from './components/InvoicePreview';
+import { QuoteList } from './components/QuoteList';
+import { QuoteForm } from './components/QuoteForm';
+import { QuoteDetail } from './components/QuoteDetail';
+import { QuotePreview } from './components/QuotePreview';
+import { Dashboard } from './components/Dashboard';
+import { Drawer } from './components/Drawer';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -56,15 +70,23 @@ export default function App() {
 function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: string; onSignOut: () => void }) {
   const {
     view, selectedDate, editGigId, initialGigType,
+    invoiceId,
     setView, goToDay, goToAddGig, goToEditGig,
     goToAddGigFromList, goToEditGigFromList, goBack,
+    goToDashboard, goToInvoices, goToNewInvoice, goToInvoiceDetail, goToInvoicePreview,
+    goToSettings, goToClients,
+    quoteId,
+    goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
   } = useView();
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const { gigs, awayDates, profiles, error: calendarError, refresh } = useCalendarData(year, month);
+  const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
+  const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
 
   // Offline mutation queue
   const { pendingCount, refreshCount: refreshQueueCount } = useOfflineQueue(refresh);
@@ -96,6 +118,9 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     return () => { window.removeEventListener('offline', goOffline); window.removeEventListener('online', goOnline); };
   }, [refresh]);
 
+  const toggleDrawer = useCallback(() => setDrawerOpen(o => !o), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
     else setMonth(m => m - 1);
@@ -112,176 +137,282 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     goBack();
   }
 
-  const isMainView = view === 'calendar' || view === 'list' || view === 'website';
+  function handleInvoiceSaved(id: string) {
+    refreshInvoices();
+    goToInvoiceDetail(id);
+  }
+
+  function handleQuoteSaved(id: string) {
+    refreshQuotes();
+    goToQuoteDetail(id);
+  }
+
+  async function handleAddGigFromQuote(date: string, venue: string, fee: number) {
+    try {
+      await createGig({ date, venue, fee, payment_type: 'invoice', is_public: false });
+      refresh();
+    } catch {
+      // Silently fail — gig creation is optional
+    }
+  }
+
+  const headerTitle = (() => {
+    switch (view) {
+      case 'dashboard': return 'Dashboard';
+      case 'calendar': return 'Calendar';
+      case 'list': return 'Gig List';
+      case 'away': return 'Away Dates';
+      case 'invoices': case 'invoice-form': case 'invoice-detail': case 'invoice-preview': return 'Invoices';
+      case 'quotes': case 'quote-form': case 'quote-detail': case 'quote-preview': return 'Quotes';
+      case 'settings': return 'Settings';
+      case 'clients': return 'Clients';
+      case 'media': return 'Media';
+      case 'enquiries': return 'Enquiries';
+      case 'website': return 'Website';
+      case 'profile': return 'Profile';
+      case 'day-detail': return 'Day Detail';
+      case 'gig-form': return 'Gig Form';
+      default: return 'Timetree';
+    }
+  })();
 
   return (
     <>
       {/* Header */}
       <header className="header">
         <div className="flex-row-gap-10">
+          <button className="hamburger" onClick={toggleDrawer} aria-label="Toggle menu">
+            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+          </button>
           <img src="/logo.png" alt="TGT" className="header-logo" />
           <span className="header-title">
-            {view === 'calendar' ? 'Calendar' : view === 'list' ? 'Upcoming' : view === 'away' ? 'Away Dates' : 'Timetree'}
+            <span className="header-brand-green">Tangerine</span>{' '}
+            <span className="header-brand-orange">Timetree</span>
           </span>
         </div>
         <div className="flex-row-gap-8">
-          <button className="header-user header-user-name" onClick={() => setView('profile')}>
-            {profile?.name ?? 'User'}
+          <span className="header-screen-name">{headerTitle}</span>
+          <button className="header-avatar" onClick={() => setView('profile')} title={profile?.name ?? 'Profile'}>
+            {(profile?.name ?? 'U')[0]}
           </button>
-          <span className="header-separator">&middot;</span>
           <button className="header-user header-signout" onClick={onSignOut}>
             Sign out
           </button>
         </div>
       </header>
 
-      {/* Offline banner */}
-      {isOffline && (
-        <div className="offline-banner" role="status">
-          You're offline — showing cached data
-          {pendingCount > 0 && ` (${pendingCount} change${pendingCount > 1 ? 's' : ''} pending sync)`}
-        </div>
-      )}
+      {/* Drawer */}
+      <Drawer isOpen={drawerOpen} onClose={closeDrawer} profileName={profile?.name ?? 'User'} />
 
-      {/* Pending sync badge (when online but queue still has items) */}
-      {!isOffline && pendingCount > 0 && (
-        <div className="offline-banner" role="status">
-          {pendingCount} change{pendingCount > 1 ? 's' : ''} syncing...
-        </div>
-      )}
-
-      {/* Error banner */}
-      {calendarError && isMainView && (
-        <div className="error-banner" role="alert">
-          <span className="error-banner-text">{calendarError}</span>
-          <button className="btn btn-small btn-green error-banner-retry" onClick={refresh}>Retry</button>
-        </div>
-      )}
-
-      {/* Change summary banner */}
-      {changeSummary.length > 0 && isMainView && (
-        <div className="change-banner">
-          <div className="change-banner-header">
-            <span className="change-banner-title">What's changed</span>
-            <button className="change-banner-dismiss" onClick={dismissChangeSummary}>Dismiss</button>
+      {/* Main content area */}
+      <main className="main-content">
+        {/* Offline banner */}
+        {isOffline && (
+          <div className="offline-banner" role="status">
+            You're offline — showing cached data
+            {pendingCount > 0 && ` (${pendingCount} change${pendingCount > 1 ? 's' : ''} pending sync)`}
           </div>
-          <ul className="change-banner-list">
-            {changeSummary.map((item, i) => (
-              <li key={i} className="change-banner-item">
-                <span className={`change-dot ${item.type}`} />
-                <span><strong>{item.user_name}</strong> {item.description}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        )}
 
-      {/* Views */}
-      {view === 'website' && (
-        <div className="website-preview">
-          <button className="btn btn-green website-back-btn" onClick={() => setView('calendar')}>
-            Back to App
-          </button>
-          <PublicSite onLogin={() => {}} />
-        </div>
-      )}
-
-      {view === 'calendar' && (
-        <Calendar
-          year={year}
-          month={month}
-          gigs={gigs}
-          awayDates={awayDates}
-          totalMembers={profiles.length}
-          onDatePress={goToDay}
-          onPrevMonth={goToPrev}
-          onNextMonth={goToNext}
-          onGoToToday={() => { const n = new Date(); setYear(n.getFullYear()); setMonth(n.getMonth()); }}
-        />
-      )}
-
-      {view === 'list' && (
-        <GigList
-          onGigPress={goToEditGigFromList}
-          onAddGig={goToAddGigFromList}
-        />
-      )}
-
-      {isMainView && (
-        <div className="main-actions">
-          <div className="view-toggle">
-            <button
-              className={`view-toggle-btn ${view === 'calendar' ? 'active' : ''}`}
-              onClick={() => setView('calendar')}
-            >
-              Cal
-            </button>
-            <button
-              className={`view-toggle-btn ${view === 'list' ? 'active' : ''}`}
-              onClick={() => setView('list')}
-            >
-              List
-            </button>
+        {/* Pending sync badge (when online but queue still has items) */}
+        {!isOffline && pendingCount > 0 && (
+          <div className="offline-banner" role="status">
+            {pendingCount} change{pendingCount > 1 ? 's' : ''} syncing...
           </div>
-          <button className="btn btn-green btn-small btn-full" onClick={() => setView('away')}>
-            My Away Dates
-          </button>
-          <button className="btn btn-tangerine btn-small btn-full" onClick={() => setView('media')}>
-            Manage Media
-          </button>
-          <button className="btn btn-small btn-full enquiry-archive-btn" onClick={() => setView('enquiries')}>
-            Booking Enquiries
-          </button>
-          <button className="btn btn-small btn-full btn-outline" onClick={() => setView('website')}>
-            View Website
-          </button>
-        </div>
-      )}
+        )}
 
-      {view === 'day-detail' && (
-        <DayDetail
-          date={selectedDate}
-          awayDates={awayDates}
-          onClose={goBack}
-          onAddGig={goToAddGig}
-          onEditGig={goToEditGig}
-          onMarkAway={() => setView('away')}
-          onGigDeleted={() => { refresh(); refreshQueueCount(); }}
-        />
-      )}
+        {/* Error banner */}
+        {calendarError && (view === 'dashboard' || view === 'calendar' || view === 'list') && (
+          <div className="error-banner" role="alert">
+            <span className="error-banner-text">{calendarError}</span>
+            <button className="btn btn-small btn-green error-banner-retry" onClick={refresh}>Retry</button>
+          </div>
+        )}
 
-      {view === 'gig-form' && (
-        <GigForm
-          date={selectedDate}
-          gigId={editGigId}
-          initialType={initialGigType}
-          onClose={goBack}
-          onSaved={handleGigSaved}
-        />
-      )}
+        {/* Change summary banner */}
+        {changeSummary.length > 0 && (view === 'dashboard' || view === 'calendar' || view === 'list') && (
+          <div className="change-banner">
+            <div className="change-banner-header">
+              <span className="change-banner-title">What's changed</span>
+              <button className="change-banner-dismiss" onClick={dismissChangeSummary}>Dismiss</button>
+            </div>
+            <ul className="change-banner-list">
+              {changeSummary.map((item, i) => (
+                <li key={i} className="change-banner-item">
+                  <span className={`change-dot ${item.type}`} />
+                  <span><strong>{item.user_name}</strong> {item.description}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {view === 'away' && (
-        <AwayManager
-          initialDate={selectedDate || undefined}
-          onClose={() => { refresh(); goBack(); }}
-        />
-      )}
+        {/* Views */}
+        {view === 'dashboard' && (
+          <Dashboard
+            onInvoicePress={goToInvoiceDetail}
+            onNewInvoice={goToNewInvoice}
+            onGoToInvoices={goToInvoices}
+            onGoToCalendar={() => setView('calendar')}
+            onGoToClients={goToClients}
+            onGoToSettings={goToSettings}
+          />
+        )}
 
-      {view === 'profile' && (
-        <ProfilePage
-          userEmail={userEmail}
-          onClose={goBack}
-          onSignOut={onSignOut}
-        />
-      )}
+        {view === 'website' && (
+          <div className="website-preview">
+            <button className="btn btn-green website-back-btn" onClick={goToDashboard}>
+              Back to App
+            </button>
+            <PublicSite onLogin={() => {}} />
+          </div>
+        )}
 
-      {view === 'media' && (
-        <MediaManager onClose={goBack} />
-      )}
+        {view === 'calendar' && (
+          <Calendar
+            year={year}
+            month={month}
+            gigs={gigs}
+            awayDates={awayDates}
+            totalMembers={profiles.length}
+            onDatePress={goToDay}
+            onPrevMonth={goToPrev}
+            onNextMonth={goToNext}
+            onGoToToday={() => { const n = new Date(); setYear(n.getFullYear()); setMonth(n.getMonth()); }}
+          />
+        )}
 
-      {view === 'enquiries' && (
-        <Enquiries onClose={goBack} />
-      )}
+        {view === 'list' && (
+          <GigList
+            onGigPress={goToEditGigFromList}
+            onAddGig={goToAddGigFromList}
+          />
+        )}
+
+        {view === 'day-detail' && (
+          <DayDetail
+            date={selectedDate}
+            awayDates={awayDates}
+            onClose={goBack}
+            onAddGig={goToAddGig}
+            onEditGig={goToEditGig}
+            onMarkAway={() => setView('away')}
+            onGigDeleted={() => { refresh(); refreshQueueCount(); }}
+          />
+        )}
+
+        {view === 'gig-form' && (
+          <GigForm
+            date={selectedDate}
+            gigId={editGigId}
+            initialType={initialGigType}
+            onClose={goBack}
+            onSaved={handleGigSaved}
+          />
+        )}
+
+        {view === 'away' && (
+          <AwayManager
+            initialDate={selectedDate || undefined}
+            onClose={() => { refresh(); goBack(); }}
+          />
+        )}
+
+        {view === 'profile' && (
+          <ProfilePage
+            userEmail={userEmail}
+            onClose={goBack}
+            onSignOut={onSignOut}
+          />
+        )}
+
+        {view === 'media' && (
+          <MediaManager onClose={goBack} />
+        )}
+
+        {view === 'enquiries' && (
+          <Enquiries onClose={goBack} />
+        )}
+
+        {view === 'invoices' && (
+          <InvoiceList
+            invoices={invoices}
+            loading={invoicesLoading}
+            onNewInvoice={goToNewInvoice}
+            onInvoicePress={goToInvoiceDetail}
+            onClose={goToDashboard}
+          />
+        )}
+
+        {view === 'invoice-form' && (
+          <InvoiceForm
+            onClose={goToInvoices}
+            onSaved={handleInvoiceSaved}
+          />
+        )}
+
+        {view === 'invoice-detail' && invoiceId && (
+          <InvoiceDetail
+            invoiceId={invoiceId}
+            onClose={goToInvoices}
+            onPreview={goToInvoicePreview}
+            onDuplicate={goToNewInvoice}
+            onDeleted={() => { refreshInvoices(); goToInvoices(); }}
+          />
+        )}
+
+        {view === 'invoice-preview' && invoiceId && (
+          <InvoicePreview
+            invoiceId={invoiceId}
+            onClose={() => goToInvoiceDetail(invoiceId)}
+          />
+        )}
+
+        {view === 'quotes' && (
+          <QuoteList
+            quotes={quotes}
+            loading={quotesLoading}
+            onNewQuote={goToNewQuote}
+            onQuotePress={goToQuoteDetail}
+            onClose={goToDashboard}
+          />
+        )}
+
+        {view === 'quote-form' && (
+          <QuoteForm
+            onClose={goToQuotes}
+            onSaved={handleQuoteSaved}
+          />
+        )}
+
+        {view === 'quote-detail' && quoteId && (
+          <QuoteDetail
+            quoteId={quoteId}
+            onClose={goToQuotes}
+            onPreview={goToQuotePreview}
+            onEdit={goToEditQuote}
+            onDeleted={() => { refreshQuotes(); goToQuotes(); }}
+            onAddGig={handleAddGigFromQuote}
+          />
+        )}
+
+        {view === 'quote-preview' && quoteId && (
+          <QuotePreview
+            quoteId={quoteId}
+            onClose={() => goToQuoteDetail(quoteId)}
+          />
+        )}
+
+        {view === 'settings' && (
+          <Settings onClose={goToDashboard} />
+        )}
+
+        {view === 'clients' && (
+          <ClientList onClose={goToDashboard} />
+        )}
+      </main>
     </>
   );
 }
