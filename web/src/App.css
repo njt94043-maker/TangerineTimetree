@@ -2800,6 +2800,37 @@ select.ps-form-input {
     padding: 20px 16px 40px;
     box-shadow: none;
   }
+  .review-edit-form .label {
+    margin-top: 12px;
+  }
+  .review-edit-form .label:first-of-type {
+    margin-top: 0;
+  }
+  .review-edit-form .review-edit-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .review-edit-form .review-edit-grid-date {
+    grid-column: 1 / -1;
+  }
+  .review-edit-form .form-actions {
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .review-edit-form .form-actions .btn {
+    width: 100%;
+    min-height: 48px;
+    font-size: 15px;
+  }
+  .review-edit-form-header button {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* ─── Pricing Editor (Settings) ─── */
@@ -3704,6 +3735,12 @@ select.ps-form-input {
 .input-textarea {
   resize: vertical;
   min-height: 60px;
+}
+.input-textarea-auto {
+  min-height: 120px;
+  max-height: 50vh;
+  overflow-y: auto;
+  resize: vertical;
 }
 
 /* --- Empty Text --- */
