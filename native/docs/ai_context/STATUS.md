@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S21 in progress. APK built + installed. Device testing underway.
-- **Blocker**: Testing on device — previous "Element type is invalid" crash may be resolved by clean prebuild
-- **Last session**: 2026-03-05 — APK build fix (Gradle cache corruption), release APK built + installed, client list redesign, clients seeded
-- **Next action**: Device test results → fix any remaining issues → S21 wrap-up
+- **Phase**: S21 complete. S22 next — **NATIVE VISUAL OVERHAUL** (top priority).
+- **Blocker**: None. App runs on device, no crashes.
+- **Last session**: 2026-03-05 — Fixed nav crash, iOS wheel time picker, field autocomplete, layout parity (dashboard/daysheet/clients/gig form). APK built + installed.
+- **Next action**: **S22 — Pixel-perfect native visual parity with webapp.** The webapp is the design target. Every screen on native must look identical to its web counterpart: same spacing, same button styles, same card designs, same typography, same layouts. This is the #1 priority.
 - **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. Only original timetree fees seeded. 44 WhatsApp-confirmed fees pending user verification.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -21,11 +21,9 @@
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. Native app crashes on device ("Element type is invalid: got undefined") — GestureHandlerRootView fix applied but crash persists. Debug build needed for stack trace.
-2. APK build FIXED — cmake/datetimepicker resolved via clean prebuild + Gradle transforms cache fix
-5. Disk space: C: ~27 GB free (cleaned non-TGT node_modules, VS Code caches, Gradle). First APK build will re-download deps.
+1. **Native visual parity** — Native app is functional but doesn't match the webapp's polished look. User has flagged this as top priority. Webapp is the design target.
+2. Disk space: C: drive monitored. APK builds work.
 3. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID (f30962b3-2588-4b3d-827a-69b03bdfa6b1) env vars
-4. S11 code changes untested on device (no working APK build)
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
@@ -60,6 +58,7 @@
 | S19 | Navigation + design unification (both apps) | DONE |
 | S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
 | S20 | Logo swap, animated splash, skeleton loaders, app icons | DONE |
-| **S21** | **APK build fix + full device testing** | **IN PROGRESS** (APK built + installed, device testing) |
+| S21 | APK build fix + device testing + layout parity | DONE |
+| **S22** | **Native visual overhaul — pixel-perfect match webapp** | **NEXT** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

@@ -215,11 +215,34 @@
 
 > Pickup prompts for each sprint: `native/docs/ai_context/SPRINT_PROMPTS.md`
 
-## S21 — In Progress
-- [x] Day detail swipe navigation — swipe left/right to cycle event dates (web + native), prev/next buttons, slide animation
-- [x] Fix back-button navigation — view history stack, step-by-step back
+## S21 — COMPLETE
+- [x] Day detail swipe navigation + back-button fix
+- [x] Fixed native crash (@react-navigation/native version mismatch)
+- [x] iOS wheel time picker (WheelTimePicker.tsx)
+- [x] Field autocomplete (venue/client/fee — frequency-sorted)
+- [x] Layout parity pass: dashboard, daysheet, clients, gig form
+- [x] APK built + installed on device
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
-- [ ] Debug native crash, fix cmake/datetimepicker, APK build, device test
+
+## S22 — Native Visual Overhaul (NEXT — TOP PRIORITY)
+**The webapp is the design target. Native must look identical.**
+User feedback: "the native app doesn't look like the webapp — it still looks like it was originally chucked together before tweaking everything to look perfect as we have done with webapp."
+
+Approach: Screen-by-screen comparison, matching every visual detail:
+- [ ] Calendar screen — cell styles, spacing, header, today button, month nav
+- [ ] DaySheet / Day Detail — card layout, button styles, section spacing
+- [ ] Gig form — field styling, labels, spacing, button layout, section grouping
+- [ ] Invoice list — stats bar, card design, filter/sort controls
+- [ ] Invoice form — step wizard layout, preview carousel, button styles
+- [ ] Invoice detail — info card, status controls, receipts section
+- [ ] Quote list — same as invoice list treatment
+- [ ] Quote form / detail — same as invoice form/detail treatment
+- [ ] Dashboard — stat cards, sections, button styles
+- [ ] Clients — card design, search bar, action buttons
+- [ ] Settings — section layout, form fields, save buttons
+- [ ] Drawer nav — match web drawer exactly (logo, sections, active states)
+- [ ] Shared components: NeuCard, NeuButton, NeuWell, NeuSelect, StatusBadge — audit vs web equivalents
+- [ ] Global: font sizes, margins, padding, border treatments, colors
 
 ## Backlog
 - ~~Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx`~~ DONE (117 gigs + 62 away dates in Supabase)
