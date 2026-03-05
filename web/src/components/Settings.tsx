@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getUserSettings, upsertUserSettings, getBandSettings, updateBandSettings,
   updateBandSettingsExtended, getAllServiceCatalogue, createServiceItem,
@@ -376,6 +376,12 @@ export function Settings({ onClose }: SettingsProps) {
       setError(err instanceof Error ? err.message : 'Failed to reorder');
     }
   }
+
+  const autoGrow = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const el = e.target;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, []);
 
   if (!loaded) return null;
 
@@ -781,8 +787,8 @@ export function Settings({ onClose }: SettingsProps) {
                     <label className="label">REVIEWER NAME *</label>
                     <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
                     <label className="label">REVIEW TEXT *</label>
-                    <div className="neu-inset"><textarea className="input-field input-textarea" rows={3} value={revText} onChange={e => setRevText(e.target.value)} placeholder="Their review..." /></div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    <div className="neu-inset"><textarea className="input-field input-textarea input-textarea-auto" rows={5} value={revText} onChange={e => { setRevText(e.target.value); autoGrow(e); }} onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }} placeholder="Their review..." /></div>
+                    <div className="review-edit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                       <div>
                         <label className="label">RATING</label>
                         <div className="neu-inset">
@@ -801,13 +807,13 @@ export function Settings({ onClose }: SettingsProps) {
                           </select>
                         </div>
                       </div>
-                      <div>
+                      <div className="review-edit-grid-date">
                         <label className="label">DATE</label>
                         <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
                       </div>
                     </div>
                     <label className="label">ORIGINAL REVIEW LINK</label>
-                    <div className="neu-inset"><input className="input-field" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
+                    <div className="neu-inset"><input className="input-field" type="url" inputMode="url" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
                     <div className="form-actions">
                       <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Update</button>
                       <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
@@ -832,8 +838,8 @@ export function Settings({ onClose }: SettingsProps) {
             <label className="label">REVIEWER NAME *</label>
             <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
             <label className="label">REVIEW TEXT *</label>
-            <div className="neu-inset"><textarea className="input-field input-textarea" rows={3} value={revText} onChange={e => setRevText(e.target.value)} placeholder="Their review..." /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            <div className="neu-inset"><textarea className="input-field input-textarea input-textarea-auto" rows={5} value={revText} onChange={e => { setRevText(e.target.value); autoGrow(e); }} onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }} placeholder="Their review..." /></div>
+            <div className="review-edit-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               <div>
                 <label className="label">RATING</label>
                 <div className="neu-inset">
@@ -852,13 +858,13 @@ export function Settings({ onClose }: SettingsProps) {
                   </select>
                 </div>
               </div>
-              <div>
+              <div className="review-edit-grid-date">
                 <label className="label">DATE</label>
                 <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
               </div>
             </div>
             <label className="label">ORIGINAL REVIEW LINK</label>
-            <div className="neu-inset"><input className="input-field" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
+            <div className="neu-inset"><input className="input-field" type="url" inputMode="url" value={revSourceUrl} onChange={e => setRevSourceUrl(e.target.value)} placeholder="https://facebook.com/..." /></div>
             <div className="form-actions">
               <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Add Review</button>
               <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
