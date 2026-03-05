@@ -11,6 +11,27 @@ import type {
   ChangeSummaryItem,
   PublicMedia,
   ContactSubmission,
+  Client,
+  Venue,
+  Invoice,
+  InvoiceWithClient,
+  InvoiceStatus,
+  InvoiceStyle,
+  ReceiptWithMember,
+  UserSettings,
+  BandSettings,
+  DashboardStats,
+  ServiceCatalogueItem,
+  Quote,
+  QuoteWithClient,
+  QuoteLineItem,
+  QuoteStatus,
+  EventType,
+  PLIOption,
+  FormalInvoice,
+  FormalInvoiceWithClient,
+  FormalInvoiceLineItem,
+  FormalReceiptWithMember,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -646,4 +667,913 @@ export async function archiveSubmission(id: string): Promise<void> {
 function formatShortDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+// ─── Clients ───────────────────────────────────────────
+
+export async function getClients(): Promise<Client[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .order('company_name');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getClient(id: string): Promise<Client | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function createClient(client: {
+  company_name: string;
+  contact_name?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+}): Promise<Client> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('clients')
+    .insert({
+      company_name: client.company_name,
+      contact_name: client.contact_name ?? '',
+      address: client.address ?? '',
+      email: client.email ?? '',
+      phone: client.phone ?? '',
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateClient(
+  id: string,
+  updates: Partial<Pick<Client, 'company_name' | 'contact_name' | 'address' | 'email' | 'phone'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('clients').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteClient(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('clients').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function searchClients(query: string): Promise<Client[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .or(`company_name.ilike.%${query}%,contact_name.ilike.%${query}%`)
+    .order('company_name');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+// ─── Venues ────────────────────────────────────────────
+
+export async function getVenuesForClient(clientId: string): Promise<Venue[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('venues')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('venue_name');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function createVenue(clientId: string, venueName: string, address?: string): Promise<Venue> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('venues')
+    .insert({
+      client_id: clientId,
+      venue_name: venueName,
+      address: address ?? '',
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function deleteVenue(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('venues').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Invoices ──────────────────────────────────────────
+
+function formatInvoiceNumber(num: number): string {
+  return `TGT-${String(num).padStart(4, '0')}`;
+}
+
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addDaysISO(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export async function getInvoices(): Promise<InvoiceWithClient[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    client_company_name: row.clients?.company_name ?? '',
+    client_contact_name: row.clients?.contact_name ?? '',
+    client_address: row.clients?.address ?? '',
+    client_email: row.clients?.email ?? '',
+    clients: undefined,
+  }));
+}
+
+export async function getInvoice(id: string): Promise<InvoiceWithClient | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('invoices')
+    .select('*, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .eq('id', id)
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  if (!data) return null;
+
+  return {
+    ...data,
+    client_company_name: (data as any).clients?.company_name ?? '',
+    client_contact_name: (data as any).clients?.contact_name ?? '',
+    client_address: (data as any).clients?.address ?? '',
+    client_email: (data as any).clients?.email ?? '',
+    clients: undefined,
+  } as InvoiceWithClient;
+}
+
+export async function createInvoice(inv: {
+  client_id: string;
+  venue: string;
+  gig_date: string;
+  amount: number;
+  description: string;
+  style?: InvoiceStyle;
+}): Promise<Invoice> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Atomic invoice number via RPC
+  const { data: nextNum, error: rpcError } = await supabase.rpc('next_invoice_number');
+  if (rpcError) { checkAuthError(rpcError); throw rpcError; }
+
+  const invoiceNumber = formatInvoiceNumber(nextNum);
+  const issueDate = todayISO();
+  const bandSettings = await getBandSettings();
+  const dueDate = addDaysISO(issueDate, bandSettings?.payment_terms_days ?? 14);
+
+  const { data, error } = await supabase
+    .from('invoices')
+    .insert({
+      invoice_number: invoiceNumber,
+      client_id: inv.client_id,
+      venue: inv.venue,
+      gig_date: inv.gig_date,
+      amount: inv.amount,
+      description: inv.description,
+      issue_date: issueDate,
+      due_date: dueDate,
+      style: inv.style ?? 'classic',
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateInvoice(
+  id: string,
+  updates: Partial<Pick<Invoice, 'venue' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('invoices').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function updateInvoiceStatus(id: string, status: InvoiceStatus): Promise<void> {
+  const supabase = getSupabase();
+  const updates: Record<string, unknown> = { status };
+  if (status === 'paid') updates.paid_date = todayISO();
+  else updates.paid_date = null;
+
+  const { error } = await supabase.from('invoices').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteInvoice(id: string): Promise<void> {
+  const supabase = getSupabase();
+  // Receipts cascade-delete via FK
+  const { error } = await supabase.from('invoices').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Receipts ──────────────────────────────────────────
+
+export async function getReceiptsForInvoice(invoiceId: string): Promise<ReceiptWithMember[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('*, profiles!receipts_member_id_fkey(name)')
+    .eq('invoice_id', invoiceId)
+    .order('created_at');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    member_name: row.profiles?.name ?? 'Unknown',
+    profiles: undefined,
+  }));
+}
+
+/**
+ * Mark invoice as paid and generate receipts for each non-admin band member.
+ * Splits the amount equally among all profiles (band members).
+ * Idempotent: returns existing receipts if already generated.
+ */
+export async function markInvoicePaid(invoiceId: string): Promise<ReceiptWithMember[]> {
+  const supabase = getSupabase();
+
+  // Idempotent guard
+  const existing = await getReceiptsForInvoice(invoiceId);
+  if (existing.length > 0) {
+    await updateInvoiceStatus(invoiceId, 'paid');
+    return existing;
+  }
+
+  const invoice = await getInvoice(invoiceId);
+  if (!invoice) throw new Error('Invoice not found');
+
+  const allMembers = await getProfiles();
+  // The "self" is the admin; receipts go to non-admin members
+  const otherMembers = allMembers.filter(m => !m.is_admin);
+  const perPerson = Math.round((invoice.amount / allMembers.length) * 100) / 100;
+  const remainder = Math.round((invoice.amount - perPerson * allMembers.length) * 100) / 100;
+  const today = todayISO();
+
+  // Mark paid first
+  await updateInvoiceStatus(invoiceId, 'paid');
+
+  // Generate receipts
+  const receiptInserts = otherMembers.map((member, i) => ({
+    invoice_id: invoiceId,
+    member_id: member.id,
+    amount: i === 0 ? perPerson + remainder : perPerson,
+    date: today,
+  }));
+
+  const { data, error } = await supabase
+    .from('receipts')
+    .insert(receiptInserts)
+    .select('*, profiles!receipts_member_id_fkey(name)');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    member_name: row.profiles?.name ?? 'Unknown',
+    profiles: undefined,
+  }));
+}
+
+// ─── User Settings ─────────────────────────────────────
+
+export async function getUserSettings(): Promise<UserSettings | null> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if (error?.code === 'PGRST116') return null; // No row found
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function upsertUserSettings(
+  settings: Partial<Omit<UserSettings, 'id' | 'updated_at'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({ id: user.id, ...settings, updated_at: new Date().toISOString() });
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Band Settings ─────────────────────────────────────
+
+export async function getBandSettings(): Promise<BandSettings | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('band_settings')
+    .select('*')
+    .eq('id', 'default')
+    .single();
+
+  if (error?.code === 'PGRST116') return null;
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateBandSettings(
+  updates: Partial<Pick<BandSettings, 'trading_as' | 'business_type' | 'website' | 'payment_terms_days'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('band_settings')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', 'default');
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Dashboard Stats ───────────────────────────────────
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const supabase = getSupabase();
+
+  const { data: invoices, error } = await supabase
+    .from('invoices')
+    .select('amount, status, created_at, id, invoice_number, client_id, venue, gig_date, description, issue_date, due_date, paid_date, style, created_by, updated_at, clients!invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+
+  const all = invoices ?? [];
+  const totalInvoiced = all.reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const totalPaid = all.filter((i: any) => i.status === 'paid').reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+  const totalOutstanding = all.filter((i: any) => i.status === 'sent').reduce((sum: number, i: any) => sum + Number(i.amount), 0);
+
+  const recentInvoices: InvoiceWithClient[] = all.slice(0, 5).map((row: any) => ({
+    ...row,
+    client_company_name: row.clients?.company_name ?? '',
+    client_contact_name: row.clients?.contact_name ?? '',
+    client_address: row.clients?.address ?? '',
+    client_email: row.clients?.email ?? '',
+    clients: undefined,
+  }));
+
+  return {
+    totalInvoiced,
+    totalPaid,
+    totalOutstanding,
+    invoiceCount: all.length,
+    recentInvoices,
+  };
+}
+
+// ─── Service Catalogue ──────────────────────────────────
+
+export async function getServiceCatalogue(): Promise<ServiceCatalogueItem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('service_catalogue')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getAllServiceCatalogue(): Promise<ServiceCatalogueItem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('service_catalogue')
+    .select('*')
+    .order('sort_order');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function createServiceItem(item: {
+  name: string;
+  description?: string;
+  default_price: number;
+  unit_label?: string | null;
+  sort_order?: number;
+}): Promise<ServiceCatalogueItem> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('service_catalogue')
+    .insert({
+      name: item.name,
+      description: item.description ?? '',
+      default_price: item.default_price,
+      unit_label: item.unit_label ?? null,
+      sort_order: item.sort_order ?? 0,
+    })
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateServiceItem(
+  id: string,
+  updates: Partial<Pick<ServiceCatalogueItem, 'name' | 'description' | 'default_price' | 'unit_label' | 'sort_order' | 'is_active'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('service_catalogue').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteServiceItem(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('service_catalogue').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Quotes ─────────────────────────────────────────────
+
+function formatQuoteNumber(num: number): string {
+  return `QTE-${String(num).padStart(3, '0')}`;
+}
+
+export async function getQuotes(): Promise<QuoteWithClient[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('quotes')
+    .select('*, clients!quotes_client_id_fkey(company_name, contact_name, address, email, phone)')
+    .order('created_at', { ascending: false });
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    client_company_name: row.clients?.company_name ?? '',
+    client_contact_name: row.clients?.contact_name ?? '',
+    client_address: row.clients?.address ?? '',
+    client_email: row.clients?.email ?? '',
+    client_phone: row.clients?.phone ?? '',
+    clients: undefined,
+  }));
+}
+
+export async function getQuote(id: string): Promise<QuoteWithClient | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('quotes')
+    .select('*, clients!quotes_client_id_fkey(company_name, contact_name, address, email, phone)')
+    .eq('id', id)
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  if (!data) return null;
+
+  return {
+    ...data,
+    client_company_name: (data as any).clients?.company_name ?? '',
+    client_contact_name: (data as any).clients?.contact_name ?? '',
+    client_address: (data as any).clients?.address ?? '',
+    client_email: (data as any).clients?.email ?? '',
+    client_phone: (data as any).clients?.phone ?? '',
+    clients: undefined,
+  } as QuoteWithClient;
+}
+
+export async function createQuote(q: {
+  client_id: string;
+  event_type: EventType;
+  event_date: string;
+  venue_name: string;
+  venue_address?: string;
+  subtotal: number;
+  discount_amount?: number;
+  total: number;
+  pli_option?: PLIOption;
+  terms_and_conditions?: string;
+  validity_days?: number;
+  notes?: string;
+  style?: InvoiceStyle;
+  line_items: Array<{
+    service_id?: string | null;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    sort_order?: number;
+  }>;
+}): Promise<Quote> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Atomic quote number via RPC
+  const { data: nextNum, error: rpcError } = await supabase.rpc('next_quote_number');
+  if (rpcError) { checkAuthError(rpcError); throw rpcError; }
+
+  const quoteNumber = formatQuoteNumber(nextNum);
+
+  const { data, error } = await supabase
+    .from('quotes')
+    .insert({
+      quote_number: quoteNumber,
+      client_id: q.client_id,
+      created_by: user.id,
+      event_type: q.event_type,
+      event_date: q.event_date,
+      venue_name: q.venue_name,
+      venue_address: q.venue_address ?? '',
+      subtotal: q.subtotal,
+      discount_amount: q.discount_amount ?? 0,
+      total: q.total,
+      pli_option: q.pli_option ?? 'none',
+      terms_and_conditions: q.terms_and_conditions ?? '',
+      validity_days: q.validity_days ?? 30,
+      notes: q.notes ?? '',
+      style: q.style ?? 'classic',
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+
+  // Insert line items
+  if (q.line_items.length > 0) {
+    const lineInserts = q.line_items.map((li, i) => ({
+      quote_id: data.id,
+      service_id: li.service_id ?? null,
+      description: li.description,
+      quantity: li.quantity,
+      unit_price: li.unit_price,
+      line_total: li.line_total,
+      sort_order: li.sort_order ?? i,
+    }));
+
+    const { error: liError } = await supabase
+      .from('quote_line_items')
+      .insert(lineInserts);
+
+    if (liError) { checkAuthError(liError); throw liError; }
+  }
+
+  return data;
+}
+
+export async function updateQuote(
+  id: string,
+  updates: Partial<Pick<Quote, 'event_type' | 'event_date' | 'venue_name' | 'venue_address' | 'subtotal' | 'discount_amount' | 'total' | 'pli_option' | 'terms_and_conditions' | 'validity_days' | 'notes' | 'style'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('quotes').update(updates).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteQuote(id: string): Promise<void> {
+  const supabase = getSupabase();
+  // Line items cascade-delete via FK
+  const { error } = await supabase.from('quotes').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Quote Line Items ───────────────────────────────────
+
+export async function getQuoteLineItems(quoteId: string): Promise<QuoteLineItem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('quote_line_items')
+    .select('*')
+    .eq('quote_id', quoteId)
+    .order('sort_order');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function replaceQuoteLineItems(
+  quoteId: string,
+  items: Array<{
+    service_id?: string | null;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    sort_order?: number;
+  }>,
+): Promise<void> {
+  const supabase = getSupabase();
+
+  // Delete existing line items
+  const { error: delError } = await supabase
+    .from('quote_line_items')
+    .delete()
+    .eq('quote_id', quoteId);
+  if (delError) { checkAuthError(delError); throw delError; }
+
+  // Insert new line items
+  if (items.length > 0) {
+    const inserts = items.map((li, i) => ({
+      quote_id: quoteId,
+      service_id: li.service_id ?? null,
+      description: li.description,
+      quantity: li.quantity,
+      unit_price: li.unit_price,
+      line_total: li.line_total,
+      sort_order: li.sort_order ?? i,
+    }));
+
+    const { error: insError } = await supabase
+      .from('quote_line_items')
+      .insert(inserts);
+    if (insError) { checkAuthError(insError); throw insError; }
+  }
+}
+
+// ─── Quote Lifecycle ────────────────────────────────────
+
+export async function sendQuote(quoteId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: 'sent' as QuoteStatus, sent_at: new Date().toISOString() })
+    .eq('id', quoteId);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function acceptQuote(quoteId: string): Promise<FormalInvoice> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Mark quote as accepted
+  const { error: qErr } = await supabase
+    .from('quotes')
+    .update({ status: 'accepted' as QuoteStatus, responded_at: new Date().toISOString() })
+    .eq('id', quoteId);
+  if (qErr) { checkAuthError(qErr); throw qErr; }
+
+  // Fetch the quote
+  const quote = await getQuote(quoteId);
+  if (!quote) throw new Error('Quote not found');
+
+  // Fetch quote line items
+  const lineItems = await getQuoteLineItems(quoteId);
+
+  // Generate formal invoice number (shared sequence with simple invoices)
+  const { data: nextNum, error: rpcError } = await supabase.rpc('next_invoice_number');
+  if (rpcError) { checkAuthError(rpcError); throw rpcError; }
+
+  const invoiceNumber = `TGT-${String(nextNum).padStart(4, '0')}`;
+  const issueDate = todayISO();
+  const bandSettings = await getBandSettings();
+  const dueDate = addDaysISO(issueDate, bandSettings?.payment_terms_days ?? 14);
+
+  // Create formal invoice
+  const { data: invoice, error: invError } = await supabase
+    .from('formal_invoices')
+    .insert({
+      invoice_number: invoiceNumber,
+      quote_id: quoteId,
+      client_id: quote.client_id,
+      created_by: user.id,
+      venue_name: quote.venue_name,
+      event_date: quote.event_date,
+      subtotal: quote.subtotal,
+      discount_amount: quote.discount_amount,
+      total: quote.total,
+      issue_date: issueDate,
+      due_date: dueDate,
+      style: quote.style,
+      notes: quote.notes,
+    })
+    .select()
+    .single();
+
+  if (invError) { checkAuthError(invError); throw invError; }
+
+  // Copy line items to formal invoice
+  if (lineItems.length > 0) {
+    const formalLineItems = lineItems.map(li => ({
+      invoice_id: invoice.id,
+      description: li.description,
+      quantity: li.quantity,
+      unit_price: li.unit_price,
+      line_total: li.line_total,
+      sort_order: li.sort_order,
+    }));
+
+    const { error: liErr } = await supabase
+      .from('formal_invoice_line_items')
+      .insert(formalLineItems);
+    if (liErr) { checkAuthError(liErr); throw liErr; }
+  }
+
+  return invoice;
+}
+
+export async function declineQuote(quoteId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: 'declined' as QuoteStatus, responded_at: new Date().toISOString() })
+    .eq('id', quoteId);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function expireQuote(quoteId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('quotes')
+    .update({ status: 'expired' as QuoteStatus })
+    .eq('id', quoteId);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Formal Invoices ────────────────────────────────────
+
+export async function getFormalInvoice(id: string): Promise<FormalInvoiceWithClient | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('formal_invoices')
+    .select('*, clients!formal_invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .eq('id', id)
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  if (!data) return null;
+
+  return {
+    ...data,
+    client_company_name: (data as any).clients?.company_name ?? '',
+    client_contact_name: (data as any).clients?.contact_name ?? '',
+    client_address: (data as any).clients?.address ?? '',
+    client_email: (data as any).clients?.email ?? '',
+    clients: undefined,
+  } as FormalInvoiceWithClient;
+}
+
+export async function getFormalInvoiceByQuote(quoteId: string): Promise<FormalInvoiceWithClient | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('formal_invoices')
+    .select('*, clients!formal_invoices_client_id_fkey(company_name, contact_name, address, email)')
+    .eq('quote_id', quoteId)
+    .single();
+
+  if (error?.code === 'PGRST116') return null; // No row found
+  if (error) { checkAuthError(error); throw error; }
+  if (!data) return null;
+
+  return {
+    ...data,
+    client_company_name: (data as any).clients?.company_name ?? '',
+    client_contact_name: (data as any).clients?.contact_name ?? '',
+    client_address: (data as any).clients?.address ?? '',
+    client_email: (data as any).clients?.email ?? '',
+    clients: undefined,
+  } as FormalInvoiceWithClient;
+}
+
+export async function getFormalInvoiceLineItems(invoiceId: string): Promise<FormalInvoiceLineItem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('formal_invoice_line_items')
+    .select('*')
+    .eq('invoice_id', invoiceId)
+    .order('sort_order');
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function sendFormalInvoice(invoiceId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('formal_invoices')
+    .update({ status: 'sent' as InvoiceStatus })
+    .eq('id', invoiceId);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function markFormalInvoicePaid(invoiceId: string): Promise<FormalReceiptWithMember[]> {
+  const supabase = getSupabase();
+
+  // Idempotent guard
+  const existing = await getFormalReceipts(invoiceId);
+  if (existing.length > 0) {
+    await supabase
+      .from('formal_invoices')
+      .update({ status: 'paid' as InvoiceStatus, paid_date: todayISO() })
+      .eq('id', invoiceId);
+    return existing;
+  }
+
+  const invoice = await getFormalInvoice(invoiceId);
+  if (!invoice) throw new Error('Formal invoice not found');
+
+  const allMembers = await getProfiles();
+  const otherMembers = allMembers.filter(m => !m.is_admin);
+  const perPerson = Math.round((invoice.total / allMembers.length) * 100) / 100;
+  const remainder = Math.round((invoice.total - perPerson * allMembers.length) * 100) / 100;
+  const today = todayISO();
+
+  // Mark paid
+  const { error: updErr } = await supabase
+    .from('formal_invoices')
+    .update({ status: 'paid' as InvoiceStatus, paid_date: today })
+    .eq('id', invoiceId);
+  if (updErr) { checkAuthError(updErr); throw updErr; }
+
+  // Generate receipts
+  const receiptInserts = otherMembers.map((member, i) => ({
+    invoice_id: invoiceId,
+    member_id: member.id,
+    amount: i === 0 ? perPerson + remainder : perPerson,
+    date: today,
+  }));
+
+  const { data, error } = await supabase
+    .from('formal_receipts')
+    .insert(receiptInserts)
+    .select('*, profiles!formal_receipts_member_id_fkey(name)');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    member_name: row.profiles?.name ?? 'Unknown',
+    profiles: undefined,
+  }));
+}
+
+// ─── Formal Receipts ────────────────────────────────────
+
+export async function getFormalReceipts(invoiceId: string): Promise<FormalReceiptWithMember[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('formal_receipts')
+    .select('*, profiles!formal_receipts_member_id_fkey(name)')
+    .eq('invoice_id', invoiceId)
+    .order('created_at');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    member_name: row.profiles?.name ?? 'Unknown',
+    profiles: undefined,
+  }));
+}
+
+// ─── Band Settings (extended) ───────────────────────────
+
+export async function updateBandSettingsExtended(
+  updates: Partial<Pick<BandSettings, 'trading_as' | 'business_type' | 'website' | 'payment_terms_days' | 'pli_insurer' | 'pli_policy_number' | 'pli_cover_amount' | 'pli_expiry_date' | 'default_terms_and_conditions' | 'default_quote_validity_days'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('band_settings')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', 'default');
+
+  if (error) { checkAuthError(error); throw error; }
 }

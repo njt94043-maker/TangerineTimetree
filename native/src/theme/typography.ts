@@ -10,9 +10,9 @@ export const FONTS = {
 
 export const LABEL: TextStyle = {
   fontFamily: FONTS.bodyBold,
-  fontSize: 9,
+  fontSize: 11,
   textTransform: 'uppercase',
-  letterSpacing: 2,
+  letterSpacing: 0.8,
   color: COLORS.textDim,
 };
 
@@ -24,12 +24,12 @@ export const DATA_VALUE: TextStyle = {
 
 export const BODY: TextStyle = {
   fontFamily: FONTS.body,
-  fontSize: 12,
+  fontSize: 13,
   color: COLORS.text,
 };
 
 export const BODY_BOLD: TextStyle = {
   fontFamily: FONTS.bodyBold,
-  fontSize: 12,
+  fontSize: 13,
   color: COLORS.text,
 };

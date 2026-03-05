@@ -5,20 +5,46 @@
 
 ---
 
-## Blocked
-- **Fix APK build failure** — cmake error from `@react-native-community/datetimepicker` JNI codegen. Try: `npx expo prebuild --clean` then `./gradlew assembleRelease`, or install newer cmake via sdkmanager
-- **Test release APK on device** — blocked by APK build above
+## Sprint S9 — HTML Mockups ✅ COMPLETE
+- [x] Create `mockups/native-mockup.html` — 24 screens, phone-framed
+- [x] Create `mockups/web-mockup.html` — 20+ screens, desktop layout
+- [x] Create `mockups/responsive-mockup.html` — unified responsive mockup with collapsible drawer nav
+- [x] User approved mockups + confirmed collapsible drawer for BOTH apps
+- APK build deferred — no native builds until app is finished
 
-## Next Up (Sprint S2 — code done, APK pending)
-- Fix HIGH code issues:
-  - [x] Type-safe row mappings in shared/supabase/queries.ts (replace `any` casts)
-  - [x] Improve SupabaseClientLike interface typing (clientRef.ts — auth typed, from/channel kept loose)
-  - [x] Add error handling to changelog inserts (shared/supabase/queries.ts — best-effort try/catch)
-  - [x] Make getSettings() return nullable + handle null in callers (native/src/db/queries.ts)
-  - [x] Add conflict detection to offline queue (web useOfflineQueue.ts — entity existence check)
-  - [x] Add offline mutation support to DayDetail.tsx (delete button + offline-aware fetch)
-  - [x] Switch time picker to spinner display (native/app/gig/new.tsx)
-  - [x] Both tsc checks pass (native --noEmit + web -b)
+## Sprint S10 — Supabase Invoicing Schema + Migration Script ✅ COMPLETE
+- [x] Write migration SQL: `clients`, `venues`, `invoices`, `receipts`, `user_settings`, `band_settings`
+- [x] RLS policies: auth read, creator/admin write, own-row for user_settings, admin for band_settings
+- [x] RPC function `next_invoice_number()` — atomic increment via SECURITY DEFINER
+- [x] Shared types: Client, Venue, Invoice, InvoiceWithClient, Receipt, ReceiptWithMember, UserSettings, BandSettings, DashboardStats
+- [x] Shared queries: full CRUD for all new tables + dashboard stats + markInvoicePaid + searchClients
+- [x] Migration script: `native/scripts/migrate-sqlite-to-supabase.ts` (better-sqlite3 → Supabase service role)
+- [x] Push migration to live Supabase (13 tables total)
+- [x] Added `rpc` to SupabaseClientLike interface
+- [x] Web tsc clean compile verified
+
+## Sprint S12 — Shared PDF Templates ✅ COMPLETE
+- [x] Created `shared/templates/` directory with colors.ts, htmlEscape.ts utilities
+- [x] Moved 17 template files from `native/src/pdf/` → `shared/templates/`
+- [x] Created barrel export `shared/templates/index.ts`
+- [x] Updated `invoiceStyles.ts` — imports `InvoiceStyle` from `../supabase/types` (no duplication)
+- [x] Fixed all themed template imports for `verbatimModuleSyntax` (type-only imports)
+- [x] Updated 4 native invoice screens to use `@shared/templates/*`
+- [x] Updated `native/src/db/queries.ts` — consolidated `InvoiceStyle` import from shared types
+- [x] Cleaned up `native/src/pdf/` — only `generatePdf.ts` remains (native-only expo-print)
+- [x] TypeScript clean: both `native --noEmit` and `web -b` pass
+
+## Sprint S11 — Native SQLite → Supabase Swap ✅ COMPLETE
+- [x] Rewrote `native/src/db/queries.ts` as thin Supabase adapter (wraps shared/supabase/queries)
+- [x] Updated `native/src/db/index.ts` — removed initDatabase, simplified re-exports
+- [x] Created `LoginGate.tsx` component — full-app login gate in `_layout.tsx`
+- [x] Updated invoice screens — removed pdf_uri references, on-demand PDF generation
+- [x] Updated settings screen — band members read-only from Supabase profiles
+- [x] Updated shared `InvoiceStyle` type — 7 styles matching native templates
+- [x] Backed up SQLite files as `database.sqlite.ts` / `queries.sqlite.ts`
+- [x] TypeScript clean: both `native --noEmit` and `web -b` pass
+- [ ] **TODO**: Run SQLite migration script (`native/scripts/migrate-sqlite-to-supabase.ts`) — needs env vars
+- [ ] **TODO**: Manual testing on device when APK build works
 
 ## Completed (Sprint S3 — 2026-03-04)
 - [x] Document Supabase tables + RLS policies in schema_map.md (Part B added)
@@ -77,22 +103,112 @@
 - [x] Replaced all 5 browser `confirm()` calls with themed `ConfirmModal` component (GigForm ×2, DayDetail, AwayManager, MediaManager)
 - [x] Both tsc checks pass (native --noEmit + web -b)
 
-## Backlog
-- Test themed templates on device (7 invoice + 7 receipt styles, SVG decorations)
-- Fix HTML mockups (mockups/ folder) — include real base64 logo, add 3 themed mockups, create index.html
-- Test on device: preview carousel, receipt styling, receipt generation, share individual receipts
-- FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
-- Add thegreentangerine.com domain in Vercel project settings (DNS already pointed)
+## Sprint S13 — Web Invoicing + Settings + Clients ✅ COMPLETE
+- [x] Added format utilities to `web/src/utils/format.ts` — formatDateLong, formatGBP, todayISO, addDaysISO
+- [x] Created `useInvoiceData` hook — getInvoices(), realtime subscription on invoices table
+- [x] Created `useSettings` hook — getUserSettings() + getBandSettings(), merged CombinedSettings
+- [x] Extended ViewContext — 6 new views + 7 nav helpers (goToInvoices, goToNewInvoice, goToEditInvoice, goToInvoiceDetail, goToInvoicePreview, goToSettings, goToClients)
+- [x] Created Settings component — Your Details (bank info) + Band Settings (trading name, payment terms)
+- [x] Created ClientList component — search, add/edit/delete, venue management modals
+- [x] Created InvoiceList component — status filter tabs (All/Draft/Sent/Paid), stats bar, card list
+- [x] Created InvoiceForm component — 3-step wizard (client → details → style carousel preview), iframe srcdoc preview
+- [x] Created InvoiceDetail component — info card, status controls, receipts list, preview/duplicate/delete actions
+- [x] Created InvoicePreview component — multi-page iframe (invoice + receipts), print via contentWindow.print()
+- [x] Wired all into App.tsx — imports, conditional renders, nav buttons (Invoices, Clients, Settings)
+- [x] Added ~250 lines invoice/settings/client CSS to App.css, added invoicing chunk to vite code splitting
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass
 
-## Known Limitations (Not Bugs — By Design)
-- No invoice editing (use "Create Similar" instead) — D-016
-- No custom split percentages (equal splits only) — D-011
-- No multi-user support (single-user app) — D-005
-- No cloud sync for invoicing (local-only by design) — D-015
-- No email/phone validation (single-user app) — audit decision
-- Status flow not enforced (draft to sent to paid flexible) — audit decision
+## Sprint S14 — Dashboard + Export + Invoice Polish ✅ COMPLETE
+- [x] Added `dashboard` view to ViewContext + `goToDashboard` nav helper, default authenticated view
+- [x] Created Dashboard component — stats cards (total invoiced, outstanding, paid, tax year), overdue alerts, recent invoices, monthly breakdown, quick nav
+- [x] Created `web/src/utils/export.ts` — CSV export with `exportInvoicesCSV()`, `filterByTaxYear()`, browser download
+- [x] Dashboard export buttons — all invoices CSV + tax-year-filtered CSV
+- [x] Extended InvoiceList with search bar (invoice number, client, venue, description) + sort options (date, amount, status)
+- [x] Updated App.tsx — Dashboard wired as default view, Home/Cal/List view toggle, back targets point to dashboard
+- [x] Added ~120 lines dashboard CSS + sort/search controls CSS + light theme overrides
+- [x] Polish: text-overflow ellipsis on long client names (invoice cards + client cards)
+- [x] Added Dashboard to vite code splitting (invoicing chunk)
+- [x] TypeScript clean: `web -b` passes
+
+## Sprint S15 — Quote System Backend ✅ COMPLETE
+- [x] Migration SQL: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
+- [x] ALTER band_settings: pli_insurer, pli_policy_number, pli_cover_amount, pli_expiry_date, default_terms_and_conditions, default_quote_validity_days, next_quote_number
+- [x] RLS policies for all 6 new tables + RPC next_quote_number()
+- [x] Pushed migration to live Supabase (19 tables total)
+- [x] Shared types: QuoteStatus, EventType, PLIOption, ServiceCatalogueItem, Quote, QuoteWithClient, QuoteLineItem, FormalInvoice, FormalInvoiceWithClient, FormalInvoiceLineItem, FormalReceipt, FormalReceiptWithMember + BandSettings extended
+- [x] Shared queries: service catalogue CRUD, quote CRUD + line items, lifecycle (sendQuote, acceptQuote, declineQuote, expireQuote), formal invoices (get, getByQuote, send, markPaid → receipts), formal receipts, updateBandSettingsExtended
+- [x] Quote PDF templates: quoteTemplate.ts (classic) + 6 themed variants + getQuoteHtml.ts router
+- [x] Formal invoice PDF templates: formalInvoiceTemplate.ts (classic) + 6 themed variants + getFormalInvoiceHtml.ts router
+- [x] Updated shared/templates/index.ts barrel export
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass
+
+## Sprint S16 — Web Quote Wizard + Service Catalogue UI ✅ COMPLETE
+- [x] Extended ViewContext — 4 new views (quotes, quote-form, quote-detail, quote-preview) + 5 nav helpers + quoteId/editQuoteId state
+- [x] Created `useQuoteData` hook — getQuotes() + realtime subscription on quotes table
+- [x] Extended Settings component — Service Catalogue (CRUD, reorder), PLI Insurance (4 fields), Default T&Cs (textarea), Quote Defaults (validity days). Save via updateBandSettingsExtended().
+- [x] Created QuoteList component — stats bar (quoted/pending/accepted), search, 6 filter tabs (all/draft/sent/accepted/declined/expired), sort, quote cards with status badges
+- [x] Created QuoteForm component — 4-step wizard: Step 1 client & event (client select + event type/date/venue), Step 2 package builder (service catalogue picker + custom items + line item editing + discount + running total), Step 3 extras (PLI toggle + T&Cs + validity + notes), Step 4 preview carousel (7 styles, iframe, create quote)
+- [x] Wired into App.tsx — imports, useQuoteData hook, quote views, Quotes nav button, handleQuoteSaved callback
+- [x] Added ~150 lines CSS — service catalogue list, package builder, line items, running total, PLI toggle, extras
+- [x] TypeScript clean: `web -b` passes
+
+## Sprint S17 — Web Quote Lifecycle + Formal Invoicing ✅ COMPLETE
+- [x] Created QuoteDetail component — 6-stage progressive lifecycle (Draft → Sent → Accepted → Invoice Sent → Paid), plus Declined/Expired. Progress tracker, line items table, formal invoice section, formal receipts, stage history
+- [x] Created QuotePreview component — multi-page iframe: quote page, formal invoice (if accepted), receipt pages (if paid). Print support
+- [x] Implemented Accept flow — acceptQuote() auto-generates formal invoice, copies line items, shows for review. Send Invoice and Mark Paid buttons
+- [x] Calendar integration — on quote acceptance, ConfirmModal prompts to add gig via createGig() with date/venue/fee pre-filled
+- [x] Wired QuoteDetail + QuotePreview into App.tsx (imports, view renderers, goToQuotePreview/goToEditQuote destructured)
+- [x] Added handleAddGigFromQuote handler in MainView
+- [x] Updated vite code splitting — QuoteList/QuoteForm/QuoteDetail/QuotePreview added to invoicing chunk
+- [x] Added ~120 lines CSS — progress tracker, line items table, notes text, stage controls, light theme overrides
+- [x] TypeScript clean: `web -b` passes
+
+## Sprint S18 — Native Quote UI Parity ✅ COMPLETE
+- [x] Extended StatusBadge to support quote statuses (accepted, declined, expired, invoice-sent)
+- [x] Added quote adapter functions to native/src/db/queries.ts — service catalogue CRUD, quote CRUD + lifecycle, formal invoice + receipts, extended band settings
+- [x] Created native/app/(tabs)/quotes.tsx — quote list with stats bar, search, 6 filter tabs, pull-to-refresh
+- [x] Created native/app/quote/new.tsx — 4-step wizard: Step 1 client & event (client search/create + event type/date/venue), Step 2 package builder (service catalogue + custom items + line items + discount + totals), Step 3 extras (PLI toggle + T&Cs + validity + notes), Step 4 preview carousel (7 styles, WebView)
+- [x] Created native/app/quote/[id].tsx — quote detail + lifecycle (progress tracker, line items, notes/T&Cs, history, formal invoice section, stage-dependent actions: send/accept/decline/expire/send invoice/mark paid/delete)
+- [x] Created native/app/quote/preview.tsx — multi-page PDF preview carousel (quote + formal invoice + receipts), share PDF
+- [x] Updated native/app/(tabs)/settings.tsx — service catalogue CRUD (add/edit/delete), PLI insurance (4 fields), default T&Cs textarea, quote defaults (validity days), extended save via updateBandSettingsExtended()
+- [x] Updated native/app/(tabs)/_layout.tsx — added Quotes tab (📝 emoji, between Invoices and Clients)
+- [x] TypeScript clean: `native --noEmit` passes
+
+## Sprint S19 — Navigation + Design Unification ✅ COMPLETE
+- [x] Unified native theme (COLORS, shadows, typography) to match web/mockup darker palette
+- [x] Web: Created Drawer component with 3-mode responsive behavior (mobile overlay, tablet rail, desktop full)
+- [x] Web: Integrated drawer into App.tsx — removed main-actions button list and view-toggle
+- [x] Web: Added drawer CSS, hamburger, responsive breakpoints (@768, @1024, @1440), removed max-width:480px
+- [x] Web: Updated header — fixed position, hamburger toggle, brand text, avatar, screen name
+- [x] Native: Installed @react-navigation/drawer, renamed (tabs) to (drawer)
+- [x] Native: Created custom drawer layout with neumorphic styling, section headers, green active indicator
+- [x] Native: Updated all 6 screens — removed SafeAreaView/redundant headers (drawer header handles safe area)
+- [x] TypeScript clean: both `web -b` and `native --noEmit` pass, `vite build` succeeds
+
+## Upcoming Sprint (S20)
+| Sprint | Focus | Key Deliverables |
+|--------|-------|------------------|
+| S20 | APK build fix + full device testing | Fix cmake error, install on Samsung, run migration, seed data, end-to-end test |
+
+> Pickup prompts for each sprint: `native/docs/ai_context/SPRINT_PROMPTS.md`
+
+## Backlog
+- Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx` (116 gigs + 62 away dates)
+- FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
+
+## Key Decisions (This Session)
+- Full feature parity between native and web (any member can do anything)
+- Supabase replaces SQLite for ALL data (ROADMAP_V2 supersedes D-015)
+- Collapsible drawer navigation on BOTH apps (not tabs)
+- PDFs generated on-demand (no cloud storage), templates in shared/templates/
+- Shared invoice number sequence (TGT-XXXX via RPC), separate quote sequence (QTE-XXX)
+- Unified Tangerine Timetree brand — mockups define the end-state target
 
 ## Recently Completed (This Session — 2026-03-04)
+- [x] Sprint S13: Web invoicing — 6 components (InvoiceList, InvoiceForm, InvoiceDetail, InvoicePreview, Settings, ClientList), 2 hooks, ViewContext extended, ~250 lines CSS, vite code splitting, tsc clean
+- [x] Sprint S12: Shared PDF templates — 17 files moved to shared/templates/, barrel export, native imports updated, tsc clean
+- [x] Sprint S11: SQLite → Supabase swap — adapter, login gate, screen updates, pdf_uri removal, tsc clean
+- [x] Sprint S10: Supabase invoicing schema, shared types/queries, migration script, pushed live
 - [x] Sprint S8: CSS extraction, ViewContext, error boundaries, light theme, code splitting, DNS config
 - [x] Sprint S7: Code dedup, shared components, skeleton loaders, validation, themed modals
 - [x] Sprint S6: Media gallery, media manager, contact form → Supabase, enquiry inbox, Storage bucket + migration pushed

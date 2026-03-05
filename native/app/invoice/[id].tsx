@@ -6,16 +6,16 @@ import { NeuCard, NeuButton, StatusBadge } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import {
   getInvoice, InvoiceWithClient,
-  updateInvoiceStatus, updateInvoicePdfUri,
+  updateInvoiceStatus,
   getReceiptsForInvoice, ReceiptWithMember,
   getSettings, GigBooksSettings,
   deleteInvoice, markInvoicePaid,
 } from '../../src/db';
 import { formatGBP } from '../../src/utils/formatCurrency';
 import { formatDateLong } from '../../src/utils/formatDate';
-import { getInvoiceHtml } from '../../src/pdf/getInvoiceTemplate';
-import { InvoiceStyle, INVOICE_STYLES } from '../../src/pdf/invoiceStyles';
-import { generatePdf, sharePdf, deletePdf } from '../../src/pdf/generatePdf';
+import { getInvoiceHtml, INVOICE_STYLES } from '@shared/templates';
+import type { InvoiceStyle } from '@shared/supabase/types';
+import { generatePdf, sharePdf } from '../../src/pdf/generatePdf';
 
 export default function InvoiceDetailScreen() {
   const router = useRouter();
@@ -46,7 +46,6 @@ export default function InvoiceDetailScreen() {
 
   async function handleStatusChange(status: 'draft' | 'sent' | 'paid') {
     if (status === 'paid') {
-      // Atomic: mark paid + generate receipts in one transaction
       const newReceipts = await markInvoicePaid(invoice!.id);
       setReceipts(newReceipts);
     } else {
@@ -56,42 +55,36 @@ export default function InvoiceDetailScreen() {
     setInvoice(updated);
   }
 
-  async function handleRegeneratePdf() {
-    if (!invoice || !settings) return;
-    const style = (invoice.style || 'classic') as InvoiceStyle;
-    const html = getInvoiceHtml(style, {
-      invoiceNumber: invoice.invoice_number,
-      issueDate: formatDateLong(invoice.issue_date),
-      dueDate: formatDateLong(invoice.due_date),
-      fromName: settings.your_name,
-      tradingAs: settings.trading_as,
-      businessType: settings.business_type,
-      website: settings.website,
-      toCompany: invoice.client_company_name,
-      toContact: invoice.client_contact_name,
-      toAddress: invoice.client_address,
-      description: invoice.description,
-      amount: invoice.amount,
-      bankAccountName: settings.bank_account_name,
-      bankName: settings.bank_name,
-      bankSortCode: settings.bank_sort_code,
-      bankAccountNumber: settings.bank_account_number,
-      paymentTermsDays: settings.payment_terms_days,
+  function buildInvoiceHtml() {
+    const style = (invoice!.style || 'classic') as InvoiceStyle;
+    return getInvoiceHtml(style, {
+      invoiceNumber: invoice!.invoice_number,
+      issueDate: formatDateLong(invoice!.issue_date),
+      dueDate: formatDateLong(invoice!.due_date),
+      fromName: settings!.your_name,
+      tradingAs: settings!.trading_as,
+      businessType: settings!.business_type,
+      website: settings!.website,
+      toCompany: invoice!.client_company_name,
+      toContact: invoice!.client_contact_name,
+      toAddress: invoice!.client_address,
+      description: invoice!.description,
+      amount: invoice!.amount,
+      bankAccountName: settings!.bank_account_name,
+      bankName: settings!.bank_name,
+      bankSortCode: settings!.bank_sort_code,
+      bankAccountNumber: settings!.bank_account_number,
+      paymentTermsDays: settings!.payment_terms_days,
     });
-
-    const uri = await generatePdf(html, invoice.invoice_number);
-    await updateInvoicePdfUri(invoice.id, uri);
-    setInvoice({ ...invoice, pdf_uri: uri });
   }
 
   async function handleSharePdf() {
-    if (invoice?.pdf_uri) {
-      await sharePdf(invoice.pdf_uri, `Share ${invoice.invoice_number}`);
-    } else {
-      await handleRegeneratePdf();
-    }
+    if (!invoice || !settings) return;
+    const html = buildInvoiceHtml();
+    const uri = await generatePdf(html, invoice.invoice_number);
+    await sharePdf(uri, `Share ${invoice.invoice_number}`);
     // Auto-mark as sent (only upgrade from draft, never downgrade from paid)
-    if (invoice?.status === 'draft') {
+    if (invoice.status === 'draft') {
       await updateInvoiceStatus(invoice.id, 'sent');
       const updated = await getInvoice(invoice.id);
       setInvoice(updated);
@@ -121,17 +114,14 @@ export default function InvoiceDetailScreen() {
   function handleDelete() {
     Alert.alert(
       'Delete Invoice',
-      'This will also delete any receipts and PDFs. This cannot be undone.',
+      'This will also delete any receipts. This cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            const pdfUris = await deleteInvoice(invoice!.id);
-            for (const uri of pdfUris) {
-              deletePdf(uri);
-            }
+            await deleteInvoice(invoice!.id);
             router.back();
           },
         },
@@ -201,8 +191,6 @@ export default function InvoiceDetailScreen() {
           <NeuButton label="Preview Invoice" onPress={handlePreview} color={COLORS.teal} />
           <View style={{ height: 8 }} />
           <NeuButton label="Share Invoice PDF" onPress={handleSharePdf} color={COLORS.teal} />
-          <View style={{ height: 8 }} />
-          <NeuButton label="Regenerate PDF" onPress={handleRegeneratePdf} color={COLORS.orange} />
           <View style={{ height: 8 }} />
           <NeuButton label={receipts.length > 0 ? 'View Receipts' : 'Generate Receipts'} onPress={handleReceipts} color={COLORS.orange} />
           <View style={{ height: 8 }} />

@@ -3,19 +3,24 @@ import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 
 interface StatusBadgeProps {
-  status: 'draft' | 'sent' | 'paid';
+  status: 'draft' | 'sent' | 'paid' | 'accepted' | 'declined' | 'expired' | 'invoice-sent';
 }
 
-const STATUS_COLORS = {
+const STATUS_COLORS: Record<string, string> = {
   draft: COLORS.textMuted,
   sent: COLORS.orange,
   paid: COLORS.success,
-} as const;
+  accepted: COLORS.success,
+  declined: COLORS.danger,
+  expired: COLORS.textMuted,
+  'invoice-sent': COLORS.teal,
+};
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+  const color = STATUS_COLORS[status] || COLORS.textMuted;
   return (
-    <View style={[styles.badge, { backgroundColor: STATUS_COLORS[status] + '22', borderColor: STATUS_COLORS[status] }]}>
-      <Text style={[styles.text, { color: STATUS_COLORS[status] }]}>
+    <View style={[styles.badge, { backgroundColor: color + '22', borderColor: color }]}>
+      <Text style={[styles.text, { color }]}>
         {status.toUpperCase()}
       </Text>
     </View>

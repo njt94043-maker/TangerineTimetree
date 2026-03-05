@@ -138,3 +138,216 @@ export interface PublicMedia {
   created_by: string;
   created_at: string;
 }
+
+// ─── Invoicing Types ─────────────────────────────────────
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid';
+export type InvoiceStyle = 'classic' | 'premium' | 'clean' | 'bold' | 'christmas' | 'halloween' | 'valentine';
+
+export interface Client {
+  id: string;
+  company_name: string;
+  contact_name: string;
+  address: string;
+  email: string;
+  phone: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface Venue {
+  id: string;
+  client_id: string;
+  venue_name: string;
+  address: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  client_id: string;
+  venue: string;
+  gig_date: string;        // YYYY-MM-DD
+  amount: number;
+  description: string;
+  issue_date: string;       // YYYY-MM-DD
+  due_date: string;         // YYYY-MM-DD
+  status: InvoiceStatus;
+  paid_date: string | null;
+  style: InvoiceStyle;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InvoiceWithClient extends Invoice {
+  client_company_name: string;
+  client_contact_name: string;
+  client_address: string;
+  client_email: string;
+}
+
+export interface Receipt {
+  id: string;
+  invoice_id: string;
+  member_id: string;
+  amount: number;
+  date: string;             // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface ReceiptWithMember extends Receipt {
+  member_name: string;
+}
+
+export interface UserSettings {
+  id: string;
+  your_name: string;
+  email: string;
+  phone: string;
+  bank_account_name: string;
+  bank_name: string;
+  bank_sort_code: string;
+  bank_account_number: string;
+  updated_at: string;
+}
+
+export interface BandSettings {
+  id: string;
+  trading_as: string;
+  business_type: string;
+  website: string;
+  payment_terms_days: number;
+  next_invoice_number: number;
+  // PLI fields
+  pli_insurer: string;
+  pli_policy_number: string;
+  pli_cover_amount: string;
+  pli_expiry_date: string | null;
+  // Quote fields
+  default_terms_and_conditions: string;
+  default_quote_validity_days: number;
+  next_quote_number: number;
+  updated_at: string;
+}
+
+export interface DashboardStats {
+  totalInvoiced: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  invoiceCount: number;
+  recentInvoices: InvoiceWithClient[];
+}
+
+// ─── Quoting & Formal Invoicing Types ────────────────────
+
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+export type EventType = 'wedding' | 'corporate' | 'private' | 'festival' | 'other';
+export type PLIOption = 'certificate' | 'details' | 'none';
+
+export interface ServiceCatalogueItem {
+  id: string;
+  name: string;
+  description: string;
+  default_price: number;
+  unit_label: string | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Quote {
+  id: string;
+  quote_number: string;
+  client_id: string;
+  created_by: string;
+  event_type: EventType;
+  event_date: string;        // YYYY-MM-DD
+  venue_name: string;
+  venue_address: string;
+  subtotal: number;
+  discount_amount: number;
+  total: number;
+  pli_option: PLIOption;
+  terms_and_conditions: string;
+  validity_days: number;
+  notes: string;
+  status: QuoteStatus;
+  style: InvoiceStyle;
+  created_at: string;
+  sent_at: string | null;
+  responded_at: string | null;
+  updated_at: string;
+}
+
+export interface QuoteWithClient extends Quote {
+  client_company_name: string;
+  client_contact_name: string;
+  client_address: string;
+  client_email: string;
+  client_phone: string;
+}
+
+export interface QuoteLineItem {
+  id: string;
+  quote_id: string;
+  service_id: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  sort_order: number;
+}
+
+export interface FormalInvoice {
+  id: string;
+  invoice_number: string;
+  quote_id: string;
+  client_id: string;
+  created_by: string;
+  venue_name: string;
+  event_date: string;        // YYYY-MM-DD
+  subtotal: number;
+  discount_amount: number;
+  total: number;
+  issue_date: string;        // YYYY-MM-DD
+  due_date: string;          // YYYY-MM-DD
+  status: InvoiceStatus;
+  paid_date: string | null;
+  notes: string;
+  style: InvoiceStyle;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FormalInvoiceWithClient extends FormalInvoice {
+  client_company_name: string;
+  client_contact_name: string;
+  client_address: string;
+  client_email: string;
+}
+
+export interface FormalInvoiceLineItem {
+  id: string;
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  sort_order: number;
+}
+
+export interface FormalReceipt {
+  id: string;
+  invoice_id: string;
+  member_id: string;
+  amount: number;
+  date: string;             // YYYY-MM-DD
+  created_at: string;
+}
+
+export interface FormalReceiptWithMember extends FormalReceipt {
+  member_name: string;
+}

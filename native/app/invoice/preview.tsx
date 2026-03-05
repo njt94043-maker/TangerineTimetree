@@ -11,11 +11,10 @@ import {
   getReceiptsForInvoice, ReceiptWithMember,
 } from '../../src/db';
 import { formatDateLong } from '../../src/utils/formatDate';
-import { InvoiceTemplateData } from '../../src/pdf/invoiceTemplate';
-import { getInvoiceHtml } from '../../src/pdf/getInvoiceTemplate';
-import { InvoiceStyle, INVOICE_STYLES } from '../../src/pdf/invoiceStyles';
-import { getReceiptHtml } from '../../src/pdf/getReceiptTemplate';
-import { sharePdf } from '../../src/pdf/generatePdf';
+import type { InvoiceTemplateData } from '@shared/templates';
+import { getInvoiceHtml, getReceiptHtml, INVOICE_STYLES } from '@shared/templates';
+import type { InvoiceStyle } from '@shared/supabase/types';
+import { generatePdf, sharePdf } from '../../src/pdf/generatePdf';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -28,8 +27,8 @@ interface PreviewPage {
   key: string;
   label: string;
   html: string;
-  pdfUri: string;
   shareTitle: string;
+  pdfFilename: string;
 }
 
 export default function InvoicePreviewScreen() {
@@ -89,8 +88,8 @@ export default function InvoicePreviewScreen() {
           key: 'invoice',
           label: `Invoice \u00B7 ${styleName}`,
           html: getInvoiceHtml(style, templateData),
-          pdfUri: inv.pdf_uri,
           shareTitle: `Share ${inv.invoice_number}`,
+          pdfFilename: inv.invoice_number,
         },
       ];
 
@@ -109,8 +108,8 @@ export default function InvoicePreviewScreen() {
             description: inv.description,
             website: s.website,
           }),
-          pdfUri: r.pdf_uri,
           shareTitle: `Receipt for ${r.member_name}`,
+          pdfFilename: `RECEIPT-${inv.invoice_number}-${r.member_name.replace(/\s+/g, '-')}`,
         });
       }
 
@@ -127,9 +126,10 @@ export default function InvoicePreviewScreen() {
 
   async function handleShare() {
     const page = pages[currentIndex];
-    if (page?.pdfUri) {
-      await sharePdf(page.pdfUri, page.shareTitle);
-    }
+    if (!page) return;
+    // Generate PDF on demand from HTML
+    const uri = await generatePdf(page.html, page.pdfFilename);
+    await sharePdf(uri, page.shareTitle);
   }
 
   if (pages.length === 0) return <View style={styles.container} />;
@@ -195,16 +195,14 @@ export default function InvoicePreviewScreen() {
         </Pressable>
       )}
 
-      {/* Share button */}
-      {currentPage?.pdfUri ? (
-        <View style={styles.actionBar}>
-          <NeuButton
-            label={currentIndex === 0 ? 'Share Invoice PDF' : `Share Receipt`}
-            onPress={handleShare}
-            color={COLORS.teal}
-          />
-        </View>
-      ) : null}
+      {/* Share button — always available, generates PDF on demand */}
+      <View style={styles.actionBar}>
+        <NeuButton
+          label={currentIndex === 0 ? 'Share Invoice PDF' : 'Share Receipt'}
+          onPress={handleShare}
+          color={COLORS.teal}
+        />
+      </View>
     </SafeAreaView>
   );
 }

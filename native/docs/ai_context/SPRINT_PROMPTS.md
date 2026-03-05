@@ -133,3 +133,153 @@ Goals — final polish:
 
 Update SOT docs at session end. Review STATUS.md — mark remaining items as complete or move to future backlog.
 ```
+
+---
+
+## Sprint S13 — Web Invoicing + Settings + Client Management
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S13.
+
+Goals — Web invoicing + settings + client management:
+1. Add format utilities to web/src/utils/format.ts — formatDateLong, formatGBP, todayISO, addDaysISO.
+2. Create useInvoiceData hook (web) — calls getInvoices(), realtime subscription on invoices table.
+3. Create useSettings hook (web) — calls getUserSettings() + getBandSettings(), merges into flat CombinedSettings.
+4. Extend ViewContext — add views: invoices, invoice-form, invoice-detail, invoice-preview, settings, clients. Add nav helpers: goToInvoices, goToNewInvoice, goToEditInvoice, goToInvoiceDetail, goToInvoicePreview, goToSettings, goToClients.
+5. Create Settings component — two sections: Your Details (bank info via upsertUserSettings) + Band Settings (trading name, payment terms via updateBandSettings). Follow ProfilePage pattern.
+6. Create ClientList component — list clients, add/edit/delete, venue management. Uses getClients, createClient, updateClient, deleteClient, searchClients from shared queries.
+7. Create InvoiceList — status filter tabs (All/Draft/Sent/Paid), stats bar (total invoiced/outstanding/paid via getDashboardStats), card list with invoice number, client, amount, status badge, dates.
+8. Create InvoiceForm — 3-step wizard mirroring native/app/invoice/new.tsx: Step 1 client selection/creation, Step 2 gig details (venue, date, amount, description), Step 3 style carousel preview. Uses getInvoiceHtml() from @shared/templates in iframe srcdoc. Approve saves via createInvoice().
+9. Create InvoiceDetail — invoice info card, status controls (draft/sent/paid), receipts list, actions (preview, print, duplicate, delete). Uses getInvoice, updateInvoiceStatus, markInvoicePaid, deleteInvoice.
+10. Create InvoicePreview — multi-page iframe (invoice + receipts). Print via iframe.contentWindow.print(). Uses getInvoiceHtml/getReceiptHtml from @shared/templates.
+11. Wire all into App.tsx — imports, conditional renders, nav buttons (Invoices, Clients, Settings in main-actions).
+12. Add ~250 lines invoice/settings/client CSS to App.css. Add invoicing chunk to vite.config.ts code splitting.
+
+Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S14 — Dashboard + Export + Invoice Polish
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S14.
+
+Goals — Dashboard + export + invoice polish:
+1. Create Dashboard component (web) — stats cards (total invoiced, outstanding, paid from getDashboardStats), recent invoices list, monthly breakdown. Make dashboard the default authenticated view.
+2. Create web/src/utils/export.ts — CSV export of invoices (filterable by tax year Apr-Mar), batch PDF download.
+3. Add dashboard view to ViewContext, wire into App.tsx, add dashboard CSS.
+4. Polish S13 work — fix any bugs, improve responsive layout, test edge cases (empty states, long client names, etc.).
+5. Extend InvoiceList with sort options (date, amount, status) and search.
+
+Run `npx tsc -b` (web). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S15 — Quote System Backend
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S15. Read native/FEATURE_SPEC_PACKAGE_BUILDER.md for the full quoting system spec.
+
+Goals — Quote system backend (no UI — schema + types + queries + templates):
+1. Write Supabase migration SQL: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts. Add PLI + T&C + quote fields to band_settings. Add RLS policies. Add next_quote_number() RPC.
+2. Push migration to live Supabase.
+3. Add shared types to shared/supabase/types.ts: Quote, QuoteWithClient, QuoteLineItem, ServiceCatalogueItem, FormalInvoice, FormalInvoiceWithClient, FormalInvoiceLineItem, FormalReceipt, FormalReceiptWithMember, QuoteStatus, EventType, PLIOption.
+4. Add shared queries to shared/supabase/queries.ts: full CRUD for service catalogue, quotes, quote line items. Lifecycle: sendQuote, acceptQuote (auto-creates formal invoice with line items), declineQuote, expireQuote. Formal invoices: getFormalInvoice, sendFormalInvoice, markFormalInvoicePaid (generate receipts). Formal receipts: getFormalReceipts.
+5. Create quote PDF templates in shared/templates/: quoteTemplate.ts (classic) + 6 themed variants + getQuoteHtml.ts router. Create formalInvoiceTemplate.ts (classic) + 6 themed variants + getFormalInvoiceHtml.ts router. Update index.ts barrel.
+
+Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S16 — Web Quote Wizard + Service Catalogue UI
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S16.
+
+Goals — Web quote wizard + service catalogue UI:
+1. Extend Settings component — add Service Catalogue section (add/edit/reorder/delete services), PLI section (insurer, policy number, cover, expiry), T&Cs section (default text editor), Quote Defaults (validity period).
+2. Create useQuoteData hook — calls getQuotes(), realtime subscription.
+3. Create QuoteList component — quote list with status filter (draft/sent/accepted/declined/expired), shows client, event type, date, total, status badge.
+4. Create QuoteForm — 4-step wizard: Step 1 client & event (select/create client, event type, date, venue), Step 2 build package (select from service catalogue, adjust prices, custom items, quantity, discount, running total), Step 3 extras (PLI toggle, T&Cs, validity, notes), Step 4 preview (style carousel in iframe, "Create Quote" button).
+5. Add quote views to ViewContext (quotes, quote-form, quote-detail, quote-preview). Wire into App.tsx. Add quote CSS to App.css.
+
+Run `npx tsc -b` (web). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S17 — Web Quote Lifecycle + Formal Invoicing
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S17.
+
+Goals — Web quote lifecycle + formal invoicing:
+1. Create QuoteDetail component — transaction detail screen with progressive stage buttons: Draft → Sent → Accepted → Invoice Sent → Paid → Complete. Also Declined/Expired. Shows client/event summary, total, current stage, linked documents, stage history.
+2. Implement "Accept" flow — acceptQuote() auto-generates formal invoice with line items copied from quote. Show formal invoice for review/edit before sending.
+3. Create QuotePreview component — multi-page iframe: quote page, formal invoice page (if exists), receipt pages (if paid). Same pattern as InvoicePreview.
+4. Calendar integration — when quote is accepted, prompt to add gig to calendar. Pre-fill date, venue, fee from quote. Uses createGig().
+5. Wire QuoteDetail and QuotePreview into App.tsx.
+
+Run `npx tsc -b` (web). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S18 — Native Quote UI Parity
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S18.
+
+Goals — Native quote UI parity (mirror web S16+S17):
+1. Create native/app/(tabs)/quotes.tsx — quote list tab with status filter.
+2. Create native/app/quote/new.tsx — 4-step quote wizard (same flow as web QuoteForm).
+3. Create native/app/quote/[id].tsx — transaction detail + lifecycle screen (same as web QuoteDetail).
+4. Create native/app/quote/preview.tsx — quote PDF preview carousel (WebView, same pattern as invoice/preview.tsx).
+5. Update native/app/(tabs)/settings.tsx — add service catalogue, PLI, T&Cs sections.
+6. Update native/app/(tabs)/_layout.tsx — add Quotes tab.
+7. Add quote adapter functions to native/src/db/queries.ts (wrapping shared queries, same pattern as invoice adapters).
+
+Run `npx tsc --noEmit` (native). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S19 — Navigation + Design Unification
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S19.
+
+Reference: mockups/responsive-mockup.html for the target drawer nav design.
+
+Goals — Navigation + design unification:
+1. Web: Replace button-based main-actions with collapsible sidebar/drawer. Items: Dashboard, Calendar, Gig List, Invoices, Quotes, Clients, Away Dates, Media, Enquiries, Website, Settings, Profile. Hamburger on mobile, collapsible sidebar on desktop.
+2. Native: Replace (tabs)/_layout.tsx tab navigation with drawer navigation. Same nav items as web. Neumorphic drawer styling.
+3. Unified theme: verify COLORS, FONTS, spacing match across web + native. Consistent Tangerine Timetree branding (logo, header, accents).
+4. Responsive polish: web drawer collapses correctly on mobile, invoice forms are usable on small screens.
+5. Final visual QA pass on both apps.
+
+Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
+```
+
+---
+
+## Sprint S20 — APK Build Fix + Full Device Testing
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S20 — final sprint.
+
+Goals — APK build fix + full device testing:
+1. Fix APK build — cmake error from @react-native-community/datetimepicker. Try: npx expo prebuild --clean → cd android && ./gradlew assembleRelease. If stuck, try updating datetimepicker or cmake version.
+2. Build APK, install on Samsung device (RFCW113WZRM).
+3. Run SQLite migration script (native/scripts/migrate-sqlite-to-supabase.ts) — needs SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID env vars.
+4. Seed calendar data — import 116 gigs + 62 away dates from C:\Apps\timetree-scrape\timetree_gigs.xlsx.
+5. End-to-end testing on device: calendar CRUD, simple invoicing, quote lifecycle, client management, settings, PDF generation/sharing, dashboard, export, drawer nav.
+6. Web PWA testing: install from thegreentangerine.com, offline mode, sync.
+7. Final tsc checks: npx tsc -b (web) + npx tsc --noEmit (native).
+8. Fix any bugs found during testing.
+
+Update SOT docs — mark all sprints complete. Archive backlog items or move to future roadmap.
+```

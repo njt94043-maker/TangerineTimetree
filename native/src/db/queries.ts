@@ -1,13 +1,55 @@
-import { getDb } from './database';
-import { formatInvoiceNumber } from '../utils/invoiceNumber';
-import { addDays, todayISO } from '../utils/formatDate';
-import { InvoiceStyle } from '../pdf/invoiceStyles';
+/**
+ * Supabase adapter — wraps shared/supabase/queries to match the old SQLite
+ * function signatures so that screen-level imports stay unchanged.
+ *
+ * SQLite originals backed up in queries.sqlite.ts (read-only fallback).
+ */
 
-function genId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
+import * as SQ from '@shared/supabase/queries';
+import type {
+  Client as SupaClient,
+  Venue as SupaVenue,
+  Invoice as SupaInvoice,
+  InvoiceWithClient as SupaInvoiceWithClient,
+  Receipt as SupaReceipt,
+  ReceiptWithMember as SupaReceiptWithMember,
+  UserSettings,
+  BandSettings,
+  DashboardStats as SupaDashboardStats,
+  InvoiceStyle,
+  Profile,
+  QuoteStatus,
+  EventType,
+  PLIOption,
+  ServiceCatalogueItem as SupaServiceCatalogueItem,
+  Quote as SupaQuote,
+  QuoteWithClient as SupaQuoteWithClient,
+  QuoteLineItem as SupaQuoteLineItem,
+  FormalInvoice as SupaFormalInvoice,
+  FormalInvoiceWithClient as SupaFormalInvoiceWithClient,
+  FormalInvoiceLineItem as SupaFormalInvoiceLineItem,
+  FormalReceipt as SupaFormalReceipt,
+} from '@shared/supabase/types';
 
-// ─── Settings ───────────────────────────────────────────
+// ─── Re-exported types ──────────────────────────────────
+// Screens import these from '../db' — keep the same names
+
+export type Client = SupaClient;
+export type Venue = SupaVenue;
+export type Invoice = SupaInvoice;
+export type InvoiceWithClient = SupaInvoiceWithClient;
+export type Receipt = SupaReceipt;
+export type ReceiptWithMember = SupaReceiptWithMember;
+export type DashboardStats = SupaDashboardStats;
+export type ServiceCatalogueItem = SupaServiceCatalogueItem;
+export type Quote = SupaQuote;
+export type QuoteWithClient = SupaQuoteWithClient;
+export type QuoteLineItem = SupaQuoteLineItem;
+export type FormalInvoice = SupaFormalInvoice;
+export type FormalInvoiceWithClient = SupaFormalInvoiceWithClient;
+export type FormalInvoiceLineItem = SupaFormalInvoiceLineItem;
+export type FormalReceipt = SupaFormalReceipt;
+export type { QuoteStatus, EventType, PLIOption };
 
 export interface GigBooksSettings {
   your_name: string;
@@ -24,117 +66,6 @@ export interface GigBooksSettings {
   next_invoice_number: number;
 }
 
-export async function getSettings(): Promise<GigBooksSettings | null> {
-  const db = await getDb();
-  return db.getFirstAsync<GigBooksSettings>(
-    'SELECT your_name, trading_as, business_type, website, email, phone, bank_account_name, bank_name, bank_sort_code, bank_account_number, payment_terms_days, next_invoice_number FROM settings WHERE id = ?',
-    ['default']
-  );
-}
-
-export async function updateSettings(updates: Partial<GigBooksSettings>): Promise<void> {
-  const db = await getDb();
-  const keys = Object.keys(updates) as (keyof GigBooksSettings)[];
-  if (keys.length === 0) return;
-  const setClauses = keys.map(k => `${k} = ?`).join(', ');
-  const values = keys.map(k => updates[k]!);
-  await db.runAsync(`UPDATE settings SET ${setClauses} WHERE id = ?`, [...values, 'default']);
-}
-
-// ─── Clients ────────────────────────────────────────────
-
-export interface Client {
-  id: string;
-  company_name: string;
-  contact_name: string;
-  address: string;
-  email: string;
-  phone: string;
-  created_at: string;
-}
-
-export async function getClients(): Promise<Client[]> {
-  const db = await getDb();
-  return db.getAllAsync<Client>('SELECT * FROM clients ORDER BY company_name ASC');
-}
-
-export async function getClient(id: string): Promise<Client | null> {
-  const db = await getDb();
-  return db.getFirstAsync<Client>('SELECT * FROM clients WHERE id = ?', [id]);
-}
-
-export async function addClient(client: Omit<Client, 'id' | 'created_at'>): Promise<string> {
-  const db = await getDb();
-  const id = genId();
-  await db.runAsync(
-    'INSERT INTO clients (id, company_name, contact_name, address, email, phone) VALUES (?, ?, ?, ?, ?, ?)',
-    [id, client.company_name, client.contact_name, client.address, client.email, client.phone]
-  );
-  return id;
-}
-
-export async function updateClient(id: string, updates: Partial<Omit<Client, 'id' | 'created_at'>>): Promise<void> {
-  const db = await getDb();
-  const keys = Object.keys(updates) as (keyof typeof updates)[];
-  if (keys.length === 0) return;
-  const setClauses = keys.map(k => `${k} = ?`).join(', ');
-  const values = keys.map(k => updates[k]!);
-  await db.runAsync(`UPDATE clients SET ${setClauses} WHERE id = ?`, [...values, id]);
-}
-
-export async function deleteClient(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM clients WHERE id = ?', [id]);
-}
-
-export async function searchClients(query: string): Promise<Client[]> {
-  const db = await getDb();
-  const pattern = `%${query}%`;
-  return db.getAllAsync<Client>(
-    'SELECT * FROM clients WHERE company_name LIKE ? OR contact_name LIKE ? ORDER BY company_name ASC',
-    [pattern, pattern]
-  );
-}
-
-// ─── Venues ────────────────────────────────────────────
-
-export interface Venue {
-  id: string;
-  client_id: string;
-  venue_name: string;
-  created_at: string;
-}
-
-export async function getVenuesForClient(clientId: string): Promise<Venue[]> {
-  const db = await getDb();
-  return db.getAllAsync<Venue>(
-    'SELECT * FROM venues WHERE client_id = ? ORDER BY venue_name ASC',
-    [clientId]
-  );
-}
-
-export async function addVenue(clientId: string, venueName: string): Promise<Venue> {
-  const db = await getDb();
-  const id = genId();
-  await db.runAsync(
-    'INSERT INTO venues (id, client_id, venue_name) VALUES (?, ?, ?)',
-    [id, clientId, venueName]
-  );
-  return {
-    id,
-    client_id: clientId,
-    venue_name: venueName,
-    created_at: new Date().toISOString(),
-  };
-}
-
-export async function deleteVenue(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM venues WHERE id = ?', [id]);
-}
-
-// ─── Band Members ───────────────────────────────────────
-
 export interface BandMember {
   id: string;
   name: string;
@@ -142,64 +73,114 @@ export interface BandMember {
   is_self: number;
 }
 
+// Fields that belong to user_settings vs band_settings
+const USER_FIELDS = new Set([
+  'your_name', 'email', 'phone',
+  'bank_account_name', 'bank_name', 'bank_sort_code', 'bank_account_number',
+]);
+const BAND_FIELDS = new Set([
+  'trading_as', 'business_type', 'website', 'payment_terms_days',
+]);
+
+// ─── Settings ───────────────────────────────────────────
+
+export async function getSettings(): Promise<GigBooksSettings | null> {
+  const [userSettings, bandSettings] = await Promise.all([
+    SQ.getUserSettings(),
+    SQ.getBandSettings(),
+  ]);
+
+  return {
+    your_name: userSettings?.your_name ?? '',
+    email: userSettings?.email ?? '',
+    phone: userSettings?.phone ?? '',
+    bank_account_name: userSettings?.bank_account_name ?? '',
+    bank_name: userSettings?.bank_name ?? '',
+    bank_sort_code: userSettings?.bank_sort_code ?? '',
+    bank_account_number: userSettings?.bank_account_number ?? '',
+    trading_as: bandSettings?.trading_as ?? 'The Green Tangerine',
+    business_type: bandSettings?.business_type ?? 'Live Music Entertainment',
+    website: bandSettings?.website ?? 'www.thegreentangerine.com',
+    payment_terms_days: bandSettings?.payment_terms_days ?? 14,
+    next_invoice_number: bandSettings?.next_invoice_number ?? 1,
+  };
+}
+
+export async function updateSettings(updates: Partial<GigBooksSettings>): Promise<void> {
+  const userUpdates: Record<string, unknown> = {};
+  const bandUpdates: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (USER_FIELDS.has(key)) userUpdates[key] = value;
+    else if (BAND_FIELDS.has(key)) bandUpdates[key] = value;
+    // next_invoice_number is managed by RPC, ignore here
+  }
+
+  const promises: Promise<void>[] = [];
+  if (Object.keys(userUpdates).length > 0) {
+    promises.push(SQ.upsertUserSettings(userUpdates as Partial<Omit<UserSettings, 'id' | 'updated_at'>>));
+  }
+  if (Object.keys(bandUpdates).length > 0) {
+    promises.push(SQ.updateBandSettings(bandUpdates as Partial<Pick<BandSettings, 'trading_as' | 'business_type' | 'website' | 'payment_terms_days'>>));
+  }
+  await Promise.all(promises);
+}
+
+// ─── Band Members (mapped from Profiles) ────────────────
+
 export async function getBandMembers(): Promise<BandMember[]> {
-  const db = await getDb();
-  return db.getAllAsync<BandMember>('SELECT * FROM band_members ORDER BY sort_order ASC');
+  const profiles = await SQ.getProfiles();
+  return profiles.map((p: Profile, i: number) => ({
+    id: p.id,
+    name: p.name,
+    sort_order: i + 1,
+    is_self: p.is_admin ? 1 : 0,
+  }));
 }
 
 export async function getOtherBandMembers(): Promise<BandMember[]> {
-  const db = await getDb();
-  return db.getAllAsync<BandMember>('SELECT * FROM band_members WHERE is_self = 0 ORDER BY sort_order ASC');
+  const all = await getBandMembers();
+  return all.filter(m => !m.is_self);
 }
 
-export async function updateBandMember(id: string, name: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('UPDATE band_members SET name = ? WHERE id = ?', [name, id]);
+export async function updateBandMember(_id: string, _name: string): Promise<void> {
+  // No-op: profiles are managed via Supabase auth, not editable from settings
+}
+
+// ─── Clients ────────────────────────────────────────────
+
+export const getClients = SQ.getClients;
+export const getClient = SQ.getClient;
+export const updateClient = SQ.updateClient;
+export const deleteClient = SQ.deleteClient;
+export const searchClients = SQ.searchClients;
+
+export async function addClient(client: {
+  company_name: string;
+  contact_name: string;
+  address: string;
+  email: string;
+  phone: string;
+}): Promise<Client> {
+  return SQ.createClient(client);
+}
+
+// ─── Venues ─────────────────────────────────────────────
+
+export const getVenuesForClient = SQ.getVenuesForClient;
+export const deleteVenue = SQ.deleteVenue;
+
+export async function addVenue(clientId: string, venueName: string): Promise<Venue> {
+  return SQ.createVenue(clientId, venueName);
 }
 
 // ─── Invoices ───────────────────────────────────────────
 
-export interface Invoice {
-  id: string;
-  invoice_number: string;
-  client_id: string;
-  venue: string;
-  gig_date: string;
-  amount: number;
-  description: string;
-  issue_date: string;
-  due_date: string;
-  status: 'draft' | 'sent' | 'paid';
-  paid_date: string;
-  pdf_uri: string;
-  style: InvoiceStyle;
-  created_at: string;
-}
-
-export interface InvoiceWithClient extends Invoice {
-  client_company_name: string;
-  client_contact_name: string;
-  client_address: string;
-}
-
-export async function getInvoices(): Promise<InvoiceWithClient[]> {
-  const db = await getDb();
-  return db.getAllAsync<InvoiceWithClient>(
-    `SELECT i.*, c.company_name as client_company_name, c.contact_name as client_contact_name, c.address as client_address
-     FROM invoices i JOIN clients c ON i.client_id = c.id
-     ORDER BY i.created_at DESC`
-  );
-}
-
-export async function getInvoice(id: string): Promise<InvoiceWithClient | null> {
-  const db = await getDb();
-  return db.getFirstAsync<InvoiceWithClient>(
-    `SELECT i.*, c.company_name as client_company_name, c.contact_name as client_contact_name, c.address as client_address
-     FROM invoices i JOIN clients c ON i.client_id = c.id
-     WHERE i.id = ?`,
-    [id]
-  );
-}
+export const getInvoices = SQ.getInvoices;
+export const getInvoice = SQ.getInvoice;
+export const updateInvoiceStatus = SQ.updateInvoiceStatus;
+export const markInvoicePaid = SQ.markInvoicePaid;
+export const getDashboardStats = SQ.getDashboardStats;
 
 export async function createInvoice(data: {
   client_id: string;
@@ -209,254 +190,100 @@ export async function createInvoice(data: {
   description: string;
   style?: InvoiceStyle;
 }): Promise<Invoice> {
-  const db = await getDb();
-  const settings = await getSettings();
-  if (!settings) throw new Error('Settings not initialized');
-
-  const id = genId();
-  const invoiceNumber = formatInvoiceNumber(settings.next_invoice_number);
-  const issueDate = todayISO();
-  const dueDate = addDays(issueDate, settings.payment_terms_days);
-
-  const style = data.style || 'classic';
-
-  await db.withExclusiveTransactionAsync(async () => {
-    await db.runAsync(
-      `INSERT INTO invoices (id, invoice_number, client_id, venue, gig_date, amount, description, issue_date, due_date, style)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, invoiceNumber, data.client_id, data.venue, data.gig_date, data.amount, data.description, issueDate, dueDate, style]
-    );
-    await db.runAsync(
-      'UPDATE settings SET next_invoice_number = next_invoice_number + 1 WHERE id = ?',
-      ['default']
-    );
+  return SQ.createInvoice({
+    ...data,
+    style: (data.style ?? 'classic') as InvoiceStyle,
   });
-
-  return {
-    id,
-    invoice_number: invoiceNumber,
-    client_id: data.client_id,
-    venue: data.venue,
-    gig_date: data.gig_date,
-    amount: data.amount,
-    description: data.description,
-    issue_date: issueDate,
-    due_date: dueDate,
-    status: 'draft',
-    paid_date: '',
-    pdf_uri: '',
-    style: style as InvoiceStyle,
-    created_at: new Date().toISOString(),
-  };
 }
 
-export async function updateInvoiceStatus(id: string, status: 'draft' | 'sent' | 'paid'): Promise<void> {
-  const db = await getDb();
-  const paidDate = status === 'paid' ? todayISO() : '';
-  await db.runAsync(
-    'UPDATE invoices SET status = ?, paid_date = ? WHERE id = ?',
-    [status, paidDate, id]
-  );
-}
-
-export async function updateInvoicePdfUri(id: string, uri: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('UPDATE invoices SET pdf_uri = ? WHERE id = ?', [uri, id]);
-}
-
-export async function updateInvoiceStyle(id: string, style: InvoiceStyle): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('UPDATE invoices SET style = ? WHERE id = ?', [style, id]);
-}
-
-/**
- * Marks invoice as paid + generates receipts in a single atomic transaction.
- * Idempotent: if receipts already exist, returns them without duplicating.
- */
-export async function markInvoicePaid(invoiceId: string): Promise<ReceiptWithMember[]> {
-  const db = await getDb();
-
-  // Check for existing receipts first (idempotent guard)
-  const existing = await getReceiptsForInvoice(invoiceId);
-  if (existing.length > 0) {
-    // Just update status if not already paid
-    await db.runAsync(
-      'UPDATE invoices SET status = ?, paid_date = ? WHERE id = ?',
-      ['paid', todayISO(), invoiceId]
-    );
-    return existing;
-  }
-
-  const invoice = await getInvoice(invoiceId);
-  if (!invoice) throw new Error('Invoice not found');
-
-  const allMembers = await getBandMembers();
-  const otherMembers = allMembers.filter(m => !m.is_self);
-  const perPerson = Math.round((invoice.amount / allMembers.length) * 100) / 100;
-  const remainder = Math.round((invoice.amount - perPerson * allMembers.length) * 100) / 100;
-  const today = todayISO();
-
-  const results: ReceiptWithMember[] = [];
-
-  await db.withExclusiveTransactionAsync(async () => {
-    // 1. Mark paid
-    await db.runAsync(
-      'UPDATE invoices SET status = ?, paid_date = ? WHERE id = ?',
-      ['paid', today, invoiceId]
-    );
-
-    // 2. Generate receipts
-    for (let i = 0; i < otherMembers.length; i++) {
-      const member = otherMembers[i];
-      const amt = i === 0 ? perPerson + remainder : perPerson;
-      const id = genId();
-      await db.runAsync(
-        'INSERT INTO receipts (id, invoice_id, member_id, amount, date) VALUES (?, ?, ?, ?, ?)',
-        [id, invoiceId, member.id, amt, today]
-      );
-      results.push({
-        id,
-        invoice_id: invoiceId,
-        member_id: member.id,
-        amount: amt,
-        date: today,
-        pdf_uri: '',
-        created_at: new Date().toISOString(),
-        member_name: member.name,
-      });
-    }
-  });
-
-  return results;
+export async function updateInvoice(
+  id: string,
+  updates: Partial<Pick<Invoice, 'venue' | 'gig_date' | 'amount' | 'description' | 'due_date' | 'style'>>,
+): Promise<void> {
+  return SQ.updateInvoice(id, updates);
 }
 
 export async function deleteInvoice(id: string): Promise<string[]> {
-  const db = await getDb();
+  await SQ.deleteInvoice(id);
+  return []; // No pdf_uri cleanup needed — PDFs generated on demand
+}
 
-  // Collect PDF URIs to clean up
-  const invoice = await db.getFirstAsync<{ pdf_uri: string }>('SELECT pdf_uri FROM invoices WHERE id = ?', [id]);
-  const receipts = await db.getAllAsync<{ pdf_uri: string }>('SELECT pdf_uri FROM receipts WHERE invoice_id = ?', [id]);
-
-  const pdfUris: string[] = [];
-  if (invoice?.pdf_uri) pdfUris.push(invoice.pdf_uri);
-  for (const r of receipts) {
-    if (r.pdf_uri) pdfUris.push(r.pdf_uri);
-  }
-
-  // Delete receipts first (no CASCADE on this FK), then invoice
-  await db.runAsync('DELETE FROM receipts WHERE invoice_id = ?', [id]);
-  await db.runAsync('DELETE FROM invoices WHERE id = ?', [id]);
-
-  return pdfUris;
+// No-ops: PDFs are generated on demand, not persisted
+export async function updateInvoicePdfUri(_id: string, _uri: string): Promise<void> {}
+export async function updateInvoiceStyle(_id: string, _style: InvoiceStyle): Promise<void> {
+  await SQ.updateInvoice(_id, { style: _style as InvoiceStyle });
 }
 
 // ─── Receipts ───────────────────────────────────────────
 
-export interface Receipt {
-  id: string;
-  invoice_id: string;
-  member_id: string;
-  amount: number;
-  date: string;
-  pdf_uri: string;
-  created_at: string;
-}
-
-export interface ReceiptWithMember extends Receipt {
-  member_name: string;
-}
-
-export async function getReceiptsForInvoice(invoiceId: string): Promise<ReceiptWithMember[]> {
-  const db = await getDb();
-  return db.getAllAsync<ReceiptWithMember>(
-    `SELECT r.*, bm.name as member_name
-     FROM receipts r JOIN band_members bm ON r.member_id = bm.id
-     WHERE r.invoice_id = ?
-     ORDER BY bm.sort_order ASC`,
-    [invoiceId]
-  );
-}
+export const getReceiptsForInvoice = SQ.getReceiptsForInvoice;
 
 export async function createReceipts(invoiceId: string): Promise<ReceiptWithMember[]> {
-  // Guard: if receipts already exist, return them
-  const existing = await getReceiptsForInvoice(invoiceId);
-  if (existing.length > 0) return existing;
-
-  const db = await getDb();
-  const invoice = await getInvoice(invoiceId);
-  if (!invoice) throw new Error('Invoice not found');
-
-  const allMembers = await getBandMembers();
-  const otherMembers = allMembers.filter(m => !m.is_self);
-  const perPerson = Math.round((invoice.amount / allMembers.length) * 100) / 100;
-  const remainder = Math.round((invoice.amount - perPerson * allMembers.length) * 100) / 100;
-  const today = todayISO();
-
-  const results: ReceiptWithMember[] = [];
-
-  await db.withExclusiveTransactionAsync(async () => {
-    for (let i = 0; i < otherMembers.length; i++) {
-      const member = otherMembers[i];
-      const amt = i === 0 ? perPerson + remainder : perPerson;
-      const id = genId();
-      await db.runAsync(
-        'INSERT INTO receipts (id, invoice_id, member_id, amount, date) VALUES (?, ?, ?, ?, ?)',
-        [id, invoiceId, member.id, amt, today]
-      );
-      results.push({
-        id,
-        invoice_id: invoiceId,
-        member_id: member.id,
-        amount: amt,
-        date: today,
-        pdf_uri: '',
-        created_at: new Date().toISOString(),
-        member_name: member.name,
-      });
-    }
-  });
-
-  return results;
+  // Shared markInvoicePaid creates receipts + marks paid in one step
+  return SQ.markInvoicePaid(invoiceId);
 }
 
-export async function updateReceiptPdfUri(id: string, uri: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('UPDATE receipts SET pdf_uri = ? WHERE id = ?', [uri, id]);
+// No-op: PDFs are generated on demand
+export async function updateReceiptPdfUri(_id: string, _uri: string): Promise<void> {}
+
+// ─── Service Catalogue ──────────────────────────────────
+
+export const getServiceCatalogue = SQ.getServiceCatalogue;
+export const getAllServiceCatalogue = SQ.getAllServiceCatalogue;
+export const createServiceItem = SQ.createServiceItem;
+export const updateServiceItem = SQ.updateServiceItem;
+export const deleteServiceItem = SQ.deleteServiceItem;
+
+// ─── Quotes ─────────────────────────────────────────────
+
+export const getQuotes = SQ.getQuotes;
+export const getQuote = SQ.getQuote;
+export const getQuoteLineItems = SQ.getQuoteLineItems;
+export const sendQuote = SQ.sendQuote;
+export const acceptQuote = SQ.acceptQuote;
+export const declineQuote = SQ.declineQuote;
+export const expireQuote = SQ.expireQuote;
+
+export async function createQuote(data: {
+  client_id: string;
+  event_type: EventType;
+  event_date: string;
+  venue_name: string;
+  venue_address?: string;
+  subtotal: number;
+  discount_amount?: number;
+  total: number;
+  pli_option?: PLIOption;
+  terms_and_conditions?: string;
+  validity_days?: number;
+  notes?: string;
+  style?: InvoiceStyle;
+  line_items: Array<{
+    service_id?: string | null;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    line_total: number;
+    sort_order?: number;
+  }>;
+}): Promise<Quote> {
+  return SQ.createQuote(data);
 }
 
-// ─── Dashboard Stats ────────────────────────────────────
-
-export interface DashboardStats {
-  totalInvoiced: number;
-  totalPaid: number;
-  totalOutstanding: number;
-  invoiceCount: number;
-  recentInvoices: InvoiceWithClient[];
+export async function deleteQuote(id: string): Promise<void> {
+  await SQ.deleteQuote(id);
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  const db = await getDb();
+// ─── Formal Invoices ────────────────────────────────────
 
-  const totals = await db.getFirstAsync<{ total: number; paid: number; outstanding: number; count: number }>(
-    `SELECT
-       COALESCE(SUM(amount), 0) as total,
-       COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) as paid,
-       COALESCE(SUM(CASE WHEN status = 'sent' THEN amount ELSE 0 END), 0) as outstanding,
-       COUNT(*) as count
-     FROM invoices`
-  );
+export const getFormalInvoice = SQ.getFormalInvoice;
+export const getFormalInvoiceByQuote = SQ.getFormalInvoiceByQuote;
+export const getFormalInvoiceLineItems = SQ.getFormalInvoiceLineItems;
+export const sendFormalInvoice = SQ.sendFormalInvoice;
+export const markFormalInvoicePaid = SQ.markFormalInvoicePaid;
+export const getFormalReceipts = SQ.getFormalReceipts;
 
-  const recentInvoices = await db.getAllAsync<InvoiceWithClient>(
-    `SELECT i.*, c.company_name as client_company_name, c.contact_name as client_contact_name, c.address as client_address
-     FROM invoices i JOIN clients c ON i.client_id = c.id
-     ORDER BY i.created_at DESC LIMIT 5`
-  );
+// ─── Extended Band Settings ─────────────────────────────
 
-  return {
-    totalInvoiced: totals?.total ?? 0,
-    totalPaid: totals?.paid ?? 0,
-    totalOutstanding: totals?.outstanding ?? 0,
-    invoiceCount: totals?.count ?? 0,
-    recentInvoices,
-  };
-}
+export const updateBandSettingsExtended = SQ.updateBandSettingsExtended;
+export const getBandSettings = SQ.getBandSettings;
