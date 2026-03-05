@@ -3,7 +3,7 @@ import { getDashboardStats, getInvoices } from '@shared/supabase/queries';
 import type { DashboardStats, InvoiceWithClient } from '@shared/supabase/types';
 import { formatGBP, formatShortDate } from '../utils/format';
 import { exportInvoicesCSV } from '../utils/export';
-import { LoadingSpinner } from './LoadingSpinner';
+import { PageLoader } from './SkeletonLoaders';
 
 interface DashboardProps {
   onInvoicePress: (id: string) => void;
@@ -103,7 +103,7 @@ export function Dashboard({ onInvoicePress, onNewInvoice, onGoToInvoices, onGoTo
     }
   }
 
-  if (loading) return <div className="app app-centered"><LoadingSpinner /></div>;
+  if (loading) return <div className="app app-centered"><PageLoader text="Loading dashboard" /></div>;
 
   const overdue = allInvoices.filter(i => {
     if (i.status !== 'sent') return false;

@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: Sprint S19 COMPLETE. Ready for S20.
-- **Blocker**: APK build deferred — no native builds until app is finished.
-- **Last session**: 2026-03-04 — S19 navigation + design unification complete
-- **Next action**: Start S20 — APK build fix + full device testing
+- **Phase**: S19+ polish COMPLETE. Ready for S20 (branding/splash/icons) then S21 (APK build + device test).
+- **Blocker**: APK build deferred — native app still crashes on device (Element type invalid — needs debug build for stack trace)
+- **Last session**: 2026-03-05 — Calendar restyle, filter dropdowns, native/web parity push
+- **Next action**: S20 — Logo swap (clear-bg image), animated splash screen, skeleton loaders, app icons
 - **Remaining S11**: Run migration script (`native/scripts/migrate-sqlite-to-supabase.ts`) + manual testing on device
 - **Seed data**: `C:\Apps\timetree-scrape\timetree_gigs.xlsx` — 116 gigs + 62 away dates (still pending import)
 
@@ -21,9 +21,10 @@
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. APK build deferred (cmake/datetimepicker) — will fix when native app is feature-complete
-2. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID env vars
-3. S11 code changes untested on device (no working APK build)
+1. Native app crashes on device ("Element type is invalid: got undefined") — GestureHandlerRootView fix applied but crash persists. Debug build needed for stack trace.
+2. APK build deferred (cmake/datetimepicker) — will fix when native app is feature-complete
+3. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID (f30962b3-2588-4b3d-827a-69b03bdfa6b1) env vars
+4. S11 code changes untested on device (no working APK build)
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
@@ -56,6 +57,8 @@
 | S17 | Web quote lifecycle + formal invoicing | DONE |
 | S18 | Native quote UI parity | DONE |
 | S19 | Navigation + design unification (both apps) | DONE |
-| **S20** | **APK build fix + full device testing** | **NEXT** |
+| S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
+| **S20** | **Logo swap, animated splash, skeleton loaders, app icons** | **NEXT** |
+| S21 | APK build fix + full device testing | PLANNED |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

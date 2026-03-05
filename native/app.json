@@ -10,14 +10,14 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1e1e2e"
+      "backgroundColor": "#08080c"
     },
     "ios": {
       "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#1e1e2e",
+        "backgroundColor": "#08080c",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
       "package": "com.tgtent.gigbooks"

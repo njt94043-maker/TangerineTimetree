@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { Drawer } from 'expo-router/drawer';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -52,8 +52,11 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     <View style={[styles.drawerContainer, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.drawerHeader}>
-        <Text style={styles.logoGreen}>Tangerine</Text>
-        <Text style={styles.logoOrange}> Timetree</Text>
+        <Image source={require('../../assets/logo-512.png')} style={styles.logoImg} />
+        <View>
+          <Text style={styles.logoGreen}>Tangerine</Text>
+          <Text style={styles.logoOrange}>Timetree</Text>
+        </View>
       </View>
 
       {/* Nav sections */}
@@ -166,19 +169,25 @@ const styles = StyleSheet.create({
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
+  logoImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
   logoGreen: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.green,
   },
   logoOrange: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.orange,
   },
   drawerNav: {

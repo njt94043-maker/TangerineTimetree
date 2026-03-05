@@ -115,6 +115,7 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       {/* Drawer panel */}
       <nav className={`drawer ${isOpen ? 'open' : ''}`}>
         <div className="drawer-header">
+          <img src="/logo-512.png" alt="" className="drawer-logo-img" />
           <span className="drawer-logo">
             <span className="drawer-logo-green">Tangerine</span>{' '}
             <span className="drawer-logo-orange">Timetree</span>

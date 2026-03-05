@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getDashboardStats } from '@shared/supabase/queries';
 import type { InvoiceWithClient, InvoiceStatus, DashboardStats } from '@shared/supabase/types';
 import { formatGBP, formatShortDate } from '../utils/format';
-import { LoadingSpinner } from './LoadingSpinner';
+import { PageLoader } from './SkeletonLoaders';
 
 interface InvoiceListProps {
   invoices: InvoiceWithClient[];
@@ -67,7 +67,7 @@ export function InvoiceList({ invoices, loading, onNewInvoice, onInvoicePress, o
     return sortInvoices(list, sortKey);
   }, [invoices, filter, sortKey, search]);
 
-  if (loading) return <div className="app app-centered"><LoadingSpinner /></div>;
+  if (loading) return <div className="app app-centered"><PageLoader text="Loading invoices" /></div>;
 
   return (
     <div className="form-wrap form-top">
@@ -108,19 +108,18 @@ export function InvoiceList({ invoices, loading, onNewInvoice, onInvoicePress, o
 
       {/* Filter tabs + sort */}
       <div className="invoice-controls-row">
-        <div className="invoice-filter-tabs">
-          {(['all', 'draft', 'sent', 'paid'] as FilterTab[]).map(tab => (
-            <button
-              key={tab}
-              className={`invoice-filter-tab ${filter === tab ? 'active' : ''}`}
-              onClick={() => setFilter(tab)}
-            >
-              {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-              <span className="invoice-filter-count">
-                {tab === 'all' ? invoices.length : invoices.filter(i => i.status === tab).length}
-              </span>
-            </button>
-          ))}
+        <div className="invoice-sort-wrap neu-inset">
+          <select
+            className="input-field invoice-sort-select"
+            value={filter}
+            onChange={e => setFilter(e.target.value as FilterTab)}
+          >
+            {(['all', 'draft', 'sent', 'paid'] as FilterTab[]).map(tab => (
+              <option key={tab} value={tab}>
+                {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)} ({tab === 'all' ? invoices.length : invoices.filter(i => i.status === tab).length})
+              </option>
+            ))}
+          </select>
         </div>
         <div className="invoice-sort-wrap neu-inset">
           <select
