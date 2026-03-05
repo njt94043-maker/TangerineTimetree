@@ -151,7 +151,7 @@ export function QuoteList({ quotes, loading, onNewQuote, onQuotePress, onClose }
       {/* Quote cards */}
       <div className="invoice-card-list">
         {result.map(q => (
-          <div key={q.id} className="invoice-card neu-card" onClick={() => onQuotePress(q.id)}>
+          <div key={q.id} className="invoice-card neu-card" onClick={() => onQuotePress(q.id)} style={{ borderLeft: `3px solid ${STATUS_COLORS[q.status]}` }}>
             <div className="invoice-card-top">
               <span className="invoice-card-number">{q.quote_number}</span>
               <span className="invoice-card-status" style={{ color: STATUS_COLORS[q.status] }}>

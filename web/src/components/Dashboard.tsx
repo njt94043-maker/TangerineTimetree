@@ -148,7 +148,7 @@ export function Dashboard({ onInvoicePress, onNewInvoice, onGoToInvoices, onGoTo
         <div className="dashboard-overdue-section">
           <h3 className="dashboard-section-title dashboard-section-overdue">Overdue</h3>
           {overdue.map(inv => (
-            <div key={inv.id} className="invoice-card neu-card" onClick={() => onInvoicePress(inv.id)}>
+            <div key={inv.id} className="invoice-card neu-card" onClick={() => onInvoicePress(inv.id)} style={{ borderLeft: '3px solid var(--color-danger)' }}>
               <div className="invoice-card-top">
                 <span className="invoice-card-number">{inv.invoice_number}</span>
                 <span className="invoice-card-status" style={{ color: 'var(--color-danger)' }}>OVERDUE</span>
@@ -171,7 +171,7 @@ export function Dashboard({ onInvoicePress, onNewInvoice, onGoToInvoices, onGoTo
             <button className="btn btn-small btn-outline" onClick={onGoToInvoices}>View All</button>
           </div>
           {stats.recentInvoices.map(inv => (
-            <div key={inv.id} className="invoice-card neu-card" onClick={() => onInvoicePress(inv.id)}>
+            <div key={inv.id} className="invoice-card neu-card" onClick={() => onInvoicePress(inv.id)} style={{ borderLeft: `3px solid ${STATUS_COLORS[inv.status]}` }}>
               <div className="invoice-card-top">
                 <span className="invoice-card-number">{inv.invoice_number}</span>
                 <span className="invoice-card-status" style={{ color: STATUS_COLORS[inv.status] }}>
