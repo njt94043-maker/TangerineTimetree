@@ -80,3 +80,18 @@
 | D-071 | Session protocol updated — STATUS.md first | 2026-03-04 | Session start reads STATUS.md before todo.md. Deeper docs (SESSION_LOG, decisions_log, gotchas) only when needed. Reduces startup time from reading 6 files to 2. |
 | D-072 | createReceipts wrapped in atomic transaction | 2026-03-04 | createReceipts() now uses withExclusiveTransactionAsync() — matches markInvoicePaid() pattern. Prevents partial receipt creation on crash. |
 | D-073 | AuthContext refreshes session on mount | 2026-03-04 | getSession() returns cached JWT which may be expired. Now calls refreshSession() to validate + extend TTL. If refresh fails, clears auth state cleanly. |
+
+## D-072: Venues and clients are independent lists (2026-03-05)
+- **Context**: Needed to handle: pubs that book themselves, companies with multiple venues, wedding couples at shared venues, festival organisers
+- **Decision**: Two separate lists — Venues (physical places with ratings/photos/nav) and Clients (people/companies who pay with billing info). No forced FK between them. Gigs/quotes/invoices reference both via optional venue_id + client_id FKs.
+- **Rationale**: Covers all 8 real-world booking scenarios without over-engineering. Simplest model that works.
+
+## D-073: Clean DB restructure, not backwards-compat migration (2026-03-05)
+- **Context**: App has no production data yet (only seed/test data). Migration could either add nullable columns with backwards compat or do a clean restructure.
+- **Decision**: Snapshot data, clean ALTER tables, re-seed. No backwards-compat shims.
+- **Rationale**: No real data to protect. Clean schema is simpler to maintain long-term.
+
+## D-074: S22 deferred in favour of S23 (2026-03-05)
+- **Context**: S22 (native visual overhaul) was next priority, but venue/client restructure (S23) affects the data model that S22 screens would display.
+- **Decision**: Do S23 first (4 sessions), then S22.
+- **Rationale**: No point pixel-perfecting screens that will change shape when venue/client pickers replace text fields.

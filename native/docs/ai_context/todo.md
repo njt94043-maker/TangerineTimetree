@@ -224,25 +224,52 @@
 - [x] APK built + installed on device
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
-## S22 — Native Visual Overhaul (NEXT — TOP PRIORITY)
-**The webapp is the design target. Native must look identical.**
-User feedback: "the native app doesn't look like the webapp — it still looks like it was originally chucked together before tweaking everything to look perfect as we have done with webapp."
+## S23 — Venue/Client Restructure (NEXT — 4-SESSION EPIC)
 
-Approach: Screen-by-screen comparison, matching every visual detail:
-- [ ] Calendar screen — cell styles, spacing, header, today button, month nav
-- [ ] DaySheet / Day Detail — card layout, button styles, section spacing
-- [ ] Gig form — field styling, labels, spacing, button layout, section grouping
-- [ ] Invoice list — stats bar, card design, filter/sort controls
-- [ ] Invoice form — step wizard layout, preview carousel, button styles
-- [ ] Invoice detail — info card, status controls, receipts section
-- [ ] Quote list — same as invoice list treatment
-- [ ] Quote form / detail — same as invoice form/detail treatment
-- [ ] Dashboard — stat cards, sections, button styles
-- [ ] Clients — card design, search bar, action buttons
-- [ ] Settings — section layout, form fields, save buttons
-- [ ] Drawer nav — match web drawer exactly (logo, sections, active states)
-- [ ] Shared components: NeuCard, NeuButton, NeuWell, NeuSelect, StatusBadge — audit vs web equivalents
-- [ ] Global: font sizes, margins, padding, border treatments, colors
+**Design decision**: Venues and clients are separate, independent lists. Gigs/quotes/invoices link to both via FKs. No forced venue→client relationship. See decisions_log.md D-072.
+
+### S23A — Database + Types + Queries (Session 1)
+- [ ] Snapshot current data (JSON backup to local file)
+- [ ] Supabase migration SQL:
+  - ALTER venues: drop client_id, add postcode, rating_atmosphere (1-5), rating_crowd, rating_stage, rating_parking, notes
+  - CREATE venue_photos (id, venue_id FK, file_url, storage_path, caption, created_by, created_at)
+  - ALTER gigs: add venue_id (FK nullable), add client_id (FK nullable)
+  - ALTER quotes: add venue_id (FK nullable)
+  - ALTER invoices: add venue_id (FK nullable)
+  - ALTER formal_invoices: add venue_id (FK nullable)
+  - RLS policies for venue_photos + updated venue policies
+- [ ] Update shared/supabase/types.ts — Venue (new fields), VenuePhoto, Gig (+venue_id, +client_id), Quote (+venue_id), Invoice (+venue_id)
+- [ ] Update shared/supabase/queries.ts — venue CRUD (with ratings), venue photo CRUD, updated gig/quote/invoice creates to accept venue_id
+- [ ] Update native/src/db/queries.ts wrapper
+- [ ] TypeScript clean: both apps
+
+### S23B — Venue Management UI (Session 2)
+- [ ] Native: Venues drawer screen (list, search, add, venue detail with ratings + photos + notes)
+- [ ] Web: Venues section (same features)
+- [ ] Remove venue sub-section from client edit screens (decouple)
+- [ ] Venue detail: star ratings for atmosphere/crowd/stage/parking, notes field, photo gallery
+- [ ] Photo upload to Supabase Storage (venue-photos bucket)
+- [ ] Update drawer nav on both apps (add Venues item)
+
+### S23C — Gig Booking Flow (Session 3)
+- [ ] Gig form: venue picker (searchable dropdown from venues table, "Add New Venue" inline)
+- [ ] Gig form: client picker (searchable dropdown from clients table, "Add New Client" inline)
+- [ ] On save: write venue_id + client_id + denormalised text fields
+- [ ] Day view: "Navigate" button → opens chosen map app with venue address
+- [ ] Nav preference in settings (Google Maps / Waze / Apple Maps)
+- [ ] Both apps (native + web)
+
+### S23D — Quote + Invoice Chain (Session 4)
+- [ ] Quote form: venue picker (same as gig form)
+- [ ] Invoice form: venue picker (same as gig form)
+- [ ] Quote → Gig conversion: carries venue_id + client_id
+- [ ] Gig → Invoice creation: carries venue_id + client_id
+- [ ] Update all detail/list/preview views to show venue from ID (with fallback to text)
+- [ ] Full chain test: create venue → create client → create quote → accept → gig created → invoice created → all linked
+- [ ] Both apps (native + web)
+
+## S22 — Native Visual Overhaul (DEFERRED — after S23)
+- [ ] Screen-by-screen comparison, matching every visual detail (see previous plan)
 
 ## Backlog
 - ~~Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx`~~ DONE (117 gigs + 62 away dates in Supabase)

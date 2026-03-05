@@ -6,11 +6,11 @@
 ---
 
 ## Current State
-- **Phase**: S21 complete. S22 next — **NATIVE VISUAL OVERHAUL** (top priority).
+- **Phase**: S21 complete. **S23 next — VENUE/CLIENT RESTRUCTURE** (4-session epic).
 - **Blocker**: None. App runs on device, no crashes.
-- **Last session**: 2026-03-05 — Fixed nav crash, iOS wheel time picker, field autocomplete, layout parity (dashboard/daysheet/clients/gig form). APK built + installed.
-- **Next action**: **S22 — Pixel-perfect native visual parity with webapp.** The webapp is the design target. Every screen on native must look identical to its web counterpart: same spacing, same button styles, same card designs, same typography, same layouts. This is the #1 priority.
-- **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. Only original timetree fees seeded. 44 WhatsApp-confirmed fees pending user verification.
+- **Last session**: 2026-03-05 — Review editor UX fixes (auto-grow textarea, mobile layout, touch targets). Designed venue/client data model. S22 (visual overhaul) deprioritised in favour of S23 venue/client restructure.
+- **Next action**: **S23A — Database migration + types + queries.** See SPRINT_PROMPTS.md for full 4-session plan.
+- **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. No real production data yet — clean restructure approved.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Big Picture
@@ -21,20 +21,21 @@
 - **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
 
 ## Active Risks
-1. **Native visual parity** — Native app is functional but doesn't match the webapp's polished look. User has flagged this as top priority. Webapp is the design target.
-2. Disk space: C: drive monitored. APK builds work.
-3. SQLite migration script not yet run — need SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID (f30962b3-2588-4b3d-827a-69b03bdfa6b1) env vars
+1. **Venue/client restructure** — 24-file blast radius across native + web + shared. Split into 4 sessions to manage risk.
+2. **Native visual parity** — Still needed (S22), but deferred until after venue/client restructure.
+3. Disk space: C: drive monitored. APK builds work.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 19 tables live)
 
-## Supabase Tables (19 total)
+## Supabase Tables (19 → 20 after S23A)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
 - **Public site**: public_media, contact_submissions
 - **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
-- **Quoting (S15 NEW)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
+- **Quoting (S15)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
+- **S23 NEW**: venue_photos (new table), venues restructured (ratings + no client_id), gigs/quotes/invoices get venue_id FK
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)
@@ -59,6 +60,10 @@
 | S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
 | S20 | Logo swap, animated splash, skeleton loaders, app icons | DONE |
 | S21 | APK build fix + device testing + layout parity | DONE |
-| **S22** | **Native visual overhaul — pixel-perfect match webapp** | **NEXT** |
+| S22 | Native visual overhaul — pixel-perfect match webapp | DEFERRED (after S23) |
+| **S23A** | **Venue/client restructure: DB migration + types + queries** | **NEXT** |
+| S23B | Venue management UI (both apps) + venue ratings/photos | PLANNED |
+| S23C | Gig booking flow update (venue/client pickers, nav button) | PLANNED |
+| S23D | Quote + Invoice flow update (venue pickers, full chain test) | PLANNED |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`
