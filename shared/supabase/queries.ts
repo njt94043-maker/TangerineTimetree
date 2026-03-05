@@ -513,6 +513,43 @@ export async function getPublicGigs(): Promise<Gig[]> {
   return data ?? [];
 }
 
+// ─── Gig Field Suggestions ──────────────────────────────
+
+export interface GigFieldSuggestions {
+  venues: string[];
+  clients: string[];
+  fees: number[];
+}
+
+/** Fetch distinct gig field values, ordered by frequency (most used first). */
+export async function getGigFieldSuggestions(): Promise<GigFieldSuggestions> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gigs')
+    .select('venue, client_name, fee');
+
+  if (error) { handleAuthError(); throw error; }
+
+  const venueCount = new Map<string, number>();
+  const clientCount = new Map<string, number>();
+  const feeCount = new Map<number, number>();
+
+  for (const row of data ?? []) {
+    if (row.venue) venueCount.set(row.venue, (venueCount.get(row.venue) ?? 0) + 1);
+    if (row.client_name) clientCount.set(row.client_name, (clientCount.get(row.client_name) ?? 0) + 1);
+    if (row.fee != null) feeCount.set(row.fee, (feeCount.get(row.fee) ?? 0) + 1);
+  }
+
+  const sortByFreq = <T,>(map: Map<T, number>): T[] =>
+    [...map.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+
+  return {
+    venues: sortByFreq(venueCount),
+    clients: sortByFreq(clientCount),
+    fees: sortByFreq(feeCount),
+  };
+}
+
 // ─── Gig Attachments ────────────────────────────────────
 
 export async function getGigAttachments(gigId: string): Promise<GigAttachment[]> {

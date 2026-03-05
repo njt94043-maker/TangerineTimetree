@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
-import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
+import { AutocompleteInput } from './AutocompleteInput';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
+import { TimePicker } from 'react-ios-time-picker';
 
 interface GigFormProps {
   date: string;
@@ -68,6 +70,9 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Field suggestions
+  const [suggestions, setSuggestions] = useState<GigFieldSuggestions>({ venues: [], clients: [], fees: [] });
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pendingSubmitRef = useRef<any>(null);
 
@@ -92,6 +97,10 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       getGigAttachments(gigId).then(setAttachments).catch(() => {});
     }
   }, [gigId, initialDate]);
+
+  useEffect(() => {
+    getGigFieldSuggestions().then(setSuggestions).catch(() => {});
+  }, []);
 
   const isPractice = gigType === 'practice';
   const label = isPractice ? 'Practice' : 'Gig';
@@ -240,17 +249,17 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           <>
             <label className="label" htmlFor="gig-venue">VENUE</label>
             <div className="neu-inset">
-              <input id="gig-venue" className="input-field" placeholder="e.g. Gin & Juice, Mumbles" value={venue} onChange={e => setVenue(e.target.value)} />
+              <AutocompleteInput id="gig-venue" placeholder="e.g. Gin & Juice, Mumbles" value={venue} onChange={setVenue} suggestions={suggestions.venues} />
             </div>
 
             <label className="label" htmlFor="gig-client">CLIENT / BOOKER</label>
             <div className="neu-inset">
-              <input id="gig-client" className="input-field" placeholder="e.g. Suave Agency" value={clientName} onChange={e => setClientName(e.target.value)} />
+              <AutocompleteInput id="gig-client" placeholder="e.g. Suave Agency" value={clientName} onChange={setClientName} suggestions={suggestions.clients} />
             </div>
 
             <label className="label" htmlFor="gig-fee">FEE</label>
             <div className="neu-inset">
-              <input id="gig-fee" className="input-field" placeholder="e.g. 400" type="number" step="0.01" inputMode="decimal" value={fee} onChange={e => setFee(e.target.value)} />
+              <AutocompleteInput id="gig-fee" placeholder="e.g. 400" type="number" step="0.01" inputMode="decimal" value={fee} onChange={setFee} suggestions={suggestions.fees.map(String)} />
             </div>
 
             <div className="label">PAYMENT TYPE</div>
@@ -259,28 +268,28 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
               <button type="button" className={`toggle-btn neu-card ${paymentType === 'invoice' ? 'active' : ''}`} onClick={() => setPaymentType('invoice')}>Invoice</button>
             </div>
 
-            <label className="label" htmlFor="gig-load">LOAD-IN TIME</label>
-            <div className="neu-inset">
-              <input id="gig-load" className="input-field" type="time" value={loadTime} onChange={e => setLoadTime(e.target.value)} />
+            <label className="label">LOAD-IN TIME</label>
+            <div className="time-picker-wrap">
+              <TimePicker value={loadTime || '18:00'} onChange={setLoadTime} pickerDefaultValue="18:00" />
             </div>
           </>
         )}
 
-        <label className="label" htmlFor="gig-start">START TIME</label>
-        <div className="neu-inset">
-          <input id="gig-start" className="input-field" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+        <label className="label">START TIME</label>
+        <div className="time-picker-wrap">
+          <TimePicker value={startTime || '21:00'} onChange={setStartTime} pickerDefaultValue="21:00" />
         </div>
 
-        <label className="label" htmlFor="gig-end">END TIME (OPTIONAL)</label>
-        <div className="neu-inset">
-          <input id="gig-end" className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+        <label className="label">END TIME (OPTIONAL)</label>
+        <div className="time-picker-wrap">
+          <TimePicker value={endTime || '23:30'} onChange={setEndTime} pickerDefaultValue="23:30" />
         </div>
 
         {isPractice && (
           <>
             <label className="label" htmlFor="gig-location">LOCATION (OPTIONAL)</label>
             <div className="neu-inset">
-              <input id="gig-location" className="input-field" placeholder="e.g. Neil's garage" value={venue} onChange={e => setVenue(e.target.value)} />
+              <AutocompleteInput id="gig-location" placeholder="e.g. Neil's garage" value={venue} onChange={setVenue} suggestions={suggestions.venues} />
             </div>
           </>
         )}

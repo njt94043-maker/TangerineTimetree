@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid, Image, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { WheelTimePicker } from '../../src/components/WheelTimePicker';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { COLORS, FONTS } from '../../src/theme';
@@ -10,7 +10,8 @@ import { neuRaisedStyle, neuInsetStyle } from '../../src/theme/shadows';
 import { NeuButton } from '../../src/components/NeuButton';
 import { NeuSelect } from '../../src/components/NeuSelect';
 import { CalendarPicker } from '../../src/components/CalendarPicker';
-import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
+import { AutocompleteInput } from '../../src/components/AutocompleteInput';
 import { supabase } from '../../src/supabase/client';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigType, GigVisibility, GigAttachment } from '@shared/supabase/types';
@@ -47,24 +48,17 @@ export default function GigFormScreen() {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [timePickerTarget, setTimePickerTarget] = useState<'load' | 'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
+  const [suggestions, setSuggestions] = useState<GigFieldSuggestions>({ venues: [], clients: [], fees: [] });
 
-  function timeToDate(hhmm: string): Date {
-    const [h, m] = hhmm.split(':').map(Number);
-    const d = new Date();
-    d.setHours(h || 0, m || 0, 0, 0);
-    return d;
-  }
+  useEffect(() => {
+    getGigFieldSuggestions().then(setSuggestions).catch(() => {});
+  }, []);
 
-  function handleTimePicked(_: DateTimePickerEvent, selected?: Date) {
-    if (Platform.OS === 'android') setTimePickerTarget(null);
-    if (!selected) return;
-    const hh = String(selected.getHours()).padStart(2, '0');
-    const mm = String(selected.getMinutes()).padStart(2, '0');
-    const val = `${hh}:${mm}`;
+  function handleTimeConfirm(val: string) {
     if (timePickerTarget === 'load') setLoadTime(val);
     else if (timePickerTarget === 'start') setStartTime(val);
     else if (timePickerTarget === 'end') setEndTime(val);
-    if (Platform.OS === 'ios') setTimePickerTarget(null);
+    setTimePickerTarget(null);
   }
 
   // Load existing gig when editing
@@ -259,29 +253,23 @@ export default function GigFormScreen() {
 
         {/* Venue */}
         <Text style={styles.label}>VENUE</Text>
-        <View style={[styles.fieldWrap, neuInsetStyle()]}>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g. Gin & Juice, Mumbles"
-            placeholderTextColor={COLORS.textMuted}
-            value={venue}
-            onChangeText={setVenue}
-          />
-        </View>
+        <AutocompleteInput
+          value={venue}
+          onChangeText={setVenue}
+          suggestions={suggestions.venues}
+          placeholder="e.g. Gin & Juice, Mumbles"
+        />
 
         {/* Client — gigs only */}
         {!isPractice && (
           <>
             <Text style={styles.label}>CLIENT / BOOKER</Text>
-            <View style={[styles.fieldWrap, neuInsetStyle()]}>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. Suave Agency"
-                placeholderTextColor={COLORS.textMuted}
-                value={clientName}
-                onChangeText={setClientName}
-              />
-            </View>
+            <AutocompleteInput
+              value={clientName}
+              onChangeText={setClientName}
+              suggestions={suggestions.clients}
+              placeholder="e.g. Suave Agency"
+            />
           </>
         )}
 
@@ -289,16 +277,13 @@ export default function GigFormScreen() {
         {!isPractice && (
           <>
             <Text style={styles.label}>FEE</Text>
-            <View style={[styles.fieldWrap, neuInsetStyle()]}>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 400"
-                placeholderTextColor={COLORS.textMuted}
-                value={fee}
-                onChangeText={setFee}
-                keyboardType="decimal-pad"
-              />
-            </View>
+            <AutocompleteInput
+              value={fee}
+              onChangeText={setFee}
+              suggestions={suggestions.fees.map(String)}
+              placeholder="e.g. 400"
+              keyboardType="decimal-pad"
+            />
           </>
         )}
 
@@ -448,19 +433,17 @@ export default function GigFormScreen() {
         </Pressable>
       </Modal>
 
-      {timePickerTarget !== null && (
-        <DateTimePicker
-          mode="time"
-          display="spinner"
-          is24Hour
-          value={timeToDate(
-            timePickerTarget === 'load' ? loadTime || '18:00'
-            : timePickerTarget === 'start' ? startTime || '21:00'
-            : endTime || '23:30'
-          )}
-          onChange={handleTimePicked}
-        />
-      )}
+      <WheelTimePicker
+        visible={timePickerTarget !== null}
+        title={timePickerTarget === 'load' ? 'Load-in Time' : timePickerTarget === 'start' ? 'Start Time' : 'End Time'}
+        value={
+          timePickerTarget === 'load' ? loadTime || '18:00'
+          : timePickerTarget === 'start' ? startTime || '21:00'
+          : endTime || '23:30'
+        }
+        onConfirm={handleTimeConfirm}
+        onCancel={() => setTimePickerTarget(null)}
+      />
     </KeyboardAvoidingView>
   );
 }
