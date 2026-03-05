@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getClients, searchClients, createClient, createQuote,
   getUserSettings, getBandSettings, getServiceCatalogue,
@@ -72,7 +72,34 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
   const [previewHtmls, setPreviewHtmls] = useState<{ id: InvoiceStyle; name: string; description: string; html: string }[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [generating, setGenerating] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const scaleIframes = useCallback(() => {
+    if (!carouselRef.current) return;
+    const frames = carouselRef.current.querySelectorAll<HTMLDivElement>('.a4-frame');
+    frames.forEach(frame => {
+      const iframe = frame.querySelector('iframe');
+      if (iframe) {
+        const scale = frame.clientWidth / 800;
+        iframe.style.transform = `scale(${scale})`;
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (step === 4) {
+      const timer = setTimeout(scaleIframes, 50);
+      window.addEventListener('resize', scaleIframes);
+      return () => { clearTimeout(timer); window.removeEventListener('resize', scaleIframes); };
+    }
+  }, [step, scaleIframes]);
+
+  const handleCarouselScroll = useCallback(() => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, clientWidth } = carouselRef.current;
+    const idx = Math.round(scrollLeft / clientWidth);
+    setCurrentIndex(idx);
+  }, []);
 
   // Load settings + clients + services on mount
   useEffect(() => {
@@ -575,28 +602,39 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
             <span className="style-counter">{currentIndex + 1} / {previewHtmls.length}</span>
           </div>
 
-          <div className="preview-carousel">
-            {currentIndex > 0 && (
-              <button className="carousel-arrow carousel-arrow-left" onClick={() => setCurrentIndex(i => i - 1)}>{'\u2039'}</button>
-            )}
-            <iframe
-              ref={iframeRef}
-              className="invoice-iframe"
-              srcDoc={currentPreview.html}
-              title="Quote Preview"
-              sandbox="allow-same-origin"
-            />
-            {currentIndex < previewHtmls.length - 1 && (
-              <button className="carousel-arrow carousel-arrow-right" onClick={() => setCurrentIndex(i => i + 1)}>{'\u203A'}</button>
-            )}
+          <div className="preview-carousel" ref={carouselRef} onScroll={handleCarouselScroll}>
+            {previewHtmls.map((p) => (
+              <div key={p.id} className="preview-slide">
+                <div className="a4-frame">
+                  <iframe
+                    srcDoc={p.html}
+                    title={`${p.name} Preview`}
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
+
+          {currentIndex > 0 && (
+            <button className="carousel-arrow carousel-arrow-left" onClick={() => {
+              carouselRef.current?.scrollTo({ left: (currentIndex - 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
+            }}>{'\u2039'}</button>
+          )}
+          {currentIndex < previewHtmls.length - 1 && (
+            <button className="carousel-arrow carousel-arrow-right" onClick={() => {
+              carouselRef.current?.scrollTo({ left: (currentIndex + 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
+            }}>{'\u203A'}</button>
+          )}
 
           <div className="style-dots">
             {previewHtmls.map((p, i) => (
               <button
                 key={p.id}
                 className={`style-dot ${i === currentIndex ? 'active' : ''}`}
-                onClick={() => setCurrentIndex(i)}
+                onClick={() => {
+                  carouselRef.current?.scrollTo({ left: i * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
+                }}
                 title={p.name}
               />
             ))}

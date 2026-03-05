@@ -3096,6 +3096,7 @@ select.ps-form-input {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  position: relative;
 }
 .style-name-bar {
   display: flex;
@@ -3123,8 +3124,42 @@ select.ps-form-input {
 }
 .preview-carousel {
   position: relative;
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
   flex: 1;
   min-height: 400px;
+  gap: 0;
+  scroll-behavior: smooth;
+}
+.preview-carousel::-webkit-scrollbar { display: none; }
+.preview-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
+}
+.a4-frame {
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 210 / 297;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--bg-input);
+  background: #fff;
+}
+.a4-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 800px;
+  height: 1132px;
+  border: none;
+  transform-origin: top left;
 }
 .carousel-arrow {
   position: absolute;
