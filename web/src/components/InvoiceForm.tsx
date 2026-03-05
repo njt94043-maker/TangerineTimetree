@@ -109,7 +109,8 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
     if (!venue.trim()) { setError('Venue name is required'); return; }
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) { setError('Enter a valid amount'); return; }
-    if (!userSettings || !bandSettings || !selectedClient) return;
+    if (!userSettings || !bandSettings) { setError('Settings not loaded — please configure Settings first'); return; }
+    if (!selectedClient) return;
     setError('');
 
     const templateData: InvoiceTemplateData = {
