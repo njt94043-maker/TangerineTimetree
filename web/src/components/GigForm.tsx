@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
-import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, type GigFieldSuggestions } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment, getGigFieldSuggestions, searchClients, createClient, type GigFieldSuggestions } from '@shared/supabase/queries';
 import { AutocompleteInput } from './AutocompleteInput';
 import { EntityPicker } from './EntityPicker';
 import { isGigIncomplete } from '@shared/supabase/types';
@@ -54,6 +54,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   const [venueId, setVenueId] = useState<string | null>(null);
   const [clientName, setClientName] = useState('');
   const [clientId, setClientId] = useState<string | null>(null);
+  const [sameAsVenue, setSameAsVenue] = useState(false);
   const [fee, setFee] = useState('');
   const [paymentType, setPaymentType] = useState<'cash' | 'invoice' | ''>('');
   const [loadTime, setLoadTime] = useState('');
@@ -263,14 +264,44 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
               placeholder="e.g. Gin & Juice, Mumbles"
             />
 
-            <label className="label">CLIENT / BOOKER</label>
-            <EntityPicker
-              mode="client"
-              value={clientName}
-              entityId={clientId}
-              onChange={(text, id) => { setClientName(text); setClientId(id); }}
-              placeholder="e.g. Suave Agency"
-            />
+            <label className="checkbox-label" style={{ marginTop: 8, marginBottom: 4 }}>
+              <input
+                type="checkbox"
+                checked={sameAsVenue}
+                onChange={async (e) => {
+                  const checked = e.target.checked;
+                  setSameAsVenue(checked);
+                  if (checked && venue.trim()) {
+                    const found = await searchClients(venue.trim());
+                    const match = found.find(c => c.company_name.toLowerCase() === venue.trim().toLowerCase());
+                    if (match) {
+                      setClientName(match.company_name);
+                      setClientId(match.id);
+                    } else {
+                      try {
+                        const newClient = await createClient({ company_name: venue.trim() });
+                        setClientName(newClient.company_name);
+                        setClientId(newClient.id);
+                      } catch { setClientName(venue.trim()); setClientId(null); }
+                    }
+                  }
+                }}
+              />
+              Client is the venue
+            </label>
+
+            {!sameAsVenue && (
+              <>
+                <label className="label">CLIENT / BOOKER</label>
+                <EntityPicker
+                  mode="client"
+                  value={clientName}
+                  entityId={clientId}
+                  onChange={(text, id) => { setClientName(text); setClientId(id); }}
+                  placeholder="e.g. Suave Agency"
+                />
+              </>
+            )}
 
             <label className="label" htmlFor="gig-fee">FEE</label>
             <div className="neu-inset">
