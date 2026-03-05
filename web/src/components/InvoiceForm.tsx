@@ -1,33 +1,49 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  getClients, searchClients, createClient, createInvoice,
+  getClients, searchClients, createClient, createInvoice, getVenue,
 } from '@shared/supabase/queries';
 import { loadSettingsCached } from '../utils/settingsCache';
 import { EntityPicker } from './EntityPicker';
-import type { Client, UserSettings, BandSettings } from '@shared/supabase/types';
+import type { Client, Venue, UserSettings, BandSettings } from '@shared/supabase/types';
 import type { InvoiceStyle } from '@shared/supabase/types';
 import type { InvoiceTemplateData } from '@shared/templates';
 import { getInvoiceHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
 import { formatDateLong, todayISO, addDaysISO } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 
+interface InvoicePrefill {
+  venue?: string;
+  venue_id?: string;
+  client_id?: string;
+  gig_id?: string;
+  gig_date?: string;
+  amount?: string;
+  description?: string;
+}
+
 interface InvoiceFormProps {
   onClose: () => void;
   onSaved: (invoiceId: string) => void;
+  prefill?: InvoicePrefill;
 }
 
-const STEP_LABELS = ['Client', 'Details', 'Preview'];
+type BillToType = 'client' | 'venue';
+const STEP_LABELS = ['Bill To', 'Details', 'Preview'];
 
-export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
+export function InvoiceForm({ onClose, onSaved, prefill }: InvoiceFormProps) {
   const [step, setStep] = useState(1);
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
   const [bandSettings, setBandSettings] = useState<BandSettings | null>(null);
   const [error, setError] = useState('');
 
-  // Step 1 — Client
+  // Step 1 — Bill To
+  const [billToType, setBillToType] = useState<BillToType>('client');
   const [clients, setClients] = useState<Client[]>([]);
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [billToVenueName, setBillToVenueName] = useState('');
+  const [billToVenueId, setBillToVenueId] = useState<string | null>(null);
+  const [billToVenue, setBillToVenue] = useState<Venue | null>(null);
   const [showNewClient, setShowNewClient] = useState(false);
   const [newCompany, setNewCompany] = useState('');
   const [newContact, setNewContact] = useState('');
@@ -36,12 +52,13 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
   const [newPhone, setNewPhone] = useState('');
 
   // Step 2 — Details
-  const [venue, setVenue] = useState('');
-  const [venueId, setVenueId] = useState<string | null>(null);
-  const [gigDate, setGigDate] = useState(todayISO());
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [descriptionEdited, setDescriptionEdited] = useState(false);
+  const [venue, setVenue] = useState(prefill?.venue || '');
+  const [venueId, setVenueId] = useState<string | null>(prefill?.venue_id || null);
+  const [gigDate, setGigDate] = useState(prefill?.gig_date || todayISO());
+  const [amount, setAmount] = useState(prefill?.amount || '');
+  const [description, setDescription] = useState(prefill?.description || '');
+  const [descriptionEdited, setDescriptionEdited] = useState(!!prefill?.description);
+  const [gigId] = useState<string | null>(prefill?.gig_id || null);
 
   // Step 3 — Preview carousel
   const [selectedStyle, setSelectedStyle] = useState<InvoiceStyle>(DEFAULT_INVOICE_STYLE);
@@ -50,7 +67,6 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
   const [generating, setGenerating] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  // Scale A4 iframe to fit container
   const scaleIframes = useCallback(() => {
     if (!carouselRef.current) return;
     const frames = carouselRef.current.querySelectorAll<HTMLDivElement>('.a4-frame');
@@ -71,7 +87,6 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
     }
   }, [step, scaleIframes]);
 
-  // Track current slide via scroll
   const handleCarouselScroll = useCallback(() => {
     if (!carouselRef.current) return;
     const { scrollLeft, clientWidth } = carouselRef.current;
@@ -84,28 +99,59 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
       (us, bs) => { setUserSettings(us); setBandSettings(bs); },
       () => setError('Failed to load settings'),
     );
-    loadClients();
+    loadClients().then(async (clients) => {
+      // Handle prefill
+      if (prefill?.client_id && clients) {
+        const match = clients.find((c: Client) => c.id === prefill.client_id);
+        if (match) {
+          setSelectedClient(match);
+          setBillToType('client');
+        }
+      } else if (prefill?.venue_id) {
+        setBillToType('venue');
+        setBillToVenueId(prefill.venue_id);
+        setBillToVenueName(prefill.venue || '');
+        try {
+          const v = await getVenue(prefill.venue_id);
+          if (v) {
+            setBillToVenue(v);
+            setBillToVenueName(v.venue_name);
+          }
+        } catch { /* non-critical */ }
+      }
+    });
   }, []);
 
-  async function loadClients() {
+  async function loadClients(): Promise<Client[]> {
     try {
       const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
       setClients(list);
-    } catch { /* client list non-critical */ }
+      return list;
+    } catch { return []; }
   }
 
   useEffect(() => { loadClients(); }, [clientSearch]);
 
-  // Auto-generate description
   useEffect(() => {
     if (!descriptionEdited && venue.trim()) {
       setDescription(`Live music performance at ${venue.trim()} on ${formatDateLong(gigDate)}`);
     }
   }, [venue, gigDate, descriptionEdited]);
 
-
   function selectClient(client: Client) {
     setSelectedClient(client);
+    setStep(2);
+  }
+
+  async function selectBillToVenue() {
+    if (!billToVenueId) { setError('Select a venue to bill.'); return; }
+    setError('');
+    const v = await getVenue(billToVenueId);
+    if (v) {
+      setBillToVenue(v);
+      setVenue(v.venue_name);
+      setVenueId(v.id);
+    }
     setStep(2);
   }
 
@@ -128,14 +174,26 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
     }
   }
 
+  function getBillToInfo() {
+    if (billToType === 'client' && selectedClient) {
+      return { toCompany: selectedClient.company_name, toContact: selectedClient.contact_name, toAddress: selectedClient.address };
+    }
+    if (billToType === 'venue' && billToVenue) {
+      return { toCompany: billToVenue.venue_name, toContact: billToVenue.contact_name, toAddress: billToVenue.address };
+    }
+    return { toCompany: '', toContact: '', toAddress: '' };
+  }
+
   function goToStep3() {
     if (!venue.trim()) { setError('Venue name is required'); return; }
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) { setError('Enter a valid amount'); return; }
     if (!userSettings || !bandSettings) { setError('Settings not loaded — please configure Settings first'); return; }
-    if (!selectedClient) return;
+    if (billToType === 'client' && !selectedClient) return;
+    if (billToType === 'venue' && !billToVenueId) return;
     setError('');
 
+    const billTo = getBillToInfo();
     const templateData: InvoiceTemplateData = {
       invoiceNumber: `TGT-${String(bandSettings.next_invoice_number).padStart(4, '0')}`,
       issueDate: formatDateLong(todayISO()),
@@ -144,9 +202,9 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
       tradingAs: bandSettings.trading_as,
       businessType: bandSettings.business_type,
       website: bandSettings.website,
-      toCompany: selectedClient.company_name,
-      toContact: selectedClient.contact_name,
-      toAddress: selectedClient.address,
+      toCompany: billTo.toCompany,
+      toContact: billTo.toContact,
+      toAddress: billTo.toAddress,
       description: description.trim() || `Live music performance at ${venue.trim()} on ${formatDateLong(gigDate)}`,
       amount: parsedAmount,
       bankAccountName: userSettings.bank_account_name,
@@ -170,16 +228,16 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
   }
 
   async function handleApprove() {
-    if (!selectedClient) return;
     const style = previewHtmls[currentIndex]?.id || DEFAULT_INVOICE_STYLE;
     setSelectedStyle(style);
     setGenerating(true);
     setError('');
     try {
       const invoice = await createInvoice({
-        client_id: selectedClient.id,
+        client_id: billToType === 'client' ? selectedClient?.id : undefined,
         venue: venue.trim(),
         venue_id: venueId,
+        gig_id: gigId,
         gig_date: gigDate,
         amount: parseFloat(amount),
         description: description.trim(),
@@ -194,6 +252,11 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
   }
 
   const currentPreview = previewHtmls[currentIndex];
+  const billToLabel = billToType === 'client' && selectedClient
+    ? `Client: ${selectedClient.company_name}`
+    : billToType === 'venue' && billToVenueName
+      ? `Venue: ${billToVenueName}`
+      : '';
 
   return (
     <div className="form-wrap form-top">
@@ -205,7 +268,6 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
         <div className="page-header-spacer" />
       </div>
 
-      {/* Step indicator */}
       <div className="step-indicator">
         {STEP_LABELS.map((label, i) => (
           <div key={label} className={`step-dot ${i + 1 === step ? 'active' : i + 1 < step ? 'done' : ''}`}>
@@ -217,35 +279,52 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
 
       {error && <ErrorAlert message={error} compact />}
 
-      {/* Step 1: Client Selection */}
+      {/* Step 1: Bill To */}
       {step === 1 && (
         <div className="invoice-step">
-          <div className="neu-inset" style={{ marginBottom: 8 }}>
-            <input
-              className="input-field"
-              value={clientSearch}
-              onChange={e => setClientSearch(e.target.value)}
-              placeholder="Search clients..."
-            />
+          <div className="toggle-row" style={{ marginBottom: 12 }}>
+            <button type="button" className={`toggle-btn neu-card ${billToType === 'client' ? 'active' : ''}`} onClick={() => setBillToType('client')}>Bill Client</button>
+            <button type="button" className={`toggle-btn neu-card ${billToType === 'venue' ? 'active' : ''}`} onClick={() => setBillToType('venue')}>Bill Venue</button>
           </div>
 
-          <button className="btn btn-primary btn-small btn-full" onClick={() => setShowNewClient(true)} style={{ marginBottom: 8 }}>
-            + Add New Client
-          </button>
-
-          <div className="client-select-list">
-            {clients.map(c => (
-              <div key={c.id} className="client-select-item neu-card" onClick={() => selectClient(c)}>
-                <span className="client-select-name">{c.company_name}</span>
-                {c.contact_name && <span className="client-select-contact">{c.contact_name}</span>}
+          {billToType === 'client' && (
+            <>
+              <div className="neu-inset" style={{ marginBottom: 8 }}>
+                <input className="input-field" value={clientSearch} onChange={e => setClientSearch(e.target.value)} placeholder="Search clients..." />
               </div>
-            ))}
-            {clients.length === 0 && (
-              <p className="empty-text">{clientSearch ? 'No matching clients' : 'No clients yet'}</p>
-            )}
-          </div>
 
-          {/* New client modal */}
+              <button className="btn btn-primary btn-small btn-full" onClick={() => setShowNewClient(true)} style={{ marginBottom: 8 }}>
+                + Add New Client
+              </button>
+
+              <div className="client-select-list">
+                {clients.map(c => (
+                  <div key={c.id} className="client-select-item neu-card" onClick={() => selectClient(c)}>
+                    <span className="client-select-name">{c.company_name}</span>
+                    {c.contact_name && <span className="client-select-contact">{c.contact_name}</span>}
+                  </div>
+                ))}
+                {clients.length === 0 && (
+                  <p className="empty-text">{clientSearch ? 'No matching clients' : 'No clients yet'}</p>
+                )}
+              </div>
+            </>
+          )}
+
+          {billToType === 'venue' && (
+            <div style={{ marginTop: 8 }}>
+              <label className="label">SELECT VENUE TO INVOICE *</label>
+              <EntityPicker
+                mode="venue"
+                value={billToVenueName}
+                entityId={billToVenueId}
+                onChange={(text, id) => { setBillToVenueName(text); setBillToVenueId(id); }}
+                placeholder="e.g. The Rose & Crown"
+              />
+              <button className="btn btn-primary btn-full" onClick={selectBillToVenue} style={{ marginTop: 12 }}>Continue</button>
+            </div>
+          )}
+
           {showNewClient && (
             <div className="overlay" onClick={() => setShowNewClient(false)}>
               <div className="modal-card" onClick={e => e.stopPropagation()}>
@@ -271,115 +350,64 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
       )}
 
       {/* Step 2: Gig Details */}
-      {step === 2 && selectedClient && (
+      {step === 2 && (
         <div className="invoice-step">
-          <div className="neu-card invoice-client-badge">
-            Client: <strong>{selectedClient.company_name}</strong>
-          </div>
+          <div className="neu-card invoice-client-badge">{billToLabel}</div>
 
           <label className="label">VENUE *</label>
-          <EntityPicker
-            mode="venue"
-            value={venue}
-            entityId={venueId}
-            onChange={(text, id) => { setVenue(text); setVenueId(id); }}
-            placeholder="e.g. Gin & Juice, Mumbles"
-          />
+          <EntityPicker mode="venue" value={venue} entityId={venueId} onChange={(text, id) => { setVenue(text); setVenueId(id); }} placeholder="e.g. Gin & Juice, Mumbles" />
 
           <label className="label">GIG DATE</label>
-          <div className="neu-inset">
-            <input className="input-field" type="date" value={gigDate} onChange={e => setGigDate(e.target.value)} />
-          </div>
+          <div className="neu-inset"><input className="input-field" type="date" value={gigDate} onChange={e => setGigDate(e.target.value)} /></div>
 
           <label className="label">AMOUNT (GBP) *</label>
           <div className="neu-inset">
-            <input
-              className="input-field"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              onBlur={() => { const n = parseFloat(amount); if (!isNaN(n) && n > 0) setAmount(n.toFixed(2)); }}
-              placeholder="e.g. 400"
-              type="number"
-              step="0.01"
-              min="0"
-            />
+            <input className="input-field" value={amount} onChange={e => setAmount(e.target.value)} onBlur={() => { const n = parseFloat(amount); if (!isNaN(n) && n > 0) setAmount(n.toFixed(2)); }} placeholder="e.g. 400" type="number" step="0.01" min="0" />
           </div>
 
           <label className="label">DESCRIPTION</label>
           <div className="neu-inset">
-            <textarea
-              className="input-field input-textarea"
-              value={description}
-              onChange={e => { setDescription(e.target.value); setDescriptionEdited(true); }}
-              placeholder="Auto-generated from venue + date"
-              rows={3}
-            />
+            <textarea className="input-field input-textarea" value={description} onChange={e => { setDescription(e.target.value); setDescriptionEdited(true); }} placeholder="Auto-generated from venue + date" rows={3} />
           </div>
           <p className="hint-text">Edit above to customise, or leave as-is</p>
 
-          <button className="btn btn-primary btn-full" onClick={goToStep3} style={{ marginTop: 12 }}>
-            Preview Invoice
-          </button>
+          <button className="btn btn-primary btn-full" onClick={goToStep3} style={{ marginTop: 12 }}>Preview Invoice</button>
         </div>
       )}
 
       {/* Step 3: Style Preview Carousel */}
       {step === 3 && currentPreview && (
         <div className="invoice-preview-step">
-          {/* Style name bar */}
           <div className="style-name-bar">
             <span className="style-name">{currentPreview.name}</span>
             <span className="style-desc">{currentPreview.description}</span>
             <span className="style-counter">{currentIndex + 1} / {previewHtmls.length}</span>
           </div>
 
-          {/* Swipeable A4 preview carousel */}
           <div className="preview-carousel" ref={carouselRef} onScroll={handleCarouselScroll}>
             {previewHtmls.map((p) => (
               <div key={p.id} className="preview-slide">
                 <div className="a4-frame">
-                  <iframe
-                    srcDoc={p.html}
-                    title={`${p.name} Preview`}
-                    sandbox="allow-same-origin"
-                  />
+                  <iframe srcDoc={p.html} title={`${p.name} Preview`} sandbox="allow-same-origin" />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Navigation arrows */}
           {currentIndex > 0 && (
-            <button className="carousel-arrow carousel-arrow-left" onClick={() => {
-              carouselRef.current?.scrollTo({ left: (currentIndex - 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
-            }}>{'\u2039'}</button>
+            <button className="carousel-arrow carousel-arrow-left" onClick={() => { carouselRef.current?.scrollTo({ left: (currentIndex - 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' }); }}>{'\u2039'}</button>
           )}
           {currentIndex < previewHtmls.length - 1 && (
-            <button className="carousel-arrow carousel-arrow-right" onClick={() => {
-              carouselRef.current?.scrollTo({ left: (currentIndex + 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
-            }}>{'\u203A'}</button>
+            <button className="carousel-arrow carousel-arrow-right" onClick={() => { carouselRef.current?.scrollTo({ left: (currentIndex + 1) * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' }); }}>{'\u203A'}</button>
           )}
 
-          {/* Style dots */}
           <div className="style-dots">
             {previewHtmls.map((p, i) => (
-              <button
-                key={p.id}
-                className={`style-dot ${i === currentIndex ? 'active' : ''}`}
-                onClick={() => {
-                  carouselRef.current?.scrollTo({ left: i * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' });
-                }}
-                title={p.name}
-              />
+              <button key={p.id} className={`style-dot ${i === currentIndex ? 'active' : ''}`} onClick={() => { carouselRef.current?.scrollTo({ left: i * (carouselRef.current?.clientWidth || 0), behavior: 'smooth' }); }} title={p.name} />
             ))}
           </div>
 
-          <button
-            className="btn btn-primary btn-full"
-            onClick={handleApprove}
-            disabled={generating}
-            style={{ marginTop: 8 }}
-          >
+          <button className="btn btn-primary btn-full" onClick={handleApprove} disabled={generating} style={{ marginTop: 8 }}>
             {generating ? 'Saving...' : 'Approve & Save'}
           </button>
         </div>

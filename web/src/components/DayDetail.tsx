@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getGigChangelog, deleteGig, getVenue } from '@shared/supabase/queries';
+import { getGigsByDate, getGigChangelog, deleteGig, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { formatDisplayDate, fmt, fmtFee } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
@@ -18,9 +18,10 @@ interface DayDetailProps {
   onMarkAway: () => void;
   onGigDeleted?: () => void;
   onDateChange?: (date: string) => void;
+  onCreateInvoice?: (gig: GigWithCreator) => void;
 }
 
-export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onGigDeleted, onDateChange }: DayDetailProps) {
+export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice }: DayDetailProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
   const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
+  const [invoicedGigIds, setInvoicedGigIds] = useState<Set<string>>(new Set());
   const touchStartX = useRef(0);
 
   function fetchDayGigs() {
@@ -72,6 +74,20 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
       })
     ).then(entries => {
       setVenueAddresses(new Map(entries.filter(([, addr]) => !!addr)));
+    }).catch(() => {});
+  }, [gigs]);
+
+  // Check which gigs already have invoices
+  useEffect(() => {
+    const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice' && g.payment_type === 'invoice');
+    if (invoiceGigs.length === 0) { setInvoicedGigIds(new Set()); return; }
+    Promise.all(
+      invoiceGigs.map(async g => {
+        const inv = await getInvoiceByGigId(g.id);
+        return inv ? g.id : null;
+      })
+    ).then(ids => {
+      setInvoicedGigIds(new Set(ids.filter(Boolean) as string[]));
     }).catch(() => {});
   }, [gigs]);
 
@@ -163,6 +179,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
             <div key={gig.id} className="neu-inset gig-card-inset" onClick={() => onEditGig(gig.id)}>
               {isPractice && <span className="practice-badge">PRACTICE</span>}
               {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
+              {!isPractice && invoicedGigIds.has(gig.id) && <span className="invoiced-badge">INVOICED</span>}
 
               <div className={`gig-venue-name ${isPractice ? 'gig-venue-practice' : ''}`}>
                 {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
@@ -225,6 +242,16 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                   ))}
                   {(changelog.get(gig.id) ?? []).length === 0 && <div className="changelog-text">No history yet</div>}
                 </div>
+              )}
+
+              {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
+                <button
+                  className="btn btn-small btn-primary gig-create-invoice-btn"
+                  onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
+                  style={{ marginTop: 8, width: '100%' }}
+                >
+                  Create Invoice
+                </button>
               )}
             </div>
           );

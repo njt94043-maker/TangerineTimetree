@@ -50,6 +50,9 @@ export function VenueDetail({ venueId, onClose, onDeleted }: VenueDetailProps) {
   const [venueName, setVenueName] = useState('');
   const [address, setAddress] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [ratingAtmosphere, setRatingAtmosphere] = useState<number | null>(null);
   const [ratingCrowd, setRatingCrowd] = useState<number | null>(null);
@@ -71,6 +74,9 @@ export function VenueDetail({ venueId, onClose, onDeleted }: VenueDetailProps) {
           setVenueName(v.venue_name);
           setAddress(v.address);
           setPostcode(v.postcode);
+          setContactName(v.contact_name);
+          setEmail(v.email);
+          setPhone(v.phone);
           setNotes(v.notes);
           setRatingAtmosphere(v.rating_atmosphere);
           setRatingCrowd(v.rating_crowd);
@@ -97,6 +103,9 @@ export function VenueDetail({ venueId, onClose, onDeleted }: VenueDetailProps) {
         venue_name: venueName.trim(),
         address: address.trim(),
         postcode: postcode.trim(),
+        contact_name: contactName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
         notes: notes.trim(),
         rating_atmosphere: ratingAtmosphere,
         rating_crowd: ratingCrowd,
@@ -197,6 +206,26 @@ export function VenueDetail({ venueId, onClose, onDeleted }: VenueDetailProps) {
         <label className="label">POSTCODE</label>
         <div className="neu-inset">
           <input className="input-field" value={postcode} onChange={e => setPostcode(e.target.value)} style={{ textTransform: 'uppercase' }} />
+        </div>
+      </div>
+
+      {/* Contact Info */}
+      <div className="neu-card" style={{ marginBottom: 12 }}>
+        <label className="label" style={{ marginTop: 0 }}>CONTACT INFO</label>
+
+        <label className="label">CONTACT NAME</label>
+        <div className="neu-inset">
+          <input className="input-field" value={contactName} onChange={e => setContactName(e.target.value)} placeholder="e.g. John Smith" />
+        </div>
+
+        <label className="label">EMAIL</label>
+        <div className="neu-inset">
+          <input className="input-field" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. bookings@venue.com" />
+        </div>
+
+        <label className="label">PHONE</label>
+        <div className="neu-inset">
+          <input className="input-field" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 01234 567890" />
         </div>
       </div>
 

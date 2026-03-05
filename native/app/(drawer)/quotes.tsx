@@ -98,7 +98,7 @@ export default function QuotesScreen() {
                 <Text style={styles.quoteNumber}>{item.quote_number}</Text>
                 <StatusBadge status={item.status} />
               </View>
-              <Text style={styles.quoteClient}>{item.client_company_name}</Text>
+              <Text style={styles.quoteClient}>{item.client_company_name || item.venue_name || 'No client'}</Text>
               <Text style={styles.quoteVenue}>
                 {item.venue_name} - {formatDateShort(item.event_date)}
               </Text>

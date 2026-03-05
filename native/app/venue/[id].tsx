@@ -17,6 +17,9 @@ export default function VenueDetailScreen() {
   const [venueName, setVenueName] = useState('');
   const [address, setAddress] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
   const [ratingAtmosphere, setRatingAtmosphere] = useState<number | null>(null);
   const [ratingCrowd, setRatingCrowd] = useState<number | null>(null);
@@ -27,7 +30,7 @@ export default function VenueDetailScreen() {
   const [loaded, setLoaded] = useState(false);
 
   const originals = useRef({
-    venueName: '', address: '', postcode: '', notes: '',
+    venueName: '', address: '', postcode: '', contactName: '', email: '', phone: '', notes: '',
     ratingAtmosphere: null as number | null, ratingCrowd: null as number | null,
     ratingStage: null as number | null, ratingParking: null as number | null,
   });
@@ -41,6 +44,9 @@ export default function VenueDetailScreen() {
           setVenueName(venue.venue_name);
           setAddress(venue.address);
           setPostcode(venue.postcode);
+          setContactName(venue.contact_name);
+          setEmail(venue.email);
+          setPhone(venue.phone);
           setNotes(venue.notes);
           setRatingAtmosphere(venue.rating_atmosphere);
           setRatingCrowd(venue.rating_crowd);
@@ -50,6 +56,9 @@ export default function VenueDetailScreen() {
             venueName: venue.venue_name,
             address: venue.address,
             postcode: venue.postcode,
+            contactName: venue.contact_name,
+            email: venue.email,
+            phone: venue.phone,
             notes: venue.notes,
             ratingAtmosphere: venue.rating_atmosphere,
             ratingCrowd: venue.rating_crowd,
@@ -76,6 +85,9 @@ export default function VenueDetailScreen() {
       venue_name: venueName.trim(),
       address: address.trim(),
       postcode: postcode.trim(),
+      contact_name: contactName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       notes: notes.trim(),
       rating_atmosphere: ratingAtmosphere,
       rating_crowd: ratingCrowd,
@@ -100,6 +112,7 @@ export default function VenueDetailScreen() {
   function handleCancel() {
     const o = originals.current;
     const dirty = venueName !== o.venueName || address !== o.address || postcode !== o.postcode ||
+      contactName !== o.contactName || email !== o.email || phone !== o.phone ||
       notes !== o.notes || ratingAtmosphere !== o.ratingAtmosphere || ratingCrowd !== o.ratingCrowd ||
       ratingStage !== o.ratingStage || ratingParking !== o.ratingParking;
     if (dirty) {
@@ -188,6 +201,27 @@ export default function VenueDetailScreen() {
           <Text style={styles.fieldLabel}>Postcode</Text>
           <NeuWell style={styles.inputWell}>
             <TextInput style={styles.input} value={postcode} onChangeText={setPostcode} autoCapitalize="characters" placeholderTextColor={COLORS.textMuted} />
+          </NeuWell>
+        </NeuCard>
+
+        {/* Contact Info */}
+        <NeuCard>
+          <Text style={LABEL}>CONTACT INFO</Text>
+          <View style={{ height: 8 }} />
+
+          <Text style={styles.fieldLabel}>Contact Name</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={contactName} onChangeText={setContactName} placeholder="e.g. John Smith" placeholderTextColor={COLORS.textMuted} />
+          </NeuWell>
+
+          <Text style={styles.fieldLabel}>Email</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="e.g. bookings@venue.com" placeholderTextColor={COLORS.textMuted} keyboardType="email-address" autoCapitalize="none" />
+          </NeuWell>
+
+          <Text style={styles.fieldLabel}>Phone</Text>
+          <NeuWell style={styles.inputWell}>
+            <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="e.g. 01234 567890" placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
           </NeuWell>
         </NeuCard>
 
