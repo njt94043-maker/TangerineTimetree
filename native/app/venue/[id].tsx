@@ -35,29 +35,33 @@ export default function VenueDetailScreen() {
   useEffect(() => {
     async function load() {
       if (!id) return;
-      const venue = await getVenue(id);
-      if (venue) {
-        setVenueName(venue.venue_name);
-        setAddress(venue.address);
-        setPostcode(venue.postcode);
-        setNotes(venue.notes);
-        setRatingAtmosphere(venue.rating_atmosphere);
-        setRatingCrowd(venue.rating_crowd);
-        setRatingStage(venue.rating_stage);
-        setRatingParking(venue.rating_parking);
-        originals.current = {
-          venueName: venue.venue_name,
-          address: venue.address,
-          postcode: venue.postcode,
-          notes: venue.notes,
-          ratingAtmosphere: venue.rating_atmosphere,
-          ratingCrowd: venue.rating_crowd,
-          ratingStage: venue.rating_stage,
-          ratingParking: venue.rating_parking,
-        };
+      try {
+        const venue = await getVenue(id);
+        if (venue) {
+          setVenueName(venue.venue_name);
+          setAddress(venue.address);
+          setPostcode(venue.postcode);
+          setNotes(venue.notes);
+          setRatingAtmosphere(venue.rating_atmosphere);
+          setRatingCrowd(venue.rating_crowd);
+          setRatingStage(venue.rating_stage);
+          setRatingParking(venue.rating_parking);
+          originals.current = {
+            venueName: venue.venue_name,
+            address: venue.address,
+            postcode: venue.postcode,
+            notes: venue.notes,
+            ratingAtmosphere: venue.rating_atmosphere,
+            ratingCrowd: venue.rating_crowd,
+            ratingStage: venue.rating_stage,
+            ratingParking: venue.rating_parking,
+          };
+        }
+        const photoList = await getVenuePhotos(id);
+        setPhotos(photoList);
+      } catch {
+        Alert.alert('Error', 'Failed to load venue details.');
       }
-      const photoList = await getVenuePhotos(id);
-      setPhotos(photoList);
       setLoaded(true);
     }
     load();
