@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
 import { getGigsByDate, getGigChangelog, deleteGig } from '@shared/supabase/queries';
@@ -11,20 +11,24 @@ import { ConfirmModal } from './ConfirmModal';
 interface DayDetailProps {
   date: string;
   awayDates: AwayDateWithUser[];
+  eventDates?: string[];
   onClose: () => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
   onEditGig: (gigId: string) => void;
   onMarkAway: () => void;
   onGigDeleted?: () => void;
+  onDateChange?: (date: string) => void;
 }
 
-export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMarkAway, onGigDeleted }: DayDetailProps) {
+export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onGigDeleted, onDateChange }: DayDetailProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
+  const touchStartX = useRef(0);
 
   function fetchDayGigs() {
     setExpandedLog(null);
@@ -64,15 +68,68 @@ export function DayDetail({ date, awayDates, onClose, onAddGig, onEditGig, onMar
     setExpandedLog(gigId);
   }
 
+  // Swipe navigation between event dates
+  const currentIdx = eventDates.indexOf(date);
+  const hasPrev = currentIdx > 0;
+  const hasNext = currentIdx >= 0 && currentIdx < eventDates.length - 1;
+
+  function navigateToDate(newDate: string, direction: 'left' | 'right') {
+    if (!onDateChange) return;
+    setSlideDir(direction);
+    onDateChange(newDate);
+  }
+
+  function goToPrevEvent() {
+    if (hasPrev) navigateToDate(eventDates[currentIdx - 1], 'right');
+  }
+
+  function goToNextEvent() {
+    if (hasNext) navigateToDate(eventDates[currentIdx + 1], 'left');
+  }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) < 50) return;
+    if (dx < 0 && hasNext) goToNextEvent();
+    else if (dx > 0 && hasPrev) goToPrevEvent();
+  }
+
   const awayOnDate = awayDates.filter(a => date >= a.start_date && date <= a.end_date);
 
   return (
     <div className="overlay">
       <div className="overlay-dismiss" onClick={onClose} />
-      <div className="day-sheet neu-card">
+      <div
+        className="day-sheet neu-card"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <div className="sheet-handle" />
 
-        <h2 className="day-title">{formatDisplayDate(date)}</h2>
+        {/* Navigation header */}
+        <div className="day-nav-row">
+          <button
+            className={`day-nav-btn ${hasPrev ? '' : 'day-nav-btn-disabled'}`}
+            onClick={goToPrevEvent}
+            disabled={!hasPrev}
+            aria-label="Previous event"
+          >&lsaquo;</button>
+          <h2
+            key={date}
+            className={`day-title ${slideDir === 'left' ? 'slide-from-right' : slideDir === 'right' ? 'slide-from-left' : ''}`}
+            onAnimationEnd={() => setSlideDir(null)}
+          >{formatDisplayDate(date)}</h2>
+          <button
+            className={`day-nav-btn ${hasNext ? '' : 'day-nav-btn-disabled'}`}
+            onClick={goToNextEvent}
+            disabled={!hasNext}
+            aria-label="Next event"
+          >&rsaquo;</button>
+        </div>
 
         {loading && <LoadingSpinner skeleton />}
 

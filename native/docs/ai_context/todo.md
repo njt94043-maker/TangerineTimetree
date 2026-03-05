@@ -215,9 +215,14 @@
 
 > Pickup prompts for each sprint: `native/docs/ai_context/SPRINT_PROMPTS.md`
 
+## S21 — In Progress
+- [x] Day detail swipe navigation — swipe left/right to cycle event dates (web + native), prev/next buttons, slide animation
+- [ ] Fix back-button navigation — should step back through view history, not jump to calendar
+- [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
+- [ ] Debug native crash, fix cmake/datetimepicker, APK build, device test
+
 ## Backlog
 - ~~Seed calendar from `C:\Apps\timetree-scrape\timetree_gigs.xlsx`~~ DONE (117 gigs + 62 away dates in Supabase)
-- User to verify 44 WhatsApp-confirmed fees, then batch-update in app or via script
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
 
 ## Key Decisions (This Session)

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
 
 type View =
   | 'dashboard' | 'calendar' | 'list' | 'day-detail' | 'gig-form' | 'away'
@@ -12,7 +12,6 @@ interface ViewState {
   selectedDate: string;
   editGigId: string | null;
   initialGigType: 'gig' | 'practice';
-  returnView: 'calendar' | 'list';
   // Invoice-specific state
   invoiceId: string | null;
   editInvoiceId: string | null;
@@ -53,94 +52,120 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [selectedDate, setSelectedDate] = useState('');
   const [editGigId, setEditGigId] = useState<string | null>(null);
   const [initialGigType, setInitialGigType] = useState<'gig' | 'practice'>('gig');
-  const [returnView, setReturnView] = useState<'calendar' | 'list'>('calendar');
   const [invoiceId, setInvoiceId] = useState<string | null>(null);
   const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
 
-  const setView = useCallback((v: View) => setViewRaw(v), []);
+  // View history stack for step-by-step back navigation
+  const historyRef = useRef<View[]>(['calendar']);
+
+  // Push a new view onto the history stack
+  function pushView(v: View) {
+    // Avoid duplicate consecutive entries (e.g. navigating to same day-detail)
+    const stack = historyRef.current;
+    if (stack[stack.length - 1] !== v) {
+      historyRef.current = [...stack, v];
+    }
+    setViewRaw(v);
+  }
+
+  // Top-level navigation — resets the history stack
+  function resetToView(v: View) {
+    historyRef.current = [v];
+    setViewRaw(v);
+  }
+
+  const setView = useCallback((v: View) => resetToView(v), []);
 
   const goToDay = useCallback((date: string) => {
     setSelectedDate(date);
-    setReturnView('calendar');
-    setViewRaw('day-detail');
+    pushView('day-detail');
   }, []);
 
   const goToAddGig = useCallback((date: string, type: 'gig' | 'practice' = 'gig') => {
     setSelectedDate(date);
     setEditGigId(null);
     setInitialGigType(type);
-    setReturnView('calendar');
-    setViewRaw('gig-form');
+    pushView('gig-form');
   }, []);
 
   const goToEditGig = useCallback((gigId: string) => {
     setEditGigId(gigId);
-    setReturnView('calendar');
-    setViewRaw('gig-form');
+    pushView('gig-form');
   }, []);
 
   const goToAddGigFromList = useCallback((date: string, type: 'gig' | 'practice') => {
     setSelectedDate(date);
     setEditGigId(null);
     setInitialGigType(type);
-    setReturnView('list');
-    setViewRaw('gig-form');
+    pushView('gig-form');
   }, []);
 
   const goToEditGigFromList = useCallback((gigId: string, date: string) => {
     setSelectedDate(date);
     setEditGigId(gigId);
-    setReturnView('list');
-    setViewRaw('gig-form');
+    pushView('gig-form');
   }, []);
 
-  const goBack = useCallback(() => setViewRaw(returnView), [returnView]);
+  const goBack = useCallback(() => {
+    const stack = historyRef.current;
+    if (stack.length <= 1) {
+      // Already at root — stay on calendar
+      setViewRaw('calendar');
+      return;
+    }
+    // Pop current view, go to previous
+    const newStack = stack.slice(0, -1);
+    historyRef.current = newStack;
+    setViewRaw(newStack[newStack.length - 1]);
+  }, []);
 
-  // Navigation
-  const goToDashboard = useCallback(() => setViewRaw('dashboard'), []);
-  const goToInvoices = useCallback(() => setViewRaw('invoices'), []);
+  // Top-level drawer navigation — resets stack
+  const goToDashboard = useCallback(() => resetToView('dashboard'), []);
+  const goToInvoices = useCallback(() => resetToView('invoices'), []);
+  const goToSettings = useCallback(() => resetToView('settings'), []);
+  const goToClients = useCallback(() => resetToView('clients'), []);
+  const goToQuotes = useCallback(() => resetToView('quotes'), []);
+
+  // Drill-down navigation — pushes onto stack
   const goToNewInvoice = useCallback(() => {
     setEditInvoiceId(null);
-    setViewRaw('invoice-form');
+    pushView('invoice-form');
   }, []);
   const goToEditInvoice = useCallback((id: string) => {
     setEditInvoiceId(id);
-    setViewRaw('invoice-form');
+    pushView('invoice-form');
   }, []);
   const goToInvoiceDetail = useCallback((id: string) => {
     setInvoiceId(id);
-    setViewRaw('invoice-detail');
+    pushView('invoice-detail');
   }, []);
   const goToInvoicePreview = useCallback((id: string) => {
     setInvoiceId(id);
-    setViewRaw('invoice-preview');
+    pushView('invoice-preview');
   }, []);
-  const goToSettings = useCallback(() => setViewRaw('settings'), []);
-  const goToClients = useCallback(() => setViewRaw('clients'), []);
-  const goToQuotes = useCallback(() => setViewRaw('quotes'), []);
   const goToNewQuote = useCallback(() => {
     setEditQuoteId(null);
-    setViewRaw('quote-form');
+    pushView('quote-form');
   }, []);
   const goToEditQuote = useCallback((id: string) => {
     setEditQuoteId(id);
-    setViewRaw('quote-form');
+    pushView('quote-form');
   }, []);
   const goToQuoteDetail = useCallback((id: string) => {
     setQuoteId(id);
-    setViewRaw('quote-detail');
+    pushView('quote-detail');
   }, []);
   const goToQuotePreview = useCallback((id: string) => {
     setQuoteId(id);
-    setViewRaw('quote-preview');
+    pushView('quote-preview');
   }, []);
 
   return (
     <ViewContext.Provider
       value={{
-        view, selectedDate, editGigId, initialGigType, returnView,
+        view, selectedDate, editGigId, initialGigType,
         invoiceId, editInvoiceId,
         quoteId, editQuoteId,
         setView, goToDay, goToAddGig, goToEditGig,

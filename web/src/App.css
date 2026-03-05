@@ -734,6 +734,52 @@ html, body, #root {
   margin: 0 auto 12px;
 }
 
+/* ─── Day detail swipe navigation ─── */
+.day-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.day-nav-row .day-title {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+}
+.day-nav-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  color: var(--color-green);
+  font-size: 22px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.day-nav-btn:hover:not(:disabled) {
+  background: rgba(0,230,118,0.08);
+}
+.day-nav-btn-disabled {
+  opacity: 0.2;
+  cursor: default;
+}
+
+@keyframes slideFromRight {
+  from { transform: translateX(30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideFromLeft {
+  from { transform: translateX(-30px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.slide-from-right { animation: slideFromRight 0.2s ease-out; }
+.slide-from-left { animation: slideFromLeft 0.2s ease-out; }
+
 /* ─── Forms ─── */
 /* 2.1: safe area bottom on form wrap */
 .form-wrap { padding: 0 20px max(40px, env(safe-area-inset-bottom)); }
