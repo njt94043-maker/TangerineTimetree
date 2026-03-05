@@ -8,8 +8,8 @@
 ## Current State
 - **Phase**: S21 in progress. Data seeded. Web polished. Native APK build deferred (disk space).
 - **Blocker**: Native app crashes on device — needs debug build for stack trace (deferred until disk space freed)
-- **Last session**: 2026-03-05 — Seeded data, web polish, away logic (any member away = unavailable, bright red cells)
-- **Next action**: S21 remaining — Debug native crash, fix cmake/datetimepicker, APK build, device test
+- **Last session**: 2026-03-05 — Day detail swipe navigation (both apps), seeded data, web polish, away logic
+- **Next action**: S21 remaining — Back-button step-through, debug native crash, fix cmake/datetimepicker, APK build, device test
 - **Seed status**: 117 gigs (116 seeded + 1 existing) + 62 away dates in Supabase. Only original timetree fees seeded. 44 WhatsApp-confirmed fees pending user verification.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

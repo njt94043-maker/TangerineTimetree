@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './App.css';
 import { useAuth } from './hooks/useAuth';
 import { useCalendarData } from './hooks/useCalendarData';
@@ -89,6 +89,20 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const { gigs, awayDates, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
   const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
+
+  // Build sorted list of dates that have events (gigs, practice, or away)
+  const eventDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    gigs.forEach(g => dateSet.add(g.date));
+    awayDates.forEach(a => {
+      const start = new Date(a.start_date + 'T12:00:00');
+      const end = new Date(a.end_date + 'T12:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dateSet.add(d.toISOString().slice(0, 10));
+      }
+    });
+    return [...dateSet].sort();
+  }, [gigs, awayDates]);
 
   // Offline mutation queue
   const { pendingCount, refreshCount: refreshQueueCount } = useOfflineQueue(refresh);
@@ -296,11 +310,13 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
           <DayDetail
             date={selectedDate}
             awayDates={awayDates}
+            eventDates={eventDates}
             onClose={goBack}
             onAddGig={goToAddGig}
             onEditGig={goToEditGig}
             onMarkAway={() => setView('away')}
             onGigDeleted={() => { refresh(); refreshQueueCount(); }}
+            onDateChange={goToDay}
           />
         )}
 

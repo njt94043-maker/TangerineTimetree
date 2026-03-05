@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle, neuInsetStyle } from '../theme/shadows';
 import { NeuButton } from './NeuButton';
@@ -11,10 +11,12 @@ interface GigDaySheetProps {
   visible: boolean;
   date: string;
   awayDates: AwayDateWithUser[];
+  eventDates?: string[];
   onClose: () => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
   onEditGig: (gigId: string) => void;
   onMarkAway: () => void;
+  onDateChange?: (date: string) => void;
 }
 
 function formatDisplayDate(iso: string): string {
@@ -32,11 +34,12 @@ function formatFee(fee: number | null): string {
   return `\u00A3${fee.toFixed(2)}`;
 }
 
-export function GigDaySheet({ visible, date, awayDates, onClose, onAddGig, onEditGig, onMarkAway }: GigDaySheetProps) {
+export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onDateChange }: GigDaySheetProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedChangelog, setExpandedChangelog] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible && date) {
@@ -65,14 +68,53 @@ export function GigDaySheet({ visible, date, awayDates, onClose, onAddGig, onEdi
     a => date >= a.start_date && date <= a.end_date,
   );
 
-  // Swipe-down dismiss
+  // Navigation between event dates
+  const currentIdx = eventDates.indexOf(date);
+  const hasPrev = currentIdx > 0;
+  const hasNext = currentIdx >= 0 && currentIdx < eventDates.length - 1;
+
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const onDateChangeRef = useRef(onDateChange);
+  onDateChangeRef.current = onDateChange;
+  const eventDatesRef = useRef(eventDates);
+  eventDatesRef.current = eventDates;
+  const dateRef = useRef(date);
+  dateRef.current = date;
+
+  function navigateToDate(newDate: string, direction: 'left' | 'right') {
+    if (!onDateChangeRef.current) return;
+    const slideOut = direction === 'left' ? -30 : 30;
+    const slideIn = direction === 'left' ? 30 : -30;
+    Animated.timing(slideAnim, { toValue: slideOut, duration: 100, useNativeDriver: true }).start(() => {
+      onDateChangeRef.current!(newDate);
+      slideAnim.setValue(slideIn);
+      Animated.timing(slideAnim, { toValue: 0, duration: 150, useNativeDriver: true }).start();
+    });
+  }
+
+  // Combined PanResponder: horizontal swipe = navigate, vertical swipe = dismiss
   const swipePan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_, gs) => gs.dy > 10 && Math.abs(gs.dy) > Math.abs(gs.dx),
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10 || gs.dy > 10,
     onPanResponderRelease: (_, gs) => {
-      if (gs.dy > 60) onCloseRef.current();
+      const absX = Math.abs(gs.dx);
+      const absY = Math.abs(gs.dy);
+      // Vertical dismiss
+      if (absY > absX && gs.dy > 60) {
+        onCloseRef.current();
+        return;
+      }
+      // Horizontal navigation
+      if (absX > absY && absX > 50) {
+        const dates = eventDatesRef.current;
+        const idx = dates.indexOf(dateRef.current);
+        if (gs.dx < 0 && idx >= 0 && idx < dates.length - 1) {
+          navigateToDate(dates[idx + 1], 'left');
+        } else if (gs.dx > 0 && idx > 0) {
+          navigateToDate(dates[idx - 1], 'right');
+        }
+      }
     },
   }), []);
 
@@ -86,7 +128,26 @@ export function GigDaySheet({ visible, date, awayDates, onClose, onAddGig, onEdi
           </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.dateTitle}>{formatDisplayDate(date)}</Text>
+            {/* Navigation row */}
+            <View style={styles.navRow}>
+              <Pressable
+                onPress={() => hasPrev && navigateToDate(eventDates[currentIdx - 1], 'right')}
+                style={[styles.navBtn, !hasPrev && styles.navBtnDisabled]}
+                disabled={!hasPrev}
+              >
+                <Text style={[styles.navBtnText, !hasPrev && styles.navBtnTextDisabled]}>{'\u2039'}</Text>
+              </Pressable>
+              <Animated.View style={{ flex: 1, transform: [{ translateX: slideAnim }] }}>
+                <Text style={styles.dateTitle}>{formatDisplayDate(date)}</Text>
+              </Animated.View>
+              <Pressable
+                onPress={() => hasNext && navigateToDate(eventDates[currentIdx + 1], 'left')}
+                style={[styles.navBtn, !hasNext && styles.navBtnDisabled]}
+                disabled={!hasNext}
+              >
+                <Text style={[styles.navBtnText, !hasNext && styles.navBtnTextDisabled]}>{'\u203A'}</Text>
+              </Pressable>
+            </View>
 
             {loading && <ActivityIndicator color={COLORS.teal} style={{ marginVertical: 20 }} />}
 
@@ -222,11 +283,37 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.textMuted,
   },
   scroll: { flexGrow: 1 },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnDisabled: {
+    opacity: 0.2,
+  },
+  navBtnText: {
+    fontSize: 22,
+    color: COLORS.calGig,
+    marginTop: -2,
+  },
+  navBtnTextDisabled: {
+    color: COLORS.textMuted,
+  },
   dateTitle: {
     fontFamily: FONTS.bodyBold,
     fontSize: 18,
     color: COLORS.text,
-    marginBottom: 16,
+    textAlign: 'center',
   },
   emptySection: {
     paddingVertical: 20,

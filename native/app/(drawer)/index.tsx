@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { COLORS, FONTS } from '../../src/theme';
@@ -114,6 +114,20 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
     };
   }, [fetchData]);
 
+  // Build sorted list of dates with events
+  const eventDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    gigs.forEach(g => dateSet.add(g.date));
+    awayDates.forEach(a => {
+      const start = new Date(a.start_date + 'T12:00:00');
+      const end = new Date(a.end_date + 'T12:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dateSet.add(d.toISOString().slice(0, 10));
+      }
+    });
+    return [...dateSet].sort();
+  }, [gigs, awayDates]);
+
   function handleDatePress(date: string) {
     setSelectedDate(date);
     setSheetVisible(true);
@@ -202,10 +216,12 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
         visible={sheetVisible}
         date={selectedDate ?? ''}
         awayDates={awayDates}
+        eventDates={eventDates}
         onClose={() => setSheetVisible(false)}
         onAddGig={handleAddGig}
         onEditGig={handleEditGig}
         onMarkAway={handleMarkAway}
+        onDateChange={setSelectedDate}
       />
     </View>
   );
