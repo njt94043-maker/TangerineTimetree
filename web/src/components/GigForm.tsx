@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../supabase/client';
-import { createGig, updateGig, deleteGig } from '@shared/supabase/queries';
+import { createGig, updateGig, deleteGig, getGigAttachments, createGigAttachment, deleteGigAttachment } from '@shared/supabase/queries';
 import { isGigIncomplete } from '@shared/supabase/types';
-import type { Gig } from '@shared/supabase/types';
+import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
@@ -13,6 +13,33 @@ interface GigFormProps {
   initialType?: 'gig' | 'practice';
   onClose: () => void;
   onSaved: () => void;
+}
+
+const VISIBILITY_OPTIONS: { value: GigVisibility; label: string; desc: string }[] = [
+  { value: 'hidden', label: 'Not Shared', desc: 'Hidden from website' },
+  { value: 'public', label: 'Public Gig', desc: 'Full details on website' },
+  { value: 'private', label: 'Private Booking', desc: 'Shown as "Private Booking"' },
+];
+
+/** Compress image using Canvas before upload */
+async function compressImage(file: File, maxWidth = 1200, quality = 0.7): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        blob => resolve(blob ?? file),
+        'image/jpeg',
+        quality,
+      );
+    };
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose, onSaved }: GigFormProps) {
@@ -28,11 +55,18 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [notes, setNotes] = useState('');
-  const [isPublic, setIsPublic] = useState(false);
+  const [visibility, setVisibility] = useState<GigVisibility>('hidden');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmIncomplete, setConfirmIncomplete] = useState<string | null>(null);
+
+  // Attachments
+  const [attachments, setAttachments] = useState<GigAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [deleteAttachmentTarget, setDeleteAttachmentTarget] = useState<GigAttachment | null>(null);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pendingSubmitRef = useRef<any>(null);
@@ -52,9 +86,10 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
           setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
           setNotes(data.notes ?? '');
-          setIsPublic(data.is_public ?? false);
+          setVisibility(data.visibility ?? 'hidden');
         }
       });
+      getGigAttachments(gigId).then(setAttachments).catch(() => {});
     }
   }, [gigId, initialDate]);
 
@@ -73,7 +108,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       start_time: startTime || null,
       end_time: endTime || null,
       notes,
-      is_public: !isPractice && isPublic,
+      visibility: isPractice ? 'hidden' as GigVisibility : visibility,
     };
   }
 
@@ -109,7 +144,6 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     e.preventDefault();
     const data = buildGigData();
 
-    // Warn if gig is incomplete but allow save
     const checkGig = { ...data, id: '', created_by: '', created_at: '', updated_at: '', fee: data.fee, payment_type: data.payment_type || '' } as Gig;
     if (isGigIncomplete(checkGig)) {
       const missing: string[] = [];
@@ -117,7 +151,6 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       if (gigType !== 'practice' && !clientName) missing.push('client');
       if (gigType !== 'practice' && data.fee == null) missing.push('fee');
       if (!startTime) missing.push('start time');
-      if (gigType !== 'practice' && !loadTime) missing.push('load-in time');
       pendingSubmitRef.current = data;
       setConfirmIncomplete(`This ${gigType} is missing: ${missing.join(', ')}.\n\nSave anyway? It will be marked INCOMPLETE.`);
       return;
@@ -138,6 +171,54 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
         return;
       }
       setError('Failed to delete');
+    }
+  }
+
+  // ─── Attachment handlers ──────────────────────────────
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files || files.length === 0 || !gigId) return;
+    setUploading(true);
+    setError('');
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+
+      try {
+        const compressed = await compressImage(file);
+        const path = `${gigId}/${Date.now()}_${Math.random().toString(36).slice(2)}.jpg`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from('gig-attachments')
+          .upload(path, compressed, { cacheControl: '31536000', upsert: false, contentType: 'image/jpeg' });
+
+        if (uploadErr) { setError(`Upload failed: ${uploadErr.message}`); continue; }
+
+        // Get signed URL (private bucket)
+        const { data: urlData } = await supabase.storage.from('gig-attachments').createSignedUrl(path, 60 * 60 * 24 * 365);
+        const fileUrl = urlData?.signedUrl ?? '';
+
+        await createGigAttachment(gigId, fileUrl, path, compressed.size);
+      } catch {
+        setError('Failed to upload image');
+      }
+    }
+
+    setUploading(false);
+    getGigAttachments(gigId).then(setAttachments).catch(() => {});
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function handleDeleteAttachment() {
+    if (!deleteAttachmentTarget || !gigId) return;
+    try {
+      await deleteGigAttachment(deleteAttachmentTarget.id, deleteAttachmentTarget.storage_path);
+      setDeleteAttachmentTarget(null);
+      getGigAttachments(gigId).then(setAttachments).catch(() => {});
+    } catch {
+      setError('Failed to delete attachment');
+      setDeleteAttachmentTarget(null);
     }
   }
 
@@ -216,20 +297,63 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           />
         </div>
 
+        {/* Visibility — gigs only */}
         {!isPractice && (
-          <label className="checkbox-label">
+          <>
+            <label className="label" htmlFor="gig-visibility">WEBSITE VISIBILITY</label>
+            <div className="neu-inset">
+              <select
+                id="gig-visibility"
+                className="input-field"
+                value={visibility}
+                onChange={e => setVisibility(e.target.value as GigVisibility)}
+              >
+                {VISIBILITY_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* Attachments — only for saved gigs */}
+        {isEditing && gigId && (
+          <div className="gig-attachments-section">
+            <label className="label">ATTACHMENTS</label>
+            {attachments.length > 0 && (
+              <div className="attachment-grid">
+                {attachments.map(a => (
+                  <div key={a.id} className="attachment-thumb" onClick={() => setViewingImage(a.file_url)}>
+                    <img src={a.file_url} alt="Attachment" />
+                    <button
+                      className="attachment-delete-btn"
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setDeleteAttachmentTarget(a); }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={e => setIsPublic(e.target.checked)}
-              className="checkbox-input"
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              style={{ display: 'none' }}
+              onChange={e => handleFileUpload(e.target.files)}
             />
-            <span>
-              <span className="checkbox-text-main">Show on website</span>
-              <br />
-              <span className="checkbox-text-sub">Display this gig on thegreentangerine.com</span>
-            </span>
-          </label>
+            <button
+              className="btn btn-outline btn-small btn-full"
+              type="button"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ marginTop: 8 }}
+            >
+              {uploading ? 'Uploading...' : '+ Add Screenshots'}
+            </button>
+          </div>
         )}
 
         {error && <ErrorAlert message={error} compact />}
@@ -243,6 +367,16 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           )}
         </div>
       </form>
+
+      {/* Image lightbox */}
+      {viewingImage && (
+        <div className="overlay" onClick={() => setViewingImage(null)}>
+          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+            <img src={viewingImage} alt="Full size" className="lightbox-image" />
+            <button className="btn btn-outline btn-small" onClick={() => setViewingImage(null)} style={{ marginTop: 12 }}>Close</button>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <ConfirmModal
@@ -260,6 +394,16 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           confirmLabel="Save Anyway"
           onConfirm={() => { setConfirmIncomplete(null); if (pendingSubmitRef.current) doSave(pendingSubmitRef.current); }}
           onCancel={() => { setConfirmIncomplete(null); pendingSubmitRef.current = null; }}
+        />
+      )}
+
+      {deleteAttachmentTarget && (
+        <ConfirmModal
+          message="Delete this attachment?"
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDeleteAttachment}
+          onCancel={() => setDeleteAttachmentTarget(null)}
         />
       )}
     </div>
