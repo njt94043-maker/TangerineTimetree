@@ -6,6 +6,7 @@
  */
 
 import * as SQ from '@shared/supabase/queries';
+import { cacheSettings, getCachedSettings } from '../utils/offlineCache';
 import type {
   Client as SupaClient,
   Venue as SupaVenue,
@@ -84,12 +85,10 @@ const BAND_FIELDS = new Set([
 
 // ─── Settings ───────────────────────────────────────────
 
-export async function getSettings(): Promise<GigBooksSettings | null> {
-  const [userSettings, bandSettings] = await Promise.all([
-    SQ.getUserSettings(),
-    SQ.getBandSettings(),
-  ]);
-
+function buildSettings(
+  userSettings: UserSettings | null,
+  bandSettings: BandSettings | null,
+): GigBooksSettings {
   return {
     your_name: userSettings?.your_name ?? '',
     email: userSettings?.email ?? '',
@@ -104,6 +103,29 @@ export async function getSettings(): Promise<GigBooksSettings | null> {
     payment_terms_days: bandSettings?.payment_terms_days ?? 14,
     next_invoice_number: bandSettings?.next_invoice_number ?? 1,
   };
+}
+
+export async function getSettings(): Promise<GigBooksSettings | null> {
+  // Try cache first for instant load
+  const cached = await getCachedSettings();
+
+  // Fetch fresh from Supabase
+  const freshPromise = Promise.all([
+    SQ.getUserSettings(),
+    SQ.getBandSettings(),
+  ]).then(([us, bs]) => {
+    cacheSettings(us, bs);
+    return buildSettings(us, bs);
+  });
+
+  // If we have cache, return it immediately and refresh in background
+  if (cached && (cached.userSettings || cached.bandSettings)) {
+    freshPromise.catch(() => {}); // background refresh, ignore errors
+    return buildSettings(cached.userSettings, cached.bandSettings);
+  }
+
+  // No cache — wait for network
+  return freshPromise;
 }
 
 export async function updateSettings(updates: Partial<GigBooksSettings>): Promise<void> {

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getClients, searchClients, createClient, createQuote,
-  getUserSettings, getBandSettings, getServiceCatalogue,
+  getServiceCatalogue,
 } from '@shared/supabase/queries';
+import { loadSettingsCached } from '../utils/settingsCache';
 import type { Client, UserSettings, BandSettings, ServiceCatalogueItem, EventType, PLIOption, InvoiceStyle } from '@shared/supabase/types';
 import type { QuoteTemplateData } from '@shared/templates';
 import { getQuoteHtml, INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from '@shared/templates';
@@ -103,15 +104,18 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
 
   // Load settings + clients + services on mount
   useEffect(() => {
-    Promise.all([getUserSettings(), getBandSettings(), getServiceCatalogue()]).then(([us, bs, svc]) => {
-      setUserSettings(us);
-      setBandSettings(bs);
-      setServices(svc);
-      if (bs) {
-        setTermsAndConditions(bs.default_terms_and_conditions ?? '');
-        setValidityDays(bs.default_quote_validity_days ?? 30);
-      }
-    }).catch(() => setError('Failed to load settings'));
+    loadSettingsCached(
+      (us, bs) => {
+        setUserSettings(us);
+        setBandSettings(bs);
+        if (bs) {
+          setTermsAndConditions(bs.default_terms_and_conditions ?? '');
+          setValidityDays(bs.default_quote_validity_days ?? 30);
+        }
+      },
+      () => setError('Failed to load settings'),
+    );
+    getServiceCatalogue().then(svc => setServices(svc)).catch(() => {});
     loadClients();
   }, []);
 
