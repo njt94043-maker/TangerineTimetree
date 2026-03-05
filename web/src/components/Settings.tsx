@@ -9,6 +9,69 @@ import {
 import type { ServiceCatalogueItem, SiteReview } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
+const GALLERY_PHOTOS = [
+  '597106079_122203114304318312_6658064872395739304_n.jpg',
+  '599940850_122203114316318312_7234787539894986138_n.jpg',
+  '597816557_122203114208318312_1511647365440667672_n.jpg',
+  '597686988_122203114196318312_7380671637909424026_n.jpg',
+  '597766945_122203114262318312_2855019826452984325_n.jpg',
+  '599942438_122203114250318312_4715496230997956731_n.jpg',
+  '598806438_122203114154318312_3738731288650294377_n.jpg',
+  '597667933_122203114232318312_3376259773236282285_n.jpg',
+  '597686467_122203114220318312_8499032770169649442_n.jpg',
+  '599950695_122203114184318312_4075550291178093672_n.jpg',
+  '599937526_122203114166318312_8822826353486095203_n.jpg',
+  '596616100_122203114280318312_4774789225283861685_n.jpg',
+  '599931778_122203114142318312_2510743017703448193_n.jpg',
+  '599945802_122203522964318312_8505338935023776184_n.jpg',
+  '559917240_122198179376318312_338513422612439942_n.jpg',
+  '573046765_122198179160318312_6611713516069725623_n.jpg',
+  '517373707_122184618476318312_9079173012852202353_n.jpg',
+  '518292004_122184618194318312_7470469164487337077_n.jpg',
+  '518178779_122184618356318312_5797258311142432207_n.jpg',
+  '517932280_122184618398318312_7899127581410056593_n.jpg',
+  '517593387_122184618308318312_1469287926402591328_n.jpg',
+  '517658459_122184618320318312_918293111362977779_n.jpg',
+  '517915069_122184618218318312_1289342786448300270_n.jpg',
+  '516694328_122184618176318312_3053346118825880157_n.jpg',
+  '472670979_122156629358318312_8073782115706429438_n.jpg',
+  '472735587_122156647370318312_1328698029704239520_n.jpg',
+  '475068530_122159718272318312_1808472951566202610_n.jpg',
+  '475166599_122159718284318312_7103355741818100711_n.jpg',
+  '475458199_122159718188318312_513881708284064786_n.jpg',
+  '475756232_122160803756318312_5485839986337765140_n.jpg',
+  '475794011_122160803684318312_2167642453336680850_n.jpg',
+  '475870045_122160803702318312_5106760121842329194_n.jpg',
+  '475944088_122160803738318312_3019678196786161403_n.jpg',
+  '476220689_122160803516318312_6973583794071836750_n.jpg',
+  '476603930_122160803714318312_2269170579322988337_n.jpg',
+  '475101818_122159718266318312_8134630960279957291_n.jpg',
+  '475167972_122159718278318312_3589011426051096025_n.jpg',
+  '475818158_122160803678318312_6529702723166442073_n.jpg',
+  '475904381_122160803510318312_6087368118378830505_n.jpg',
+  '475951073_122160803540318312_5779162694975329062_n.jpg',
+  '475990453_122160803648318312_48028581563210430_n.jpg',
+  '476082222_122160242924318312_5404536789557330705_n.jpg',
+  '599929404_122203522574318312_4278800614656553218_n.jpg',
+  '601819856_122203522562318312_938249262472603777_n.jpg',
+];
+
+const ALL_BG_IMAGES = [
+  '/images/hero-wedding.jpg',
+  '/images/hero-stage.jpg',
+  '/images/hero-halloween.jpg',
+  '/images/band-group.jpg',
+  '/images/band-singing.jpg',
+  ...GALLERY_PHOTOS.map(p => `/images/gallery/${p}`),
+];
+
+const BG_SLOTS = [
+  { key: 'bg_hero_desktop', label: 'Hero (Desktop)', default: '/images/hero-wedding.jpg' },
+  { key: 'bg_hero_mobile', label: 'Hero (Mobile)', default: '/images/band-singing.jpg' },
+  { key: 'bg_about', label: 'About Section', default: '/images/hero-stage.jpg' },
+  { key: 'bg_venues', label: 'Venues Section', default: '/images/band-group.jpg' },
+];
+
 interface SettingsProps {
   onClose: () => void;
 }
@@ -51,6 +114,7 @@ export function Settings({ onClose }: SettingsProps) {
   // Website Content
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
   const [contentSaved, setContentSaved] = useState<string | null>(null);
+  const [expandedBgSlot, setExpandedBgSlot] = useState<string | null>(null);
 
   // Reviews
   const [siteReviews, setSiteReviews] = useState<SiteReview[]>([]);
@@ -554,6 +618,127 @@ export function Settings({ onClose }: SettingsProps) {
           />
         </div>
         {contentSaved === 'about_slogan' && <span className="content-saved-flash">Saved</span>}
+
+        <h4 className="settings-subsection-title" style={{ marginTop: 24 }}>Background Images</h4>
+        <p className="hint-text">Choose which photos appear as section backgrounds</p>
+
+        {BG_SLOTS.map(slot => {
+          const currentImg = getContent(slot.key) || slot.default;
+          const isExpanded = expandedBgSlot === slot.key;
+          return (
+            <div key={slot.key} className="bg-picker-slot">
+              <div className="bg-picker-top">
+                <span className="bg-picker-label">{slot.label}</span>
+                <button className="btn btn-small btn-outline" onClick={() => setExpandedBgSlot(isExpanded ? null : slot.key)}>
+                  {isExpanded ? 'Close' : 'Change'}
+                </button>
+                {contentSaved === slot.key && <span className="content-saved-flash">Saved</span>}
+              </div>
+              <div className="bg-picker-preview" style={{ backgroundImage: `url('${currentImg}')` }}>
+                <span className="bg-picker-preview-label">{currentImg.split('/').pop()}</span>
+              </div>
+              {isExpanded && (
+                <div className="bg-picker-grid">
+                  {ALL_BG_IMAGES.map(img => (
+                    <img
+                      key={img}
+                      src={img}
+                      alt=""
+                      className={`bg-picker-thumb ${currentImg === img ? 'selected' : ''}`}
+                      loading="lazy"
+                      onClick={() => {
+                        handleContentSave(slot.key, img);
+                        setExpandedBgSlot(null);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <h4 className="settings-subsection-title" style={{ marginTop: 24 }}>Pricing Tiers</h4>
+        <p className="hint-text">Edit prices, durations and features shown on the public website</p>
+
+        {[
+          { label: 'Pub Gig', key: 'pub_gig', defaultPrice: '£400–£600', defaultDuration: '2×45min + 15min encore', defaultFeatures: ['Full 4-piece band', 'PA & lighting included', 'Flexible setlist', 'Background music between sets'] },
+          { label: 'Private Party', key: 'private_party', defaultPrice: '£600–£800', defaultDuration: '2×45min + 15min encore', defaultFeatures: ['Everything in Pub Gig', 'Custom setlist options', 'MC & announcements', 'Party atmosphere guaranteed'] },
+          { label: 'Wedding', key: 'wedding', defaultPrice: '£800–£1,200', defaultDuration: '2×45min + 15min encore', defaultFeatures: ['Everything in Private Party', 'First dance song', 'Tailored setlist', 'Venue coordination'] },
+          { label: 'Corporate', key: 'corporate', defaultPrice: '£1,000–£1,500', defaultDuration: '2×45min + 15min encore', defaultFeatures: ['Everything in Wedding', 'Corporate-appropriate setlist', 'Professional attire', 'Background music option'] },
+          { label: 'Festival', key: 'festival', defaultPrice: '£1,000+', defaultDuration: '45–90min set', defaultFeatures: ['Festival-ready performance', 'High-energy crowd engagement', 'Flexible set length', 'Own backline available'] },
+        ].map(tier => {
+          const priceKey = `pricing_${tier.key}_price`;
+          const durationKey = `pricing_${tier.key}_duration`;
+          const featuresKey = `pricing_${tier.key}_features`;
+          return (
+            <div key={tier.key} className="pricing-edit-card neu-card" style={{ padding: 12, marginBottom: 8 }}>
+              <div className="pricing-edit-header">{tier.label}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label className="label">PRICE</label>
+                  <div className="neu-inset">
+                    <input
+                      className="input-field"
+                      value={getContent(priceKey) || tier.defaultPrice}
+                      onChange={e => setSiteContent(prev => ({ ...prev, [priceKey]: e.target.value }))}
+                      onBlur={e => e.target.value && handleContentSave(priceKey, e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">DURATION</label>
+                  <div className="neu-inset">
+                    <input
+                      className="input-field"
+                      value={getContent(durationKey) || tier.defaultDuration}
+                      onChange={e => setSiteContent(prev => ({ ...prev, [durationKey]: e.target.value }))}
+                      onBlur={e => e.target.value && handleContentSave(durationKey, e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <label className="label" style={{ marginTop: 6 }}>FEATURES (one per line)</label>
+              <div className="neu-inset">
+                <textarea
+                  className="input-field input-textarea"
+                  rows={4}
+                  value={(() => {
+                    const raw = getContent(featuresKey);
+                    if (raw) { try { return JSON.parse(raw).join('\n'); } catch { return raw; } }
+                    return tier.defaultFeatures.join('\n');
+                  })()}
+                  onChange={e => setSiteContent(prev => ({ ...prev, [featuresKey]: JSON.stringify(e.target.value.split('\n').filter(Boolean)) }))}
+                  onBlur={e => {
+                    const lines = e.target.value.split('\n').filter(Boolean);
+                    if (lines.length > 0) handleContentSave(featuresKey, JSON.stringify(lines));
+                  }}
+                />
+              </div>
+              {(contentSaved === priceKey || contentSaved === durationKey || contentSaved === featuresKey) && <span className="content-saved-flash">Saved</span>}
+            </div>
+          );
+        })}
+
+        <h4 className="settings-subsection-title" style={{ marginTop: 16 }}>Additional Services</h4>
+        <p className="hint-text">One item per line</p>
+        <div className="neu-inset">
+          <textarea
+            className="input-field input-textarea"
+            rows={5}
+            value={(() => {
+              const raw = getContent('extras_list');
+              if (raw) { try { return JSON.parse(raw).join('\n'); } catch { return raw; } }
+              return 'Travel within 50 miles included\nAdditional travel: £0.50/mile\nExtra sets: £100–£200/hour\nCustom song requests (with advance notice)\nPA hire for speeches: £150';
+            })()}
+            onChange={e => setSiteContent(prev => ({ ...prev, extras_list: JSON.stringify(e.target.value.split('\n').filter(Boolean)) }))}
+            onBlur={e => {
+              const lines = e.target.value.split('\n').filter(Boolean);
+              if (lines.length > 0) handleContentSave('extras_list', JSON.stringify(lines));
+            }}
+          />
+        </div>
+        {contentSaved === 'extras_list' && <span className="content-saved-flash">Saved</span>}
       </div>
 
       {/* Reviews */}
@@ -562,24 +747,63 @@ export function Settings({ onClose }: SettingsProps) {
         <p className="hint-text">Manage reviews displayed on the public website</p>
 
         {siteReviews.length > 0 && (
-          <div className="service-catalogue-list">
+          <div className="review-manage-list">
             {siteReviews.map((rev, i) => (
-              <div key={rev.id} className={`service-catalogue-item neu-card ${!rev.visible ? 'review-hidden' : ''}`}>
-                <div className="service-catalogue-info">
-                  <span className="service-catalogue-name">{rev.author_name}</span>
-                  <span className="service-catalogue-price" style={{ fontSize: 12, opacity: 0.6 }}>
-                    {rev.review_text.slice(0, 60)}{rev.review_text.length > 60 ? '...' : ''}
-                  </span>
+              <div key={rev.id}>
+                <div className={`review-manage-card neu-card ${!rev.visible ? 'review-hidden' : ''}`}>
+                  <div className="review-manage-top">
+                    <div className="review-manage-author">{rev.author_name}</div>
+                    <span className={`review-manage-source review-manage-source-${rev.source.toLowerCase()}`}>{rev.source}</span>
+                  </div>
+                  <div className="review-manage-stars">{'★'.repeat(rev.rating)}{'☆'.repeat(5 - rev.rating)}</div>
+                  <p className="review-manage-preview">{rev.review_text.length > 120 ? rev.review_text.slice(0, 120) + '...' : rev.review_text}</p>
+                  <div className="review-manage-actions">
+                    <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, -1)} disabled={i === 0}>&#x2191;</button>
+                    <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, 1)} disabled={i === siteReviews.length - 1}>&#x2193;</button>
+                    <button className="btn btn-small btn-outline" onClick={() => handleToggleReviewVisibility(rev.id, rev.visible)}>
+                      {rev.visible ? 'Hide' : 'Show'}
+                    </button>
+                    <button className="btn btn-small btn-outline" onClick={() => startEditReview(rev)}>Edit</button>
+                    <button className="btn btn-small btn-danger" onClick={() => handleDeleteReview(rev.id)}>Del</button>
+                  </div>
                 </div>
-                <div className="service-catalogue-actions">
-                  <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, -1)} disabled={i === 0}>&#x2191;</button>
-                  <button className="btn btn-small btn-outline" onClick={() => handleMoveReview(rev.id, 1)} disabled={i === siteReviews.length - 1}>&#x2193;</button>
-                  <button className="btn btn-small btn-outline" onClick={() => handleToggleReviewVisibility(rev.id, rev.visible)}>
-                    {rev.visible ? 'Hide' : 'Show'}
-                  </button>
-                  <button className="btn btn-small btn-outline" onClick={() => startEditReview(rev)}>Edit</button>
-                  <button className="btn btn-small btn-danger" onClick={() => handleDeleteReview(rev.id)}>Del</button>
-                </div>
+                {/* Inline edit form below the card being edited */}
+                {editingReviewId === rev.id && showAddReview && (
+                  <div className="review-edit-form neu-card">
+                    <label className="label">REVIEWER NAME *</label>
+                    <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
+                    <label className="label">REVIEW TEXT *</label>
+                    <div className="neu-inset"><textarea className="input-field input-textarea" rows={3} value={revText} onChange={e => setRevText(e.target.value)} placeholder="Their review..." /></div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                      <div>
+                        <label className="label">RATING</label>
+                        <div className="neu-inset">
+                          <select className="input-field" value={revRating} onChange={e => setRevRating(Number(e.target.value))}>
+                            {[5,4,3,2,1].map(n => <option key={n} value={n}>{'★'.repeat(n)} ({n})</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">SOURCE</label>
+                        <div className="neu-inset">
+                          <select className="input-field" value={revSource} onChange={e => setRevSource(e.target.value)}>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Google">Google</option>
+                            <option value="Direct">Direct</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="label">DATE</label>
+                        <div className="neu-inset"><input className="input-field" type="date" value={revDate} onChange={e => setRevDate(e.target.value)} /></div>
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Update</button>
+                      <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -588,8 +812,9 @@ export function Settings({ onClose }: SettingsProps) {
           <p className="empty-text">No reviews yet</p>
         )}
 
-        {showAddReview ? (
-          <div className="service-form neu-card">
+        {/* Add new review form (only for new reviews, not edits) */}
+        {showAddReview && !editingReviewId ? (
+          <div className="review-edit-form neu-card">
             <label className="label">REVIEWER NAME *</label>
             <div className="neu-inset"><input className="input-field" value={revAuthor} onChange={e => setRevAuthor(e.target.value)} placeholder="e.g. John Smith" /></div>
             <label className="label">REVIEW TEXT *</label>
@@ -619,11 +844,11 @@ export function Settings({ onClose }: SettingsProps) {
               </div>
             </div>
             <div className="form-actions">
-              <button className="btn btn-primary btn-small" onClick={handleSaveReview}>{editingReviewId ? 'Update' : 'Add Review'}</button>
+              <button className="btn btn-primary btn-small" onClick={handleSaveReview}>Add Review</button>
               <button className="btn btn-outline btn-small" onClick={resetReviewForm}>Cancel</button>
             </div>
           </div>
-        ) : (
+        ) : !showAddReview && (
           <button className="btn btn-green btn-small btn-full" onClick={() => { resetReviewForm(); setShowAddReview(true); }} style={{ marginTop: 8 }}>
             + Add Review
           </button>
