@@ -103,7 +103,11 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'away_dates' }, () => {
         fetchData();
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Calendar realtime error', status, err);
+        }
+      });
 
     // Replay offline queue when connectivity returns
     const stopQueueListener = startOfflineQueueListener(() => fetchData());

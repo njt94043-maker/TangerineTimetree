@@ -737,10 +737,13 @@ export async function deleteClient(id: string): Promise<void> {
 
 export async function searchClients(query: string): Promise<Client[]> {
   const supabase = getSupabase();
+  // Sanitise query to prevent PostgREST filter injection
+  const safe = query.replace(/[%_(),.*]/g, '');
+  if (!safe) return [];
   const { data, error } = await supabase
     .from('clients')
     .select('*')
-    .or(`company_name.ilike.%${query}%,contact_name.ilike.%${query}%`)
+    .or(`company_name.ilike.%${safe}%,contact_name.ilike.%${safe}%`)
     .order('company_name');
   if (error) { checkAuthError(error); throw error; }
   return data ?? [];
@@ -948,6 +951,7 @@ export async function markInvoicePaid(invoiceId: string): Promise<ReceiptWithMem
   if (!invoice) throw new Error('Invoice not found');
 
   const allMembers = await getProfiles();
+  if (allMembers.length === 0) throw new Error('No profiles found — cannot split receipt');
   // The "self" is the admin; receipts go to non-admin members
   const otherMembers = allMembers.filter(m => !m.is_admin);
   const perPerson = Math.round((invoice.amount / allMembers.length) * 100) / 100;
@@ -1511,6 +1515,7 @@ export async function markFormalInvoicePaid(invoiceId: string): Promise<FormalRe
   if (!invoice) throw new Error('Formal invoice not found');
 
   const allMembers = await getProfiles();
+  if (allMembers.length === 0) throw new Error('No profiles found — cannot split receipt');
   const otherMembers = allMembers.filter(m => !m.is_admin);
   const perPerson = Math.round((invoice.total / allMembers.length) * 100) / 100;
   const remainder = Math.round((invoice.total - perPerson * allMembers.length) * 100) / 100;

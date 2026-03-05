@@ -43,8 +43,12 @@ export default function InvoicesScreen() {
   );
 
   async function loadInvoices() {
-    const list = await getInvoices();
-    setInvoices(list);
+    try {
+      const list = await getInvoices();
+      setInvoices(list);
+    } catch (err) {
+      console.error('Failed to load invoices', err);
+    }
   }
 
   async function handleRefresh() {

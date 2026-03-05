@@ -62,8 +62,10 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   async function toggleLog(gigId: string) {
     if (expandedLog === gigId) { setExpandedLog(null); return; }
     if (!changelog.has(gigId)) {
-      const entries = await getGigChangelog(gigId);
-      setChangelog(prev => new Map(prev).set(gigId, entries));
+      try {
+        const entries = await getGigChangelog(gigId);
+        setChangelog(prev => new Map(prev).set(gigId, entries));
+      } catch { return; }
     }
     setExpandedLog(gigId);
   }

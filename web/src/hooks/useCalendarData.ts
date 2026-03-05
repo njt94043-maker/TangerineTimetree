@@ -39,7 +39,11 @@ export function useCalendarData(year: number, month: number) {
       .channel('timetree-calendar')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'gigs' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'away_dates' }, () => fetchData())
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Calendar realtime error', status, err);
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);

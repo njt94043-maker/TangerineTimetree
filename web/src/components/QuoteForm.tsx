@@ -84,13 +84,15 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
         setTermsAndConditions(bs.default_terms_and_conditions ?? '');
         setValidityDays(bs.default_quote_validity_days ?? 30);
       }
-    });
+    }).catch(() => setError('Failed to load settings'));
     loadClients();
   }, []);
 
   async function loadClients() {
-    const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
-    setClients(list);
+    try {
+      const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
+      setClients(list);
+    } catch { /* client list non-critical */ }
   }
 
   useEffect(() => { loadClients(); }, [clientSearch]);

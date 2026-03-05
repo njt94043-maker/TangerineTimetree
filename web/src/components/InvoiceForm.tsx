@@ -54,13 +54,15 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
     Promise.all([getUserSettings(), getBandSettings()]).then(([us, bs]) => {
       setUserSettings(us);
       setBandSettings(bs);
-    });
+    }).catch(() => setError('Failed to load settings'));
     loadClients();
   }, []);
 
   async function loadClients() {
-    const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
-    setClients(list);
+    try {
+      const list = clientSearch.trim() ? await searchClients(clientSearch.trim()) : await getClients();
+      setClients(list);
+    } catch { /* client list non-critical */ }
   }
 
   useEffect(() => { loadClients(); }, [clientSearch]);

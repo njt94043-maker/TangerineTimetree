@@ -39,7 +39,8 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
 
   useEffect(() => {
     if (gigId) {
-      supabase.from('gigs').select('*').eq('id', gigId).single().then(({ data }) => {
+      supabase.from('gigs').select('*').eq('id', gigId).single().then(({ data, error: err }) => {
+        if (err) { setError('Failed to load gig details'); return; }
         if (data) {
           setDate(data.date ?? initialDate);
           setGigType(data.gig_type ?? 'gig');

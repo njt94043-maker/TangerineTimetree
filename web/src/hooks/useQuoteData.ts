@@ -32,7 +32,11 @@ export function useQuoteData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, () => {
         refresh();
       })
-      .subscribe();
+      .subscribe((status: string, err?: Error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Quote realtime error', status, err);
+        }
+      });
 
     return () => { supabase.removeChannel(channel); };
   }, [refresh]);
