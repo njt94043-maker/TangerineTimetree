@@ -171,6 +171,9 @@ export interface Venue {
   venue_name: string;
   address: string;
   postcode: string;
+  email: string;
+  phone: string;
+  contact_name: string;
   rating_atmosphere: number | null;  // 1-5
   rating_crowd: number | null;       // 1-5
   rating_stage: number | null;       // 1-5
@@ -193,8 +196,9 @@ export interface VenuePhoto {
 export interface Invoice {
   id: string;
   invoice_number: string;
-  client_id: string;
+  client_id: string | null;
   venue_id: string | null;
+  gig_id: string | null;
   venue: string;
   gig_date: string;        // YYYY-MM-DD
   amount: number;
@@ -214,6 +218,11 @@ export interface InvoiceWithClient extends Invoice {
   client_contact_name: string;
   client_address: string;
   client_email: string;
+  venue_name: string;
+  venue_address: string;
+  venue_email: string;
+  venue_phone: string;
+  venue_contact_name: string;
 }
 
 export interface Receipt {
@@ -288,7 +297,7 @@ export interface ServiceCatalogueItem {
 export interface Quote {
   id: string;
   quote_number: string;
-  client_id: string;
+  client_id: string | null;
   venue_id: string | null;
   created_by: string;
   event_type: EventType;
@@ -316,6 +325,9 @@ export interface QuoteWithClient extends Quote {
   client_address: string;
   client_email: string;
   client_phone: string;
+  venue_email: string;
+  venue_phone: string;
+  venue_contact_name: string;
 }
 
 export interface QuoteLineItem {
@@ -333,7 +345,7 @@ export interface FormalInvoice {
   id: string;
   invoice_number: string;
   quote_id: string;
-  client_id: string;
+  client_id: string | null;
   venue_id: string | null;
   created_by: string;
   venue_name: string;
@@ -356,6 +368,19 @@ export interface FormalInvoiceWithClient extends FormalInvoice {
   client_contact_name: string;
   client_address: string;
   client_email: string;
+  venue_email: string;
+  venue_phone: string;
+  venue_contact_name: string;
+}
+
+// ─── Bill-To Resolution ─────────────────────────────────
+
+export interface BillTo {
+  name: string;
+  contact_name: string;
+  address: string;
+  email: string;
+  phone: string;
 }
 
 export interface FormalInvoiceLineItem {
