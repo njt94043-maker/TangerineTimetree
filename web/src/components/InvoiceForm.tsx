@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getClients, searchClients, createClient, createInvoice,
-  getUserSettings, getBandSettings,
   getVenuesForClient,
 } from '@shared/supabase/queries';
+import { loadSettingsCached } from '../utils/settingsCache';
 import type { Client, Venue, UserSettings, BandSettings } from '@shared/supabase/types';
 import type { InvoiceStyle } from '@shared/supabase/types';
 import type { InvoiceTemplateData } from '@shared/templates';
@@ -80,10 +80,10 @@ export function InvoiceForm({ onClose, onSaved }: InvoiceFormProps) {
   }, []);
 
   useEffect(() => {
-    Promise.all([getUserSettings(), getBandSettings()]).then(([us, bs]) => {
-      setUserSettings(us);
-      setBandSettings(bs);
-    }).catch(() => setError('Failed to load settings'));
+    loadSettingsCached(
+      (us, bs) => { setUserSettings(us); setBandSettings(bs); },
+      () => setError('Failed to load settings'),
+    );
     loadClients();
   }, []);
 

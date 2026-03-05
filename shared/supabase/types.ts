@@ -80,7 +80,7 @@ export function isGigIncomplete(gig: Gig): boolean {
   if (gig.gig_type === 'practice') {
     return !gig.venue || !gig.start_time;
   }
-  return !gig.venue || !gig.client_name || gig.fee == null || !gig.start_time || !gig.load_time;
+  return !gig.venue || !gig.client_name || gig.fee == null || !gig.start_time;
 }
 
 // Compute calendar day status
