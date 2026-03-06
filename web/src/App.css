@@ -4096,6 +4096,37 @@ select.ps-form-input {
 }
 
 
+/* ─── Digital Time Picker ──────────────────────── */
+.digital-time-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.digital-time-select {
+  flex: 1;
+  background: var(--bg-input);
+  color: var(--color-text);
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  padding: 10px 8px;
+  text-align: center;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.3), inset -2px -2px 4px rgba(255,255,255,0.03);
+}
+.digital-time-select:focus {
+  outline: 1px solid var(--color-green);
+}
+.digital-time-colon {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-dim, #8e8e93);
+}
+
 /* ─── Gig Attachments ──────────────────────────── */
 .gig-attachments-section { margin-top: 12px; }
 .attachment-grid {
