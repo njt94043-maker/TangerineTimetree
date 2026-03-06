@@ -669,14 +669,16 @@ html, body, #root {
   min-height: 0;
 }
 .day-venue {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
-  opacity: 0.9;
+  opacity: 0.85;
+  display: block;
+  max-width: 100%;
 }
 
 /* 6.5: multiple dots container */
