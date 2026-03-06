@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, PanResponder } from 'react-native';
+import { View, Text, Pressable, StyleSheet, PanResponder, useWindowDimensions } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle } from '../theme/shadows';
 import type { Gig, AwayDate, DayStatus } from '@shared/supabase/types';
@@ -38,9 +38,8 @@ const STATUS_COLORS: Record<DayStatus, string> = {
   past: 'transparent',
 };
 
-const CELL_SIZE = 42;
-
 export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) {
+  const { height: windowHeight } = useWindowDimensions();
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -107,6 +106,11 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
     return map;
   }, [gigs]);
 
+  // Dynamic cell height: fill available screen space
+  // Reserve ~140px for header, day-headers row, legend, status bar, nav
+  const numRows = rows.length;
+  const cellHeight = Math.max(52, Math.floor((windowHeight - 180) / numRows));
+
   return (
     <View style={styles.container}>
       {/* Month header */}
@@ -135,37 +139,40 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
       {/* Day headers */}
       <View style={styles.row}>
         {DAY_HEADERS.map((d, i) => (
-          <View key={d} style={styles.cell}>
-            <Text style={[styles.dayHeader, i >= 5 && styles.weekendHeader]}>{d}</Text>
+          <View key={d} style={styles.headerCell}>
+            <Text style={[styles.dayHeader, i >= 5 && styles.weekendHeader]}>{d.toUpperCase()}</Text>
           </View>
         ))}
       </View>
 
       {/* Day grid */}
-      <View {...panResponder.panHandlers}>
+      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
         {rows.map((week, rowIdx) => (
           <View key={`week-${rowIdx}`} style={styles.row}>
             {week.map((day, colIdx) => {
               const cellIdx = rowIdx * 7 + colIdx;
               if (day === null) {
-                return <View key={`empty-${cellIdx}`} style={styles.cell} />;
+                return <View key={`empty-${cellIdx}`} style={[styles.cell, { height: cellHeight }]} />;
               }
 
               const iso = toISO(viewYear, viewMonth, day);
               const status = computeDayStatus(iso, today, gigs, awayDates);
               const isToday = iso === today;
               const dateGigs = gigsByDate.get(iso) ?? [];
-              const hasIncomplete = dateGigs.some(isGigIncomplete);
+
+              // Venue label for gig days
+              const venueLabel = dateGigs.length > 0 ? (dateGigs[0].venue || '') : '';
 
               return (
                 <Pressable
                   key={`day-${day}`}
-                  style={styles.cell}
+                  style={[styles.cell, { height: cellHeight }]}
                   onPress={() => onDatePress(iso)}
                 >
                   <View
                     style={[
-                      styles.dayCircle,
+                      styles.dayRect,
+                      { height: cellHeight - 2 },
                       status !== 'past' && status !== 'available' && {
                         backgroundColor: STATUS_COLORS[status] + '1A',
                         borderColor: STATUS_COLORS[status] + '26',
@@ -184,10 +191,20 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
                     >
                       {day}
                     </Text>
-                    {/* Dots — one per gig, max 3, colored by type */}
+                    {/* Venue name — truncated */}
+                    {!!venueLabel && (
+                      <Text
+                        style={[styles.venueLabel, status === 'practice' && { color: COLORS.calPractice }]}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {venueLabel}
+                      </Text>
+                    )}
+                    {/* Dots — one per gig, max 2, colored by type */}
                     {dateGigs.length > 0 && (
                       <View style={styles.dotsRow}>
-                        {dateGigs.slice(0, 3).map((g, i) => {
+                        {dateGigs.slice(0, 2).map((g, i) => {
                           const color = g.gig_type === 'practice' ? COLORS.calPractice : COLORS.calGig;
                           const inc = g.gig_type !== 'practice' && isGigIncomplete(g);
                           return (
@@ -204,10 +221,10 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
                         <View style={[styles.dot, { backgroundColor: COLORS.calAway }]} />
                       </View>
                     )}
-                    {/* Count badge when >3 gigs */}
-                    {dateGigs.length > 3 && (
+                    {/* Count badge when >2 gigs */}
+                    {dateGigs.length > 2 && (
                       <View style={styles.countBadge}>
-                        <Text style={styles.countText}>+{dateGigs.length - 3}</Text>
+                        <Text style={styles.countText}>+{dateGigs.length - 2}</Text>
                       </View>
                     )}
                   </View>
@@ -241,15 +258,16 @@ function LegendItem({ color, label }: { color: string; label: string }) {
 const styles = StyleSheet.create({
   container: {
     ...neuRaisedStyle('normal'),
-    padding: 12,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    padding: 8,
+    marginHorizontal: 8,
+    marginVertical: 4,
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 4,
   },
   arrowBtn: { padding: 8 },
   arrow: { color: COLORS.teal, fontSize: 14 },
@@ -265,8 +283,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 2,
-    marginTop: -4,
-    marginBottom: 4,
+    marginTop: -2,
+    marginBottom: 2,
   },
   todayBtnText: {
     fontFamily: FONTS.bodyBold,
@@ -275,9 +293,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   row: { flexDirection: 'row' },
+  headerCell: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
   cell: {
     flex: 1,
-    height: CELL_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 1,
@@ -287,18 +310,19 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyBold,
     fontSize: 10,
     color: COLORS.textDim,
-    textTransform: 'uppercase',
   },
   weekendHeader: { color: COLORS.textMuted },
-  dayCircle: {
-    width: CELL_SIZE - 4,
-    height: CELL_SIZE - 4,
+  dayRect: {
+    width: '96%',
     borderRadius: 6,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+    paddingTop: 3,
+    paddingHorizontal: 3,
     backgroundColor: 'rgba(0,0,0,0.3)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.04)',
+    overflow: 'hidden',
   },
   todayBorder: {
     borderWidth: 2,
@@ -306,16 +330,25 @@ const styles = StyleSheet.create({
   },
   dayText: {
     fontFamily: FONTS.body,
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.text,
   },
   pastText: { color: COLORS.textMuted },
   gigText: { color: COLORS.calGig, fontFamily: FONTS.bodyBold },
   practiceText: { color: COLORS.calPractice, fontFamily: FONTS.bodyBold },
   availableText: { color: COLORS.calAvailable },
+  venueLabel: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 8,
+    color: COLORS.calGig,
+    marginTop: 1,
+    opacity: 0.9,
+  },
   dotsRow: {
     position: 'absolute',
     bottom: 2,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     gap: 2,
     justifyContent: 'center',
@@ -354,8 +387,8 @@ const styles = StyleSheet.create({
   legend: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: COLORS.textMuted + '30',
   },

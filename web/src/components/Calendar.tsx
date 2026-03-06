@@ -79,11 +79,13 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
         <button className="today-btn" onClick={onGoToToday}>Today</button>
       </div>
 
-      <div className="calendar-grid" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <div className="calendar-day-headers">
         {DAY_HEADERS.map((d, i) => (
-          <div key={d} className={`calendar-day-header ${i >= 5 ? 'weekend' : ''}`}>{d}</div>
+          <div key={d} className={`calendar-day-header ${i >= 5 ? 'weekend' : ''}`}>{d.toUpperCase()}</div>
         ))}
+      </div>
 
+      <div className="calendar-grid" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {cells.map((day, idx) => {
           if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" style={{ cursor: 'default' }} />;
 
@@ -104,12 +106,21 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
             return <span key={i} className={`day-dot ${inc ? 'incomplete' : ''}`} style={{ background: color }} />;
           });
 
+          // Venue labels for gig days (truncated)
+          const venueLabels = dateGigs.slice(0, 2).map((g, i) => {
+            const label = g.venue || '';
+            if (!label) return null;
+            const color = g.gig_type === 'practice' ? 'var(--color-practice)' : 'var(--color-gig)';
+            return <span key={i} className="day-venue" style={{ color }}>{label}</span>;
+          }).filter(Boolean);
+
           return (
             <button key={`day-${day}`} className={classes.join(' ')} onClick={() => onDatePress(iso)} aria-label={`${MONTH_NAMES[month]} ${day}`}>
               <span className="day-num">{day}</span>
+              {venueLabels.length > 0 && <span className="day-venues">{venueLabels}</span>}
               {dots.length > 0 && <span className="day-dots">{dots}</span>}
-              {gigCount > 3 && (
-                <span className="day-count">+{gigCount - 3}</span>
+              {gigCount > 2 && (
+                <span className="day-count">+{gigCount - 2}</span>
               )}
             </button>
           );
