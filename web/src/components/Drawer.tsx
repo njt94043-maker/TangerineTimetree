@@ -1,5 +1,6 @@
-import { useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useView } from '../hooks/useViewContext';
+import { AppTutorial } from './AppTutorial';
 
 type View = ReturnType<typeof useView>['view'];
 
@@ -82,6 +83,7 @@ interface DrawerProps {
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
   const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues } = useView();
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
 
@@ -146,6 +148,14 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
         </div>
 
         <div className="drawer-footer">
+          <button
+            className="drawer-item"
+            onClick={() => { setShowTutorial(true); if (window.innerWidth < 768) onClose(); }}
+            title="App Guide"
+          >
+            <span className="drawer-icon">{'\uD83C\uDF93'}</span>
+            <span className="drawer-label">App Guide</span>
+          </button>
           {FOOTER_ITEMS.map(item => (
             <button
               key={item.view}
@@ -163,6 +173,8 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
           </div>
         </div>
       </nav>
+
+      {showTutorial && <AppTutorial onClose={() => setShowTutorial(false)} />}
     </>
   );
 }

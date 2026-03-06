@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { Drawer } from 'expo-router/drawer';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/theme';
+import { AppTutorial } from '../../src/components/AppTutorial';
 
 interface NavItem {
   icon: string;
@@ -43,6 +44,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const insets = useSafeAreaInsets();
   const { state, navigation } = props;
   const currentRoute = state.routes[state.index]?.name ?? '';
+  const [showTutorial, setShowTutorial] = useState(false);
 
   function navigateTo(route: string) {
     navigation.navigate(route);
@@ -86,6 +88,13 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
       {/* Footer */}
       <View style={[styles.drawerFooter, { paddingBottom: insets.bottom + 8 }]}>
+        <Pressable
+          style={styles.drawerItem}
+          onPress={() => { navigation.closeDrawer(); setShowTutorial(true); }}
+        >
+          <Text style={styles.drawerIcon}>{'\uD83C\uDF93'}</Text>
+          <Text style={styles.drawerLabel}>App Guide</Text>
+        </Pressable>
         {FOOTER_ITEMS.map(item => {
           const isActive = currentRoute === item.route;
           return (
@@ -102,6 +111,8 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           );
         })}
       </View>
+
+      <AppTutorial visible={showTutorial} onClose={() => setShowTutorial(false)} />
     </View>
   );
 }
