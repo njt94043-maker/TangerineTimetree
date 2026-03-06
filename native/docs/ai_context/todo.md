@@ -6,48 +6,78 @@
 ---
 
 ## Immediate Actions
-- [x] S25B: Songs & Setlists UI (both apps) — song library CRUD, setlist builder with reorder
-- [x] S25C: Setlist PDF sharing — band-themed template, generate + share from both apps
-- [x] Web nav bug: edit gig back button goes to calendar instead of gig list (FIXED — double-pop in popstate handler)
-- [x] Gig list visibility toggle — quick share/hide gig on public website
-- [x] 12hr AM/PM time format throughout both apps (web fmt() + native fmt/formatTime)
-- [ ] APK rebuild for S23+ changes
+- [x] **Big-picture realignment** — DONE. Port C++ from ClickTrack, single Oboe stream, aubio beat detection, SoundTouch time-stretch. Role-based song forms. Web stage prompter.
+- [ ] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
+- [ ] Sideload APK to Samsung device (103MB built 2026-03-06)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
-## Completed: S24 — Bill-To Flexibility (venue OR client invoicing)
+## Backlog — Performance & Practice Epic
 
-### S24A — Schema + Types + Queries — DONE
-- [x] DB migration, types, queries, native wrapper — all complete
-- [x] Migration SQL pushed to Supabase
+### S26A — Audio Engine Foundation (NEXT)
+- [ ] Prove Expo Module + C++ + Oboe with "hello beep" test
+- [ ] Port metronome.h/cpp from ClickTrack (strip to essentials)
+- [ ] Port mixer.h/cpp from ClickTrack
+- [ ] Port wav_loader.h/cpp from ClickTrack
+- [ ] Write stripped audio_engine.h/cpp (metronome + mixer only)
+- [ ] Write Expo Native Module (Kotlin + JNI bridge)
+- [ ] JS API: startEngine, stopEngine, setBpm, setTimeSignature, setSubdivision, setSwing, setAccentPattern, setClickSound, setCountIn, startClick, stopClick, getCurrentBeat, getCurrentBar
+- [ ] loadSong(song) — configures engine from Song fields
+- [ ] Supabase migration: ALTER songs ADD lyrics TEXT, chords TEXT, beat_offset_ms INTEGER
+- [ ] Update shared types (Song: lyrics, chords, beat_offset_ms)
+- [ ] Update shared queries (song CRUD with new fields)
+- [ ] Role-based song edit form: Nathan sees metronome settings, others see simplified form
+- [ ] Both tsc clean
 
-### S24B — UI (both apps) — DONE
-- [x] Gig form: removed "Client is the venue" toggle (both apps)
-- [x] Invoice form: "Bill To" toggle — venue or client (both apps)
-- [x] Quote form: same bill-to pattern (both apps)
-- [x] Invoice/Quote list views: show client OR venue name (billed-to)
-- [x] Venue form/detail: email, phone, contact_name fields (both apps)
-- [x] Gig day view: "Create Invoice" button + "Invoiced" badge (both apps)
-  - Only for payment_type='invoice', non-practice gigs
-  - Pre-fills venue, client, fee, date, description
-- [x] Web InvoiceForm: added prefill props for gig→invoice flow
-- [x] TypeScript clean: both apps pass
+### S26B — Live Mode UI (native)
+- [ ] Full-screen stage view — dark, high-contrast, stage-readable
+- [ ] Load setlist, navigate songs, engine auto-reconfigures
+- [ ] Song metadata: name, BPM, key, time sig, notes
+- [ ] Beat visualization (LED dots with downbeat accent)
+- [ ] Transport: play/stop
+- [ ] Swing slider with snap-to-middle
+- [ ] Song position indicator (3 of 12)
+- [ ] Wake lock (screen stays on)
 
-## Completed: S25A — Songs & Setlists: Schema + Types + Queries — DONE
-- [x] Supabase migration: songs, setlists, setlist_songs tables + practice-tracks bucket
-- [x] Shared TypeScript types (Song, Setlist, SetlistSong, SetlistSongWithDetails, SetlistWithSongs, ClickSound)
-- [x] Shared queries: 20 new functions (CRUD for songs, setlists, setlist songs, practice track upload)
-- [x] Native query wrappers (re-exports from shared)
-- [x] Migration pushed to Supabase
-- [x] Both apps tsc clean
+### S26C — Track Player Engine (native, C++)
+- [ ] MP3 decode: Kotlin MediaCodec -> PCM -> JNI -> C++ track_player
+- [ ] track_player.h/cpp — plays PCM through same Oboe stream as metronome
+- [ ] aubio integration — auto-detect BPM + beat positions from PCM
+- [ ] SoundTouch integration — pitch-preserved time-stretch
+- [ ] A-B loop: set start/end frames, region looping
+- [ ] Speed control: one slider adjusts SoundTouch rate + metronome BPM together
+- [ ] Position reporting to JS (current frame / total frames)
+- [ ] Beat step/nudge — realign click to track (shift metronome phase)
+- [ ] Mixer: click channel 0, track channel 1, master gain
+- [ ] Auto-populate Song.bpm and beat_offset_ms from analysis
 
-## Backlog — Songs & Setlists Epic
-- [ ] S26A: Native audio engine — Expo Module wrapping Oboe/C++ metronome from ClickTrack
-- [ ] S26B: Live Mode — song-driven click + beat visualizations (LED, numbers, circular, pendulum)
-- [ ] S26C: Live Mode — setlist navigation, wake lock, full-screen
-- [ ] S27A: Practice Mode — MP3 playback (expo-av) + click overlay
-- [ ] S27B: Practice Mode — time-stretch + A-B loop + speed trainer
-- [ ] S27C: Practice Mode — click assignment tools (tap tempo, save to song)
-- [ ] S28+: Recording/video capture (front camera) — spec later
+### S27A — Practice Mode UI (native)
+- [ ] Practice screen — select song with attached MP3
+- [ ] Waveform or progress bar
+- [ ] Speed slider (50%-150%, pitch preserved)
+- [ ] A-B loop marker setting
+- [ ] Click volume + track volume sliders
+- [ ] Count-in before playback
+- [ ] Beat step/nudge button
+- [ ] BPM display updates with speed changes
+
+### S27B — Practice Tools (native)
+- [ ] Speed trainer: auto-increment BPM every N bars (already in metronome.cpp)
+- [ ] Tap tempo: measure intervals, set BPM, save to song
+- [ ] Muted bars mode (already in metronome.cpp)
+- [ ] Save all settings back to song in Supabase
+
+### S27C — Web Stage Prompter
+- [ ] Read-only setlist display with song details
+- [ ] Lyrics display (scrolling or paged)
+- [ ] Chords display (inline with lyrics or separate)
+- [ ] Song info: name, artist, BPM, key, time sig
+- [ ] Setlist navigation (prev/next)
+- [ ] Full-screen mode for tablet on music stand
+- [ ] No audio — display only
+
+### S28+ — Recording/Video (defer)
+- [ ] Front camera recording while practicing
+- [ ] Spec properly when S27 complete
 
 ## Backlog — Other
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
@@ -55,14 +85,19 @@
 ---
 
 ## Key Decisions
-- Full feature parity between native and web (any member can do anything)
+- GigBooks = band manager + live performance + practice tool (one app)
+- C++ audio engine ported from ClickTrack (proven Oboe/metronome code)
+- Single Oboe stream — metronome + track player mixed in C++ callback (zero drift)
+- aubio for beat detection, SoundTouch for time-stretch (both C++)
+- Beat step/nudge button for manual click-to-track alignment
+- Role-based song forms: Nathan sees metronome settings, others see simplified
+- Lyrics + chords on Song (stage prompter for all members)
+- Web stage prompter = read-only, no audio (C++ engine is native-only)
+- ClickTrack evolves separately into sticking/rudiment practice app
+- Full feature parity for management features (invoicing, quotes, calendar)
 - Supabase replaces SQLite for ALL data
 - Collapsible drawer navigation on BOTH apps (not tabs)
-- PDFs generated on-demand, templates in shared/templates/
-- Shared invoice number sequence (TGT-XXXX via RPC), separate quote sequence (QTE-XXX)
-- Venues and clients are independent lists — no forced FK between them (D-072)
-- Unified Tangerine Timetree brand — mockups define end-state target
-- API keys: publishable (`sb_publishable_`) + secret (`sb_secret_`) — legacy JWT keys disabled
+- API keys: publishable + secret — legacy JWT keys disabled
 
 ---
 
@@ -75,7 +110,7 @@
 | S7-S8 | Code dedup, validation, CSS extraction, ViewContext, error boundaries | 2026-03-04 |
 | S9 | HTML mockups (design target) | 2026-03-04 |
 | S10 | Supabase invoicing schema + migration | 2026-03-04 |
-| S11 | Native SQLite → Supabase swap | 2026-03-04 |
+| S11 | Native SQLite -> Supabase swap | 2026-03-04 |
 | S12 | Shared PDF templates (28 styles) | 2026-03-04 |
 | S13 | Web invoicing (6 components, 2 hooks) | 2026-03-04 |
 | S14 | Dashboard + export + invoice polish | 2026-03-04 |
@@ -88,15 +123,9 @@
 | S20 | Logo, animated splash, skeleton loaders, app icons | 2026-03-05 |
 | S21 | APK build fix + device testing + layout parity | 2026-03-05 |
 | S22 | Native visual overhaul — pixel-perfect match webapp | 2026-03-05 |
-| S23A | Venue/client restructure: DB migration + types + queries | 2026-03-05 |
-| S23B | Venue management UI (both apps) + ratings/photos | 2026-03-05 |
-| S23C | Gig booking flow update (EntityPickers, navigate button) | 2026-03-05 |
-| S23D | Quote + Invoice flow update (venue pickers, audit fixes) | 2026-03-05 |
-| — | Venue/client seeding (65 venues, 29 clients, 114 gigs linked) | 2026-03-05 |
-| — | "Client is the venue" toggle (both apps) | 2026-03-05 |
-| — | Key rotation: legacy JWT disabled, new publishable/secret keys | 2026-03-05 |
-| S24A | Bill-to flexibility: schema + types + queries | 2026-03-05 |
-| S24B | Bill-to flexibility: UI (both apps) + gig→invoice shortcut | 2026-03-05 |
+| S23A-D | Venue/client restructure (4 sprints: DB, UI, gig flow, quote/invoice chain) | 2026-03-05 |
+| S24A-B | Bill-to flexibility (schema + UI, both apps) | 2026-03-05 |
 | S25A | Songs & Setlists: schema + types + queries + storage | 2026-03-06 |
 | S25B+C | Songs & Setlists UI (both apps) + setlist PDF sharing | 2026-03-06 |
-| — | Gig list visibility toggle + 12hr AM/PM format + back nav fix | 2026-03-06 |
+| -- | Gig list visibility toggle + 12hr AM/PM format + back nav fix | 2026-03-06 |
+| -- | Big-picture realignment: S26-S28 roadmap confirmed | 2026-03-06 |

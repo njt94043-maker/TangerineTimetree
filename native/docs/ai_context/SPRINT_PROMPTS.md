@@ -474,53 +474,286 @@ Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md, schema_map.md).
 
 ---
 
-## Sprint S24B — Bill-To Flexibility: UI (both apps)
+## Sprint S26A — Audio Engine Foundation (Expo Native Module + Schema)
 
 ```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S24B section).
+Read native/docs/ai_context/STATUS.md first, then todo.md (S26A section).
 
-This is Session 2 of 2 for the bill-to flexibility epic. S24A (schema + types + queries) is complete.
+This is Sprint S26A — the foundation for Live Mode and Practice Mode.
 
-CONTEXT: client_id is now nullable on invoices/quotes/formal_invoices. Venues have contact fields.
-Invoices have gig_id FK for gig→invoice linking. resolveBillTo() helper exists in queries.
+CONTEXT:
+- GigBooks is becoming a band manager + live performance + practice tool
+- The C++ audio engine comes from ClickTrack at C:\Apps\Click\app\src\main\cpp\
+- We port metronome.h/cpp, mixer.h/cpp, wav_loader.h/cpp (strip samples/loops/poly/midi)
+- Write a fresh audio_engine.h/cpp (metronome + mixer only, single Oboe stream)
+- Wrap it in an Expo Native Module (Kotlin + JNI bridge)
+- Also: schema migration (lyrics, chords, beat_offset_ms on songs) + role-based song form
+- Nathan = drummer, sees full metronome settings. Other members see simplified song form.
+
+PRE-FLIGHT (verified):
+- NDK 27.1.12297006 installed
+- CMake 3.22.1 installed
+- expo-modules-core installed
+- ndkVersion configured in build.gradle
+- Both apps tsc clean
+- 36GB free on C:
+
+TASKS — PHASE 1: Prove the integration
+1. Create native/modules/click-engine/ with Expo Module scaffolding
+2. Add a minimal C++ file that generates a 440Hz sine beep via Oboe
+3. Write minimal JNI bridge + Kotlin Expo Module exposing startBeep()/stopBeep()
+4. Add Oboe dependency to build.gradle (com.google.oboe:oboe)
+5. Add CMakeLists.txt, verify it builds (npx expo prebuild --clean, then gradlew assembleDebug)
+6. Call startBeep() from a test button in JS — if audio comes out, the integration works
+
+TASKS — PHASE 2: Port the engine
+7. Copy metronome.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is (proven code)
+8. Copy mixer.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is
+9. Copy wav_loader.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is
+10. Write audio_engine.h/cpp — stripped version (only metronome + mixer, no sample/loop/poly/midi)
+11. Write jni_bridge.cpp — Expo Module JNI naming convention, metronome + mixer functions
+12. Update Kotlin Expo Module with full API surface:
+    - startEngine(sampleRate, framesPerBuffer), stopEngine()
+    - setBpm(bpm), setTimeSignature(top, bottom)
+    - setSubdivision(divisor), setSwing(percent)
+    - setAccentPattern(pattern[]), setClickSound(type)
+    - setCountIn(bars, clickType)
+    - startClick(), stopClick()
+    - getCurrentBeat(), getCurrentBar(), isPlaying()
+    - setChannelGain(channel, gain), setMasterGain(gain), setSplitStereo(enabled)
+13. JS/TS wrapper module: native/src/audio/ClickEngine.ts — typed API matching the native module
+14. loadSong(song: Song) helper — reads Song fields, calls setBpm/setTimeSignature/setSubdivision/setSwing/setAccentPattern/setClickSound/setCountIn
+
+TASKS — PHASE 3: Schema + Song form updates
+15. Write Supabase migration SQL:
+    - ALTER songs ADD COLUMN lyrics TEXT DEFAULT ''
+    - ALTER songs ADD COLUMN chords TEXT DEFAULT ''
+    - ALTER songs ADD COLUMN beat_offset_ms INTEGER DEFAULT 0
+    Push to live Supabase.
+16. Update shared/supabase/types.ts: Song gets lyrics, chords, beat_offset_ms
+17. Update shared/supabase/queries.ts: song CRUD includes new fields
+18. Update SetlistSongWithDetails to include song_lyrics, song_chords
+19. Update native song form: Nathan (profile.band_role === 'Drums') sees full metronome section (subdivision, swing, accent, click sound, count-in). Others see simplified form (name, artist, BPM, time sig, key, chords, lyrics, notes, practice track).
+20. Update web song form: same role-based visibility
+21. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
+
+IMPORTANT NOTES:
+- ClickTrack's namespace is `clicktrack` — rename to `gigbooks` in the ported C++ files
+- ClickTrack's JNI uses `Java_com_clicktrack_audio_AudioBridge_*` — our bridge uses Expo Module naming
+- The metronome.cpp render() function is the audio callback heart — do NOT modify its logic, only strip out references to removed components
+- Swing slider snap-to-middle is a UI concern (S26B), not engine — the engine just takes setSwing(float percent)
+
+Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md, decisions_log.md, schema_map.md).
+```
+
+---
+
+## Sprint S26B — Live Mode UI
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S26B section).
+
+This is Sprint S26B — Live Mode user interface for native app.
+
+CONTEXT:
+- S26A complete: C++ audio engine working via Expo Native Module
+- ClickEngine.ts provides typed JS API (setBpm, startClick, loadSong, etc.)
+- Songs have all metronome fields + lyrics + chords
+- Setlists have ordered songs with all details (SetlistWithSongs)
 
 TASKS:
+1. Create native Live Mode screen (app/(drawer)/live.tsx or stack route)
+2. Add Live Mode to drawer navigation
+3. Screen layout: full-screen, dark (#000000 bg), high-contrast, stage-readable
+4. Setlist selector: pick a setlist to load
+5. Song display: current song name, BPM (large, monospace), key, time sig, notes
+6. Song position: "3 of 12" indicator
+7. Beat visualization: LED dots (beat 1 = red/accent, others = teal/green), scale + glow on active beat
+8. Transport: play/stop button (large, thumb-friendly)
+9. Prev/next song: swipe or buttons, auto-calls loadSong() on the engine
+10. Swing slider: range 50-75%, snap-to-middle at 50% (straight), visual indicator
+11. Wake lock: keep screen on (expo-keep-awake)
+12. Poll getCurrentBeat()/getCurrentBar() on requestAnimationFrame for beat viz updates
+13. Count-in visual: show count-in beats before song starts
+14. No manual BPM controls — everything song-driven, read-only on stage
 
-1. Gig form (BOTH native + web):
-   - Remove "Client is the venue" toggle and its auto-create-client logic
-   - Keep venue picker (EntityPicker mode="venue") + optional client picker
-   - Simple: pick venue, optionally pick client. No magic.
+Design reference: ClickTrack's Live Mode layout (compact metadata bar, viz-dominant).
+Follow GigBooks neumorphic theme (COLORS, neuRaisedStyle, etc.) but adapt for stage readability.
 
-2. Invoice form (BOTH native + web):
-   - Add "Bill To" selector: radio/toggle for "Venue" or "Client"
-   - If "Venue": show venue picker, venue must have email or contact_name
-   - If "Client": show client picker (existing) + optional venue for reference
-   - Accept gig_id prefill param for gig→invoice shortcut
-
-3. Quote form (BOTH native + web):
-   - Same bill-to pattern as invoice form
-   - Quotes to venues rarer but supported
-
-4. Gig day view — "Create Invoice" button (BOTH native + web):
-   - Full-width button at bottom of gig card in GigDaySheet / DayDetail
-   - Only shows when: payment_type === 'invoice' AND gig_type !== 'practice'
-   - If gig already has an invoice (via getInvoiceByGigId): show "Invoiced" badge instead
-   - On press: navigate to invoice form pre-filled with venue_id, client_id, fee, date, description, gig_id
-   - Native: router.push('/invoice/new?prefill_gig_id=...')
-   - Web: goToNewInvoice({ gigId: ... })
-
-5. Invoice/Quote list views (BOTH):
-   - "Client" column → "Billed To"
-   - Shows client company_name OR venue venue_name depending on which is set
-   - Optional badge/icon to distinguish venue-billed vs client-billed
-
-6. Venue form/detail (BOTH):
-   - Add email, phone, contact_name fields to create/edit forms
-   - Show on venue detail page
-   - Venue list: subtle indicator for venues with contact info (e.g. email icon)
-
-7. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) + npx vite build
-8. Full chain smoke test: venue with contact → gig → "Create Invoice" from day view → invoice targets venue → PDF correct
-
-Update SOT docs when done. Commit and push.
+TypeScript clean. Update SOT docs.
 ```
+
+---
+
+## Sprint S26C — Track Player + Beat Detection + Time-Stretch
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S26C section).
+
+This is Sprint S26C — the audio file playback engine for Practice Mode.
+
+CONTEXT:
+- S26A-B complete: C++ metronome engine working, Live Mode UI working
+- Songs can have MP3 practice tracks attached (audio_url in Supabase Storage)
+- Need: MP3 playback through same Oboe stream as metronome (zero drift)
+- Need: beat detection (auto-detect BPM + downbeat from MP3)
+- Need: time-stretch (slow down/speed up, preserve pitch)
+- Need: A-B section looping
+
+TASKS — Track Player (C++):
+1. Write track_player.h/cpp — holds decoded PCM buffer, plays through Oboe callback
+   - load(float* pcmData, int32_t numFrames, int32_t sampleRate, int32_t channels)
+   - play(), pause(), stop(), seek(int64_t frame)
+   - setLoopRegion(int64_t startFrame, int64_t endFrame), clearLoopRegion()
+   - getPosition(), getTotalFrames()
+   - Renders into the same output buffer as metronome in audio_engine's onAudioReady()
+2. MP3 decode pipeline in Kotlin:
+   - Download MP3 from Supabase Storage URL to local cache
+   - Use Android MediaCodec/MediaExtractor to decode MP3 to PCM float array
+   - Pass PCM to C++ via JNI (loadTrack function)
+
+TASKS — SoundTouch Time-Stretch:
+3. Add SoundTouch C++ library to the native module (source or prebuilt)
+4. Integrate into track_player: setSpeed(float ratio) — 0.5 = half speed, 2.0 = double
+5. SoundTouch processes PCM in the render callback (pitch preserved)
+6. Speed control adjusts BOTH SoundTouch rate AND metronome BPM proportionally
+7. JNI + JS API: setTrackSpeed(ratio)
+
+TASKS — aubio Beat Detection:
+8. Add aubio C library to the native module
+9. Write beat_detector.h/cpp — analyse PCM buffer, return detected BPM + beat positions (frame numbers)
+10. JNI function: analyseTrack(pcmData) -> { bpm: float, beatOffsetMs: int }
+11. On track load: run analysis, auto-populate Song.bpm and Song.beat_offset_ms
+12. JS API: analyseTrack() -> { bpm, beatOffsetMs }
+
+TASKS — Beat Step/Nudge:
+13. nudgeClick(int32_t direction) — shifts metronome phase forward/backward by one beat
+    Implementation: adjust metronome's framePosition_ relative to track_player position
+14. JNI + JS API: nudgeClick(direction)
+
+TASKS — Integration:
+15. Update audio_engine onAudioReady() to render track_player alongside metronome
+16. Mixer: track on channel 1 (click already on channel 0)
+17. Update CMakeLists.txt with new source files + SoundTouch + aubio
+18. Update Kotlin Expo Module + JNI bridge with track player functions
+19. Update ClickEngine.ts with track player API
+20. TypeScript clean. Update SOT docs.
+
+AUDIO RULES (from ClickTrack, non-negotiable):
+- No system timers for scheduling — frame counting only
+- No blocking/allocation in the audio callback
+- One Oboe output stream — everything mixed in C++
+- All timing from sample rate + frame position
+```
+
+---
+
+## Sprint S27A — Practice Mode UI
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S27A section).
+
+This is Sprint S27A — Practice Mode user interface for native app.
+
+CONTEXT:
+- S26A-C complete: C++ engine has metronome + track player + beat detection + time-stretch
+- ClickEngine.ts exposes full API: loadTrack, setTrackSpeed, analyseTrack, nudgeClick, setLoopRegion, etc.
+- Songs have MP3 practice tracks in Supabase Storage
+
+TASKS:
+1. Create native Practice Mode screen (app/(drawer)/practice.tsx or stack route)
+2. Add Practice Mode to drawer navigation
+3. Song selector: pick any song that has an audio_url attached
+4. On song select:
+   - Download MP3 from Supabase Storage (cache locally)
+   - Decode to PCM, pass to engine
+   - Run aubio analysis — auto-set BPM if not already set
+   - Call loadSong() to configure metronome
+5. Waveform or progress bar showing playback position (poll getPosition/getTotalFrames)
+6. Speed slider: 50% to 150%, drives setTrackSpeed() (adjusts both track + metronome)
+7. A-B loop: tap A marker, tap B marker, track loops that region. Tap again to clear.
+   - Visual markers on the progress bar
+   - Can set while playing OR paused
+8. Beat step/nudge button: tap to shift click alignment (nudgeClick)
+9. Click volume slider (setChannelGain channel 0)
+10. Track volume slider (setChannelGain channel 1)
+11. Master volume (setMasterGain)
+12. Split stereo toggle (setSplitStereo) — click in left ear, track in right ear (for IEMs)
+13. Count-in: configurable bars, plays count before track starts
+14. BPM display: shows current effective BPM (base BPM * speed ratio), monospace
+15. Transport: play/pause/stop
+16. Dark neumorphic styling consistent with rest of app
+
+TypeScript clean. Update SOT docs.
+```
+
+---
+
+## Sprint S27B — Practice Tools
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S27B section).
+
+This is Sprint S27B — advanced practice tools for native app.
+
+CONTEXT:
+- S27A complete: Practice Mode UI working with MP3 + click + speed control + A-B loop
+- Metronome.cpp already has speed trainer + muted bars built in (from ClickTrack)
+
+TASKS:
+1. Speed trainer UI: enable/disable, set start BPM, end BPM, increment, bars per increment
+   - Wire to setSpeedTrainer() already in C++ engine
+   - Display current trainer BPM, "Complete!" when target reached
+2. Tap tempo: tap a button repeatedly, measure intervals, calculate BPM
+   - Display detected BPM live as you tap
+   - "Apply" saves to engine (setBpm) + "Save to Song" writes to Supabase
+3. Muted bars UI: enable/disable, set play bars count, mute bars count
+   - Wire to setMutedBars() already in C++ engine
+   - Visual indicator when current bar is muted
+4. Save all current settings back to Song in Supabase:
+   - BPM, subdivision, swing, accent pattern, click sound, count-in, beat_offset_ms
+   - One "Save Settings" button
+5. Song notes display in practice view (quick reference while practicing)
+
+TypeScript clean. Update SOT docs.
+```
+
+---
+
+## Sprint S27C — Web Stage Prompter
+
+```
+Read native/docs/ai_context/STATUS.md first, then todo.md (S27C section).
+
+This is Sprint S27C — web stage prompter for all band members.
+
+CONTEXT:
+- Songs now have lyrics, chords, key, BPM, notes fields
+- Setlists have ordered songs with all details
+- This is for Neil, James, Adam (and Nathan) — view setlist on a tablet/phone on stage
+- No audio — display only. The C++ engine is native-only.
+
+TASKS:
+1. Create web StagePrompter component — full-screen, dark, large text, stage-readable
+2. Setlist selector: pick a setlist to display
+3. Current song display:
+   - Song name (large)
+   - Key + BPM + time signature (info bar)
+   - Chords display (large, readable from distance)
+   - Lyrics display (scrollable or paged, large font)
+   - Per-song notes
+4. Navigation: prev/next song buttons (large, thumb-friendly)
+   - Song position: "3 of 12"
+   - Song list sidebar (collapsible) for quick jump
+5. Full-screen mode (hide browser chrome, F11-style)
+6. Auto-scroll option for lyrics (configurable speed)
+7. Add to ViewContext + Drawer navigation (Stage Prompter nav item)
+8. Responsive: works on phone, tablet, and desktop
+9. Dark theme only (#000000 bg for stage readability)
+10. ChordPro-style rendering if chords field uses [Am]lyrics[F]format — chords displayed above lyrics inline
+
+TypeScript clean. Update SOT docs.
+```
+
+---
+
