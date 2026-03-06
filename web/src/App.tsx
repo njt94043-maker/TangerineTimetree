@@ -31,6 +31,10 @@ import { QuotePreview } from './components/QuotePreview';
 import { Dashboard } from './components/Dashboard';
 import { VenueList } from './components/VenueList';
 import { VenueDetail } from './components/VenueDetail';
+import { SongList } from './components/SongList';
+import { SongForm } from './components/SongForm';
+import { SetlistList } from './components/SetlistList';
+import { SetlistDetail } from './components/SetlistDetail';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -82,6 +86,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     quoteId,
     goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
     venueId, goToVenues, goToVenueDetail,
+    editSongId, goToSongs, goToNewSong, goToEditSong,
+    setlistId, goToSetlistDetail,
   } = useView();
 
   const now = new Date();
@@ -201,6 +207,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'settings': return 'Settings';
       case 'clients': return 'Clients';
       case 'venues': case 'venue-detail': return 'Venues';
+      case 'songs': case 'song-form': return 'Songs';
+      case 'setlists': case 'setlist-detail': return 'Setlists';
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
@@ -464,6 +472,36 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             venueId={venueId}
             onClose={goBack}
             onDeleted={goToVenues}
+          />
+        )}
+
+        {view === 'songs' && (
+          <SongList
+            onClose={() => setView('calendar')}
+            onNewSong={goToNewSong}
+            onEditSong={goToEditSong}
+          />
+        )}
+
+        {view === 'song-form' && (
+          <SongForm
+            songId={editSongId}
+            onClose={goBack}
+            onSaved={() => { goToSongs(); }}
+          />
+        )}
+
+        {view === 'setlists' && (
+          <SetlistList
+            onClose={() => setView('calendar')}
+            onSetlistPress={goToSetlistDetail}
+          />
+        )}
+
+        {view === 'setlist-detail' && setlistId && (
+          <SetlistDetail
+            setlistId={setlistId}
+            onClose={goBack}
           />
         )}
       </main>

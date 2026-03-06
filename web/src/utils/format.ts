@@ -1,8 +1,15 @@
 /** Shared date/time/currency formatting utilities for web app */
 
-/** Format time string (HH:MM:SS) to HH:MM, or em-dash if null */
+/** Format time string (HH:MM:SS) to 12hr AM/PM, or em-dash if null */
 export function fmt(time: string | null): string {
-  return time ? time.slice(0, 5) : '\u2014';
+  if (!time) return '\u2014';
+  const [hStr, mStr] = time.slice(0, 5).split(':');
+  let h = parseInt(hStr, 10);
+  const m = mStr;
+  const ampm = h >= 12 ? 'pm' : 'am';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${m}${ampm}`;
 }
 
 /** Format fee as £X.XX, or em-dash if null */

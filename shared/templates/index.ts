@@ -5,12 +5,14 @@ export { getInvoiceHtml } from './getInvoiceTemplate';
 export { getReceiptHtml } from './getReceiptTemplate';
 export { getQuoteHtml } from './getQuoteHtml';
 export { getFormalInvoiceHtml } from './getFormalInvoiceHtml';
+export { getSetlistHtml } from './setlistTemplate';
 
 // Data interfaces
 export type { InvoiceTemplateData } from './invoiceTemplate';
 export type { ReceiptTemplateData } from './receiptTemplate';
 export type { QuoteTemplateData } from './quoteTemplate';
 export type { FormalInvoiceTemplateData } from './formalInvoiceTemplate';
+export type { SetlistTemplateData } from './setlistTemplate';
 
 // Style metadata
 export { INVOICE_STYLES, DEFAULT_INVOICE_STYLE } from './invoiceStyles';

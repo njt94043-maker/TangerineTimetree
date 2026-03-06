@@ -34,6 +34,13 @@ const NAV_SECTIONS: NavSection[] = [
       { icon: '\uD83C\uDFE2', label: 'Venues', route: 'venues' },
     ],
   },
+  {
+    title: 'Music',
+    items: [
+      { icon: '\uD83C\uDFB5', label: 'Songs', route: 'songs' },
+      { icon: '\uD83C\uDFB6', label: 'Setlists', route: 'setlists' },
+    ],
+  },
 ];
 
 const FOOTER_ITEMS: NavItem[] = [
@@ -168,6 +175,14 @@ export default function DrawerLayout() {
       <Drawer.Screen
         name="venues"
         options={{ title: 'Venues' }}
+      />
+      <Drawer.Screen
+        name="songs"
+        options={{ title: 'Songs' }}
+      />
+      <Drawer.Screen
+        name="setlists"
+        options={{ title: 'Setlists' }}
       />
       <Drawer.Screen
         name="settings"

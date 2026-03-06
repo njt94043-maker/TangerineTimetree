@@ -6,9 +6,11 @@
 ---
 
 ## Immediate Actions
-- [ ] S25B: Songs & Setlists UI (both apps) — song library CRUD, setlist builder with reorder
-- [ ] S25C: Setlist PDF sharing — band-themed template, generate + share from both apps
-- [ ] Web nav bug: edit gig back button goes to calendar instead of gig list
+- [x] S25B: Songs & Setlists UI (both apps) — song library CRUD, setlist builder with reorder
+- [x] S25C: Setlist PDF sharing — band-themed template, generate + share from both apps
+- [x] Web nav bug: edit gig back button goes to calendar instead of gig list (FIXED — double-pop in popstate handler)
+- [x] Gig list visibility toggle — quick share/hide gig on public website
+- [x] 12hr AM/PM time format throughout both apps (web fmt() + native fmt/formatTime)
 - [ ] APK rebuild for S23+ changes
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
@@ -96,3 +98,5 @@
 | S24A | Bill-to flexibility: schema + types + queries | 2026-03-05 |
 | S24B | Bill-to flexibility: UI (both apps) + gig→invoice shortcut | 2026-03-05 |
 | S25A | Songs & Setlists: schema + types + queries + storage | 2026-03-06 |
+| S25B+C | Songs & Setlists UI (both apps) + setlist PDF sharing | 2026-03-06 |
+| — | Gig list visibility toggle + 12hr AM/PM format + back nav fix | 2026-03-06 |

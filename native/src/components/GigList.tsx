@@ -15,7 +15,13 @@ interface GigListProps {
 }
 
 function fmt(time: string | null): string {
-  return time ? time.slice(0, 5) : '\u2014';
+  if (!time) return '\u2014';
+  const [hStr, mStr] = time.slice(0, 5).split(':');
+  let h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${mStr}${ampm}`;
 }
 
 function fmtFee(fee: number | null): string {
