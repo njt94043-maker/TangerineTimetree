@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 
 type View =
   | 'dashboard' | 'calendar' | 'list' | 'day-detail' | 'gig-form' | 'away'
@@ -66,6 +66,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
 
   // View history stack for step-by-step back navigation
   const historyRef = useRef<View[]>(['calendar']);
+  // Flag to suppress pushState when handling popstate (browser back button)
+  const handlingPopState = useRef(false);
 
   // Push a new view onto the history stack
   function pushView(v: View) {
@@ -75,12 +77,20 @@ export function ViewProvider({ children }: { children: ReactNode }) {
       historyRef.current = [...stack, v];
     }
     setViewRaw(v);
+    // Push browser history entry so hardware/OS back button navigates within the app
+    if (!handlingPopState.current) {
+      window.history.pushState({ view: v, depth: historyRef.current.length }, '');
+    }
   }
 
   // Top-level navigation — resets the history stack
   function resetToView(v: View) {
     historyRef.current = [v];
     setViewRaw(v);
+    // Replace current browser history entry (don't accumulate)
+    if (!handlingPopState.current) {
+      window.history.replaceState({ view: v, depth: 1 }, '');
+    }
   }
 
   const setView = useCallback((v: View) => resetToView(v), []);
@@ -126,6 +136,13 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     const newStack = stack.slice(0, -1);
     historyRef.current = newStack;
     setViewRaw(newStack[newStack.length - 1]);
+    // Keep browser history in sync — go back so popstate doesn't double-pop
+    if (!handlingPopState.current) {
+      handlingPopState.current = true;
+      window.history.back();
+      // Reset flag after the popstate event fires (async)
+      setTimeout(() => { handlingPopState.current = false; }, 0);
+    }
   }, []);
 
   // Top-level drawer navigation — resets stack
@@ -172,6 +189,31 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToVenueDetail = useCallback((id: string) => {
     setVenueId(id);
     pushView('venue-detail');
+  }, []);
+
+  // Listen for browser back button / hardware back (Android & iOS PWA)
+  useEffect(() => {
+    // Seed initial browser history state
+    window.history.replaceState({ view: 'calendar', depth: 1 }, '');
+
+    function onPopState(_e: PopStateEvent) {
+      handlingPopState.current = true;
+      const stack = historyRef.current;
+      if (stack.length <= 1) {
+        // At root — push a dummy entry so the next back doesn't close the app
+        setViewRaw('calendar');
+        window.history.pushState({ view: 'calendar', depth: 1 }, '');
+      } else {
+        // Pop current view, go to previous
+        const newStack = stack.slice(0, -1);
+        historyRef.current = newStack;
+        setViewRaw(newStack[newStack.length - 1]);
+      }
+      handlingPopState.current = false;
+    }
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   return (
