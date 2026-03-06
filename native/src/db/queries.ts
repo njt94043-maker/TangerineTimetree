@@ -30,6 +30,12 @@ import type {
   FormalInvoiceLineItem as SupaFormalInvoiceLineItem,
   FormalReceipt as SupaFormalReceipt,
   BillTo as SupaBillTo,
+  Song as SupaSong,
+  Setlist as SupaSetlist,
+  SetlistSong as SupaSetlistSong,
+  SetlistSongWithDetails as SupaSetlistSongWithDetails,
+  SetlistWithSongs as SupaSetlistWithSongs,
+  ClickSound as SupaClickSound,
 } from '@shared/supabase/types';
 
 // ─── Re-exported types ──────────────────────────────────
@@ -52,6 +58,12 @@ export type FormalInvoiceWithClient = SupaFormalInvoiceWithClient;
 export type FormalInvoiceLineItem = SupaFormalInvoiceLineItem;
 export type FormalReceipt = SupaFormalReceipt;
 export type BillTo = SupaBillTo;
+export type Song = SupaSong;
+export type Setlist = SupaSetlist;
+export type SetlistSong = SupaSetlistSong;
+export type SetlistSongWithDetails = SupaSetlistSongWithDetails;
+export type SetlistWithSongs = SupaSetlistWithSongs;
+export type ClickSound = SupaClickSound;
 export type { QuoteStatus, EventType, PLIOption };
 
 export interface GigBooksSettings {
@@ -328,3 +340,27 @@ export const getFormalReceipts = SQ.getFormalReceipts;
 
 export const updateBandSettingsExtended = SQ.updateBandSettingsExtended;
 export const getBandSettings = SQ.getBandSettings;
+
+// ─── Songs ──────────────────────────────────────────────
+
+export const getSongs = SQ.getSongs;
+export const getSong = SQ.getSong;
+export const searchSongs = SQ.searchSongs;
+export const createSong = SQ.createSong;
+export const updateSong = SQ.updateSong;
+export const deleteSong = SQ.deleteSong;
+export const uploadPracticeTrack = SQ.uploadPracticeTrack;
+export const deletePracticeTrack = SQ.deletePracticeTrack;
+
+// ─── Setlists ───────────────────────────────────────────
+
+export const getSetlists = SQ.getSetlists;
+export const getSetlist = SQ.getSetlist;
+export const createSetlist = SQ.createSetlist;
+export const updateSetlist = SQ.updateSetlist;
+export const deleteSetlist = SQ.deleteSetlist;
+export const getSetlistSongs = SQ.getSetlistSongs;
+export const getSetlistWithSongs = SQ.getSetlistWithSongs;
+export const setSetlistSongs = SQ.setSetlistSongs;
+export const addSongToSetlist = SQ.addSongToSetlist;
+export const removeSongFromSetlist = SQ.removeSongFromSetlist;

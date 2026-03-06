@@ -406,6 +406,73 @@ export interface FormalReceiptWithMember extends FormalReceipt {
   member_name: string;
 }
 
+// ─── Songs & Setlists ────────────────────────────────────
+
+export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
+
+export interface Song {
+  id: string;
+  name: string;
+  artist: string;
+  bpm: number;
+  time_signature_top: number;
+  time_signature_bottom: number;
+  subdivision: number;          // 1=off, 2=8ths, 3=triplets, 4=16ths, 5=quintuplets, 6=sextuplets
+  swing_percent: number;        // 50=straight, 67=triplet swing, 75=hard shuffle
+  accent_pattern: string | null; // CSV e.g. "3,1,1,1"
+  click_sound: ClickSound;
+  count_in_bars: number;
+  duration_seconds: number | null;
+  key: string;
+  notes: string;
+  audio_url: string | null;     // Supabase Storage URL for practice MP3
+  audio_storage_path: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Setlist {
+  id: string;
+  name: string;
+  description: string;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SetlistSong {
+  id: string;
+  setlist_id: string;
+  song_id: string;
+  position: number;
+  notes: string;
+}
+
+export interface SetlistSongWithDetails extends SetlistSong {
+  song_name: string;
+  song_artist: string;
+  song_bpm: number;
+  song_time_signature_top: number;
+  song_time_signature_bottom: number;
+  song_subdivision: number;
+  song_swing_percent: number;
+  song_accent_pattern: string | null;
+  song_click_sound: ClickSound;
+  song_count_in_bars: number;
+  song_duration_seconds: number | null;
+  song_key: string;
+  song_notes: string;
+  song_audio_url: string | null;
+}
+
+export interface SetlistWithSongs extends Setlist {
+  songs: SetlistSongWithDetails[];
+  total_duration_seconds: number | null;
+  song_count: number;
+}
+
 // ─── Public Website Content ─────────────────────────────
 
 export interface SiteContent {

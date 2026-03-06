@@ -38,6 +38,12 @@ import type {
   BillTo,
   SiteContent,
   SiteReview,
+  Song,
+  ClickSound,
+  Setlist,
+  SetlistSong,
+  SetlistSongWithDetails,
+  SetlistWithSongs,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -1927,4 +1933,349 @@ export function resolveBillTo(row: {
     email: row.venue_email ?? '',
     phone: row.venue_phone ?? '',
   };
+}
+
+// ─── Songs ──────────────────────────────────────────────
+
+export async function getSongs(): Promise<Song[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .order('name');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getSong(id: string): Promise<Song | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    checkAuthError(error);
+    throw error;
+  }
+  return data;
+}
+
+export async function searchSongs(query: string): Promise<Song[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .or(`name.ilike.%${query}%,artist.ilike.%${query}%`)
+    .order('name')
+    .limit(20);
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function createSong(song: {
+  name: string;
+  artist?: string;
+  bpm?: number;
+  time_signature_top?: number;
+  time_signature_bottom?: number;
+  subdivision?: number;
+  swing_percent?: number;
+  accent_pattern?: string | null;
+  click_sound?: ClickSound;
+  count_in_bars?: number;
+  duration_seconds?: number | null;
+  key?: string;
+  notes?: string;
+  audio_url?: string | null;
+  audio_storage_path?: string | null;
+}): Promise<Song> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('songs')
+    .insert({ ...song, created_by: user.id })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateSong(
+  id: string,
+  updates: Partial<Omit<Song, 'id' | 'created_by' | 'created_at' | 'updated_at'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('songs')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteSong(id: string): Promise<void> {
+  const supabase = getSupabase();
+
+  // Delete audio file from storage if present
+  const song = await getSong(id);
+  if (song?.audio_storage_path) {
+    await supabase.storage.from('practice-tracks').remove([song.audio_storage_path]);
+  }
+
+  const { error } = await supabase
+    .from('songs')
+    .delete()
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function uploadPracticeTrack(
+  songId: string,
+  fileName: string,
+  fileBody: Blob | ArrayBuffer,
+  contentType: string = 'audio/mpeg',
+): Promise<string> {
+  const supabase = getSupabase();
+  const storagePath = `${songId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('practice-tracks')
+    .upload(storagePath, fileBody, { contentType, upsert: true });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from('practice-tracks')
+    .getPublicUrl(storagePath);
+
+  // Update song with audio URL
+  await updateSong(songId, {
+    audio_url: urlData.publicUrl,
+    audio_storage_path: storagePath,
+  });
+
+  return urlData.publicUrl;
+}
+
+export async function deletePracticeTrack(songId: string): Promise<void> {
+  const song = await getSong(songId);
+  if (!song?.audio_storage_path) return;
+
+  const supabase = getSupabase();
+  await supabase.storage.from('practice-tracks').remove([song.audio_storage_path]);
+  await updateSong(songId, { audio_url: null, audio_storage_path: null });
+}
+
+// ─── Setlists ───────────────────────────────────────────
+
+export async function getSetlists(): Promise<Setlist[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlists')
+    .select('*')
+    .order('name');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getSetlist(id: string): Promise<Setlist | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlists')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null;
+    checkAuthError(error);
+    throw error;
+  }
+  return data;
+}
+
+export async function createSetlist(setlist: {
+  name: string;
+  description?: string;
+  notes?: string;
+}): Promise<Setlist> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('setlists')
+    .insert({ ...setlist, created_by: user.id })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function updateSetlist(
+  id: string,
+  updates: Partial<Pick<Setlist, 'name' | 'description' | 'notes'>>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('setlists')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deleteSetlist(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('setlists')
+    .delete()
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Setlist Songs ──────────────────────────────────────
+
+interface SetlistSongJoin extends SetlistSong {
+  songs: {
+    name: string;
+    artist: string;
+    bpm: number;
+    time_signature_top: number;
+    time_signature_bottom: number;
+    subdivision: number;
+    swing_percent: number;
+    accent_pattern: string | null;
+    click_sound: ClickSound;
+    count_in_bars: number;
+    duration_seconds: number | null;
+    key: string;
+    notes: string;
+    audio_url: string | null;
+  } | null;
+}
+
+export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWithDetails[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_songs')
+    .select('*, songs(name, artist, bpm, time_signature_top, time_signature_bottom, subdivision, swing_percent, accent_pattern, click_sound, count_in_bars, duration_seconds, key, notes, audio_url)')
+    .eq('setlist_id', setlistId)
+    .order('position');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: SetlistSongJoin) => ({
+    ...row,
+    song_name: row.songs?.name ?? '',
+    song_artist: row.songs?.artist ?? '',
+    song_bpm: row.songs?.bpm ?? 120,
+    song_time_signature_top: row.songs?.time_signature_top ?? 4,
+    song_time_signature_bottom: row.songs?.time_signature_bottom ?? 4,
+    song_subdivision: row.songs?.subdivision ?? 1,
+    song_swing_percent: row.songs?.swing_percent ?? 50,
+    song_accent_pattern: row.songs?.accent_pattern ?? null,
+    song_click_sound: (row.songs?.click_sound ?? 'default') as ClickSound,
+    song_count_in_bars: row.songs?.count_in_bars ?? 1,
+    song_duration_seconds: row.songs?.duration_seconds ?? null,
+    song_key: row.songs?.key ?? '',
+    song_notes: row.songs?.notes ?? '',
+    song_audio_url: row.songs?.audio_url ?? null,
+    songs: undefined,
+  }));
+}
+
+export async function getSetlistWithSongs(id: string): Promise<SetlistWithSongs | null> {
+  const setlist = await getSetlist(id);
+  if (!setlist) return null;
+
+  const songs = await getSetlistSongs(id);
+  const totalDuration = songs.reduce((sum, s) => {
+    return s.song_duration_seconds ? sum + s.song_duration_seconds : sum;
+  }, 0);
+
+  return {
+    ...setlist,
+    songs,
+    total_duration_seconds: totalDuration > 0 ? totalDuration : null,
+    song_count: songs.length,
+  };
+}
+
+export async function setSetlistSongs(
+  setlistId: string,
+  songs: Array<{ song_id: string; position: number; notes?: string }>,
+): Promise<SetlistSongWithDetails[]> {
+  const supabase = getSupabase();
+
+  // Delete existing songs for this setlist
+  const { error: deleteError } = await supabase
+    .from('setlist_songs')
+    .delete()
+    .eq('setlist_id', setlistId);
+
+  if (deleteError) { checkAuthError(deleteError); throw deleteError; }
+
+  if (songs.length === 0) return [];
+
+  // Insert new songs
+  const inserts = songs.map(s => ({
+    setlist_id: setlistId,
+    song_id: s.song_id,
+    position: s.position,
+    notes: s.notes ?? '',
+  }));
+
+  const { error: insertError } = await supabase
+    .from('setlist_songs')
+    .insert(inserts);
+
+  if (insertError) { checkAuthError(insertError); throw insertError; }
+
+  return getSetlistSongs(setlistId);
+}
+
+export async function addSongToSetlist(
+  setlistId: string,
+  songId: string,
+  position: number,
+  notes?: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('setlist_songs')
+    .insert({
+      setlist_id: setlistId,
+      song_id: songId,
+      position,
+      notes: notes ?? '',
+    });
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function removeSongFromSetlist(
+  setlistId: string,
+  setlistSongId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('setlist_songs')
+    .delete()
+    .eq('id', setlistSongId)
+    .eq('setlist_id', setlistId);
+
+  if (error) { checkAuthError(error); throw error; }
 }
