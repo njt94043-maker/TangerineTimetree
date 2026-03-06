@@ -197,6 +197,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     window.history.replaceState({ view: 'calendar', depth: 1 }, '');
 
     function onPopState(_e: PopStateEvent) {
+      // If goBack() already handled the stack pop, skip to avoid double-pop
+      if (handlingPopState.current) return;
       handlingPopState.current = true;
       const stack = historyRef.current;
       if (stack.length <= 1) {
