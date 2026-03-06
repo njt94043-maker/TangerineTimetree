@@ -386,7 +386,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'invoice-form' && (
           <InvoiceForm
-            onClose={() => { setInvoicePrefill(undefined); goToInvoices(); }}
+            onClose={() => { setInvoicePrefill(undefined); goBack(); }}
             onSaved={handleInvoiceSaved}
             prefill={invoicePrefill}
           />
@@ -395,7 +395,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'invoice-detail' && invoiceId && (
           <InvoiceDetail
             invoiceId={invoiceId}
-            onClose={goToInvoices}
+            onClose={goBack}
             onPreview={goToInvoicePreview}
             onDuplicate={goToNewInvoice}
             onDeleted={() => { refreshInvoices(); goToInvoices(); }}
@@ -421,7 +421,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'quote-form' && (
           <QuoteForm
-            onClose={goToQuotes}
+            onClose={goBack}
             onSaved={handleQuoteSaved}
           />
         )}
@@ -429,7 +429,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'quote-detail' && quoteId && (
           <QuoteDetail
             quoteId={quoteId}
-            onClose={goToQuotes}
+            onClose={goBack}
             onPreview={goToQuotePreview}
             onEdit={goToEditQuote}
             onDeleted={() => { refreshQuotes(); goToQuotes(); }}
@@ -462,7 +462,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'venue-detail' && venueId && (
           <VenueDetail
             venueId={venueId}
-            onClose={goToVenues}
+            onClose={goBack}
             onDeleted={goToVenues}
           />
         )}
