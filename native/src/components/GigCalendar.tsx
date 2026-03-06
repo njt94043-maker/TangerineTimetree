@@ -160,8 +160,9 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
               const isToday = iso === today;
               const dateGigs = gigsByDate.get(iso) ?? [];
 
-              // Venue label for gig days
-              const venueLabel = dateGigs.length > 0 ? (dateGigs[0].venue || '') : '';
+              // Venue words — split name into one word per line
+              const venueWords = dateGigs.length > 0 ? (dateGigs[0].venue || '').split(/\s+/).filter(Boolean) : [];
+              const venueColor = dateGigs.length > 0 && dateGigs[0].gig_type === 'practice' ? COLORS.calPractice : COLORS.calGig;
 
               return (
                 <Pressable
@@ -191,15 +192,20 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
                     >
                       {day}
                     </Text>
-                    {/* Venue name — truncated */}
-                    {!!venueLabel && (
-                      <Text
-                        style={[styles.venueLabel, status === 'practice' && { color: COLORS.calPractice }]}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {venueLabel}
-                      </Text>
+                    {/* Venue words — one per line, truncated */}
+                    {venueWords.length > 0 && (
+                      <View style={styles.venueWords}>
+                        {venueWords.map((w, i) => (
+                          <Text
+                            key={i}
+                            style={[styles.venueWord, { color: venueColor }]}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {w}
+                          </Text>
+                        ))}
+                      </View>
                     )}
                     {/* Dots — one per gig, max 2, colored by type */}
                     {dateGigs.length > 0 && (
@@ -337,12 +343,16 @@ const styles = StyleSheet.create({
   gigText: { color: COLORS.calGig, fontFamily: FONTS.bodyBold },
   practiceText: { color: COLORS.calPractice, fontFamily: FONTS.bodyBold },
   availableText: { color: COLORS.calAvailable },
-  venueLabel: {
+  venueWords: {
+    marginTop: 1,
+    overflow: 'hidden',
+    flex: 1,
+  },
+  venueWord: {
     fontFamily: FONTS.bodyBold,
     fontSize: 8,
-    color: COLORS.calGig,
-    marginTop: 1,
-    opacity: 0.9,
+    lineHeight: 10,
+    opacity: 0.85,
   },
   dotsRow: {
     position: 'absolute',

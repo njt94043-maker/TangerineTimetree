@@ -106,18 +106,27 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
             return <span key={i} className={`day-dot ${inc ? 'incomplete' : ''}`} style={{ background: color }} />;
           });
 
-          // Venue labels for gig days (truncated)
-          const venueLabels = dateGigs.slice(0, 2).map((g, i) => {
+          // Venue words — split name into one word per line
+          const venueWords: { word: string; color: string }[] = [];
+          for (const g of dateGigs.slice(0, 1)) {
             const label = g.venue || '';
-            if (!label) return null;
+            if (!label) continue;
             const color = g.gig_type === 'practice' ? 'var(--color-practice)' : 'var(--color-gig)';
-            return <span key={i} className="day-venue" style={{ color }}>{label}</span>;
-          }).filter(Boolean);
+            for (const word of label.split(/\s+/)) {
+              venueWords.push({ word, color });
+            }
+          }
 
           return (
             <button key={`day-${day}`} className={classes.join(' ')} onClick={() => onDatePress(iso)} aria-label={`${MONTH_NAMES[month]} ${day}`}>
               <span className="day-num">{day}</span>
-              {venueLabels.length > 0 && <span className="day-venues">{venueLabels}</span>}
+              {venueWords.length > 0 && (
+                <span className="day-venues">
+                  {venueWords.map((v, i) => (
+                    <span key={i} className="day-venue" style={{ color: v.color }}>{v.word}</span>
+                  ))}
+                </span>
+              )}
               {dots.length > 0 && <span className="day-dots">{dots}</span>}
               {gigCount > 2 && (
                 <span className="day-count">+{gigCount - 2}</span>
