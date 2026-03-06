@@ -8,7 +8,6 @@ import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
-import { TimePicker } from 'react-ios-time-picker';
 
 interface GigFormProps {
   date: string;
@@ -302,23 +301,23 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           </>
         )}
 
-        <label className="label">START TIME</label>
-        <div className="time-picker-wrap">
-          <TimePicker value={startTime || '21:00'} onChange={handleStartTimeChange} pickerDefaultValue="21:00" />
+        <label className="label" htmlFor="gig-start">START TIME</label>
+        <div className="neu-inset">
+          <input id="gig-start" className="input-field" type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)} />
         </div>
 
         {!isPractice && (
           <>
-            <label className="label">LOAD-IN TIME</label>
-            <div className="time-picker-wrap">
-              <TimePicker value={loadTime || '18:00'} onChange={handleLoadTimeChange} pickerDefaultValue="18:00" />
+            <label className="label" htmlFor="gig-load">LOAD-IN TIME</label>
+            <div className="neu-inset">
+              <input id="gig-load" className="input-field" type="time" value={loadTime} onChange={e => handleLoadTimeChange(e.target.value)} />
             </div>
           </>
         )}
 
-        <label className="label">END TIME (OPTIONAL)</label>
-        <div className="time-picker-wrap">
-          <TimePicker value={endTime || '23:30'} onChange={setEndTime} pickerDefaultValue="23:30" />
+        <label className="label" htmlFor="gig-end">END TIME (OPTIONAL)</label>
+        <div className="neu-inset">
+          <input id="gig-end" className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
         </div>
 
         {isPractice && (
