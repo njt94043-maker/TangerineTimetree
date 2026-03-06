@@ -69,14 +69,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        fetchProfile(s.user.id);
-      } else {
+    // Listen for auth changes — only clear state on explicit sign-out
+    // to prevent navigation stack reset during background token refresh
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUser(null);
         setProfile(null);
+      } else if (s?.user) {
+        setSession(s);
+        setUser(s.user);
+        fetchProfile(s.user.id);
       }
       setLoading(false);
     });
