@@ -87,9 +87,9 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   function resetToView(v: View) {
     historyRef.current = [v];
     setViewRaw(v);
-    // Replace current browser history entry (don't accumulate)
+    // Push browser history entry so hardware back button can return to previous view
     if (!handlingPopState.current) {
-      window.history.replaceState({ view: v, depth: 1 }, '');
+      window.history.pushState({ view: v, depth: 1 }, '');
     }
   }
 
