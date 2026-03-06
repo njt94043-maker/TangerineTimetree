@@ -1061,13 +1061,32 @@ html, body, #root {
   color: var(--color-text-dim);
   margin-top: 1px;
 }
+.gig-list-card-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .gig-list-fee {
   font-family: var(--font-mono);
   font-size: 14px;
   font-weight: 700;
   color: var(--color-green);
   white-space: nowrap;
-  margin-left: 12px;
+}
+.visibility-toggle {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0.5;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.visibility-toggle:hover { opacity: 0.8; }
+.visibility-toggle.public {
+  opacity: 1;
+  border-color: var(--color-green);
 }
 .gig-list-meta {
   display: flex;
@@ -4548,4 +4567,214 @@ select.ps-form-input {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--color-text-muted);
+}
+
+/* --- Songs & Setlists (S25B) --- */
+.form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.form-row-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.form-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-green);
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.song-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.song-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-green);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.song-card:active { transform: scale(0.98); }
+.song-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.song-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.song-card-artist {
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.song-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.song-meta-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  background: rgba(255,255,255,0.04);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.song-card-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Setlist list */
+.setlist-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.setlist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-tangerine);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.setlist-card:active { transform: scale(0.98); }
+.setlist-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.setlist-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.setlist-card-desc {
+  font-size: 12px;
+  color: var(--color-text-dim);
+}
+.setlist-card-actions {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Setlist detail - song rows with drag */
+.setlist-songs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.setlist-song-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: transform 0.1s, opacity 0.15s;
+}
+.setlist-song-row.dragging {
+  opacity: 0.4;
+}
+.setlist-song-row.drag-over {
+  border-top: 2px solid var(--color-green);
+}
+.setlist-song-pos {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-green);
+  min-width: 24px;
+  text-align: center;
+}
+.setlist-song-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.setlist-song-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setlist-song-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.setlist-song-controls {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.btn-icon {
+  background: none;
+  border: none;
+  color: var(--color-text-dim);
+  font-size: 12px;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.btn-icon:hover { background: rgba(255,255,255,0.06); }
+.btn-icon:disabled { opacity: 0.3; cursor: default; }
+.btn-icon-danger { color: var(--color-danger); }
+
+/* Song picker in setlist */
+.song-picker-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.song-picker-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+.song-picker-item:hover { background: rgba(0,230,118,0.08); }
+.song-picker-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.song-picker-meta {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* btn-teal for Share PDF */
+.btn-teal {
+  background: var(--color-teal);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 12px;
 }

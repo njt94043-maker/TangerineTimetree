@@ -6,7 +6,9 @@ type View =
   | 'invoices' | 'invoice-form' | 'invoice-detail' | 'invoice-preview'
   | 'quotes' | 'quote-form' | 'quote-detail' | 'quote-preview'
   | 'settings' | 'clients'
-  | 'venues' | 'venue-detail';
+  | 'venues' | 'venue-detail'
+  | 'songs' | 'song-form'
+  | 'setlists' | 'setlist-detail';
 
 interface ViewState {
   view: View;
@@ -21,6 +23,10 @@ interface ViewState {
   editQuoteId: string | null;
   // Venue-specific state
   venueId: string | null;
+  // Song-specific state
+  editSongId: string | null;
+  // Setlist-specific state
+  setlistId: string | null;
 }
 
 interface ViewContextValue extends ViewState {
@@ -49,6 +55,13 @@ interface ViewContextValue extends ViewState {
   // Venue navigation
   goToVenues: () => void;
   goToVenueDetail: (id: string) => void;
+  // Song navigation
+  goToSongs: () => void;
+  goToNewSong: () => void;
+  goToEditSong: (id: string) => void;
+  // Setlist navigation
+  goToSetlists: () => void;
+  goToSetlistDetail: (id: string) => void;
 }
 
 const ViewContext = createContext<ViewContextValue | null>(null);
@@ -63,6 +76,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
   const [venueId, setVenueId] = useState<string | null>(null);
+  const [editSongId, setEditSongId] = useState<string | null>(null);
+  const [setlistId, setSetlistId] = useState<string | null>(null);
 
   // View history stack for step-by-step back navigation
   const historyRef = useRef<View[]>(['calendar']);
@@ -140,8 +155,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (!handlingPopState.current) {
       handlingPopState.current = true;
       window.history.back();
-      // Reset flag after the popstate event fires (async)
-      setTimeout(() => { handlingPopState.current = false; }, 0);
+      // Reset flag after a short delay to allow popstate to fire and be skipped
+      setTimeout(() => { handlingPopState.current = false; }, 100);
     }
   }, []);
 
@@ -190,6 +205,20 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setVenueId(id);
     pushView('venue-detail');
   }, []);
+  const goToSongs = useCallback(() => resetToView('songs'), []);
+  const goToNewSong = useCallback(() => {
+    setEditSongId(null);
+    pushView('song-form');
+  }, []);
+  const goToEditSong = useCallback((id: string) => {
+    setEditSongId(id);
+    pushView('song-form');
+  }, []);
+  const goToSetlists = useCallback(() => resetToView('setlists'), []);
+  const goToSetlistDetail = useCallback((id: string) => {
+    setSetlistId(id);
+    pushView('setlist-detail');
+  }, []);
 
   // Listen for browser back button / hardware back (Android & iOS PWA)
   useEffect(() => {
@@ -225,6 +254,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         invoiceId, editInvoiceId,
         quoteId, editQuoteId,
         venueId,
+        editSongId,
+        setlistId,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,
@@ -232,6 +263,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToSettings, goToClients,
         goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
         goToVenues, goToVenueDetail,
+        goToSongs, goToNewSong, goToEditSong,
+        goToSetlists, goToSetlistDetail,
       }}
     >
       {children}

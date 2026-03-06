@@ -28,7 +28,12 @@ function formatDisplayDate(iso: string): string {
 
 function formatTime(time: string | null): string {
   if (!time) return '—';
-  return time.slice(0, 5);
+  const [hStr, mStr] = time.slice(0, 5).split(':');
+  let h = parseInt(hStr, 10);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${mStr}${ampm}`;
 }
 
 function formatFee(fee: number | null): string {

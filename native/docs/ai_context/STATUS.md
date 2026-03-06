@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S25A complete. **Songs & Setlists: schema + types + queries shipped.**
+- **Phase**: S25B+C complete. **Songs & Setlists: full UI (both apps) + setlist PDF sharing shipped.**
 - **Blocker**: None. Native APK needs rebuild.
-- **Last session**: 2026-03-06 — S25A: Songs & Setlists data layer. 3 new Supabase tables (songs, setlists, setlist_songs). practice-tracks storage bucket. Shared types + queries (20 new functions). Native wrappers. Migration pushed. Both tsc clean.
-- **Next action**: S25B (Songs & Setlists UI — both apps). Also: web nav bug (edit gig back button goes to calendar instead of gig list).
+- **Last session**: 2026-03-06 — S25B: Songs & Setlists UI (both apps — CRUD, search, drag-reorder). S25C: Setlist PDF sharing (band-themed template). Also: gig list visibility toggle, 12hr AM/PM time format throughout, gig list back navigation fix. Both tsc clean.
+- **Next action**: APK rebuild. S26A (native audio engine).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -70,5 +70,8 @@
 | **S24A** | **Bill-to flexibility: schema + types + queries** | **DONE** |
 | **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **DONE** |
 | **S25A** | **Songs & Setlists: schema + types + queries** | **DONE** |
+| **S25B** | **Songs & Setlists UI (both apps) — CRUD, search, reorder** | **DONE** |
+| **S25C** | **Setlist PDF sharing — band-themed template** | **DONE** |
+| **—** | **Gig list visibility toggle + 12hr AM/PM format + back nav fix** | **DONE** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

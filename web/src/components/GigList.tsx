@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase/client';
 import type { GigWithCreator } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getUpcomingGigs, getInvoiceByGigId } from '@shared/supabase/queries';
+import { getUpcomingGigs, getInvoiceByGigId, updateGig } from '@shared/supabase/queries';
 import { fmt, fmtFee, formatGroupDate, daysUntil } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -65,6 +65,15 @@ export function GigList({ onGigPress, onAddGig, onCreateInvoice }: GigListProps)
     return () => { supabase.removeChannel(channel); };
   }, [fetchGigs]);
 
+  async function toggleVisibility(e: React.MouseEvent, gig: GigWithCreator) {
+    e.stopPropagation();
+    const newVis = gig.visibility === 'public' ? 'private' : 'public';
+    try {
+      await updateGig(gig.id, { visibility: newVis });
+      fetchGigs();
+    } catch { /* silently fail */ }
+  }
+
   if (loading) {
     return <LoadingSpinner skeleton />;
   }
@@ -126,9 +135,20 @@ export function GigList({ onGigPress, onAddGig, onCreateInvoice }: GigListProps)
                         <div className="gig-list-client">{gig.client_name || 'Client TBC'}</div>
                       )}
                     </div>
-                    {!isPractice && gig.fee != null && (
-                      <div className="gig-list-fee">{fmtFee(gig.fee)}</div>
-                    )}
+                    <div className="gig-list-card-right">
+                      {!isPractice && (
+                        <button
+                          className={`visibility-toggle ${gig.visibility === 'public' ? 'public' : ''}`}
+                          onClick={(e) => toggleVisibility(e, gig)}
+                          title={gig.visibility === 'public' ? 'Visible on website (click to hide)' : 'Hidden from website (click to show)'}
+                        >
+                          {gig.visibility === 'public' ? '\uD83C\uDF10' : '\uD83D\uDD12'}
+                        </button>
+                      )}
+                      {!isPractice && gig.fee != null && (
+                        <div className="gig-list-fee">{fmtFee(gig.fee)}</div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="gig-list-meta">
