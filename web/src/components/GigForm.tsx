@@ -8,6 +8,7 @@ import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
+import { DigitalTimePicker } from './DigitalTimePicker';
 
 interface GigFormProps {
   date: string;
@@ -301,24 +302,18 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           </>
         )}
 
-        <label className="label" htmlFor="gig-start">START TIME</label>
-        <div className="neu-inset">
-          <input id="gig-start" className="input-field" type="time" value={startTime} onChange={e => handleStartTimeChange(e.target.value)} />
-        </div>
+        <label className="label">START TIME</label>
+        <DigitalTimePicker value={startTime} onChange={handleStartTimeChange} />
 
         {!isPractice && (
           <>
-            <label className="label" htmlFor="gig-load">LOAD-IN TIME</label>
-            <div className="neu-inset">
-              <input id="gig-load" className="input-field" type="time" value={loadTime} onChange={e => handleLoadTimeChange(e.target.value)} />
-            </div>
+            <label className="label">LOAD-IN TIME</label>
+            <DigitalTimePicker value={loadTime} onChange={handleLoadTimeChange} />
           </>
         )}
 
-        <label className="label" htmlFor="gig-end">END TIME (OPTIONAL)</label>
-        <div className="neu-inset">
-          <input id="gig-end" className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
-        </div>
+        <label className="label">END TIME (OPTIONAL)</label>
+        <DigitalTimePicker value={endTime} onChange={setEndTime} />
 
         {isPractice && (
           <>
