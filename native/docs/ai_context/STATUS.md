@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S24B complete. **Bill-to flexibility: full UI shipped (both apps).**
+- **Phase**: S25A complete. **Songs & Setlists: schema + types + queries shipped.**
 - **Blocker**: None. Native APK needs rebuild.
-- **Last session**: 2026-03-05 — S24B: Bill-to toggle on invoice+quote forms (both apps). Invoice/quote list views show billed-to name (client or venue). Removed "Client is the venue" toggle from gig forms. Create Invoice button on gig day views (both apps) with prefill. Invoiced badge on gigs with linked invoices. Venue contact fields on venue forms (both apps). Migration SQL pushed to Supabase. Both tsc clean.
-- **Next action**: APK rebuild. User to verify 44 WhatsApp-confirmed fees, then batch-update.
+- **Last session**: 2026-03-06 — S25A: Songs & Setlists data layer. 3 new Supabase tables (songs, setlists, setlist_songs). practice-tracks storage bucket. Shared types + queries (20 new functions). Native wrappers. Migration pushed. Both tsc clean.
+- **Next action**: S25B (Songs & Setlists UI — both apps). Also: web nav bug (edit gig back button goes to calendar instead of gig list).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -30,13 +30,14 @@
 - **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 20 tables live, S24A migration pushed)
 
-## Supabase Tables (20 live)
+## Supabase Tables (23 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
 - **Public site**: public_media, contact_submissions
 - **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
 - **Quoting (S15)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
 - **S23A**: venue_photos (new table), venues restructured (ratings/postcode/notes, no client_id), gigs/quotes/invoices/formal_invoices have venue_id FK, gigs have client_id FK
-- **Storage**: public-media, venue-photos (new S23A)
+- **S25A**: songs, setlists, setlist_songs (new tables)
+- **Storage**: public-media, venue-photos, practice-tracks (new S25A)
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)
@@ -68,5 +69,6 @@
 | **S23D** | **Quote + Invoice flow update (venue pickers, audit fixes)** | **DONE** |
 | **S24A** | **Bill-to flexibility: schema + types + queries** | **DONE** |
 | **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **DONE** |
+| **S25A** | **Songs & Setlists: schema + types + queries** | **DONE** |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`

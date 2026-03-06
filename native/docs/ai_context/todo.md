@@ -6,7 +6,10 @@
 ---
 
 ## Immediate Actions
-- [ ] APK rebuild for S23 changes + venue/client seeding
+- [ ] S25B: Songs & Setlists UI (both apps) — song library CRUD, setlist builder with reorder
+- [ ] S25C: Setlist PDF sharing — band-themed template, generate + share from both apps
+- [ ] Web nav bug: edit gig back button goes to calendar instead of gig list
+- [ ] APK rebuild for S23+ changes
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Completed: S24 — Bill-To Flexibility (venue OR client invoicing)
@@ -27,7 +30,24 @@
 - [x] Web InvoiceForm: added prefill props for gig→invoice flow
 - [x] TypeScript clean: both apps pass
 
-## Backlog
+## Completed: S25A — Songs & Setlists: Schema + Types + Queries — DONE
+- [x] Supabase migration: songs, setlists, setlist_songs tables + practice-tracks bucket
+- [x] Shared TypeScript types (Song, Setlist, SetlistSong, SetlistSongWithDetails, SetlistWithSongs, ClickSound)
+- [x] Shared queries: 20 new functions (CRUD for songs, setlists, setlist songs, practice track upload)
+- [x] Native query wrappers (re-exports from shared)
+- [x] Migration pushed to Supabase
+- [x] Both apps tsc clean
+
+## Backlog — Songs & Setlists Epic
+- [ ] S26A: Native audio engine — Expo Module wrapping Oboe/C++ metronome from ClickTrack
+- [ ] S26B: Live Mode — song-driven click + beat visualizations (LED, numbers, circular, pendulum)
+- [ ] S26C: Live Mode — setlist navigation, wake lock, full-screen
+- [ ] S27A: Practice Mode — MP3 playback (expo-av) + click overlay
+- [ ] S27B: Practice Mode — time-stretch + A-B loop + speed trainer
+- [ ] S27C: Practice Mode — click assignment tools (tap tempo, save to song)
+- [ ] S28+: Recording/video capture (front camera) — spec later
+
+## Backlog — Other
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
 
 ---
@@ -75,3 +95,4 @@
 | — | Key rotation: legacy JWT disabled, new publishable/secret keys | 2026-03-05 |
 | S24A | Bill-to flexibility: schema + types + queries | 2026-03-05 |
 | S24B | Bill-to flexibility: UI (both apps) + gig→invoice shortcut | 2026-03-05 |
+| S25A | Songs & Setlists: schema + types + queries + storage | 2026-03-06 |

@@ -12,12 +12,12 @@
 - **API keys**: Publishable (`sb_publishable_...`) + Secret (`sb_secret_...`). Legacy JWT keys **disabled** (2026-03-05).
 - **RLS**: Enabled on all tables. Publishable key respects RLS; secret key bypasses it.
 - **Realtime**: Enabled on `gigs` + `away_dates`.
-- **Storage buckets**: `public-media`, `venue-photos`
+- **Storage buckets**: `public-media`, `venue-photos`, `practice-tracks`
 - **RPC functions**: `next_invoice_number()`, `next_quote_number()` — atomic auto-increment (SECURITY DEFINER)
 
 ---
 
-## Tables (20)
+## Tables (23)
 
 ### Calendar & Profiles
 
@@ -330,6 +330,65 @@ Generated when a quote is accepted.
 | date | DATE | NO | — | |
 | created_at | TIMESTAMPTZ | YES | NOW() | |
 
+### Songs & Setlists (S25A)
+
+#### songs
+Master song library with metronome data for live/practice modes.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| name | TEXT | NO | — | |
+| artist | TEXT | YES | '' | For covers |
+| bpm | NUMERIC(6,2) | YES | 120 | CHECK: 20-400 |
+| time_signature_top | INT | YES | 4 | CHECK: 1-16 |
+| time_signature_bottom | INT | YES | 4 | CHECK: 2,4,8,16 |
+| subdivision | INT | YES | 1 | 1=off, 2=8ths, 3=triplets, 4=16ths, 5=quint, 6=sext |
+| swing_percent | NUMERIC(5,2) | YES | 50 | CHECK: 50-75 |
+| accent_pattern | TEXT | YES | NULL | CSV e.g. "3,1,1,1" |
+| click_sound | TEXT | YES | 'default' | default, high, low, wood, rim |
+| count_in_bars | INT | YES | 1 | CHECK: 0-8 |
+| duration_seconds | INT | YES | NULL | Song length |
+| key | TEXT | YES | '' | Musical key |
+| notes | TEXT | YES | '' | Arrangement notes |
+| audio_url | TEXT | YES | NULL | Supabase Storage URL (practice MP3) |
+| audio_storage_path | TEXT | YES | NULL | Storage bucket path |
+| created_by | UUID | NO | — | FK → profiles(id) |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+| updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
+
+**Indexes**: `idx_songs_name`, `idx_songs_created_by`.
+**RLS**: SELECT/UPDATE/DELETE all authenticated; INSERT requires created_by = auth.uid().
+
+#### setlists
+Ordered collections of songs for gigs or practice.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| name | TEXT | NO | — | |
+| description | TEXT | YES | '' | |
+| notes | TEXT | YES | '' | |
+| created_by | UUID | NO | — | FK → profiles(id) |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+| updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
+
+**RLS**: SELECT/UPDATE/DELETE all authenticated; INSERT requires created_by = auth.uid().
+
+#### setlist_songs
+Junction table with position ordering.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| setlist_id | UUID | NO | — | FK → setlists(id) CASCADE |
+| song_id | UUID | NO | — | FK → songs(id) CASCADE |
+| position | INT | NO | 0 | UNIQUE(setlist_id, position) |
+| notes | TEXT | YES | '' | Per-song notes in setlist context |
+
+**Indexes**: `idx_setlist_songs_setlist`, `idx_setlist_songs_song`.
+**RLS**: All authenticated for all operations.
+
 ### Public Website
 
 #### public_media
@@ -388,7 +447,15 @@ auth.users
         │     └── formal_invoices (1:many via quote_id)
         │           ├── formal_invoice_line_items (1:many, CASCADE)
         │           └── formal_receipts (1:many, CASCADE)
+        ├── songs (1:many via created_by)
+        ├── setlists (1:many via created_by)
         └── public_media (1:many via created_by)
+
+songs (standalone)
+  └── setlist_songs (1:many via song_id, CASCADE)
+
+setlists (standalone)
+  └── setlist_songs (1:many via setlist_id, CASCADE)
 
 venues (standalone)
   ├── gigs.venue_id (SET NULL)
@@ -437,7 +504,13 @@ All types in `shared/supabase/types.ts`. Key interfaces:
 | SiteContent | site_content | Key-value CMS |
 | SiteReview | site_reviews | Customer reviews |
 
-Utility types: `GigType`, `GigVisibility`, `InvoiceStatus`, `InvoiceStyle`, `QuoteStatus`, `EventType`, `PLIOption`, `DayStatus`, `ChangeSummaryItem`, `BillTo` (S24A).
+| Song | songs | Metronome data + practice track URL |
+| Setlist | setlists | |
+| SetlistSong | setlist_songs | Junction |
+| SetlistSongWithDetails | setlist_songs + songs | JOIN |
+| SetlistWithSongs | setlists + songs | Aggregate |
+
+Utility types: `GigType`, `GigVisibility`, `InvoiceStatus`, `InvoiceStyle`, `QuoteStatus`, `EventType`, `PLIOption`, `DayStatus`, `ChangeSummaryItem`, `BillTo` (S24A), `ClickSound` (S25A).
 
 Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, awayDates)`, `resolveBillTo(row)` (S24A).
 
@@ -466,6 +539,9 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | Contact | submitContact, getContactSubmissions, markContactRead, archiveContact |
 | Site Content | getSiteContent, updateSiteContent |
 | Reviews | getSiteReviews, createSiteReview, updateSiteReview, deleteSiteReview |
+| Songs | getSongs, getSong, searchSongs, createSong, updateSong, deleteSong, uploadPracticeTrack, deletePracticeTrack |
+| Setlists | getSetlists, getSetlist, createSetlist, updateSetlist, deleteSetlist |
+| Setlist Songs | getSetlistSongs, getSetlistWithSongs, setSetlistSongs, addSongToSetlist, removeSongFromSetlist |
 | Dashboard | getDashboardStats |
 
 ---
@@ -479,4 +555,5 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | supabase/migrations/20260304105634_phase4_change_summary.sql | Changelogs + last_opened_at |
 | supabase/migrations/20260305200000_s23a_venue_client_restructure.sql | S23A: venues decoupled, ratings, venue_id FKs, venue_photos |
 | supabase/migrations/20260306100000_s24a_bill_to_flexibility.sql | S24A: venue contacts, nullable client_id, gig_id FK, CHECK constraints |
+| supabase/migrations/20260306200000_s25a_songs_setlists.sql | S25A: songs, setlists, setlist_songs tables + practice-tracks bucket |
 | shared/supabase/types.ts | All TypeScript interfaces |
