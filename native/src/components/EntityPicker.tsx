@@ -95,7 +95,13 @@ export function EntityPicker({ mode, value, entityId, onChange, placeholder }: E
         });
         onChange(venue.venue_name, venue.id);
       } else {
-        const client = await createClient({ company_name: newName.trim() });
+        const client = await createClient({
+          company_name: newName.trim(),
+          contact_name: newContact.trim(),
+          address: newAddress.trim(),
+          email: newEmail.trim(),
+          phone: newPhone.trim(),
+        });
         onChange(client.company_name, client.id);
       }
       setShowAddNew(false);
@@ -263,48 +269,46 @@ export function EntityPicker({ mode, value, entityId, onChange, placeholder }: E
                     onChangeText={setNewName}
                     autoFocus
                   />
+                  <TextInput
+                    style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
+                    placeholder={mode === 'venue' ? 'Address' : 'Address (optional)'}
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newAddress}
+                    onChangeText={setNewAddress}
+                  />
                   {mode === 'venue' && (
-                    <>
-                      <TextInput
-                        style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
-                        placeholder="Address"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={newAddress}
-                        onChangeText={setNewAddress}
-                      />
-                      <TextInput
-                        style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
-                        placeholder="Postcode"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={newPostcode}
-                        onChangeText={setNewPostcode}
-                      />
-                      <TextInput
-                        style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
-                        placeholder="Contact name"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={newContact}
-                        onChangeText={setNewContact}
-                      />
-                      <TextInput
-                        style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
-                        placeholder="Email"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={newEmail}
-                        onChangeText={setNewEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                      />
-                      <TextInput
-                        style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
-                        placeholder="Phone"
-                        placeholderTextColor={COLORS.textMuted}
-                        value={newPhone}
-                        onChangeText={setNewPhone}
-                        keyboardType="phone-pad"
-                      />
-                    </>
+                    <TextInput
+                      style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
+                      placeholder="Postcode"
+                      placeholderTextColor={COLORS.textMuted}
+                      value={newPostcode}
+                      onChangeText={setNewPostcode}
+                    />
                   )}
+                  <TextInput
+                    style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
+                    placeholder="Contact name"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newContact}
+                    onChangeText={setNewContact}
+                  />
+                  <TextInput
+                    style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
+                    placeholder="Email"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newEmail}
+                    onChangeText={setNewEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                  <TextInput
+                    style={[styles.miniInput, neuInsetStyle(), { marginTop: 6 }]}
+                    placeholder="Phone"
+                    placeholderTextColor={COLORS.textMuted}
+                    value={newPhone}
+                    onChangeText={setNewPhone}
+                    keyboardType="phone-pad"
+                  />
                   <View style={styles.miniFormActions}>
                     <Pressable style={styles.miniSaveBtn} onPress={handleCreateNew} disabled={creating}>
                       <Text style={styles.miniSaveBtnText}>{creating ? 'Saving...' : 'Save'}</Text>

@@ -94,7 +94,13 @@ export function EntityPicker({ mode, value, entityId, onChange, placeholder }: E
         });
         onChange(venue.venue_name, venue.id);
       } else {
-        const client = await createClient({ company_name: newName.trim() });
+        const client = await createClient({
+          company_name: newName.trim(),
+          contact_name: newContact.trim(),
+          address: newAddress.trim(),
+          email: newEmail.trim(),
+          phone: newPhone.trim(),
+        });
         onChange(client.company_name, client.id);
       }
       setShowAddNew(false);
@@ -266,47 +272,45 @@ export function EntityPicker({ mode, value, entityId, onChange, placeholder }: E
                 onChange={e => setNewName(e.target.value)}
                 autoFocus
               />
+              <input
+                className="input-field"
+                placeholder={mode === 'venue' ? 'Address' : 'Address (optional)'}
+                value={newAddress}
+                onChange={e => setNewAddress(e.target.value)}
+                style={{ marginTop: 6 }}
+              />
               {mode === 'venue' && (
-                <>
-                  <input
-                    className="input-field"
-                    placeholder="Address"
-                    value={newAddress}
-                    onChange={e => setNewAddress(e.target.value)}
-                    style={{ marginTop: 6 }}
-                  />
-                  <input
-                    className="input-field"
-                    placeholder="Postcode"
-                    value={newPostcode}
-                    onChange={e => setNewPostcode(e.target.value)}
-                    style={{ marginTop: 6 }}
-                  />
-                  <input
-                    className="input-field"
-                    placeholder="Contact name"
-                    value={newContact}
-                    onChange={e => setNewContact(e.target.value)}
-                    style={{ marginTop: 6 }}
-                  />
-                  <input
-                    className="input-field"
-                    placeholder="Email"
-                    type="email"
-                    value={newEmail}
-                    onChange={e => setNewEmail(e.target.value)}
-                    style={{ marginTop: 6 }}
-                  />
-                  <input
-                    className="input-field"
-                    placeholder="Phone"
-                    type="tel"
-                    value={newPhone}
-                    onChange={e => setNewPhone(e.target.value)}
-                    style={{ marginTop: 6 }}
-                  />
-                </>
+                <input
+                  className="input-field"
+                  placeholder="Postcode"
+                  value={newPostcode}
+                  onChange={e => setNewPostcode(e.target.value)}
+                  style={{ marginTop: 6 }}
+                />
               )}
+              <input
+                className="input-field"
+                placeholder="Contact name"
+                value={newContact}
+                onChange={e => setNewContact(e.target.value)}
+                style={{ marginTop: 6 }}
+              />
+              <input
+                className="input-field"
+                placeholder="Email"
+                type="email"
+                value={newEmail}
+                onChange={e => setNewEmail(e.target.value)}
+                style={{ marginTop: 6 }}
+              />
+              <input
+                className="input-field"
+                placeholder="Phone"
+                type="tel"
+                value={newPhone}
+                onChange={e => setNewPhone(e.target.value)}
+                style={{ marginTop: 6 }}
+              />
               <div className="entity-mini-form-actions">
                 <button type="button" className="btn btn-small btn-green" onClick={handleCreateNew} disabled={creating}>
                   {creating ? 'Saving...' : 'Save'}

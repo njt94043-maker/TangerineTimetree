@@ -100,12 +100,13 @@ export function InvoiceForm({ onClose, onSaved, prefill }: InvoiceFormProps) {
       () => setError('Failed to load settings'),
     );
     loadClients().then(async (clients) => {
-      // Handle prefill
+      // Handle prefill — auto-advance to step 2 when bill-to is resolved
       if (prefill?.client_id && clients) {
         const match = clients.find((c: Client) => c.id === prefill.client_id);
         if (match) {
           setSelectedClient(match);
           setBillToType('client');
+          setStep(2);
         }
       } else if (prefill?.venue_id) {
         setBillToType('venue');
@@ -116,6 +117,9 @@ export function InvoiceForm({ onClose, onSaved, prefill }: InvoiceFormProps) {
           if (v) {
             setBillToVenue(v);
             setBillToVenueName(v.venue_name);
+            setVenue(v.venue_name);
+            setVenueId(v.id);
+            setStep(2);
           }
         } catch { /* non-critical */ }
       }
