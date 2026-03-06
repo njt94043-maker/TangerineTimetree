@@ -518,17 +518,24 @@ html, body, #root {
 .main-content { margin-top: 52px; }
 
 /* ─── Calendar ─── */
-.calendar { padding: 12px; margin: 8px 16px; }
+.calendar {
+  padding: 12px;
+  margin: 0 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 70px);
+  min-height: calc(100dvh - 70px);
+}
 .calendar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .calendar-today-row {
   display: flex;
   justify-content: center;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 .today-btn {
   background: none;
@@ -566,10 +573,18 @@ html, body, #root {
   color: var(--color-text);
 }
 /* 2.5: calendar gap bumped from 2px to 3px */
+.calendar-day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-auto-rows: 1fr;
+  gap: 3px;
+  flex: 1;
 }
 /* 2.3: day headers bumped from 10px to 11px */
 .calendar-day-header {
@@ -586,13 +601,15 @@ html, body, #root {
 .calendar-cell {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 6px;
   position: relative;
   font-size: 14px;
-  min-height: 52px;
+  min-height: 48px;
+  padding: 2px 3px;
+  overflow: hidden;
   background: rgba(0,0,0,0.25);
   border: 1px solid rgba(255,255,255,0.04);
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), inset 0 -1px 2px rgba(255,255,255,0.02);
@@ -606,6 +623,11 @@ html, body, #root {
 .calendar-cell.today {
   border: 2px solid var(--color-tangerine);
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(243,156,18,0.3);
+}
+.day-num {
+  font-size: 13px;
+  line-height: 1;
+  text-align: left;
 }
 .calendar-cell.past .day-num { color: var(--color-text-muted); }
 
@@ -636,12 +658,35 @@ html, body, #root {
 }
 .calendar-cell.unavailable .day-num { color: var(--color-unavailable); font-weight: 700; }
 
+/* Venue labels inside calendar cells */
+.day-venues {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 1px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+.day-venue {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  opacity: 0.9;
+}
+
 /* 6.5: multiple dots container */
 .day-dots {
   display: flex;
   gap: 2px;
   position: absolute;
-  bottom: 3px;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
   justify-content: center;
 }
 .day-dot {
@@ -685,17 +730,16 @@ html, body, #root {
 .legend {
   display: flex;
   justify-content: space-around;
-  margin-top: 12px;
-  padding-top: 10px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid rgba(255,255,255,0.04);
 }
 /* 2.2: legend items get 32px min tap area */
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 4px;
-  min-height: 32px;
+  gap: 4px;
+  padding: 2px 4px;
 }
 .legend-dot {
   width: 8px;
