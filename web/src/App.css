@@ -4111,8 +4111,19 @@ select.ps-form-input {
   width: 100% !important;
   box-shadow: inset 2px 2px 4px rgba(0,0,0,0.3), inset -2px -2px 4px rgba(255,255,255,0.03) !important;
 }
-.time-picker-wrap .react-ios-time-picker-popup {
-  z-index: 2000 !important;
+.react-ios-time-picker-popup {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.88) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9999 !important;
 }
 
 /* ─── Gig Attachments ──────────────────────────── */
@@ -4248,6 +4259,40 @@ select.ps-form-input {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+/* Entity details toggle + panel */
+.entity-details-toggle {
+  background: none;
+  border: none;
+  color: var(--color-teal);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.entity-detail-panel {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 4px;
+}
+.entity-detail-panel .input-field {
+  margin-bottom: 0;
+}
+.entity-detail-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-dim, #8e8e93);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+  margin-bottom: 2px;
+}
+.entity-detail-label:first-child {
+  margin-top: 0;
 }
 
 /* Navigate button */

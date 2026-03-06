@@ -76,8 +76,24 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
   // Field suggestions
   const [suggestions, setSuggestions] = useState<GigFieldSuggestions>({ venues: [], clients: [], fees: [] });
 
+  const loadTimeManual = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pendingSubmitRef = useRef<any>(null);
+
+  function subtractOneHour(time: string): string {
+    const [h, m] = time.split(':').map(Number);
+    return `${String((h - 1 + 24) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
+  function handleStartTimeChange(val: string) {
+    setStartTime(val);
+    if (!loadTimeManual.current) setLoadTime(subtractOneHour(val));
+  }
+
+  function handleLoadTimeChange(val: string) {
+    setLoadTime(val);
+    loadTimeManual.current = true;
+  }
 
   useEffect(() => {
     if (gigId) {
@@ -93,6 +109,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           setFee(data.fee != null ? String(data.fee) : '');
           setPaymentType(data.payment_type ?? '');
           setLoadTime(data.load_time ? data.load_time.slice(0, 5) : '');
+          if (data.load_time) loadTimeManual.current = true;
           setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
           setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
           setNotes(data.notes ?? '');
@@ -164,7 +181,6 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     if (isGigIncomplete(checkGig)) {
       const missing: string[] = [];
       if (!venue) missing.push('venue');
-      if (gigType !== 'practice' && !clientName) missing.push('client');
       if (gigType !== 'practice' && data.fee == null) missing.push('fee');
       if (!startTime) missing.push('start time');
       pendingSubmitRef.current = data;
@@ -260,7 +276,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
               value={venue}
               entityId={venueId}
               onChange={(text, id) => { setVenue(text); setVenueId(id); }}
-              placeholder="e.g. Gin & Juice, Mumbles"
+              placeholder="Search venues..."
             />
 
             <label className="label">CLIENT / BOOKER</label>
@@ -269,12 +285,12 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
               value={clientName}
               entityId={clientId}
               onChange={(text, id) => { setClientName(text); setClientId(id); }}
-              placeholder="e.g. Suave Agency"
+              placeholder="Search clients..."
             />
 
             <label className="label" htmlFor="gig-fee">FEE</label>
             <div className="neu-inset">
-              <AutocompleteInput id="gig-fee" placeholder="e.g. 400" type="number" step="0.01" inputMode="decimal" value={fee} onChange={setFee} suggestions={suggestions.fees.map(String)} />
+              <AutocompleteInput id="gig-fee" placeholder="" type="number" step="0.01" inputMode="decimal" value={fee} onChange={setFee} suggestions={suggestions.fees.map(String)} />
             </div>
 
             <div className="label">PAYMENT TYPE</div>
@@ -283,17 +299,22 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
               <button type="button" className={`toggle-btn neu-card ${paymentType === 'invoice' ? 'active' : ''}`} onClick={() => setPaymentType('invoice')}>Invoice</button>
             </div>
 
-            <label className="label">LOAD-IN TIME</label>
-            <div className="time-picker-wrap">
-              <TimePicker value={loadTime || '18:00'} onChange={setLoadTime} pickerDefaultValue="18:00" />
-            </div>
           </>
         )}
 
         <label className="label">START TIME</label>
         <div className="time-picker-wrap">
-          <TimePicker value={startTime || '21:00'} onChange={setStartTime} pickerDefaultValue="21:00" />
+          <TimePicker value={startTime || '21:00'} onChange={handleStartTimeChange} pickerDefaultValue="21:00" />
         </div>
+
+        {!isPractice && (
+          <>
+            <label className="label">LOAD-IN TIME</label>
+            <div className="time-picker-wrap">
+              <TimePicker value={loadTime || '18:00'} onChange={handleLoadTimeChange} pickerDefaultValue="18:00" />
+            </div>
+          </>
+        )}
 
         <label className="label">END TIME (OPTIONAL)</label>
         <div className="time-picker-wrap">
@@ -304,7 +325,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
           <>
             <label className="label" htmlFor="gig-location">LOCATION (OPTIONAL)</label>
             <div className="neu-inset">
-              <AutocompleteInput id="gig-location" placeholder="e.g. Neil's garage" value={venue} onChange={setVenue} suggestions={suggestions.venues} />
+              <AutocompleteInput id="gig-location" placeholder="" value={venue} onChange={setVenue} suggestions={suggestions.venues} />
             </div>
           </>
         )}

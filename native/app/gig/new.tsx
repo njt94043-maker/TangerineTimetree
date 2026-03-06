@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, KeyboardAvoidingView, Platform, ToastAndroid, Image, Modal } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WheelTimePicker } from '../../src/components/WheelTimePicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -52,24 +52,32 @@ export default function GigFormScreen() {
   const [timePickerTarget, setTimePickerTarget] = useState<'load' | 'start' | 'end' | null>(null);
   const [saving, setSaving] = useState(false);
   const [suggestions, setSuggestions] = useState<GigFieldSuggestions>({ venues: [], clients: [], fees: [] });
+  const loadTimeManual = useRef(false);
 
   useEffect(() => {
     getGigFieldSuggestions().then(setSuggestions).catch(() => {});
   }, []);
 
+  function subtractOneHour(time: string): string {
+    const [h, m] = time.split(':').map(Number);
+    return `${String((h - 1 + 24) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+
   function handleTimeConfirm(val: string) {
-    if (timePickerTarget === 'load') setLoadTime(val);
-    else if (timePickerTarget === 'start') setStartTime(val);
+    if (timePickerTarget === 'load') { setLoadTime(val); loadTimeManual.current = true; }
+    else if (timePickerTarget === 'start') { setStartTime(val); if (!loadTimeManual.current) setLoadTime(subtractOneHour(val)); }
     else if (timePickerTarget === 'end') setEndTime(val);
     setTimePickerTarget(null);
   }
 
-  // Load existing gig when editing
-  useEffect(() => {
-    if (params.gigId) {
-      loadGig(params.gigId);
-    }
-  }, [params.gigId]);
+  // Load existing gig when editing — useFocusEffect so re-edits always get fresh data
+  useFocusEffect(
+    useCallback(() => {
+      if (params.gigId) {
+        loadGig(params.gigId);
+      }
+    }, [params.gigId]),
+  );
 
   async function loadGig(gigId: string) {
     const { data } = await supabase.from('gigs').select('*').eq('id', gigId).single();
@@ -82,6 +90,7 @@ export default function GigFormScreen() {
       setFee(data.fee != null ? String(data.fee) : '');
       setPaymentType(data.payment_type ?? '');
       setLoadTime(data.load_time ? data.load_time.slice(0, 5) : '');
+      if (data.load_time) loadTimeManual.current = true;
       setStartTime(data.start_time ? data.start_time.slice(0, 5) : '');
       setEndTime(data.end_time ? data.end_time.slice(0, 5) : '');
       setNotes(data.notes ?? '');
@@ -151,7 +160,6 @@ export default function GigFormScreen() {
     if (isGigIncomplete(checkGig)) {
       const missing: string[] = [];
       if (!venue) missing.push('venue');
-      if (!isPractice && !clientName) missing.push('client');
       if (!isPractice && gigData.fee == null) missing.push('fee');
       if (!startTime) missing.push('start time');
 
@@ -267,7 +275,7 @@ export default function GigFormScreen() {
               value={venue}
               entityId={venueId}
               onChange={(text, id) => { setVenue(text); setVenueId(id); }}
-              placeholder="e.g. Gin & Juice, Mumbles"
+              placeholder="Search venues..."
             />
 
             <Text style={styles.label}>CLIENT / BOOKER</Text>
@@ -276,7 +284,7 @@ export default function GigFormScreen() {
               value={clientName}
               entityId={clientId}
               onChange={(text, id) => { setClientName(text); setClientId(id); }}
-              placeholder="e.g. Suave Agency"
+              placeholder="Search clients..."
             />
 
             <Text style={styles.label}>FEE</Text>
@@ -284,7 +292,7 @@ export default function GigFormScreen() {
               value={fee}
               onChangeText={setFee}
               suggestions={suggestions.fees.map(String)}
-              placeholder="e.g. 400"
+              placeholder=""
               keyboardType="decimal-pad"
             />
 
@@ -305,14 +313,6 @@ export default function GigFormScreen() {
               </Pressable>
             </View>
 
-            <Text style={styles.label}>LOAD-IN TIME</Text>
-            <Pressable onPress={() => setTimePickerTarget('load')}>
-              <View style={[styles.fieldWrap, neuInsetStyle()]}>
-                <Text style={[styles.fieldText, !loadTime && styles.placeholder]}>
-                  {loadTime || 'Tap to set'}
-                </Text>
-              </View>
-            </Pressable>
           </>
         )}
 
@@ -325,6 +325,20 @@ export default function GigFormScreen() {
             </Text>
           </View>
         </Pressable>
+
+        {/* Load-in time — gigs only, below start */}
+        {!isPractice && (
+          <>
+            <Text style={styles.label}>LOAD-IN TIME</Text>
+            <Pressable onPress={() => setTimePickerTarget('load')}>
+              <View style={[styles.fieldWrap, neuInsetStyle()]}>
+                <Text style={[styles.fieldText, !loadTime && styles.placeholder]}>
+                  {loadTime || 'Tap to set'}
+                </Text>
+              </View>
+            </Pressable>
+          </>
+        )}
 
         {/* End time */}
         <Text style={styles.label}>END TIME (OPTIONAL)</Text>
@@ -344,7 +358,7 @@ export default function GigFormScreen() {
               value={venue}
               onChangeText={setVenue}
               suggestions={suggestions.venues}
-              placeholder="e.g. Neil's garage"
+              placeholder=""
             />
           </>
         )}
