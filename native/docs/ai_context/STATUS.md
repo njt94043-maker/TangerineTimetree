@@ -6,24 +6,25 @@
 ---
 
 ## Current State
-- **Phase**: S25B+C complete. **Songs & Setlists: full UI (both apps) + setlist PDF sharing shipped.**
-- **Blocker**: None. Native APK needs rebuild.
-- **Last session**: 2026-03-06 — S25B: Songs & Setlists UI (both apps — CRUD, search, drag-reorder). S25C: Setlist PDF sharing (band-themed template). Also: gig list visibility toggle, 12hr AM/PM time format throughout, gig list back navigation fix. Both tsc clean.
-- **Next action**: APK rebuild. S26A (native audio engine).
+- **Phase**: S25C complete. Big-picture realignment DONE. **Ready for S26A (C++ audio engine).**
+- **Blocker**: None. Pre-flight passed: NDK 27.1, CMake 3.22.1, expo-modules-core installed, 36GB free.
+- **Last session**: 2026-03-06 — Big-picture realignment. Confirmed S26-S28 roadmap: Live Mode + Practice Mode + Web Stage Prompter. C++ engine ported from ClickTrack (`C:\Apps\Click`), not built from scratch.
+- **Next action**: S26A — Expo Native Module with C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song form.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Big Picture
-- **Vision**: Unified Tangerine Timetree brand — BOTH apps get full feature parity (invoicing, quotes, calendar, clients)
-- **North star**: 4 band members manage gigs, invoices, quotes, and public presence through one ecosystem
-- **Architecture**: Monorepo (`shared/` + `native/` + `web/`) — Supabase replaces SQLite for ALL data (ROADMAP_V2 supersedes D-015)
-- **Design**: Collapsible drawer nav on both apps (IMPLEMENTED S19). Unified theme. Mockups define end-state target.
-- **Users**: Nathan (admin), Neil, James, Adam — The Green Tangerine
+- **Vision**: GigBooks = band manager + live performance tool + practice tool. One app for everything.
+- **North star**: Nathan manages gigs/invoices/quotes AND performs with click track + setlists on stage AND practices songs with beat-locked MP3s. Other members get stage prompter (lyrics/chords) on web.
+- **Architecture**: Monorepo (`shared/` + `native/` + `web/`) — Supabase for all data. C++ audio engine (Oboe) via Expo Native Module for native app. Web = no audio, stage prompter only.
+- **Audio source**: ClickTrack (`C:\Apps\Click\app\src\main\cpp\`) — proven C++/Oboe metronome engine. Port metronome + mixer, strip samples/loops/poly/midi. ClickTrack evolves separately into sticking/rudiment practice app.
+- **Design**: Collapsible drawer nav on both apps (IMPLEMENTED S19). Unified theme.
+- **Users**: Nathan (admin/drummer — full audio features), Neil/James/Adam (management + stage prompter)
 
 ## Active Risks
-1. ~~Supabase service_role key leaked~~ — **RESOLVED**: legacy JWT keys disabled, new publishable/secret keys active. Old key rejected (verified).
-2. **Native APK outdated** — S23 code + venue seeding not on device yet. Need APK rebuild.
-3. Disk space: C: drive monitored. APK builds work.
+1. **Expo Module + C++/Oboe integration** — first time adding native C++ to this project. S26A starts with a "hello beep" proof before porting full engine.
+2. **Native APK rebuilt** — 103MB release APK built 2026-03-06. Needs sideload to Samsung device.
+3. **aubio licensing** — GPL. Fine for personal band app. Note if ever publishing commercially.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
@@ -47,31 +48,13 @@
 ## Sprint Roadmap
 | Sprint | Focus | Status |
 |--------|-------|--------|
-| S1-S8 | Audit, fixes, public site, polish | ALL DONE |
-| S9 | HTML mockups (design target) | DONE |
-| S10 | Supabase invoicing schema + migration script | DONE |
-| S11 | Native SQLite → Supabase swap | DONE |
-| S12 | Shared PDF templates | DONE |
-| S13 | Web invoicing + settings + clients | DONE |
-| S14 | Dashboard + export + invoice polish | DONE |
-| S15 | Quote system backend (schema + types + queries + templates) | DONE |
-| S16 | Web quote wizard + service catalogue UI | DONE |
-| S17 | Web quote lifecycle + formal invoicing | DONE |
-| S18 | Native quote UI parity | DONE |
-| S19 | Navigation + design unification (both apps) | DONE |
-| S19+ | Calendar restyle + filter dropdowns + native/web parity | DONE |
-| S20 | Logo swap, animated splash, skeleton loaders, app icons | DONE |
-| S21 | APK build fix + device testing + layout parity | DONE |
-| **S22** | **Native visual overhaul — pixel-perfect match webapp** | **DONE** |
-| **S23A** | **Venue/client restructure: DB migration + types + queries** | **DONE** |
-| **S23B** | **Venue management UI (both apps) + venue ratings/photos** | **DONE** |
-| **S23C** | **Gig booking flow update (venue/client pickers, nav button)** | **DONE** |
-| **S23D** | **Quote + Invoice flow update (venue pickers, audit fixes)** | **DONE** |
-| **S24A** | **Bill-to flexibility: schema + types + queries** | **DONE** |
-| **S24B** | **Bill-to flexibility: UI (both apps) + gig→invoice shortcut** | **DONE** |
-| **S25A** | **Songs & Setlists: schema + types + queries** | **DONE** |
-| **S25B** | **Songs & Setlists UI (both apps) — CRUD, search, reorder** | **DONE** |
-| **S25C** | **Setlist PDF sharing — band-themed template** | **DONE** |
-| **—** | **Gig list visibility toggle + 12hr AM/PM format + back nav fix** | **DONE** |
+| S1-S25C | Band manager (calendar, invoicing, quotes, venues, clients, setlists, PDF, public site) | ALL DONE |
+| **S26A** | **C++ audio engine Expo Module + schema migration (lyrics/chords/beat_offset_ms) + role-based song form** | **NEXT** |
+| **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | PLANNED |
+| **S26C** | **Track player C++ + aubio beat detection + SoundTouch time-stretch + A-B loop** | PLANNED |
+| **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | PLANNED |
+| **S27B** | **Practice tools — speed trainer, tap tempo, muted bars, save to song** | PLANNED |
+| **S27C** | **Web stage prompter — lyrics/chords/song info, setlist nav (no audio)** | PLANNED |
+| **S28+** | **Recording/video — spec later** | BACKLOG |
 
-Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md` — Full plan: `.claude/plans/jaunty-nibbling-unicorn.md`
+Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md`
