@@ -520,7 +520,7 @@ html, body, #root {
 /* ─── Calendar ─── */
 .calendar {
   padding: 12px;
-  margin: 0 16px;
+  margin: 0 8px;
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 70px);

@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { COLORS, FONTS } from '../../src/theme';
-import { NeuButton } from '../../src/components/NeuButton';
 import { GigCalendar } from '../../src/components/GigCalendar';
 import { GigDaySheet } from '../../src/components/GigDaySheet';
-import { GigList } from '../../src/components/GigList';
 import { useAuth } from '../../src/supabase/AuthContext';
 import { getGigsForMonth, getAwayDatesForMonth, getProfiles, getChangesSince, updateLastOpened } from '@shared/supabase/queries';
 import { supabase } from '../../src/supabase/client';
@@ -20,13 +18,10 @@ export default function GigsTab() {
   return <GigsMainView profile={profile} />;
 }
 
-// ─── Main view (calendar + list toggle) ─────────────────
-
-type ViewMode = 'calendar' | 'list';
+// ─── Main view (calendar) ─────────────────
 
 function GigsMainView({ profile }: { profile: Profile | null }) {
   const router = useRouter();
-  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
   const [gigs, setGigs] = useState<Gig[]>([]);
   const [awayDates, setAwayDates] = useState<AwayDateWithUser[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -170,14 +165,6 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
     });
   }
 
-  function handleGigPressFromList(gigId: string, gigType: string) {
-    router.push({ pathname: '/gig/new', params: { gigId, gigType } });
-  }
-
-  function handleAddGigFromList(date: string, type: 'gig' | 'practice') {
-    router.push({ pathname: '/gig/new', params: { date, gigType: type } });
-  }
-
   return (
     <View style={styles.container}>
 
@@ -187,51 +174,17 @@ function GigsMainView({ profile }: { profile: Profile | null }) {
         </View>
       )}
 
-      {calendarError && viewMode === 'calendar' && (
+      {calendarError && (
         <Pressable onPress={fetchData} style={styles.errorBanner}>
           <Text style={styles.errorBannerText}>{calendarError}. Tap to retry.</Text>
         </Pressable>
       )}
 
-      {viewMode === 'calendar' && (
-        <GigCalendar
-          gigs={gigs}
-          awayDates={awayDates}
-          onDatePress={handleDatePress}
-        />
-      )}
-
-      {viewMode === 'list' && (
-        <GigList
-          onGigPress={handleGigPressFromList}
-          onAddGig={handleAddGigFromList}
-        />
-      )}
-
-      {/* Cal/List toggle + away dates */}
-      <View style={styles.bottomActions}>
-        <View style={styles.viewToggle}>
-          <Pressable
-            onPress={() => setViewMode('calendar')}
-            style={[styles.toggleBtn, viewMode === 'calendar' && styles.toggleBtnActive]}
-          >
-            <Text style={[styles.toggleText, viewMode === 'calendar' && styles.toggleTextActive]}>Cal</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setViewMode('list')}
-            style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
-          >
-            <Text style={[styles.toggleText, viewMode === 'list' && styles.toggleTextActive]}>List</Text>
-          </Pressable>
-        </View>
-
-        <NeuButton
-          label="My Away Dates"
-          onPress={() => router.push('/gig/away')}
-          color={COLORS.teal}
-          small
-        />
-      </View>
+      <GigCalendar
+        gigs={gigs}
+        awayDates={awayDates}
+        onDatePress={handleDatePress}
+      />
 
       <GigDaySheet
         visible={sheetVisible}
@@ -281,34 +234,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.danger,
     textAlign: 'center',
-  },
-  bottomActions: {
-    paddingHorizontal: 20,
-    marginTop: 12,
-    gap: 10,
-    alignItems: 'center',
-  },
-  viewToggle: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.3)',
-  },
-  toggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-  },
-  toggleBtnActive: {
-    backgroundColor: 'rgba(243,156,18,0.12)',
-  },
-  toggleText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 11,
-    color: COLORS.textMuted,
-  },
-  toggleTextActive: {
-    color: COLORS.orange,
   },
 });
