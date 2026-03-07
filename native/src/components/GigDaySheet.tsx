@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder, Animated, Linking } from 'react-native';
+import { View, Text, Modal, ScrollView, Pressable, StyleSheet, ActivityIndicator, PanResponder, Animated, Linking, Platform } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle, neuInsetStyle } from '../theme/shadows';
 import { NeuButton } from './NeuButton';
@@ -226,7 +226,8 @@ export function GigDaySheet({ visible, date, awayDates, eventDates = [], onClose
                     style={styles.navigateBtn}
                     onPress={async () => {
                       const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
-                      const pref = (await AsyncStorage.getItem('tgt_map_app')) || 'google';
+                      const saved = await AsyncStorage.getItem('tgt_map_app');
+                      const pref = saved || (Platform.OS === 'ios' ? 'apple' : 'google');
                       const urls: Record<string, string> = {
                         google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
                         waze: `https://waze.com/ul?q=${addr}`,
