@@ -7,6 +7,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-07 | UI alignment: native ↔ web parity | Removed Cal/List toggle + Away Dates button from calendar screen (drawer handles nav). Added gig-list.tsx + away-dates.tsx drawer screens. Calendar: flex-based grid (no manual cellHeight), orange arrows, green Today pill, orange today border. Safe area: Math.max(insets.bottom, 12). Wider web calendar (margin 16→8px). APK built + installed on Samsung. |
 | 2026-03-07 | C++ build fix + stage prompter polish | Fixed Oboe 1.9.2→1.9.3 (1.9.2 not on Maven). Added SoundTouch cpu_detect_x86.cpp, mmx_optimized.cpp, sse_optimized.cpp to CMakeLists. Fixed Kotlin withContext→runBlocking (AsyncFunction not suspend). Added .cxx/ to .gitignore. Stage prompter: back/close buttons. 105MB release APK built successfully. |
 | 2026-03-07 | S27C — Web Stage Prompter | Full-screen stage prompter: setlist picker, lyrics/chords display (ChordPro inline + block mode), song info bar (key/BPM/time sig/duration/artist), prev/next nav + sidebar song list, fullscreen mode (F key), auto-scroll (S key, adjustable speed), keyboard navigation (arrows), per-song notes + setlist notes, responsive, #000 bg. tsc clean. |
 | 2026-03-07 | S27B — Practice Tools | Tap tempo (measure tap intervals, display live BPM, Apply to engine, Save to Song in Supabase). Save All Settings button (BPM, subdivision, swing, accent, click sound, count-in, beat_offset_ms → updateSong). Song notes collapsible display in practice view. tsc clean. |
