@@ -21,6 +21,9 @@ set(SOUNDTOUCH_SRC
     ${SOUNDTOUCH_DIR}/source/SoundTouch/TDStretch.cpp
     ${SOUNDTOUCH_DIR}/source/SoundTouch/BPMDetect.cpp
     ${SOUNDTOUCH_DIR}/source/SoundTouch/PeakFinder.cpp
+    ${SOUNDTOUCH_DIR}/source/SoundTouch/cpu_detect_x86.cpp
+    ${SOUNDTOUCH_DIR}/source/SoundTouch/mmx_optimized.cpp
+    ${SOUNDTOUCH_DIR}/source/SoundTouch/sse_optimized.cpp
 )
 
 add_library(soundtouch STATIC ${SOUNDTOUCH_SRC})
