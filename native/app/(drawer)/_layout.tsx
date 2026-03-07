@@ -45,6 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Performance',
     items: [
       { icon: '\uD83C\uDFAF', label: 'Live Mode', route: 'live' },
+      { icon: '\uD83C\uDFA7', label: 'Practice', route: 'practice' },
     ],
   },
 ];
@@ -193,6 +194,10 @@ export default function DrawerLayout() {
       <Drawer.Screen
         name="live"
         options={{ title: 'Live Mode', headerShown: false }}
+      />
+      <Drawer.Screen
+        name="practice"
+        options={{ title: 'Practice', headerShown: false }}
       />
       <Drawer.Screen
         name="settings"
