@@ -425,6 +425,9 @@ export interface Song {
   duration_seconds: number | null;
   key: string;
   notes: string;
+  lyrics: string;               // Lyrics text (for stage prompter)
+  chords: string;               // Chords text (for stage prompter)
+  beat_offset_ms: number;       // Manual click-to-track alignment offset
   audio_url: string | null;     // Supabase Storage URL for practice MP3
   audio_storage_path: string | null;
   created_by: string;
@@ -464,6 +467,8 @@ export interface SetlistSongWithDetails extends SetlistSong {
   song_duration_seconds: number | null;
   song_key: string;
   song_notes: string;
+  song_lyrics: string;
+  song_chords: string;
   song_audio_url: string | null;
 }
 

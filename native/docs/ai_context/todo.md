@@ -7,28 +7,29 @@
 
 ## Immediate Actions
 - [x] **Big-picture realignment** — DONE. Port C++ from ClickTrack, single Oboe stream, aubio beat detection, SoundTouch time-stretch. Role-based song forms. Web stage prompter.
-- [ ] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
+- [x] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
 - [ ] Sideload APK to Samsung device (103MB built 2026-03-06)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Backlog — Performance & Practice Epic
 
-### S26A — Audio Engine Foundation (NEXT)
-- [ ] Prove Expo Module + C++ + Oboe with "hello beep" test
-- [ ] Port metronome.h/cpp from ClickTrack (strip to essentials)
-- [ ] Port mixer.h/cpp from ClickTrack
-- [ ] Port wav_loader.h/cpp from ClickTrack
-- [ ] Write stripped audio_engine.h/cpp (metronome + mixer only)
-- [ ] Write Expo Native Module (Kotlin + JNI bridge)
-- [ ] JS API: startEngine, stopEngine, setBpm, setTimeSignature, setSubdivision, setSwing, setAccentPattern, setClickSound, setCountIn, startClick, stopClick, getCurrentBeat, getCurrentBar
-- [ ] loadSong(song) — configures engine from Song fields
-- [ ] Supabase migration: ALTER songs ADD lyrics TEXT, chords TEXT, beat_offset_ms INTEGER
-- [ ] Update shared types (Song: lyrics, chords, beat_offset_ms)
-- [ ] Update shared queries (song CRUD with new fields)
-- [ ] Role-based song edit form: Nathan sees metronome settings, others see simplified form
-- [ ] Both tsc clean
+### S26A — Audio Engine Foundation (DONE)
+- [x] Prove Expo Module + C++ + Oboe with "hello beep" test
+- [x] Port metronome.h/cpp from ClickTrack (strip to essentials)
+- [x] Port mixer.h/cpp from ClickTrack
+- [x] Port wav_loader.h/cpp from ClickTrack
+- [x] Write stripped audio_engine.h/cpp (metronome + mixer only)
+- [x] Write Expo Native Module (Kotlin + JNI bridge)
+- [x] JS API: startEngine, stopEngine, setBpm, setTimeSignature, setSubdivision, setSwing, setAccentPattern, setClickSound, setCountIn, startClick, stopClick, getCurrentBeat, getCurrentBar
+- [x] loadSong(song) — configures engine from Song fields
+- [x] Supabase migration: ALTER songs ADD lyrics TEXT, chords TEXT, beat_offset_ms INTEGER
+- [x] Update shared types (Song: lyrics, chords, beat_offset_ms)
+- [x] Update shared queries (song CRUD with new fields)
+- [x] Role-based song edit form: Nathan sees metronome settings, others see simplified form
+- [x] Both tsc clean
+- [ ] **BLOCKER**: C++ build verification needed — `npx expo prebuild --clean` + `gradlew assembleDebug`
 
-### S26B — Live Mode UI (native)
+### S26B — Live Mode UI (native) (NEXT)
 - [ ] Full-screen stage view — dark, high-contrast, stage-readable
 - [ ] Load setlist, navigate songs, engine auto-reconfigures
 - [ ] Song metadata: name, BPM, key, time sig, notes
@@ -129,3 +130,4 @@
 | S25B+C | Songs & Setlists UI (both apps) + setlist PDF sharing | 2026-03-06 |
 | -- | Gig list visibility toggle + 12hr AM/PM format + back nav fix | 2026-03-06 |
 | -- | Big-picture realignment: S26-S28 roadmap confirmed | 2026-03-06 |
+| S26A | Audio Engine Foundation: Expo Module + C++ + schema + role-based forms | 2026-03-06 |

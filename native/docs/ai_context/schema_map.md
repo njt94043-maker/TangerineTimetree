@@ -351,6 +351,9 @@ Master song library with metronome data for live/practice modes.
 | duration_seconds | INT | YES | NULL | Song length |
 | key | TEXT | YES | '' | Musical key |
 | notes | TEXT | YES | '' | Arrangement notes |
+| lyrics | TEXT | YES | '' | Song lyrics (stage prompter) — S26A |
+| chords | TEXT | YES | '' | Chord chart (stage prompter) — S26A |
+| beat_offset_ms | INT | YES | 0 | Click-to-track alignment offset — S26A |
 | audio_url | TEXT | YES | NULL | Supabase Storage URL (practice MP3) |
 | audio_storage_path | TEXT | YES | NULL | Storage bucket path |
 | created_by | UUID | NO | — | FK → profiles(id) |
@@ -556,4 +559,5 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | supabase/migrations/20260305200000_s23a_venue_client_restructure.sql | S23A: venues decoupled, ratings, venue_id FKs, venue_photos |
 | supabase/migrations/20260306100000_s24a_bill_to_flexibility.sql | S24A: venue contacts, nullable client_id, gig_id FK, CHECK constraints |
 | supabase/migrations/20260306200000_s25a_songs_setlists.sql | S25A: songs, setlists, setlist_songs tables + practice-tracks bucket |
+| supabase/migrations/20260306_s26a_song_lyrics_chords_beat_offset.sql | S26A: lyrics, chords, beat_offset_ms on songs |
 | shared/supabase/types.ts | All TypeScript interfaces |

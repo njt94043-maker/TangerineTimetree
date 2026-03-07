@@ -7,6 +7,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-06 | S26A — Audio Engine Foundation | Expo Native Module created (modules/click-engine/). Ported C++ engine from ClickTrack: metronome.h/cpp, mixer.h/cpp, wav_loader.h/cpp, stripped audio_engine.h/cpp (metronome+mixer only, no poly/sample/loop/midi). JNI bridge + Kotlin ClickEngineBridge + ClickEngineModule. JS/TS typed wrapper + loadSong() helper. Supabase migration: lyrics, chords, beat_offset_ms on songs. Shared types+queries updated. Role-based song forms (both apps): drummer sees metronome settings, others see simplified. Decision D-099 (Expo Module architecture). BLOCKER: C++ build not yet verified on device. |
 | 2026-03-06 | Big-picture realignment + S26-S28 roadmap | Confirmed full roadmap: S26A (C++ engine Expo Module + schema), S26B (Live Mode UI), S26C (track player + aubio + SoundTouch), S27A (Practice Mode UI), S27B (practice tools), S27C (web stage prompter), S28+ (recording). C++ ported from ClickTrack (C:\Apps\Click), not built from scratch. Single Oboe stream (zero drift). aubio for beat detection, SoundTouch for time-stretch. Beat step/nudge from Rec'n'Share. Role-based song forms. Lyrics + chords + beat_offset_ms schema additions. Pre-flight passed: NDK/CMake/expo-modules-core all ready. Decisions D-090–D-098. Sprint prompts written for S26A–S27C. |
 | 2026-03-06 | APK rebuild + S26A scoping | APK rebuilt (103MB release, assembleRelease 7m14s). S26A planning started: no existing Oboe/C++ code in repo, Song schema has all metronome fields (bpm, swing_percent, subdivision, accent_pattern, click_sound, count_in_bars). User notes: swing = slider with snap-to-middle. Deferred S26A for big-picture realignment session. |
 | 2026-03-06 | S25B+C — Songs & Setlists UI + PDF + extras | Songs UI (both apps): list, search, add, edit, delete. Setlists UI (both apps): list, create, detail with song management + drag-to-reorder (web) + move up/down (native). Setlist PDF: band-themed template with logo, gradient header, song table, sharing. Gig list: visibility toggle (globe/lock icon). 12hr AM/PM time format throughout (web fmt() + native fmt/formatTime). Gig list back nav fix (popstate delay 0→100ms). Both tsc clean. |
@@ -50,6 +51,55 @@
 | 2026-03-04 | Audit phases 1-3 | Sync, errors, validation, auth, web redesign, native UX |
 | 2026-03-03 | Native gig list + monorepo | Gig list view, Cal/List toggle, monorepo restructure |
 | 2026-03-03 | Shared gig calendar | Supabase backend, Timetree PWA, gig types |
+
+---
+
+## Session: 2026-03-06 — Sprint S26A: Audio Engine Foundation
+
+### What was built
+
+**Expo Native Module (`modules/click-engine/`):**
+- `expo-module.config.json` — auto-linked Android module
+- `android/build.gradle` — CMake + Oboe 1.9.2 prefab
+- `android/CMakeLists.txt` — builds `clickengine` shared library from 5 C++ files
+- `android/src/main/AndroidManifest.xml` — minimal library manifest
+
+**C++ engine (ported from ClickTrack, namespace `gigbooks`):**
+- `metronome.h/cpp` — frame-counting metronome with subdivisions, swing, speed trainer, muted bars, custom clicks, count-in, beat displacement, random drop, backbeat, split stereo
+- `mixer.h/cpp` — 16-channel gain management, master gain, split stereo
+- `wav_loader.h/cpp` — 16-bit PCM WAV loader → stereo float
+- `audio_engine.h/cpp` — **stripped**: metronome + mixer only (no poly/sample/loop/midi). Singleton, Oboe callbacks.
+- `jni_bridge.cpp` — JNI bridge (`Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_*`)
+
+**Kotlin layer:**
+- `ClickEngineBridge.kt` — `object` with `@JvmStatic external` native methods
+- `ClickEngineModule.kt` — Expo `Module()` with full function definitions (Double→Float conversions for JS interop)
+
+**JS/TS layer:**
+- `modules/click-engine/src/ClickEngineModule.ts` — `requireNativeModule('ClickEngine')`
+- `modules/click-engine/index.ts` — typed exports + click sound constants
+- `src/audio/ClickEngine.ts` — higher-level wrapper with `loadSong(song: Song)` helper
+
+**Schema migration:**
+- `20260306_s26a_song_lyrics_chords_beat_offset.sql` — ALTER songs ADD lyrics, chords, beat_offset_ms
+- Pushed to Supabase (migration repair required for 12 remote-only versions)
+
+**Shared types + queries:**
+- Song: added `lyrics: string`, `chords: string`, `beat_offset_ms: number`
+- SetlistSongWithDetails: added `song_lyrics`, `song_chords`
+- createSong: added `lyrics?`, `chords?`, `beat_offset_ms?` params
+- getSetlistSongs: select + mapping updated for lyrics/chords
+
+**Role-based song forms (both apps):**
+- Native `song/new.tsx` + `song/[id].tsx`: conditional metronome section (drummer only), chords/lyrics card (all)
+- Web `SongForm.tsx`: `bandRole` prop, conditional metronome section, chords/lyrics card
+- Web `App.tsx`: passes `bandRole={profile?.band_role}` to SongForm
+
+### Blockers
+- C++ build not verified on device — needs `npx expo prebuild --clean` + `gradlew assembleDebug`
+
+### Decisions
+- D-099: Expo Native Module architecture for C++ audio (local module in modules/, Kotlin object JNI bridge, stripped engine)
 
 ---
 

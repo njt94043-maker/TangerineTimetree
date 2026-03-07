@@ -5,6 +5,7 @@ import { NeuCard, NeuWell, NeuButton, NeuSelect } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
 import { getSong, updateSong, deleteSong } from '../../src/db';
 import type { Song, ClickSound } from '../../src/db';
+import { useAuth } from '../../src/supabase/AuthContext';
 
 const CLICK_SOUNDS: ClickSound[] = ['default', 'high', 'low', 'wood', 'rim'];
 const TIME_SIG_TOPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
@@ -13,6 +14,8 @@ const TIME_SIG_BOTTOMS = [2, 4, 8, 16];
 export default function EditSongScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { profile } = useAuth();
+  const isDrummer = profile?.band_role === 'Drums';
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +32,8 @@ export default function EditSongScreen() {
   const [durationSeconds, setDurationSeconds] = useState('');
   const [key, setKey] = useState('');
   const [notes, setNotes] = useState('');
+  const [lyrics, setLyrics] = useState('');
+  const [chords, setChords] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -46,6 +51,8 @@ export default function EditSongScreen() {
       setDurationSeconds(song.duration_seconds ? String(song.duration_seconds) : '');
       setKey(song.key);
       setNotes(song.notes);
+      setLyrics(song.lyrics);
+      setChords(song.chords);
       setLoaded(true);
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -74,6 +81,8 @@ export default function EditSongScreen() {
         duration_seconds: durationSeconds ? parseInt(durationSeconds) : null,
         key: key.trim(),
         notes: notes.trim(),
+        lyrics: lyrics.trim(),
+        chords: chords.trim(),
       });
       router.back();
     } catch (err) {
@@ -134,8 +143,6 @@ export default function EditSongScreen() {
       </NeuCard>
 
       <NeuCard>
-        <Text style={styles.sectionTitle}>Metronome</Text>
-
         <View style={styles.row2}>
           <View style={styles.col}>
             <Text style={LABEL}>BPM *</Text>
@@ -164,47 +171,65 @@ export default function EditSongScreen() {
             </View>
           </View>
         </View>
+      </NeuCard>
 
-        <View style={styles.row2}>
-          <View style={styles.col}>
-            <Text style={LABEL}>SUBDIVISION</Text>
-            <NeuSelect
-              value={String(subdivision)}
-              options={[
-                { label: 'Quarter', value: '1' },
-                { label: 'Eighth', value: '2' },
-                { label: 'Triplet', value: '3' },
-                { label: '16th', value: '4' },
-              ]}
-              onChange={v => setSubdivision(Number(v))}
-            />
-          </View>
-          <View style={styles.col}>
-            <Text style={LABEL}>SWING %</Text>
-            <NeuWell style={styles.well}>
-              <TextInput style={styles.input} value={swingPercent} onChangeText={setSwingPercent} keyboardType="number-pad" />
-            </NeuWell>
-          </View>
-        </View>
+      {isDrummer && (
+        <NeuCard>
+          <Text style={styles.sectionTitle}>Metronome</Text>
 
-        <View style={styles.row2}>
-          <View style={styles.col}>
-            <Text style={LABEL}>CLICK SOUND</Text>
-            <NeuSelect
-              value={clickSound}
-              options={CLICK_SOUNDS.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))}
-              onChange={v => setClickSound(v as ClickSound)}
-            />
+          <View style={styles.row2}>
+            <View style={styles.col}>
+              <Text style={LABEL}>SUBDIVISION</Text>
+              <NeuSelect
+                value={String(subdivision)}
+                options={[
+                  { label: 'Quarter', value: '1' },
+                  { label: 'Eighth', value: '2' },
+                  { label: 'Triplet', value: '3' },
+                  { label: '16th', value: '4' },
+                ]}
+                onChange={v => setSubdivision(Number(v))}
+              />
+            </View>
+            <View style={styles.col}>
+              <Text style={LABEL}>SWING %</Text>
+              <NeuWell style={styles.well}>
+                <TextInput style={styles.input} value={swingPercent} onChangeText={setSwingPercent} keyboardType="number-pad" />
+              </NeuWell>
+            </View>
           </View>
-          <View style={styles.col}>
-            <Text style={LABEL}>COUNT-IN BARS</Text>
-            <NeuSelect
-              value={String(countInBars)}
-              options={[0, 1, 2, 4, 8].map(n => ({ label: n === 0 ? 'None' : `${n}`, value: String(n) }))}
-              onChange={v => setCountInBars(Number(v))}
-            />
+
+          <View style={styles.row2}>
+            <View style={styles.col}>
+              <Text style={LABEL}>CLICK SOUND</Text>
+              <NeuSelect
+                value={clickSound}
+                options={CLICK_SOUNDS.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))}
+                onChange={v => setClickSound(v as ClickSound)}
+              />
+            </View>
+            <View style={styles.col}>
+              <Text style={LABEL}>COUNT-IN BARS</Text>
+              <NeuSelect
+                value={String(countInBars)}
+                options={[0, 1, 2, 4, 8].map(n => ({ label: n === 0 ? 'None' : `${n}`, value: String(n) }))}
+                onChange={v => setCountInBars(Number(v))}
+              />
+            </View>
           </View>
-        </View>
+        </NeuCard>
+      )}
+
+      <NeuCard>
+        <Text style={LABEL}>CHORDS</Text>
+        <NeuWell style={styles.well}>
+          <TextInput style={[styles.input, { minHeight: 60, textAlignVertical: 'top' }]} value={chords} onChangeText={setChords} placeholder="e.g. Am - F - C - G" placeholderTextColor={COLORS.textMuted} multiline numberOfLines={3} />
+        </NeuWell>
+
+        <Text style={LABEL}>LYRICS</Text>
+        <NeuWell style={styles.well}>
+          <TextInput style={[styles.input, { minHeight: 100, textAlignVertical: 'top' }]} value={lyrics} onChangeText={setLyrics} placeholder="Song lyrics..." placeholderTextColor={COLORS.textMuted} multiline numberOfLines={5} />
+        </NeuWell>
       </NeuCard>
 
       <NeuCard>
