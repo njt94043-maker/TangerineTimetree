@@ -57,21 +57,24 @@
 - [x] analyseTrack() returns BPM + beatOffsetMs for auto-populate
 - [ ] **BLOCKER**: C++ build verification needed — prebuild + assembleDebug
 
-### S27A — Practice Mode UI (native)
-- [ ] Practice screen — select song with attached MP3
-- [ ] Waveform or progress bar
-- [ ] Speed slider (50%-150%, pitch preserved)
-- [ ] A-B loop marker setting
-- [ ] Click volume + track volume sliders
-- [ ] Count-in before playback
-- [ ] Beat step/nudge button
-- [ ] BPM display updates with speed changes
+### S27A — Practice Mode UI (native) (DONE)
+- [x] Practice screen — select song with attached MP3, search/filter
+- [x] Progress bar with playhead + time display
+- [x] Speed slider (50%-150%, pitch preserved) with +/-5% buttons and reset
+- [x] A-B loop markers (set A, set B, clear — visual on progress bar)
+- [x] Click volume + track volume + master volume sliders
+- [x] Split stereo toggle (IEM: click L, track R)
+- [x] Count-in selector (off, 1, 2, 4 bars)
+- [x] Beat step/nudge buttons (earlier/later)
+- [x] BPM display updates with speed changes (shows effective + original)
+- [x] Beat visualization (LED dots from Live Mode)
+- [x] Transport: play/pause/stop
+- [x] Drawer nav: Practice in Performance section
 
 ### S27B — Practice Tools (native)
-- [ ] Speed trainer: auto-increment BPM every N bars (already in metronome.cpp)
 - [ ] Tap tempo: measure intervals, set BPM, save to song
-- [ ] Muted bars mode (already in metronome.cpp)
-- [ ] Save all settings back to song in Supabase
+- [ ] Save all current settings back to Song in Supabase (one button)
+- [ ] Song notes display in practice view
 
 ### S27C — Web Stage Prompter
 - [ ] Read-only setlist display with song details
@@ -96,6 +99,7 @@
 - C++ audio engine ported from ClickTrack (proven Oboe/metronome code)
 - Single Oboe stream — metronome + track player mixed in C++ callback (zero drift)
 - aubio for beat detection, SoundTouch for time-stretch (both C++)
+- Speed trainer + gap click (muted bars) CUT from practice mode (user prefers manual tempo control)
 - Beat step/nudge button for manual click-to-track alignment
 - Role-based song forms: Nathan sees metronome settings, others see simplified
 - Lyrics + chords on Song (stage prompter for all members)

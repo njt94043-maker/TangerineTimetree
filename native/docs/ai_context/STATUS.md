@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S26C complete. **Ready for S27A (Practice Mode UI).**
+- **Phase**: S27A complete. **Ready for S27B (Practice Tools — tap tempo, save settings, song notes).**
 - **Blocker**: S26A C++ build NOT yet verified on device. `npx expo prebuild --clean` + `gradlew assembleDebug` needed to confirm Oboe + SoundTouch + track player compile.
-- **Last session**: 2026-03-07 — S26C: Track Player Engine. C++ track_player, beat detector, SoundTouch integration, MP3 decode pipeline, A-B loop, speed control, nudge, full JS API.
-- **Next action**: Verify C++ build on device, then S27A — Practice Mode UI
+- **Last session**: 2026-03-07 — S27A: Practice Mode UI. Full practice screen with song picker, MP3 loading, speed control, A-B loop, beat viz, volume mix, split stereo, count-in, beat nudge.
+- **Next action**: Verify C++ build on device, then S27B — Practice Tools (tap tempo, save settings, song notes)
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -53,8 +53,8 @@
 | **S26A** | **C++ audio engine Expo Module + schema migration (lyrics/chords/beat_offset_ms) + role-based song form** | **DONE** |
 | **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | **DONE** |
 | **S26C** | **Track player C++ + beat detection + SoundTouch time-stretch + A-B loop + MP3 decode** | **DONE** |
-| **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | PLANNED |
-| **S27B** | **Practice tools — speed trainer, tap tempo, muted bars, save to song** | PLANNED |
+| **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | **DONE** |
+| **S27B** | **Practice tools — tap tempo, save settings to song, song notes display** | PLANNED |
 | **S27C** | **Web stage prompter — lyrics/chords/song info, setlist nav (no audio)** | PLANNED |
 | **S28+** | **Recording/video — spec later** | BACKLOG |
 

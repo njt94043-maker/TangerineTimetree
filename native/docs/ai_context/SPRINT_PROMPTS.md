@@ -694,26 +694,21 @@ TypeScript clean. Update SOT docs.
 ```
 Read native/docs/ai_context/STATUS.md first, then todo.md (S27B section).
 
-This is Sprint S27B — advanced practice tools for native app.
+This is Sprint S27B — practice tools for native app.
 
 CONTEXT:
 - S27A complete: Practice Mode UI working with MP3 + click + speed control + A-B loop
-- Metronome.cpp already has speed trainer + muted bars built in (from ClickTrack)
+- Practice screen: app/(drawer)/practice.tsx
+- Speed trainer and gap click (muted bars) REMOVED from scope (user prefers manual tempo control)
 
 TASKS:
-1. Speed trainer UI: enable/disable, set start BPM, end BPM, increment, bars per increment
-   - Wire to setSpeedTrainer() already in C++ engine
-   - Display current trainer BPM, "Complete!" when target reached
-2. Tap tempo: tap a button repeatedly, measure intervals, calculate BPM
+1. Tap tempo: tap a button repeatedly, measure intervals, calculate BPM
    - Display detected BPM live as you tap
    - "Apply" saves to engine (setBpm) + "Save to Song" writes to Supabase
-3. Muted bars UI: enable/disable, set play bars count, mute bars count
-   - Wire to setMutedBars() already in C++ engine
-   - Visual indicator when current bar is muted
-4. Save all current settings back to Song in Supabase:
+2. Save all current settings back to Song in Supabase:
    - BPM, subdivision, swing, accent pattern, click sound, count-in, beat_offset_ms
-   - One "Save Settings" button
-5. Song notes display in practice view (quick reference while practicing)
+   - One "Save Settings" button on practice screen
+3. Song notes display in practice view (quick reference while practicing)
 
 TypeScript clean. Update SOT docs.
 ```
