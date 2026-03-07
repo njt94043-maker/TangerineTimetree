@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S27C complete + UI alignment sprint. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
+- **Phase**: S27C complete + visual parity audit + audio upload UI. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
 - **Blocker**: NONE — C++ build verified. APK installed on device.
-- **Last session**: 2026-03-07 — UI alignment: native calendar matches web (drawer nav, flex grid, styling parity). Removed Cal/List toggle + Away Dates button from calendar (drawer handles nav). Added Gig List + Away Dates drawer screens. Flex-based calendar grid. Safe area fix. Wider web calendar.
-- **Next action**: S28+ — Recording/Video spec
+- **Last session**: 2026-03-07 — Visual parity audit (8 fixes): calendar neon glows, Today button restyle, shadow simplification, drawer user avatar, song/setlist card accents, drawer logo single-line. Audio upload UI added to song edit forms (both apps). expo-document-picker installed.
+- **Next action**: S28+ — Recording/Video spec. Future: local audio caching, Moises-style library management.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

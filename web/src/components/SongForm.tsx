@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getSong, createSong, updateSong } from '@shared/supabase/queries';
+import { useState, useEffect, useRef } from 'react';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack } from '@shared/supabase/queries';
 import type { ClickSound } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
@@ -36,6 +36,12 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const [lyrics, setLyrics] = useState('');
   const [chords, setChords] = useState('');
 
+  // Audio track
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [audioError, setAudioError] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!songId) return;
     getSong(songId).then(song => {
@@ -54,6 +60,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setNotes(song.notes);
       setLyrics(song.lyrics);
       setChords(song.chords);
+      setAudioUrl(song.audio_url);
       setLoading(false);
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load song');
@@ -96,6 +103,33 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !songId) return;
+    setAudioUploading(true);
+    setAudioError('');
+    try {
+      const buffer = await file.arrayBuffer();
+      const url = await uploadPracticeTrack(songId, file.name, buffer, file.type || 'audio/mpeg');
+      setAudioUrl(url);
+    } catch (err) {
+      setAudioError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setAudioUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleRemoveAudio() {
+    if (!songId || !confirm('Delete the practice track from cloud storage?')) return;
+    try {
+      await deletePracticeTrack(songId);
+      setAudioUrl(null);
+    } catch (err) {
+      setAudioError(err instanceof Error ? err.message : 'Failed to remove');
     }
   }
 
@@ -225,6 +259,27 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           <textarea className="input-field input-textarea" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Performance notes..." rows={3} />
         </div>
       </div>
+
+      {isEdit && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <h3 className="form-section-title">Practice Track</h3>
+          <input ref={fileRef} type="file" accept="audio/*" onChange={handleFileSelected} style={{ display: 'none' }} />
+          {audioUploading ? (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: 13 }}>Uploading...</p>
+          ) : audioUrl ? (
+            <div>
+              <p style={{ color: 'var(--color-green)', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Track attached</p>
+              <div className="flex-row-gap-8">
+                <button className="btn btn-small btn-tangerine" onClick={() => fileRef.current?.click()}>Replace Track</button>
+                <button className="btn btn-small btn-danger" onClick={handleRemoveAudio}>Remove</button>
+              </div>
+            </div>
+          ) : (
+            <button className="btn btn-small btn-green" onClick={() => fileRef.current?.click()}>+ Add MP3 / Audio</button>
+          )}
+          {audioError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginTop: 6 }}>{audioError}</p>}
+        </div>
+      )}
     </div>
   );
 }

@@ -10,11 +10,12 @@ import {
   Animated,
   TextInput,
   Switch,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { COLORS, FONTS, neuRaisedStyle, neuInsetStyle } from '../../src/theme';
-import { getSongs } from '../../src/db';
+import { getSongs, updateSong } from '../../src/db';
 import type { Song } from '../../src/db';
 import {
   loadSong,
@@ -73,6 +74,17 @@ export default function PracticeScreen() {
   // Count-in
   const [countInBars, setCountInBars] = useState(0);
   const [isCountIn, setIsCountIn] = useState(false);
+
+  // Tap tempo
+  const tapTimesRef = useRef<number[]>([]);
+  const [tapBpm, setTapBpm] = useState<number | null>(null);
+  const tapResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Save state
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Notes expanded
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   // Beat viz
   const rafRef = useRef<number | null>(null);
@@ -319,6 +331,83 @@ export default function PracticeScreen() {
     setLoadError(null);
   }
 
+  // -- Tap Tempo --
+
+  function handleTap() {
+    const now = Date.now();
+    // Reset if more than 2 seconds since last tap
+    if (tapTimesRef.current.length > 0 && now - tapTimesRef.current[tapTimesRef.current.length - 1] > 2000) {
+      tapTimesRef.current = [];
+    }
+    tapTimesRef.current.push(now);
+
+    // Keep last 8 taps max
+    if (tapTimesRef.current.length > 8) {
+      tapTimesRef.current = tapTimesRef.current.slice(-8);
+    }
+
+    // Need at least 2 taps to calculate
+    if (tapTimesRef.current.length >= 2) {
+      const times = tapTimesRef.current;
+      let totalInterval = 0;
+      for (let i = 1; i < times.length; i++) {
+        totalInterval += times[i] - times[i - 1];
+      }
+      const avgInterval = totalInterval / (times.length - 1);
+      const bpm = Math.round(60000 / avgInterval);
+      setTapBpm(Math.max(20, Math.min(300, bpm)));
+    }
+
+    // Auto-reset after 3 seconds of no taps
+    if (tapResetTimerRef.current) clearTimeout(tapResetTimerRef.current);
+    tapResetTimerRef.current = setTimeout(() => {
+      tapTimesRef.current = [];
+    }, 3000);
+  }
+
+  function handleApplyTapBpm() {
+    if (!tapBpm) return;
+    ClickEngineNative.setBpm(tapBpm);
+    setTapBpm(null);
+    tapTimesRef.current = [];
+  }
+
+  async function handleSaveToSong() {
+    if (!tapBpm || !selectedSong) return;
+    try {
+      await updateSong(selectedSong.id, { bpm: tapBpm });
+      setSelectedSong({ ...selectedSong, bpm: tapBpm });
+      setTapBpm(null);
+      tapTimesRef.current = [];
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save BPM to song');
+    }
+  }
+
+  // -- Save All Settings --
+
+  async function handleSaveSettings() {
+    if (!selectedSong) return;
+    setIsSaving(true);
+    try {
+      await updateSong(selectedSong.id, {
+        bpm: effectiveBpm,
+        subdivision: selectedSong.subdivision,
+        swing_percent: selectedSong.swing_percent,
+        accent_pattern: selectedSong.accent_pattern,
+        click_sound: selectedSong.click_sound,
+        count_in_bars: countInBars,
+        beat_offset_ms: selectedSong.beat_offset_ms,
+      });
+      setSelectedSong({ ...selectedSong, bpm: effectiveBpm, count_in_bars: countInBars });
+      Alert.alert('Saved', 'Settings saved to song.');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save settings.');
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   // -- Helpers --
 
   function formatTime(ms: number): string {
@@ -436,6 +525,22 @@ export default function PracticeScreen() {
         </View>
       </View>
 
+      {/* Song notes */}
+      {selectedSong?.notes ? (
+        <Pressable
+          style={styles.notesContainer}
+          onPress={() => setNotesExpanded(!notesExpanded)}
+        >
+          <View style={styles.notesHeader}>
+            <Text style={styles.notesLabel}>NOTES</Text>
+            <Text style={styles.notesToggle}>{notesExpanded ? 'Hide' : 'Show'}</Text>
+          </View>
+          {notesExpanded && (
+            <Text style={styles.notesText}>{selectedSong.notes}</Text>
+          )}
+        </Pressable>
+      ) : null}
+
       {/* BPM display */}
       <View style={styles.bpmContainer}>
         <Text style={styles.bpmLabel}>BPM</Text>
@@ -445,6 +550,37 @@ export default function PracticeScreen() {
             ({baseBpm} x {Math.round(speedRatio * 100)}%)
           </Text>
         )}
+      </View>
+
+      {/* Tap Tempo */}
+      <View style={styles.controlSection}>
+        <Text style={styles.sectionLabel}>TAP TEMPO</Text>
+        <View style={styles.tapTempoRow}>
+          <Pressable
+            style={[styles.tapBtn, neuRaisedStyle('strong')]}
+            onPress={handleTap}
+          >
+            <Text style={styles.tapBtnText}>TAP</Text>
+          </Pressable>
+          {tapBpm !== null && (
+            <View style={styles.tapResultRow}>
+              <Text style={styles.tapBpmText}>{tapBpm}</Text>
+              <Text style={styles.tapBpmUnit}>BPM</Text>
+              <Pressable
+                style={[styles.tapApplyBtn, neuRaisedStyle('subtle')]}
+                onPress={handleApplyTapBpm}
+              >
+                <Text style={styles.tapApplyText}>Apply</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tapApplyBtn, neuRaisedStyle('subtle')]}
+                onPress={handleSaveToSong}
+              >
+                <Text style={[styles.tapApplyText, { color: COLORS.orange }]}>Save to Song</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Count-in indicator */}
@@ -677,6 +813,20 @@ export default function PracticeScreen() {
             </Pressable>
           ))}
         </View>
+      </View>
+
+      {/* Save Settings */}
+      <View style={styles.controlSection}>
+        <Pressable
+          style={[styles.saveBtn, neuRaisedStyle('strong'), isSaving && { opacity: 0.5 }]}
+          onPress={handleSaveSettings}
+          disabled={isSaving}
+        >
+          <Text style={styles.saveBtnText}>{isSaving ? 'SAVING...' : 'SAVE SETTINGS TO SONG'}</Text>
+        </Pressable>
+        <Text style={styles.saveHint}>
+          Saves BPM, subdivision, swing, accent, click sound, count-in, beat offset
+        </Text>
       </View>
 
       {/* Bottom spacer */}
@@ -1234,5 +1384,108 @@ const styles = StyleSheet.create({
   },
   countInActiveText: {
     color: COLORS.teal,
+  },
+
+  // -- Notes --
+  notesContainer: {
+    marginHorizontal: 24,
+    marginVertical: 4,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  notesLabel: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 1.5,
+  },
+  notesToggle: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.teal,
+  },
+  notesText: {
+    fontFamily: FONTS.body,
+    fontSize: 13,
+    color: COLORS.textDim,
+    marginTop: 8,
+    lineHeight: 20,
+  },
+
+  // -- Tap Tempo --
+  tapTempoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  tapBtn: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1a2d1a',
+  },
+  tapBtnText: {
+    fontFamily: FONTS.mono,
+    fontSize: 16,
+    color: COLORS.green,
+    letterSpacing: 2,
+  },
+  tapResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  tapBpmText: {
+    fontFamily: FONTS.mono,
+    fontSize: 28,
+    color: COLORS.green,
+  },
+  tapBpmUnit: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 10,
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginRight: 4,
+  },
+  tapApplyBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  tapApplyText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.teal,
+  },
+
+  // -- Save Settings --
+  saveBtn: {
+    backgroundColor: '#1a2d2d',
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  saveBtnText: {
+    fontFamily: FONTS.mono,
+    fontSize: 13,
+    color: COLORS.teal,
+    letterSpacing: 1,
+  },
+  saveHint: {
+    fontFamily: FONTS.body,
+    fontSize: 11,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+    marginTop: 6,
   },
 });

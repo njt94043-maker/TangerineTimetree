@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { NeuCard, NeuWell, NeuButton, NeuSelect } from '../../src/components';
 import { COLORS, FONTS, LABEL } from '../../src/theme';
-import { getSong, updateSong, deleteSong } from '../../src/db';
+import { getSong, updateSong, deleteSong, uploadPracticeTrack, deletePracticeTrack } from '../../src/db';
 import type { Song, ClickSound } from '../../src/db';
 import { useAuth } from '../../src/supabase/AuthContext';
 
@@ -35,6 +37,11 @@ export default function EditSongScreen() {
   const [lyrics, setLyrics] = useState('');
   const [chords, setChords] = useState('');
 
+  // Audio track
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUploading, setAudioUploading] = useState(false);
+  const [audioError, setAudioError] = useState('');
+
   useEffect(() => {
     if (!id) return;
     getSong(id).then(song => {
@@ -53,6 +60,7 @@ export default function EditSongScreen() {
       setNotes(song.notes);
       setLyrics(song.lyrics);
       setChords(song.chords);
+      setAudioUrl(song.audio_url);
       setLoaded(true);
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -102,6 +110,52 @@ export default function EditSongScreen() {
             router.back();
           } catch {
             Alert.alert('Error', 'Failed to delete song');
+          }
+        },
+      },
+    ]);
+  }
+
+  async function handlePickAudio() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-m4a', 'audio/mp4'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      setAudioUploading(true);
+      setAudioError('');
+
+      const fileInfo = await FileSystem.getInfoAsync(asset.uri);
+      if (!fileInfo.exists) { setAudioError('File not found'); setAudioUploading(false); return; }
+
+      // Read file as base64 and convert to ArrayBuffer
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+
+      const url = await uploadPracticeTrack(id!, asset.name, bytes.buffer as ArrayBuffer, asset.mimeType ?? 'audio/mpeg');
+      setAudioUrl(url);
+    } catch (err) {
+      setAudioError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setAudioUploading(false);
+    }
+  }
+
+  function handleRemoveAudio() {
+    Alert.alert('Remove Track', 'Delete the practice track from cloud storage?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await deletePracticeTrack(id!);
+            setAudioUrl(null);
+          } catch (err) {
+            setAudioError(err instanceof Error ? err.message : 'Failed to remove');
           }
         },
       },
@@ -239,6 +293,29 @@ export default function EditSongScreen() {
         </NeuWell>
       </NeuCard>
 
+      <NeuCard>
+        <Text style={styles.sectionTitle}>Practice Track</Text>
+        {audioUploading ? (
+          <View style={styles.audioRow}>
+            <ActivityIndicator color={COLORS.teal} />
+            <Text style={styles.audioStatus}>Uploading...</Text>
+          </View>
+        ) : audioUrl ? (
+          <View>
+            <View style={styles.audioRow}>
+              <Text style={styles.audioAttached}>Track attached</Text>
+            </View>
+            <View style={styles.audioActions}>
+              <NeuButton label="Replace Track" onPress={handlePickAudio} color={COLORS.orange} small />
+              <NeuButton label="Remove" onPress={handleRemoveAudio} color={COLORS.danger} small />
+            </View>
+          </View>
+        ) : (
+          <NeuButton label="+ Add MP3 / Audio" onPress={handlePickAudio} color={COLORS.teal} small />
+        )}
+        {audioError ? <Text style={styles.audioErrorText}>{audioError}</Text> : null}
+      </NeuCard>
+
       <NeuButton label="Delete Song" onPress={handleDelete} color={COLORS.danger} style={{ marginTop: 12 }} />
     </ScrollView>
   );
@@ -258,4 +335,9 @@ const styles = StyleSheet.create({
   timeSigRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   timeSigSlash: { fontFamily: FONTS.body, fontSize: 16, color: COLORS.textDim },
   emptyText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textDim, textAlign: 'center', marginTop: 40 },
+  audioRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  audioAttached: { fontFamily: FONTS.bodyBold, fontSize: 13, color: COLORS.green },
+  audioStatus: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.textDim },
+  audioActions: { flexDirection: 'row', gap: 8 },
+  audioErrorText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.danger, marginTop: 6 },
 });

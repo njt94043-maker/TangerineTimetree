@@ -18,28 +18,16 @@ export function neuRaisedStyle(intensity: ShadowIntensity = 'normal'): ViewStyle
     shadowOffset: { width: config.offset, height: config.offset },
     shadowOpacity: 0.8,
     shadowRadius: config.radius,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.04)',
-    borderLeftColor: 'rgba(255,255,255,0.04)',
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderRightColor: 'rgba(0,0,0,0.3)',
-    borderBottomColor: 'rgba(0,0,0,0.3)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
   };
 }
 
-export function neuInsetStyle(intensity: ShadowIntensity = 'normal'): ViewStyle {
+export function neuInsetStyle(_intensity: ShadowIntensity = 'normal'): ViewStyle {
   return {
     backgroundColor: '#0c0c12',
     borderRadius: 12,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.5)',
-    borderLeftColor: 'rgba(0,0,0,0.5)',
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.03)',
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
   };
 }
