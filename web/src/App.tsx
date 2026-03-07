@@ -488,6 +488,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             songId={editSongId}
             onClose={goBack}
             onSaved={() => { goToSongs(); }}
+            bandRole={profile?.band_role}
           />
         )}
 

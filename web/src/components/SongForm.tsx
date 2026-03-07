@@ -11,10 +11,12 @@ interface SongFormProps {
   songId: string | null;
   onClose: () => void;
   onSaved: () => void;
+  bandRole?: string;
 }
 
-export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
+export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) {
   const isEdit = !!songId;
+  const isDrummer = bandRole === 'Drums';
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -31,6 +33,8 @@ export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
   const [durationSeconds, setDurationSeconds] = useState('');
   const [key, setKey] = useState('');
   const [notes, setNotes] = useState('');
+  const [lyrics, setLyrics] = useState('');
+  const [chords, setChords] = useState('');
 
   useEffect(() => {
     if (!songId) return;
@@ -48,6 +52,8 @@ export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
       setDurationSeconds(song.duration_seconds ? String(song.duration_seconds) : '');
       setKey(song.key);
       setNotes(song.notes);
+      setLyrics(song.lyrics);
+      setChords(song.chords);
       setLoading(false);
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load song');
@@ -76,6 +82,8 @@ export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
         duration_seconds: durationSeconds ? parseInt(durationSeconds) : null,
         key: key.trim(),
         notes: notes.trim(),
+        lyrics: lyrics.trim(),
+        chords: chords.trim(),
       };
 
       if (isEdit && songId) {
@@ -128,8 +136,6 @@ export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
       </div>
 
       <div className="neu-card" style={{ marginBottom: 12 }}>
-        <h3 className="form-section-title">Metronome</h3>
-
         <div className="form-row-2col">
           <div>
             <label className="label">BPM *</label>
@@ -154,44 +160,62 @@ export function SongForm({ songId, onClose, onSaved }: SongFormProps) {
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="form-row-2col">
-          <div>
-            <label className="label">SUBDIVISION</label>
-            <div className="neu-inset">
-              <select className="input-field" value={subdivision} onChange={e => setSubdivision(Number(e.target.value))}>
-                <option value={1}>Quarter notes</option>
-                <option value={2}>Eighth notes</option>
-                <option value={3}>Triplets</option>
-                <option value={4}>Sixteenth notes</option>
-              </select>
+      {isDrummer && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <h3 className="form-section-title">Metronome</h3>
+
+          <div className="form-row-2col">
+            <div>
+              <label className="label">SUBDIVISION</label>
+              <div className="neu-inset">
+                <select className="input-field" value={subdivision} onChange={e => setSubdivision(Number(e.target.value))}>
+                  <option value={1}>Quarter notes</option>
+                  <option value={2}>Eighth notes</option>
+                  <option value={3}>Triplets</option>
+                  <option value={4}>Sixteenth notes</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">SWING %</label>
+              <div className="neu-inset">
+                <input className="input-field" type="number" min="50" max="75" value={swingPercent} onChange={e => setSwingPercent(e.target.value)} />
+              </div>
             </div>
           </div>
-          <div>
-            <label className="label">SWING %</label>
-            <div className="neu-inset">
-              <input className="input-field" type="number" min="50" max="75" value={swingPercent} onChange={e => setSwingPercent(e.target.value)} />
+
+          <div className="form-row-2col">
+            <div>
+              <label className="label">CLICK SOUND</label>
+              <div className="neu-inset">
+                <select className="input-field" value={clickSound} onChange={e => setClickSound(e.target.value as ClickSound)}>
+                  {CLICK_SOUNDS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">COUNT-IN BARS</label>
+              <div className="neu-inset">
+                <select className="input-field" value={countInBars} onChange={e => setCountInBars(Number(e.target.value))}>
+                  {[0, 1, 2, 4, 8].map(n => <option key={n} value={n}>{n === 0 ? 'None' : `${n} bar${n > 1 ? 's' : ''}`}</option>)}
+                </select>
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="form-row-2col">
-          <div>
-            <label className="label">CLICK SOUND</label>
-            <div className="neu-inset">
-              <select className="input-field" value={clickSound} onChange={e => setClickSound(e.target.value as ClickSound)}>
-                {CLICK_SOUNDS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="label">COUNT-IN BARS</label>
-            <div className="neu-inset">
-              <select className="input-field" value={countInBars} onChange={e => setCountInBars(Number(e.target.value))}>
-                {[0, 1, 2, 4, 8].map(n => <option key={n} value={n}>{n === 0 ? 'None' : `${n} bar${n > 1 ? 's' : ''}`}</option>)}
-              </select>
-            </div>
-          </div>
+      <div className="neu-card" style={{ marginBottom: 12 }}>
+        <label className="label">CHORDS</label>
+        <div className="neu-inset">
+          <textarea className="input-field input-textarea" value={chords} onChange={e => setChords(e.target.value)} placeholder="e.g. Am - F - C - G" rows={3} />
+        </div>
+
+        <label className="label">LYRICS</label>
+        <div className="neu-inset">
+          <textarea className="input-field input-textarea" value={lyrics} onChange={e => setLyrics(e.target.value)} placeholder="Song lyrics..." rows={5} />
         </div>
       </div>
 
