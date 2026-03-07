@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S27A complete. **Ready for S27B (Practice Tools — tap tempo, save settings, song notes).**
+- **Phase**: S27C complete. **Ready for S28+ (Recording/Video) or C++ build verification.**
 - **Blocker**: S26A C++ build NOT yet verified on device. `npx expo prebuild --clean` + `gradlew assembleDebug` needed to confirm Oboe + SoundTouch + track player compile.
-- **Last session**: 2026-03-07 — S27A: Practice Mode UI. Full practice screen with song picker, MP3 loading, speed control, A-B loop, beat viz, volume mix, split stereo, count-in, beat nudge.
-- **Next action**: Verify C++ build on device, then S27B — Practice Tools (tap tempo, save settings, song notes)
+- **Last session**: 2026-03-07 — S27C: Web Stage Prompter. Full-screen lyrics/chords/setlist nav, ChordPro rendering, auto-scroll, keyboard nav.
+- **Next action**: Verify C++ build on device, then S28+ — Recording/Video spec
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -54,8 +54,8 @@
 | **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | **DONE** |
 | **S26C** | **Track player C++ + beat detection + SoundTouch time-stretch + A-B loop + MP3 decode** | **DONE** |
 | **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | **DONE** |
-| **S27B** | **Practice tools — tap tempo, save settings to song, song notes display** | PLANNED |
-| **S27C** | **Web stage prompter — lyrics/chords/song info, setlist nav (no audio)** | PLANNED |
+| **S27B** | **Practice tools — tap tempo, save settings to song, song notes display** | **DONE** |
+| **S27C** | **Web stage prompter — lyrics/chords/song info, setlist nav (no audio)** | **DONE** |
 | **S28+** | **Recording/video — spec later** | BACKLOG |
 
 Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md`

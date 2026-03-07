@@ -71,19 +71,23 @@
 - [x] Transport: play/pause/stop
 - [x] Drawer nav: Practice in Performance section
 
-### S27B — Practice Tools (native)
-- [ ] Tap tempo: measure intervals, set BPM, save to song
-- [ ] Save all current settings back to Song in Supabase (one button)
-- [ ] Song notes display in practice view
+### S27B — Practice Tools (native) (DONE)
+- [x] Tap tempo: measure intervals, set BPM, save to song
+- [x] Save all current settings back to Song in Supabase (one button)
+- [x] Song notes display in practice view
 
-### S27C — Web Stage Prompter
-- [ ] Read-only setlist display with song details
-- [ ] Lyrics display (scrolling or paged)
-- [ ] Chords display (inline with lyrics or separate)
-- [ ] Song info: name, artist, BPM, key, time sig
-- [ ] Setlist navigation (prev/next)
-- [ ] Full-screen mode for tablet on music stand
-- [ ] No audio — display only
+### S27C — Web Stage Prompter (DONE)
+- [x] Read-only setlist display with song details
+- [x] Lyrics display (scrolling with auto-scroll option)
+- [x] Chords display (inline ChordPro or separate block)
+- [x] Song info: name, artist, BPM, key, time sig, duration
+- [x] Setlist navigation (prev/next + sidebar + keyboard arrows)
+- [x] Full-screen mode for tablet on music stand (F key or button)
+- [x] Auto-scroll with configurable speed (S key or button)
+- [x] No audio — display only
+- [x] #000000 background for stage readability
+- [x] Responsive (phone, tablet, desktop)
+- [x] ViewContext + Drawer integration
 
 ### S28+ — Recording/Video (defer)
 - [ ] Front camera recording while practicing

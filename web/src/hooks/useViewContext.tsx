@@ -8,7 +8,8 @@ type View =
   | 'settings' | 'clients'
   | 'venues' | 'venue-detail'
   | 'songs' | 'song-form'
-  | 'setlists' | 'setlist-detail';
+  | 'setlists' | 'setlist-detail'
+  | 'stage-prompter';
 
 interface ViewState {
   view: View;
@@ -62,6 +63,8 @@ interface ViewContextValue extends ViewState {
   // Setlist navigation
   goToSetlists: () => void;
   goToSetlistDetail: (id: string) => void;
+  // Stage prompter navigation
+  goToStagePrompter: () => void;
 }
 
 const ViewContext = createContext<ViewContextValue | null>(null);
@@ -219,6 +222,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setSetlistId(id);
     pushView('setlist-detail');
   }, []);
+  const goToStagePrompter = useCallback(() => resetToView('stage-prompter'), []);
 
   // Listen for browser back button / hardware back (Android & iOS PWA)
   useEffect(() => {
@@ -264,7 +268,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
         goToVenues, goToVenueDetail,
         goToSongs, goToNewSong, goToEditSong,
-        goToSetlists, goToSetlistDetail,
+        goToSetlists, goToSetlistDetail, goToStagePrompter,
       }}
     >
       {children}
