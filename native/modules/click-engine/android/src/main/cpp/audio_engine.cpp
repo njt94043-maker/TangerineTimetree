@@ -100,7 +100,9 @@ void AudioEngine::restartStream() {
 // --- Metronome control ---
 
 void AudioEngine::setBpm(float bpm) {
-    metronome_.setBpm(bpm);
+    baseBpm_.store(bpm);
+    float speed = trackPlayer_.getSpeed();
+    metronome_.setBpm(bpm * speed);
 }
 
 void AudioEngine::setTimeSignature(int32_t beatsPerBar, int32_t beatUnit) {
@@ -204,6 +206,86 @@ void AudioEngine::setSplitStereo(bool enabled) {
     mixer_.setSplitStereo(enabled);
 }
 
+// --- Track Player ---
+
+void AudioEngine::loadTrack(std::vector<float>&& pcmData, int32_t numFrames,
+                              int32_t sampleRate, int32_t channels) {
+    trackPlayer_.load(std::move(pcmData), numFrames, sampleRate, channels);
+}
+
+void AudioEngine::playTrack() {
+    trackPlayer_.play();
+}
+
+void AudioEngine::pauseTrack() {
+    trackPlayer_.pause();
+}
+
+void AudioEngine::stopTrack() {
+    trackPlayer_.stop();
+}
+
+void AudioEngine::seekTrack(int64_t frame) {
+    trackPlayer_.seek(frame);
+}
+
+void AudioEngine::setLoopRegion(int64_t startFrame, int64_t endFrame) {
+    trackPlayer_.setLoopRegion(startFrame, endFrame);
+}
+
+void AudioEngine::clearLoopRegion() {
+    trackPlayer_.clearLoopRegion();
+}
+
+int64_t AudioEngine::getTrackPosition() const {
+    return trackPlayer_.getPosition();
+}
+
+int64_t AudioEngine::getTrackTotalFrames() const {
+    return trackPlayer_.getTotalFrames();
+}
+
+bool AudioEngine::isTrackLoaded() const {
+    return trackPlayer_.isLoaded();
+}
+
+void AudioEngine::setTrackSpeed(float ratio) {
+    trackPlayer_.setSpeed(ratio);
+    // Adjust metronome BPM proportionally
+    float base = baseBpm_.load();
+    metronome_.setBpm(base * ratio);
+    LOGI("Track speed set to %.2f, metronome BPM adjusted to %.1f", ratio, base * ratio);
+}
+
+float AudioEngine::getTrackSpeed() const {
+    return trackPlayer_.getSpeed();
+}
+
+void AudioEngine::nudgeClick(int32_t direction) {
+    // Shift metronome phase by one beat forward or backward
+    int64_t framesPerBeat = metronome_.getFramesPerBeat();
+    int32_t displacement = static_cast<int32_t>(framesPerBeat * direction);
+    metronome_.setBeatDisplacement(
+        metronome_.getBeatDisplacement() + displacement);
+    LOGI("Nudge click: direction=%d, displacement=%d frames", direction, displacement);
+}
+
+// --- Beat Detection ---
+
+BeatAnalysisResult AudioEngine::analyseTrack() {
+    if (!trackPlayer_.isLoaded()) {
+        LOGW("analyseTrack: no track loaded");
+        return {};
+    }
+    // Run offline analysis on the loaded PCM data
+    // This accesses pcmBuffer_ directly — safe because analysis runs
+    // on a background thread and the buffer doesn't change during playback
+    return BeatDetector::analyse(
+        trackPlayer_.getPcmData(),
+        trackPlayer_.getTotalFrames(),
+        trackPlayer_.getSampleRate());
+}
+
 // --- Oboe audio callback ---
 
 oboe::DataCallbackResult AudioEngine::onAudioReady(
@@ -222,6 +304,10 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
     float clickGain = mixer_.getChannelGain(0);
     bool splitStereo = mixer_.getSplitStereo();
     metronome_.render(output, numFrames, channelCount_, clickGain, splitStereo);
+
+    // Render track player (channel 1 = track gain)
+    float trackGain = mixer_.getChannelGain(1);
+    trackPlayer_.render(output, numFrames, channelCount_, trackGain);
 
     // Apply master gain
     float masterGain = mixer_.getMasterGain();

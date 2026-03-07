@@ -76,6 +76,7 @@ public:
 
     // --- Practice Mode: Beat Displacement ---
     void setBeatDisplacement(int32_t frames);
+    int32_t getBeatDisplacement() const { return beatDisplacementFrames_.load(); }
 
     // --- Practice Mode: Backbeat ---
     void setBackbeat(bool enabled);

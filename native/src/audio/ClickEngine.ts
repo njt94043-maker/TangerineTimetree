@@ -1,7 +1,9 @@
 import * as ClickEngineNative from '../../modules/click-engine';
 import type { Song, ClickSound } from '@shared/supabase/types';
+import type { TrackLoadResult, BeatAnalysisResult } from '../../modules/click-engine';
 
 export { ClickEngineNative };
+export type { TrackLoadResult, BeatAnalysisResult };
 
 const CLICK_SOUND_MAP: Record<ClickSound, number> = {
   default: ClickEngineNative.CLICK_DEFAULT,
@@ -27,4 +29,35 @@ export function loadSong(song: Song): void {
     const pattern = song.accent_pattern.split(',').map(Number);
     ClickEngineNative.setAccentPattern(pattern);
   }
+}
+
+/**
+ * Load a practice track for a song.
+ * Downloads from Supabase Storage URL, decodes MP3 to PCM, loads into C++ engine.
+ * Also runs beat analysis and returns detected BPM + beat offset.
+ */
+export async function loadPracticeTrack(audioUrl: string): Promise<TrackLoadResult & BeatAnalysisResult> {
+  const trackInfo = await ClickEngineNative.loadTrackFromUrl(audioUrl);
+  const analysis = await ClickEngineNative.analyseTrack();
+  return { ...trackInfo, ...analysis };
+}
+
+/**
+ * Set playback speed — adjusts both track tempo (pitch-preserved) and metronome BPM.
+ * @param ratio 0.5 = half speed, 1.0 = normal, 2.0 = double
+ */
+export function setSpeed(ratio: number): void {
+  ClickEngineNative.setTrackSpeed(ratio);
+}
+
+/**
+ * Nudge the click forward or backward by one beat.
+ * For manual click-to-track alignment.
+ */
+export function nudgeClickForward(): void {
+  ClickEngineNative.nudgeClick(1);
+}
+
+export function nudgeClickBackward(): void {
+  ClickEngineNative.nudgeClick(-1);
 }

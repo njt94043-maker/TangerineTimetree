@@ -126,4 +126,107 @@ Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeSetSplitStereo(
     AudioEngine::getInstance().setSplitStereo(enabled);
 }
 
+// --- Track Player ---
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeLoadTrack(
+        JNIEnv* env, jclass, jfloatArray pcmData, jint numFrames,
+        jint sampleRate, jint channels) {
+    jsize len = env->GetArrayLength(pcmData);
+    jfloat* elements = env->GetFloatArrayElements(pcmData, nullptr);
+    if (elements != nullptr) {
+        // Copy into a vector (takes ownership via move)
+        std::vector<float> data(elements, elements + len);
+        AudioEngine::getInstance().loadTrack(std::move(data), numFrames, sampleRate, channels);
+        env->ReleaseFloatArrayElements(pcmData, elements, JNI_ABORT);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativePlayTrack(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().playTrack();
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativePauseTrack(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().pauseTrack();
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeStopTrack(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().stopTrack();
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeSeekTrack(
+        JNIEnv*, jclass, jlong frame) {
+    AudioEngine::getInstance().seekTrack(static_cast<int64_t>(frame));
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeSetLoopRegion(
+        JNIEnv*, jclass, jlong startFrame, jlong endFrame) {
+    AudioEngine::getInstance().setLoopRegion(
+        static_cast<int64_t>(startFrame), static_cast<int64_t>(endFrame));
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeClearLoopRegion(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().clearLoopRegion();
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeGetTrackPosition(
+        JNIEnv*, jclass) {
+    return static_cast<jlong>(AudioEngine::getInstance().getTrackPosition());
+}
+
+JNIEXPORT jlong JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeGetTrackTotalFrames(
+        JNIEnv*, jclass) {
+    return static_cast<jlong>(AudioEngine::getInstance().getTrackTotalFrames());
+}
+
+JNIEXPORT jboolean JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeIsTrackLoaded(
+        JNIEnv*, jclass) {
+    return AudioEngine::getInstance().isTrackLoaded();
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeSetTrackSpeed(
+        JNIEnv*, jclass, jfloat ratio) {
+    AudioEngine::getInstance().setTrackSpeed(ratio);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeGetTrackSpeed(
+        JNIEnv*, jclass) {
+    return AudioEngine::getInstance().getTrackSpeed();
+}
+
+JNIEXPORT void JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeNudgeClick(
+        JNIEnv*, jclass, jint direction) {
+    AudioEngine::getInstance().nudgeClick(direction);
+}
+
+// --- Beat Detection ---
+// Returns float array: [bpm, beatOffsetMs]
+JNIEXPORT jfloatArray JNICALL
+Java_com_tgtent_gigbooks_clickengine_ClickEngineBridge_nativeAnalyseTrack(
+        JNIEnv* env, jclass) {
+    auto result = AudioEngine::getInstance().analyseTrack();
+    jfloatArray out = env->NewFloatArray(2);
+    if (out != nullptr) {
+        float values[2] = { result.bpm, static_cast<float>(result.beatOffsetMs) };
+        env->SetFloatArrayRegion(out, 0, 2, values);
+    }
+    return out;
+}
+
 } // extern "C"

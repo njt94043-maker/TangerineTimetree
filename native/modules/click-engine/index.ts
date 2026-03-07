@@ -76,6 +76,80 @@ export function setSplitStereo(enabled: boolean): void {
   ClickEngineModule.setSplitStereo(enabled);
 }
 
+// --- Track Player ---
+
+export interface TrackLoadResult {
+  numFrames: number;
+  sampleRate: number;
+  channels: number;
+  durationMs: number;
+}
+
+export interface BeatAnalysisResult {
+  bpm: number;
+  beatOffsetMs: number;
+}
+
+export async function loadTrackFromUrl(url: string): Promise<TrackLoadResult> {
+  return ClickEngineModule.loadTrackFromUrl(url);
+}
+
+export async function loadTrackFromFile(filePath: string): Promise<TrackLoadResult> {
+  return ClickEngineModule.loadTrackFromFile(filePath);
+}
+
+export function playTrack(): void {
+  ClickEngineModule.playTrack();
+}
+
+export function pauseTrack(): void {
+  ClickEngineModule.pauseTrack();
+}
+
+export function stopTrack(): void {
+  ClickEngineModule.stopTrack();
+}
+
+export function seekTrack(frame: number): void {
+  ClickEngineModule.seekTrack(frame);
+}
+
+export function setLoopRegion(startFrame: number, endFrame: number): void {
+  ClickEngineModule.setLoopRegion(startFrame, endFrame);
+}
+
+export function clearLoopRegion(): void {
+  ClickEngineModule.clearLoopRegion();
+}
+
+export function getTrackPosition(): number {
+  return ClickEngineModule.getTrackPosition();
+}
+
+export function getTrackTotalFrames(): number {
+  return ClickEngineModule.getTrackTotalFrames();
+}
+
+export function isTrackLoaded(): boolean {
+  return ClickEngineModule.isTrackLoaded();
+}
+
+export function setTrackSpeed(ratio: number): void {
+  ClickEngineModule.setTrackSpeed(ratio);
+}
+
+export function getTrackSpeed(): number {
+  return ClickEngineModule.getTrackSpeed();
+}
+
+export function nudgeClick(direction: number): void {
+  ClickEngineModule.nudgeClick(direction);
+}
+
+export async function analyseTrack(): Promise<BeatAnalysisResult> {
+  return ClickEngineModule.analyseTrack();
+}
+
 // Click sound type constants
 export const CLICK_DEFAULT = 0;
 export const CLICK_HIGH = 1;
