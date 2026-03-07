@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet, PanResponder } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle } from '../theme/shadows';
-import type { Gig, AwayDate, DayStatus } from '@shared/supabase/types';
+import type { Gig, AwayDate } from '@shared/supabase/types';
 import { computeDayStatus, isGigIncomplete } from '@shared/supabase/types';
 
 interface GigCalendarProps {
@@ -30,13 +30,6 @@ function toISO(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-const STATUS_COLORS: Record<DayStatus, string> = {
-  available: COLORS.calAvailable,
-  gig: COLORS.calGig,
-  practice: COLORS.calPractice,
-  unavailable: COLORS.calAway,
-  past: 'transparent',
-};
 
 export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) {
   const now = new Date();
@@ -169,10 +162,9 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
                   <View
                     style={[
                       styles.dayRect,
-                      status !== 'past' && status !== 'available' && {
-                        backgroundColor: STATUS_COLORS[status] + '1A',
-                        borderColor: STATUS_COLORS[status] + '26',
-                      },
+                      status === 'gig' && styles.gigCell,
+                      status === 'practice' && styles.practiceCell,
+                      status === 'unavailable' && styles.unavailableCell,
                       isToday && styles.todayBorder,
                     ]}
                   >
@@ -279,16 +271,17 @@ const styles = StyleSheet.create({
   },
   todayBtn: {
     alignSelf: 'center',
-    backgroundColor: COLORS.green,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.orange,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 3,
     marginBottom: 4,
   },
   todayBtnText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 11,
-    color: '#000',
+    fontSize: 10,
+    color: COLORS.orange,
     letterSpacing: 0.3,
   },
   dayHeaderRow: { flexDirection: 'row' },
@@ -329,9 +322,41 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.04)',
     overflow: 'hidden',
   },
+  gigCell: {
+    backgroundColor: 'rgba(0,230,118,0.08)',
+    borderColor: 'rgba(0,230,118,0.18)',
+    shadowColor: '#00e676',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  practiceCell: {
+    backgroundColor: 'rgba(187,134,252,0.08)',
+    borderColor: 'rgba(187,134,252,0.18)',
+    shadowColor: '#bb86fc',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  unavailableCell: {
+    backgroundColor: 'rgba(255,82,82,0.08)',
+    borderColor: 'rgba(255,82,82,0.18)',
+    shadowColor: '#ff5252',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   todayBorder: {
     borderWidth: 2,
     borderColor: COLORS.orange,
+    shadowColor: '#f39c12',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 3,
   },
   dayText: {
     fontFamily: FONTS.body,

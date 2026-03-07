@@ -10,6 +10,8 @@
 - [x] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
 - [x] Sideload APK to Samsung device (installed 2026-03-07)
 - [x] UI alignment: native calendar matches web — drawer nav, flex grid, styling parity
+- [x] Visual parity audit: 8 fixes (neon glows, Today button, shadows, drawer avatar, card accents, logo)
+- [x] Audio upload UI: practice track upload/replace/remove on song edit forms (both apps)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Backlog — Performance & Practice Epic

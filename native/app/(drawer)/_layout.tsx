@@ -5,6 +5,7 @@ import type { DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS } from '../../src/theme';
 import { AppTutorial } from '../../src/components/AppTutorial';
+import { useAuth } from '../../src/supabase/AuthContext';
 
 interface NavItem {
   icon: string;
@@ -61,6 +62,8 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { state, navigation } = props;
   const currentRoute = state.routes[state.index]?.name ?? '';
   const [showTutorial, setShowTutorial] = useState(false);
+  const { profile } = useAuth();
+  const profileName = profile?.name ?? 'User';
 
   function navigateTo(route: string) {
     navigation.navigate(route);
@@ -72,10 +75,11 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       {/* Header */}
       <View style={styles.drawerHeader}>
         <Image source={require('../../assets/logo-512.png')} style={styles.logoImg} />
-        <View>
+        <Text style={styles.logoText}>
           <Text style={styles.logoGreen}>Tangerine</Text>
+          {' '}
           <Text style={styles.logoOrange}>Timetree</Text>
-        </View>
+        </Text>
       </View>
 
       {/* Nav sections */}
@@ -126,6 +130,12 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             </Pressable>
           );
         })}
+        <View style={styles.drawerUser}>
+          <View style={styles.drawerAvatar}>
+            <Text style={styles.drawerAvatarText}>{profileName[0]}</Text>
+          </View>
+          <Text style={styles.drawerUserName}>{profileName}</Text>
+        </View>
       </View>
 
       <AppTutorial visible={showTutorial} onClose={() => setShowTutorial(false)} />
@@ -234,18 +244,18 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.04)',
   },
   logoImg: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: 8,
   },
-  logoGreen: {
+  logoText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 14,
+    fontSize: 15,
+  },
+  logoGreen: {
     color: COLORS.green,
   },
   logoOrange: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 14,
     color: COLORS.orange,
   },
   drawerNav: {
@@ -293,5 +303,32 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.04)',
     paddingTop: 8,
+  },
+  drawerUser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  drawerAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
+    borderWidth: 2,
+    borderColor: COLORS.green,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerAvatarText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.green,
+  },
+  drawerUserName: {
+    fontFamily: FONTS.body,
+    fontSize: 12,
+    color: COLORS.textDim,
   },
 });

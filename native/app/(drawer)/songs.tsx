@@ -35,7 +35,7 @@ export default function SongsScreen() {
 
   function renderSong({ item }: { item: Song }) {
     return (
-      <NeuCard>
+      <NeuCard style={styles.songCard}>
         <Pressable onPress={() => router.push({ pathname: '/song/[id]', params: { id: item.id } })}>
           <Text style={styles.songName}>{item.name}</Text>
           {item.artist ? <Text style={styles.songArtist}>{item.artist}</Text> : null}
@@ -129,9 +129,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 80,
   },
+  songCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.green,
+  },
   songName: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.text,
   },
   songArtist: {

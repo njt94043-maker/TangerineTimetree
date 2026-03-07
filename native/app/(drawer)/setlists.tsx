@@ -33,7 +33,7 @@ export default function SetlistsScreen() {
 
   function renderSetlist({ item }: { item: Setlist }) {
     return (
-      <NeuCard>
+      <NeuCard style={styles.setlistCard}>
         <Pressable onPress={() => router.push({ pathname: '/setlist/[id]', params: { id: item.id } })}>
           <Text style={styles.setlistName}>{item.name}</Text>
           {item.description ? <Text style={styles.setlistDesc}>{item.description}</Text> : null}
@@ -88,7 +88,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   list: { paddingHorizontal: 16, paddingBottom: 80 },
-  setlistName: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.text },
+  setlistCard: { borderLeftWidth: 3, borderLeftColor: COLORS.orange },
+  setlistName: { fontFamily: FONTS.bodyBold, fontSize: 14, color: COLORS.text },
   setlistDesc: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.textDim, marginTop: 2 },
   actions: {
     flexDirection: 'row',
