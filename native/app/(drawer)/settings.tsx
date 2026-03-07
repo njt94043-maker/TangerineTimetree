@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { NeuCard, NeuWell, NeuButton, NeuSelect } from '../../src/components';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
     setBandSettings(bs);
     setMembers(m);
     setServices(svc);
-    setMapApp(storedMapApp || 'google');
+    setMapApp(storedMapApp || (Platform.OS === 'ios' ? 'apple' : 'google'));
     setDirty(false);
     setExtendedDirty(false);
 

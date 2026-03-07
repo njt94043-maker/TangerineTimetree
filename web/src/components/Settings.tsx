@@ -78,7 +78,11 @@ interface SettingsProps {
 
 export function Settings({ onClose }: SettingsProps) {
   // Preferences (device-local)
-  const [mapApp, setMapApp] = useState(localStorage.getItem('tgt_map_app') || 'google');
+  const [mapApp, setMapApp] = useState(() => {
+    const saved = localStorage.getItem('tgt_map_app');
+    if (saved) return saved;
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'apple' : 'google';
+  });
 
   // User settings
   const [yourName, setYourName] = useState('');

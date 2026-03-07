@@ -189,7 +189,8 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                     onClick={(e) => {
                       e.stopPropagation();
                       const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
-                      const pref = localStorage.getItem('tgt_map_app') || 'google';
+                      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                      const pref = localStorage.getItem('tgt_map_app') || (isIOS ? 'apple' : 'google');
                       const urls: Record<string, string> = {
                         google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
                         waze: `https://waze.com/ul?q=${addr}`,
