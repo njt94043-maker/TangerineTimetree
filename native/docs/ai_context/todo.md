@@ -8,7 +8,8 @@
 ## Immediate Actions
 - [x] **Big-picture realignment** — DONE. Port C++ from ClickTrack, single Oboe stream, aubio beat detection, SoundTouch time-stretch. Role-based song forms. Web stage prompter.
 - [x] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
-- [ ] Sideload APK to Samsung device (105MB built 2026-03-07, C++ audio engine verified)
+- [x] Sideload APK to Samsung device (installed 2026-03-07)
+- [x] UI alignment: native calendar matches web — drawer nav, flex grid, styling parity
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Backlog — Performance & Practice Epic

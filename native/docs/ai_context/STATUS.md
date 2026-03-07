@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S27C complete. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
-- **Blocker**: NONE — C++ build verified. 105MB release APK built with Oboe 1.9.3 + SoundTouch + click-engine.
-- **Last session**: 2026-03-07 — S27C polish + C++ build fix. Stage prompter back/close buttons. Oboe 1.9.2→1.9.3, SoundTouch missing sources (cpu_detect, sse, mmx), Kotlin withContext→runBlocking.
-- **Next action**: Sideload APK to Samsung device, then S28+ — Recording/Video spec
+- **Phase**: S27C complete + UI alignment sprint. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
+- **Blocker**: NONE — C++ build verified. APK installed on device.
+- **Last session**: 2026-03-07 — UI alignment: native calendar matches web (drawer nav, flex grid, styling parity). Removed Cal/List toggle + Away Dates button from calendar (drawer handles nav). Added Gig List + Away Dates drawer screens. Flex-based calendar grid. Safe area fix. Wider web calendar.
+- **Next action**: S28+ — Recording/Video spec
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -24,12 +24,12 @@
 
 ## Active Risks
 1. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + track_player + beat_detector all compile and link. 105MB release APK built 2026-03-07.
-2. **APK needs sideload** — 105MB release APK built. Needs install on Samsung RFCW113WZRM.
+2. **APK installed** — 105MB release APK installed on Samsung RFCW113WZRM (2026-03-07).
 3. **SoundTouch licensing** — LGPL. Fine for personal band app. Vendored source in `modules/click-engine/android/third_party/soundtouch/`.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
-- **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-05)
+- **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-07)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live, S26A migration pushed)
 
 ## Supabase Tables (23 live)
