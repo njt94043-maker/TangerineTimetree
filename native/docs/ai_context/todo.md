@@ -44,17 +44,18 @@
 - [x] Drawer nav: "Performance" section with Live Mode
 - [x] Header hidden for immersive stage view
 
-### S26C — Track Player Engine (native, C++)
-- [ ] MP3 decode: Kotlin MediaCodec -> PCM -> JNI -> C++ track_player
-- [ ] track_player.h/cpp — plays PCM through same Oboe stream as metronome
-- [ ] aubio integration — auto-detect BPM + beat positions from PCM
-- [ ] SoundTouch integration — pitch-preserved time-stretch
-- [ ] A-B loop: set start/end frames, region looping
-- [ ] Speed control: one slider adjusts SoundTouch rate + metronome BPM together
-- [ ] Position reporting to JS (current frame / total frames)
-- [ ] Beat step/nudge — realign click to track (shift metronome phase)
-- [ ] Mixer: click channel 0, track channel 1, master gain
-- [ ] Auto-populate Song.bpm and beat_offset_ms from analysis
+### S26C — Track Player Engine (native, C++) (DONE)
+- [x] MP3 decode: Kotlin MediaCodec -> PCM -> JNI -> C++ track_player
+- [x] track_player.h/cpp — plays PCM through same Oboe stream as metronome
+- [x] Beat detection — onset autocorrelation BPM detector (custom, no aubio dep)
+- [x] SoundTouch integration — pitch-preserved time-stretch (vendored source)
+- [x] A-B loop: set start/end frames, region looping
+- [x] Speed control: setTrackSpeed adjusts SoundTouch rate + metronome BPM together
+- [x] Position reporting to JS (current frame / total frames)
+- [x] Beat step/nudge — realign click to track (shift metronome phase)
+- [x] Mixer: click channel 0, track channel 1, master gain
+- [x] analyseTrack() returns BPM + beatOffsetMs for auto-populate
+- [ ] **BLOCKER**: C++ build verification needed — prebuild + assembleDebug
 
 ### S27A — Practice Mode UI (native)
 - [ ] Practice screen — select song with attached MP3

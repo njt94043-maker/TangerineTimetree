@@ -31,4 +31,20 @@ object ClickEngineBridge {
     @JvmStatic external fun nativeSetChannelGain(channel: Int, gain: Float)
     @JvmStatic external fun nativeSetMasterGain(gain: Float)
     @JvmStatic external fun nativeSetSplitStereo(enabled: Boolean)
+
+    // Track player
+    @JvmStatic external fun nativeLoadTrack(pcmData: FloatArray, numFrames: Int, sampleRate: Int, channels: Int)
+    @JvmStatic external fun nativePlayTrack()
+    @JvmStatic external fun nativePauseTrack()
+    @JvmStatic external fun nativeStopTrack()
+    @JvmStatic external fun nativeSeekTrack(frame: Long)
+    @JvmStatic external fun nativeSetLoopRegion(startFrame: Long, endFrame: Long)
+    @JvmStatic external fun nativeClearLoopRegion()
+    @JvmStatic external fun nativeGetTrackPosition(): Long
+    @JvmStatic external fun nativeGetTrackTotalFrames(): Long
+    @JvmStatic external fun nativeIsTrackLoaded(): Boolean
+    @JvmStatic external fun nativeSetTrackSpeed(ratio: Float)
+    @JvmStatic external fun nativeGetTrackSpeed(): Float
+    @JvmStatic external fun nativeNudgeClick(direction: Int)
+    @JvmStatic external fun nativeAnalyseTrack(): FloatArray
 }
