@@ -7,7 +7,7 @@ import android.util.Log
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -99,7 +99,7 @@ class ClickEngineModule : Module() {
         // Download MP3 from URL, decode to PCM, load into C++ engine
         AsyncFunction("loadTrackFromUrl") { url: String ->
             val context = appContext.reactContext ?: throw Exception("No context")
-            withContext(Dispatchers.IO) {
+            runBlocking(Dispatchers.IO) {
                 val cacheFile = downloadToCache(url, context.cacheDir)
                 val pcmResult = decodeToPcm(cacheFile.absolutePath)
                 ClickEngineBridge.nativeLoadTrack(
@@ -121,7 +121,7 @@ class ClickEngineModule : Module() {
 
         // Load from local file path
         AsyncFunction("loadTrackFromFile") { filePath: String ->
-            withContext(Dispatchers.IO) {
+            runBlocking(Dispatchers.IO) {
                 val pcmResult = decodeToPcm(filePath)
                 ClickEngineBridge.nativeLoadTrack(
                     pcmResult.samples,
@@ -188,7 +188,7 @@ class ClickEngineModule : Module() {
 
         // Beat detection — runs offline analysis on loaded track
         AsyncFunction("analyseTrack") {
-            withContext(Dispatchers.Default) {
+            runBlocking(Dispatchers.Default) {
                 val result = ClickEngineBridge.nativeAnalyseTrack()
                 mapOf(
                     "bpm" to result[0].toDouble(),

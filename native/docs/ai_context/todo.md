@@ -8,7 +8,7 @@
 ## Immediate Actions
 - [x] **Big-picture realignment** — DONE. Port C++ from ClickTrack, single Oboe stream, aubio beat detection, SoundTouch time-stretch. Role-based song forms. Web stage prompter.
 - [x] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
-- [ ] Sideload APK to Samsung device (103MB built 2026-03-06)
+- [ ] Sideload APK to Samsung device (105MB built 2026-03-07, C++ audio engine verified)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Backlog — Performance & Practice Epic
@@ -27,7 +27,7 @@
 - [x] Update shared queries (song CRUD with new fields)
 - [x] Role-based song edit form: Nathan sees metronome settings, others see simplified form
 - [x] Both tsc clean
-- [ ] **BLOCKER**: C++ build verification needed — `npx expo prebuild --clean` + `gradlew assembleDebug`
+- [x] **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch (all sources) + Kotlin runBlocking fix. 105MB APK built.
 
 ### S26B — Live Mode UI (native) (DONE)
 - [x] Full-screen stage view — dark (#000000), high-contrast, stage-readable
@@ -55,7 +55,7 @@
 - [x] Beat step/nudge — realign click to track (shift metronome phase)
 - [x] Mixer: click channel 0, track channel 1, master gain
 - [x] analyseTrack() returns BPM + beatOffsetMs for auto-populate
-- [ ] **BLOCKER**: C++ build verification needed — prebuild + assembleDebug
+- [x] **C++ build VERIFIED** — compiles and links for all ABIs
 
 ### S27A — Practice Mode UI (native) (DONE)
 - [x] Practice screen — select song with attached MP3, search/filter

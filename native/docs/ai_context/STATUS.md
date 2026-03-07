@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S27C complete. **Ready for S28+ (Recording/Video) or C++ build verification.**
-- **Blocker**: S26A C++ build NOT yet verified on device. `npx expo prebuild --clean` + `gradlew assembleDebug` needed to confirm Oboe + SoundTouch + track player compile.
-- **Last session**: 2026-03-07 — S27C: Web Stage Prompter. Full-screen lyrics/chords/setlist nav, ChordPro rendering, auto-scroll, keyboard nav.
-- **Next action**: Verify C++ build on device, then S28+ — Recording/Video spec
+- **Phase**: S27C complete. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
+- **Blocker**: NONE — C++ build verified. 105MB release APK built with Oboe 1.9.3 + SoundTouch + click-engine.
+- **Last session**: 2026-03-07 — S27C polish + C++ build fix. Stage prompter back/close buttons. Oboe 1.9.2→1.9.3, SoundTouch missing sources (cpu_detect, sse, mmx), Kotlin withContext→runBlocking.
+- **Next action**: Sideload APK to Samsung device, then S28+ — Recording/Video spec
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -23,8 +23,8 @@
 - **Users**: Nathan (admin/drummer — full audio features), Neil/James/Adam (management + stage prompter)
 
 ## Active Risks
-1. **C++ build not yet verified** — Expo Module + SoundTouch + track_player + beat_detector written, needs `npx expo prebuild --clean` + `gradlew assembleDebug` to confirm.
-2. **Native APK rebuilt** — 103MB release APK built 2026-03-06. Needs sideload to Samsung device.
+1. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + track_player + beat_detector all compile and link. 105MB release APK built 2026-03-07.
+2. **APK needs sideload** — 105MB release APK built. Needs install on Samsung RFCW113WZRM.
 3. **SoundTouch licensing** — LGPL. Fine for personal band app. Vendored source in `modules/click-engine/android/third_party/soundtouch/`.
 
 ## What's Deployed

@@ -10,6 +10,7 @@ native/android/app/build/
 native/android/build/
 native/android/.gradle/
 native/.expo/
+native/modules/**/android/.cxx/
 
 # Vercel
 .vercel/

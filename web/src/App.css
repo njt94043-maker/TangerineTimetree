@@ -4790,6 +4790,26 @@ select.ps-form-input {
   z-index: 200;
 }
 
+/* Back / close buttons */
+.sp-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #ccc;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+.sp-back-btn:hover { background: #222; border-color: var(--color-green); color: #fff; }
+.sp-btn-close { color: #999; }
+.sp-btn-close:hover { color: #ff4444; border-color: #ff4444; }
+
 /* Setlist picker */
 .sp-picker {
   display: flex;
@@ -4798,6 +4818,7 @@ select.ps-form-input {
   justify-content: center;
   width: 100%;
   padding: 40px 20px;
+  position: relative;
 }
 .sp-picker-title {
   font-size: 36px;

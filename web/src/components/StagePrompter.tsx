@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getSetlists, getSetlistWithSongs } from '@shared/supabase/queries';
 import type { Setlist, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
+import { useView } from '../hooks/useViewContext';
 
 
 
@@ -122,6 +123,7 @@ function LyricsDisplay({ lyrics, chords }: { lyrics: string; chords: string }) {
 }
 
 export function StagePrompter() {
+  const { goBack } = useView();
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [selectedSetlist, setSelectedSetlist] = useState<SetlistWithSongs | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -236,6 +238,7 @@ export function StagePrompter() {
     return (
       <div className="sp-container">
         <div className="sp-picker">
+          <button className="sp-back-btn" onClick={goBack} title="Back to app">Back</button>
           <h2 className="sp-picker-title">Stage Prompter</h2>
           <p className="sp-picker-subtitle">Select a setlist to display on stage</p>
           {loading ? (
@@ -340,6 +343,9 @@ export function StagePrompter() {
             )}
             <button className="sp-btn sp-btn-small" onClick={toggleFullscreen} title="Fullscreen (F)">
               {isFullscreen ? 'Exit' : 'Full'}
+            </button>
+            <button className="sp-btn sp-btn-small sp-btn-close" onClick={goBack} title="Close">
+              X
             </button>
           </div>
         </div>

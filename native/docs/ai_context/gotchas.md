@@ -142,3 +142,17 @@
 ### @react-native-community/datetimepicker cmake failure
 - Adding `@react-native-community/datetimepicker@8.6.0` causes cmake error on `assembleRelease`.
 - Workaround: avoid this package. Use custom WheelTimePicker instead (built in S21).
+
+### Oboe version: use 1.9.0 or 1.9.3 (NOT 1.9.2)
+- `com.google.oboe:oboe:1.9.2` does NOT exist on Google Maven. Build fails silently during config.
+- Use 1.9.3 (latest as of 2026-03).
+
+### SoundTouch vendored source: include ALL .cpp files
+- CMakeLists must include `cpu_detect_x86.cpp`, `mmx_optimized.cpp`, `sse_optimized.cpp`.
+- Without these: linker errors (`undefined symbol: detectCPUextensions`, `TDStretchSSE`, `FIRFilterSSE`).
+- On ARM these files compile to no-ops but symbols must still be present.
+
+### Expo Modules AsyncFunction is NOT suspend
+- `AsyncFunction` lambda in Expo SDK 55 is NOT a suspend function.
+- Cannot use `withContext()` directly — use `runBlocking(Dispatchers.IO)` instead.
+- `withContext` requires suspend context; `runBlocking` creates one.
