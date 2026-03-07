@@ -29,15 +29,20 @@
 - [x] Both tsc clean
 - [ ] **BLOCKER**: C++ build verification needed — `npx expo prebuild --clean` + `gradlew assembleDebug`
 
-### S26B — Live Mode UI (native) (NEXT)
-- [ ] Full-screen stage view — dark, high-contrast, stage-readable
-- [ ] Load setlist, navigate songs, engine auto-reconfigures
-- [ ] Song metadata: name, BPM, key, time sig, notes
-- [ ] Beat visualization (LED dots with downbeat accent)
-- [ ] Transport: play/stop
-- [ ] Swing slider with snap-to-middle
-- [ ] Song position indicator (3 of 12)
-- [ ] Wake lock (screen stays on)
+### S26B — Live Mode UI (native) (DONE)
+- [x] Full-screen stage view — dark (#000000), high-contrast, stage-readable
+- [x] Setlist selector → load setlist, navigate songs, engine auto-reconfigures
+- [x] Song metadata: name, artist, BPM (large monospace), key, time sig, notes
+- [x] Beat visualization (LED dots: beat 1 = red/accent, others = teal, scale + glow on active)
+- [x] Transport: play/stop (large circular button)
+- [x] Prev/next song buttons with auto-loadSong()
+- [x] Swing slider (50-75%, snap-to-middle at 50% = straight)
+- [x] Song position indicator ("3 of 12")
+- [x] Count-in visual (orange banner)
+- [x] Wake lock (expo-keep-awake)
+- [x] Bar counter display
+- [x] Drawer nav: "Performance" section with Live Mode
+- [x] Header hidden for immersive stage view
 
 ### S26C — Track Player Engine (native, C++)
 - [ ] MP3 decode: Kotlin MediaCodec -> PCM -> JNI -> C++ track_player

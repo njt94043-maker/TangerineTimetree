@@ -41,6 +41,12 @@ const NAV_SECTIONS: NavSection[] = [
       { icon: '\uD83C\uDFB6', label: 'Setlists', route: 'setlists' },
     ],
   },
+  {
+    title: 'Performance',
+    items: [
+      { icon: '\uD83C\uDFAF', label: 'Live Mode', route: 'live' },
+    ],
+  },
 ];
 
 const FOOTER_ITEMS: NavItem[] = [
@@ -183,6 +189,10 @@ export default function DrawerLayout() {
       <Drawer.Screen
         name="setlists"
         options={{ title: 'Setlists' }}
+      />
+      <Drawer.Screen
+        name="live"
+        options={{ title: 'Live Mode', headerShown: false }}
       />
       <Drawer.Screen
         name="settings"

@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S26A complete. **Ready for S26B (Live Mode UI).**
+- **Phase**: S26B complete. **Ready for S26C (Track Player Engine).**
 - **Blocker**: S26A C++ build NOT yet verified on device. `npx expo prebuild --clean` + `gradlew assembleDebug` needed to confirm Oboe compiles.
-- **Last session**: 2026-03-07 — S26A: C++ audio engine Expo Native Module (metronome + mixer ported from ClickTrack). Schema migration (lyrics, chords, beat_offset_ms). Role-based song forms (both apps).
-- **Next action**: Verify C++ build on device, then S26B — Live Mode UI
+- **Last session**: 2026-03-07 — S26B: Live Mode UI. Full-screen stage view, setlist selector, song nav, beat visualization, transport, swing slider, wake lock.
+- **Next action**: Verify C++ build on device, then S26C — Track Player Engine
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -18,6 +18,7 @@
 - **North star**: Nathan manages gigs/invoices/quotes AND performs with click track + setlists on stage AND practices songs with beat-locked MP3s. Other members get stage prompter (lyrics/chords) on web.
 - **Architecture**: Monorepo (`shared/` + `native/` + `web/`) — Supabase for all data. C++ audio engine (Oboe) via Expo Native Module for native app. Web = no audio, stage prompter only.
 - **Audio engine**: `native/modules/click-engine/` — Expo Native Module wrapping C++/Oboe metronome + mixer, ported from ClickTrack. JS API: `native/src/audio/ClickEngine.ts`.
+- **Live Mode**: `native/app/(drawer)/live.tsx` — full-screen stage view, setlist nav, beat viz, transport, swing slider, wake lock (expo-keep-awake).
 - **Design**: Collapsible drawer nav on both apps (IMPLEMENTED S19). Unified theme.
 - **Users**: Nathan (admin/drummer — full audio features), Neil/James/Adam (management + stage prompter)
 
@@ -50,7 +51,7 @@
 |--------|-------|--------|
 | S1-S25C | Band manager (calendar, invoicing, quotes, venues, clients, setlists, PDF, public site) | ALL DONE |
 | **S26A** | **C++ audio engine Expo Module + schema migration (lyrics/chords/beat_offset_ms) + role-based song form** | **DONE** |
-| **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | **NEXT** |
+| **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | **DONE** |
 | **S26C** | **Track player C++ + aubio beat detection + SoundTouch time-stretch + A-B loop** | PLANNED |
 | **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | PLANNED |
 | **S27B** | **Practice tools — speed trainer, tap tempo, muted bars, save to song** | PLANNED |
