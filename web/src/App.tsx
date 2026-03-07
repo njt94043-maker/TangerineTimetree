@@ -35,6 +35,7 @@ import { SongList } from './components/SongList';
 import { SongForm } from './components/SongForm';
 import { SetlistList } from './components/SetlistList';
 import { SetlistDetail } from './components/SetlistDetail';
+import { StagePrompter } from './components/StagePrompter';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -209,6 +210,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'venues': case 'venue-detail': return 'Venues';
       case 'songs': case 'song-form': return 'Songs';
       case 'setlists': case 'setlist-detail': return 'Setlists';
+      case 'stage-prompter': return 'Stage Prompter';
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
@@ -505,6 +507,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onClose={goBack}
           />
         )}
+
+        {view === 'stage-prompter' && <StagePrompter />}
       </main>
     </>
   );
