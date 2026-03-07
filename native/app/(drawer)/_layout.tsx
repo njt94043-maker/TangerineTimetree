@@ -21,7 +21,9 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Calendar',
     items: [
-      { icon: '\uD83D\uDCC5', label: 'Gigs', route: 'index' },
+      { icon: '\uD83D\uDCC5', label: 'Calendar', route: 'index' },
+      { icon: '\uD83D\uDCCB', label: 'Gig List', route: 'gig-list' },
+      { icon: '\u2708\uFE0F', label: 'Away Dates', route: 'away-dates' },
     ],
   },
   {
@@ -132,6 +134,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 }
 
 export default function DrawerLayout() {
+  const insets = useSafeAreaInsets();
   return (
     <Drawer
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -156,12 +159,21 @@ export default function DrawerLayout() {
         },
         sceneStyle: {
           backgroundColor: COLORS.background,
+          paddingBottom: Math.max(insets.bottom, 12),
         },
       }}
     >
       <Drawer.Screen
         name="index"
-        options={{ title: 'Gigs' }}
+        options={{ title: 'Calendar' }}
+      />
+      <Drawer.Screen
+        name="gig-list"
+        options={{ title: 'Gig List' }}
+      />
+      <Drawer.Screen
+        name="away-dates"
+        options={{ title: 'Away Dates' }}
       />
       <Drawer.Screen
         name="dashboard"

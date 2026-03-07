@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, PanResponder, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, StyleSheet, PanResponder } from 'react-native';
 import { COLORS, FONTS } from '../theme';
 import { neuRaisedStyle } from '../theme/shadows';
 import type { Gig, AwayDate, DayStatus } from '@shared/supabase/types';
@@ -39,7 +39,6 @@ const STATUS_COLORS: Record<DayStatus, string> = {
 };
 
 export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) {
-  const { height: windowHeight } = useWindowDimensions();
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -106,10 +105,7 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
     return map;
   }, [gigs]);
 
-  // Dynamic cell height: fill available screen space
-  // Reserve ~140px for header, day-headers row, legend, status bar, nav
-  const numRows = rows.length;
-  const cellHeight = Math.max(52, Math.floor((windowHeight - 180) / numRows));
+  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
 
   return (
     <View style={styles.container}>
@@ -127,7 +123,7 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
           <Text style={styles.arrow}>{'\u25B6'}</Text>
         </Pressable>
       </View>
-      {(viewYear !== now.getFullYear() || viewMonth !== now.getMonth()) && (
+      {!isCurrentMonth && (
         <Pressable
           onPress={() => { setViewYear(now.getFullYear()); setViewMonth(now.getMonth()); }}
           style={styles.todayBtn}
@@ -137,7 +133,7 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
       )}
 
       {/* Day headers */}
-      <View style={styles.row}>
+      <View style={styles.dayHeaderRow}>
         {DAY_HEADERS.map((d, i) => (
           <View key={d} style={styles.headerCell}>
             <Text style={[styles.dayHeader, i >= 5 && styles.weekendHeader]}>{d.toUpperCase()}</Text>
@@ -146,13 +142,13 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
       </View>
 
       {/* Day grid */}
-      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+      <View style={styles.grid} {...panResponder.panHandlers}>
         {rows.map((week, rowIdx) => (
-          <View key={`week-${rowIdx}`} style={styles.row}>
+          <View key={`week-${rowIdx}`} style={styles.gridRow}>
             {week.map((day, colIdx) => {
               const cellIdx = rowIdx * 7 + colIdx;
               if (day === null) {
-                return <View key={`empty-${cellIdx}`} style={[styles.cell, { height: cellHeight }]} />;
+                return <View key={`empty-${cellIdx}`} style={styles.cell} />;
               }
 
               const iso = toISO(viewYear, viewMonth, day);
@@ -167,13 +163,12 @@ export function GigCalendar({ gigs, awayDates, onDatePress }: GigCalendarProps) 
               return (
                 <Pressable
                   key={`day-${day}`}
-                  style={[styles.cell, { height: cellHeight }]}
+                  style={styles.cell}
                   onPress={() => onDatePress(iso)}
                 >
                   <View
                     style={[
                       styles.dayRect,
-                      { height: cellHeight - 2 },
                       status !== 'past' && status !== 'available' && {
                         backgroundColor: STATUS_COLORS[status] + '1A',
                         borderColor: STATUS_COLORS[status] + '26',
@@ -273,10 +268,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   arrowBtn: { padding: 8 },
-  arrow: { color: COLORS.teal, fontSize: 14 },
+  arrow: { color: COLORS.orange, fontSize: 18, fontWeight: '700' },
   monthYear: {
     fontFamily: FONTS.bodyBold,
     fontSize: 16,
@@ -284,42 +279,46 @@ const styles = StyleSheet.create({
   },
   todayBtn: {
     alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.teal,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    marginTop: -2,
-    marginBottom: 2,
+    backgroundColor: COLORS.green,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 3,
+    marginBottom: 4,
   },
   todayBtnText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 10,
-    color: COLORS.teal,
+    fontSize: 11,
+    color: '#000',
     letterSpacing: 0.3,
   },
-  row: { flexDirection: 'row' },
+  dayHeaderRow: { flexDirection: 'row' },
   headerCell: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 3,
+  },
+  grid: {
+    flex: 1,
+    gap: 3,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    flex: 1,
+    gap: 3,
   },
   cell: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 1,
   },
   dayHeader: {
     textAlign: 'center',
     fontFamily: FONTS.bodyBold,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textDim,
   },
   weekendHeader: { color: COLORS.textMuted },
   dayRect: {
-    width: '96%',
+    flex: 1,
     borderRadius: 6,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
@@ -332,7 +331,7 @@ const styles = StyleSheet.create({
   },
   todayBorder: {
     borderWidth: 2,
-    borderColor: COLORS.teal,
+    borderColor: COLORS.orange,
   },
   dayText: {
     fontFamily: FONTS.body,

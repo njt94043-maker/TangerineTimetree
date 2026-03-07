@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:thegreentangerine.com)",
+      "WebFetch(domain:web.archive.org)",
+      "Bash(unzip -l green-tangerine-hub-e58b6a1a.zip)",
+      "Bash(ls -la /c/Apps/TGT/native/app/\\\\\\(tabs\\\\\\)/)",
+      "Bash(xargs grep -l \"CREATE TABLE.*gigs\")",
+      "Bash(wc -l /c/Apps/TGT/native/src/pdf/*.ts)",
+      "Bash(echo \"EXIT:$?\")"
+    ]
+  }
+}
