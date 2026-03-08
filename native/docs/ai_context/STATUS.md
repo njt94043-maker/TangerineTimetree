@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: Jetpack Compose rewrite scaffolded + building + installed. Ready to build out screens.
-- **Blocker**: NONE — Compose scaffold builds and installs on Samsung RFCW113WZRM.
-- **Last session**: 2026-03-08 — Compose rewrite scaffolded (android/), builds successfully (4m32s), installed on device. React Native archived to D:/tgt/gigbooks-react-native-backup-2026-03-08.7z (still in git).
-- **Next action**: Build out Compose screens — Songs, Setlists, Live Mode, Practice Mode, Settings. Wire up Supabase Kotlin queries for calendar data. Add login screen.
+- **Phase**: Android Compose app FULLY built out — all screens complete, installed on device.
+- **Blocker**: NONE — BUILD SUCCESSFUL, installed on Samsung RFCW113WZRM (2026-03-08 session 2).
+- **Last session**: 2026-03-08 — Full app buildout: Login, Library (Songs + Setlists), Live Mode, Practice Mode, Settings. AppViewModel wiring all C++ engine + Supabase state. Fixed API key (publishable key), numeric field deserialization (Postgres numeric → Double). All screens functional.
+- **Next action**: On-device testing of C++ engine (click track + track player). Add more songs/setlists via web app. Test practice track audio upload + load.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -36,11 +36,10 @@
 ## Compose Project Structure (android/)
 - **Theme**: GigColors, GigTypography, GigBooksTheme (dark, matches web)
 - **Navigation**: ModalNavigationDrawer, 6 screens (Calendar, Songs, Setlists, Live, Practice, Settings)
-- **Screens done**: CalendarScreen (month grid, today highlight, legend) — data not wired yet
-- **Screens TODO**: Songs, Setlists, Live Mode, Practice Mode, Settings, Login
-- **Components**: NeuCard, NeuWell (neumorphic surfaces)
-- **Data**: SupabaseProvider singleton, AuthRepository (sign in/out/session)
-- **Audio**: AudioEngineBridge.kt → C++ (all methods declared, not wired to UI yet)
+- **Screens done**: ALL — CalendarScreen, LibraryScreen (songs+setlists tabs), LiveScreen, PracticeScreen, SettingsScreen, LoginScreen
+- **Components**: NeuCard, NeuWell, MetronomeComponents (BeatDisplay, PlayStopButton, BeatDot animated)
+- **Data**: SupabaseProvider singleton, AuthRepository, SongRepository, SetlistRepository — wired to AppViewModel
+- **Audio**: AppViewModel → AudioEngineBridge.kt → C++ — click + track player wired, beat polling coroutine
 - **Build**: `cd android && ./gradlew assembleDebug --no-daemon`
 
 ## Supabase Tables (23 live)
