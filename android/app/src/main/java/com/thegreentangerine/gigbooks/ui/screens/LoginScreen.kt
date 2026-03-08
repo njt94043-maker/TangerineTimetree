@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,19 +67,22 @@ fun LoginScreen() {
             try {
                 AuthRepository.signIn(email.trim(), password)
             } catch (e: Exception) {
-                error = "Invalid email or password"
+                error = e.message?.take(120) ?: "Sign in failed"
             } finally {
                 loading = false
             }
         }
     }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background),
-        contentAlignment = Alignment.Center,
+            .background(GigColors.background)
+            .imePadding()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Spacer(Modifier.weight(1f))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -203,6 +209,7 @@ fun LoginScreen() {
                 }
             }
         }
+        Spacer(Modifier.weight(1f))
     }
 }
 

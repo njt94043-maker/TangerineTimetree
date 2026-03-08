@@ -23,7 +23,7 @@ data class SetlistSongRow(
     val id: String,
     @SerialName("setlist_id") val setlistId: String,
     @SerialName("song_id") val songId: String,
-    val position: Int,
+    val position: Double = 0.0,
     val notes: String = "",
     val songs: Song? = null,
 )
@@ -35,7 +35,7 @@ data class SetlistWithSongs(
     val songCount: Int get() = songs.size
 
     val totalDurationSeconds: Int? get() {
-        val durations = songs.mapNotNull { it.songs?.durationSeconds }
+        val durations = songs.mapNotNull { it.songs?.durationSeconds?.toInt() }
         return if (durations.isEmpty()) null else durations.sum()
     }
 
