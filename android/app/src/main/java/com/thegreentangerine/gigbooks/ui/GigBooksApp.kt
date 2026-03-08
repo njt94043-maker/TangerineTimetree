@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Settings
@@ -48,6 +49,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.thegreentangerine.gigbooks.ui.components.glowBehind
+import com.thegreentangerine.gigbooks.ui.screens.CalendarScreen
 import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
@@ -57,6 +59,7 @@ import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+    data object Calendar : Screen("calendar", "Calendar",         Icons.Default.CalendarMonth)
     data object Library  : Screen("library",  "Songs & Setlists", Icons.AutoMirrored.Filled.QueueMusic)
     data object Live     : Screen("live",     "Live Mode",        Icons.Default.GraphicEq)
     data object Practice : Screen("practice", "Practice",         Icons.Default.Headphones)
@@ -72,11 +75,11 @@ fun GigBooksApp() {
     val drawerState         = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope               = rememberCoroutineScope()
     val currentEntry by navController.currentBackStackEntryAsState()
-    val currentRoute  = currentEntry?.destination?.route ?: Screen.Library.route
+    val currentRoute  = currentEntry?.destination?.route ?: Screen.Calendar.route
 
     fun navigate(route: String) {
         navController.navigate(route) {
-            popUpTo(Screen.Library.route) { saveState = true }
+            popUpTo(Screen.Calendar.route) { saveState = true }
             launchSingleTop = true
             restoreState    = true
         }
@@ -96,6 +99,12 @@ fun GigBooksApp() {
                 DrawerHeader()
                 HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.25f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(8.dp))
+
+                DrawerNavItem(Screen.Calendar, currentRoute == Screen.Calendar.route, GigColors.orange) { navigate(Screen.Calendar.route) }
+
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(Modifier.height(4.dp))
 
                 DrawerSectionLabel("LIBRARY")
                 DrawerNavItem(Screen.Library, currentRoute == Screen.Library.route, GigColors.teal) { navigate(Screen.Library.route) }
@@ -119,9 +128,12 @@ fun GigBooksApp() {
     ) {
         NavHost(
             navController    = navController,
-            startDestination = Screen.Library.route,
+            startDestination = Screen.Calendar.route,
             modifier = Modifier.fillMaxSize().background(GigColors.background),
         ) {
+            composable(Screen.Calendar.route) {
+                CalendarScreen(vm = vm, onMenuClick = { openMenu() })
+            }
             composable(Screen.Library.route) {
                 LibraryScreen(
                     vm          = vm,

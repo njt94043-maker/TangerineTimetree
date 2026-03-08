@@ -11,12 +11,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.thegreentangerine.gigbooks.GigBooksApplication
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
+import com.thegreentangerine.gigbooks.data.supabase.GigRepository
 import com.thegreentangerine.gigbooks.data.supabase.SetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.SongRepository
 import com.thegreentangerine.gigbooks.data.supabase.StemRepository
+import com.thegreentangerine.gigbooks.data.supabase.models.AwayDate
+import com.thegreentangerine.gigbooks.data.supabase.models.Gig
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistWithSongs
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import com.thegreentangerine.gigbooks.data.supabase.models.SongStem
+import java.time.LocalDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -34,6 +38,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var setlists by mutableStateOf<List<SetlistWithSongs>>(emptyList()); private set
     var loadError by mutableStateOf<String?>(null);                    private set
     var isLoading by mutableStateOf(true);                             private set
+
+    // ── Calendar ──────────────────────────────────────────────────────────────
+    private val _today = LocalDate.now()
+    var calViewYear  by mutableStateOf(_today.year);        private set
+    var calViewMonth by mutableStateOf(_today.monthValue);  private set
+    var calGigs      by mutableStateOf<List<Gig>>(emptyList());        private set
+    var calAwayDates by mutableStateOf<List<AwayDate>>(emptyList());   private set
+    var calLoading   by mutableStateOf(false);                         private set
 
     // ── Selection ─────────────────────────────────────────────────────────────
     var selectedSong     by mutableStateOf<Song?>(null)
@@ -92,7 +104,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var beatPollJob:  Job? = null
     private var trackPollJob: Job? = null
 
-    init { loadLibrary() }
+    init {
+        loadLibrary()
+        loadCalendarMonth()
+    }
 
     // ── Library loading ───────────────────────────────────────────────────────
     fun loadLibrary() {
@@ -106,6 +121,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } finally {
                 isLoading = false
             }
+        }
+    }
+
+    // ── Calendar loading ──────────────────────────────────────────────────────
+    fun calNavigate(year: Int, month: Int) {
+        calViewYear  = year
+        calViewMonth = month
+        loadCalendarMonth(year, month)
+    }
+
+    fun loadCalendarMonth(year: Int = calViewYear, month: Int = calViewMonth) {
+        viewModelScope.launch {
+            calLoading = true
+            try {
+                calGigs      = GigRepository.getGigsForMonth(year, month)
+                calAwayDates = GigRepository.getAwayDatesForMonth(year, month)
+            } catch (_: Exception) { /* non-fatal — calendar just shows empty */ }
+            finally { calLoading = false }
         }
     }
 
