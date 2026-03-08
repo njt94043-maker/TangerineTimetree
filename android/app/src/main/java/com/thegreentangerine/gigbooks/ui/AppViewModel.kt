@@ -13,8 +13,10 @@ import com.thegreentangerine.gigbooks.GigBooksApplication
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.SetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.SongRepository
+import com.thegreentangerine.gigbooks.data.supabase.StemRepository
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistWithSongs
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
+import com.thegreentangerine.gigbooks.data.supabase.models.SongStem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -63,6 +65,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var trackError       by mutableStateOf<String?>(null); private set
     var loopAFrame       by mutableStateOf<Long?>(null);   private set
     var loopBFrame       by mutableStateOf<Long?>(null);   private set
+
+    // ── Stems ─────────────────────────────────────────────────────────────────
+    // loadedStems: list of (stemIndex, SongStem) for stems successfully loaded into the engine
+    var loadedStems   by mutableStateOf<List<Pair<Int, SongStem>>>(emptyList()); private set
+    var stemsLoading  by mutableStateOf(false);                                  private set
+    var stemErrors    by mutableStateOf<Map<String, String>>(emptyMap());        private set
 
     private var beatPollJob:  Job? = null
     private var trackPollJob: Job? = null
@@ -206,6 +214,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Track loading ─────────────────────────────────────────────────────────
     fun loadTrack(audioUrl: String) {
+        // Clear any stems from the previous song immediately
+        loadedStems = emptyList()
+        stemErrors  = emptyMap()
+        if (engineAvailable) try { AudioEngineBridge.nativeClearAllStems() } catch (_: Exception) { }
+
         viewModelScope.launch {
             isLoadingTrack = true; trackError = null
             try {
@@ -216,6 +229,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     trackTotalFr    = AudioEngineBridge.nativeGetTrackTotalFrames()
                     trackLoaded     = true
                     AudioEngineBridge.nativeSetTrackSpeed(practiceSpeed)
+                    // Load stems for the current song in the background
+                    selectedSong?.id?.let { loadStemsForSong(it) }
                 } else {
                     trackError = "Audio engine unavailable"
                 }
@@ -223,6 +238,43 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 trackError = "Load failed: ${e.message}"
             } finally {
                 isLoadingTrack = false
+            }
+        }
+    }
+
+    fun loadStemsForSong(songId: String) {
+        viewModelScope.launch {
+            stemsLoading = true
+            stemErrors   = emptyMap()
+            loadedStems  = emptyList()
+            if (engineAvailable) try { AudioEngineBridge.nativeClearAllStems() } catch (_: Exception) { }
+
+            try {
+                val stems = StemRepository.getStemsBySongId(songId)
+                    .filter { !it.audioUrl.isNullOrBlank() }
+
+                val loaded  = mutableListOf<Pair<Int, SongStem>>()
+                val errors  = mutableMapOf<String, String>()
+
+                stems.forEach { stem ->
+                    val idx = stem.stemIndex
+                    try {
+                        val (pcm, sr) = decodeAudio(stem.audioUrl!!)
+                        if (engineAvailable) {
+                            AudioEngineBridge.nativeLoadStem(idx, pcm, pcm.size, sr, 1)
+                        }
+                        loaded.add(idx to stem)
+                    } catch (e: Exception) {
+                        errors[stem.label] = e.message ?: "Unknown error"
+                    }
+                }
+
+                loadedStems = loaded.sortedBy { it.first }
+                stemErrors  = errors
+            } catch (_: Exception) {
+                // Stem fetch failure is non-critical — track still plays without stems
+            } finally {
+                stemsLoading = false
             }
         }
     }

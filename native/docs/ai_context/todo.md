@@ -97,6 +97,24 @@
 - [x] Responsive (phone, tablet, desktop)
 - [x] ViewContext + Drawer integration
 
+### S28B — N-Channel Mixer + Stem Loading (DONE)
+- [x] TrackPlayer::reset() — safe unload without audio-thread race
+- [x] AudioEngine MAX_STEMS=6, stemPlayers_[6] (ch2..ch7)
+- [x] loadStem/clearStem/clearAllStems — load PCM into stem slot, sync speed
+- [x] Transport sync — play/pause/stop/seek/setLoopRegion/clearLoopRegion/setTrackSpeed all applied to all loaded stems
+- [x] onAudioReady — stem render loop (ch2..ch7, gain from mixer)
+- [x] JNI bridge — nativeLoadStem, nativeClearStem, nativeClearAllStems
+- [x] AudioEngineBridge.kt — 3 new externals
+- [x] SongStem.kt — @Serializable data class + StemLabel enum (DRUMS=0/BASS=1/GUITAR=2/KEYS=3/VOCALS=4/OTHER=5)
+- [x] StemRepository.kt — getStemsBySongId()
+- [x] AppViewModel — loadedStems + stemsLoading + stemErrors state; loadStemsForSong() auto-called after track loads; clears on song change
+
+### S28C — Waveform + Per-Stem Mixing (next)
+- [ ] Waveform visualiser in PracticeScreen (amplitude envelope computed from PCM, canvas overlay)
+- [ ] Loop region A-B markers overlaid on waveform
+- [ ] Per-stem volume sliders in PracticeScreen (for each loadedStem: label + gain slider)
+- [ ] Auto-analyse BPM + beatOffsetMs when stem loads (populate song fields if empty)
+
 ### S28+ — Recording/Video (defer)
 - [ ] Front camera recording while practicing
 - [ ] Spec properly when S27 complete

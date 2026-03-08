@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S28A complete. Next: S28B (C++ N-channel mixer + Kotlin stem loading).
-- **Blocker**: MANUAL STEP REQUIRED — run S28A migration in Supabase dashboard SQL editor. Create `song-stems` storage bucket (public, audio/*, 200MB max).
-- **Last session**: 2026-03-08 session 3 — Big picture realignment: Practice Mode = full R'n'S clone (not bolt-on). S28A: song_stems table + RLS migration, SongStem+StemLabel types, getSongStems/uploadStem/deleteStem queries (storage rollback on DB fail), stem upload UI in SongForm (per-label, audio preview, delete). TypeScript clean.
-- **Next action**: S28B — extend C++ mixer to N dynamic channels; Kotlin loads stems as ch2..chN after track load. Then S28C (waveform + auto-analyse).
+- **Phase**: S28B complete. Next: S28C (waveform display + auto-analyse BPM/offset per stem on load).
+- **Blocker**: MANUAL STEP REQUIRED (S28A) — run S28A migration in Supabase SQL editor + create `song-stems` storage bucket (public, audio/*, 200MB max). Required before stems will work end-to-end.
+- **Last session**: 2026-03-08 session 4 — S28B: C++ N-channel mixer (MAX_STEMS=6, ch2..ch7), TrackPlayer::reset(), AudioEngine::loadStem/clearStem/clearAllStems, transport sync (play/pause/stop/seek/speed/loop all applied to loaded stems). JNI bridge 3 new functions. AudioEngineBridge.kt externals. SongStem.kt model + StemLabel enum (DRUMS/BASS/GUITAR/KEYS/VOCALS/OTHER with fixed stemIndex). StemRepository.kt. AppViewModel: stem state (loadedStems, stemsLoading, stemErrors) + loadStemsForSong() called automatically after track loads. Stems clear on song change.
+- **Next action**: S28C — waveform visualiser in PracticeScreen (amplitude envelope + loop region overlay), per-stem volume sliders, auto-analyse BPM + beat offset on load.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -39,7 +39,7 @@
 - **Screens done**: ALL — CalendarScreen, LibraryScreen (songs+setlists tabs), LiveScreen, PracticeScreen, SettingsScreen, LoginScreen
 - **Components**: NeuCard, NeuWell, MetronomeComponents (BeatDisplay, PlayStopButton, BeatDot animated)
 - **Data**: SupabaseProvider singleton, AuthRepository, SongRepository, SetlistRepository — wired to AppViewModel
-- **Audio**: AppViewModel → AudioEngineBridge.kt → C++ — click + track player wired, beat polling coroutine
+- **Audio**: AppViewModel → AudioEngineBridge.kt → C++ — click (ch0) + main track (ch1) + stems (ch2..7). Beat polling coroutine. Stems auto-load after track load.
 - **Build**: `cd android && ./gradlew assembleDebug --no-daemon`
 
 ## Supabase Tables (24 — 23 live + 1 pending migration)
@@ -49,8 +49,9 @@
 - **Quoting (S15)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
 - **S23A**: venue_photos, venues restructured, gigs/quotes/invoices/formal_invoices have venue_id FK
 - **S25A+S26A**: songs (now with lyrics/chords/beat_offset_ms), setlists, setlist_songs
-- **S28A**: song_stems (pending migration run)
-- **Storage**: public-media, venue-photos, practice-tracks, song-stems (pending bucket creation)
+- **S28A**: song_stems (pending migration run in Supabase dashboard)
+- **Storage**: public-media, venue-photos, practice-tracks, song-stems (bucket pending creation)
+- **S28B**: StemLabel/SongStem Kotlin types, StemRepository, stem engine wired (ch2..7) — awaiting S28A manual step
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)

@@ -215,26 +215,44 @@ void AudioEngine::loadTrack(std::vector<float>&& pcmData, int32_t numFrames,
 
 void AudioEngine::playTrack() {
     trackPlayer_.play();
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].play();
+    }
 }
 
 void AudioEngine::pauseTrack() {
     trackPlayer_.pause();
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].pause();
+    }
 }
 
 void AudioEngine::stopTrack() {
     trackPlayer_.stop();
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].stop();
+    }
 }
 
 void AudioEngine::seekTrack(int64_t frame) {
     trackPlayer_.seek(frame);
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].seek(frame);
+    }
 }
 
 void AudioEngine::setLoopRegion(int64_t startFrame, int64_t endFrame) {
     trackPlayer_.setLoopRegion(startFrame, endFrame);
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].setLoopRegion(startFrame, endFrame);
+    }
 }
 
 void AudioEngine::clearLoopRegion() {
     trackPlayer_.clearLoopRegion();
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].clearLoopRegion();
+    }
 }
 
 int64_t AudioEngine::getTrackPosition() const {
@@ -251,6 +269,9 @@ bool AudioEngine::isTrackLoaded() const {
 
 void AudioEngine::setTrackSpeed(float ratio) {
     trackPlayer_.setSpeed(ratio);
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) stemPlayers_[i].setSpeed(ratio);
+    }
     // Adjust metronome BPM proportionally
     float base = baseBpm_.load();
     metronome_.setBpm(base * ratio);
@@ -268,6 +289,34 @@ void AudioEngine::nudgeClick(int32_t direction) {
     metronome_.setBeatDisplacement(
         metronome_.getBeatDisplacement() + displacement);
     LOGI("Nudge click: direction=%d, displacement=%d frames", direction, displacement);
+}
+
+// --- Stem Players ---
+
+void AudioEngine::loadStem(int32_t idx, std::vector<float>&& pcmData,
+                            int32_t numFrames, int32_t sampleRate, int32_t channels) {
+    if (idx < 0 || idx >= MAX_STEMS) {
+        LOGW("loadStem: invalid index %d", idx);
+        return;
+    }
+    stemPlayers_[idx].stop();
+    stemPlayers_[idx].load(std::move(pcmData), numFrames, sampleRate, channels);
+    // Match current track speed so stems play in sync
+    stemPlayers_[idx].setSpeed(trackPlayer_.getSpeed());
+    LOGI("Stem %d loaded", idx);
+}
+
+void AudioEngine::clearStem(int32_t idx) {
+    if (idx < 0 || idx >= MAX_STEMS) return;
+    stemPlayers_[idx].reset();
+    LOGI("Stem %d cleared", idx);
+}
+
+void AudioEngine::clearAllStems() {
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        stemPlayers_[i].reset();
+    }
+    LOGI("All stems cleared");
 }
 
 // --- Beat Detection ---
@@ -308,6 +357,14 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
     // Render track player (channel 1 = track gain)
     float trackGain = mixer_.getChannelGain(1);
     trackPlayer_.render(output, numFrames, channelCount_, trackGain);
+
+    // Render stems (channel 2..2+MAX_STEMS-1)
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        if (stemPlayers_[i].isLoaded()) {
+            float stemGain = mixer_.getChannelGain(2 + i);
+            stemPlayers_[i].render(output, numFrames, channelCount_, stemGain);
+        }
+    }
 
     // Apply master gain
     float masterGain = mixer_.getMasterGain();
