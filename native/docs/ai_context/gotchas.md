@@ -23,6 +23,18 @@
 ### Always test beat alignment from ⏮ (restart), not mid-song
 - If analysis completes after playback starts, there's a constant-BPM→beat-map transition. Any phase mismatch at transition point will confuse feedback. Always restart from frame 0 for clean test.
 
+### ANALYSIS_SECONDS must cover full song length
+- Was capped at 180s (3 min). Sultans of Swing is 5:47 — beat map ran out, fell back to constant-BPM, drifted. Now 900s (15 min). After beat map exhaustion, metronome falls back to constant-BPM mode (metronome.cpp:368-373) which drifts on any real recording.
+
+### BTrack struggles with syncopated/funky grooves
+- Cissy Strut: click never settled to a solid tempo. BTrack's onset detection may fire on wrong subdivisions in heavily syncopated music. Not a silence gap issue — a fundamental tracking issue.
+
+### BTrack struggles with tempo changes
+- War Pigs: tempo changes mid-song + sections of silence. Pass 1 BPM seed may force BTrack to lock onto one tempo. Research needed — may need to not seed, or use sectional analysis, or a different beat tracker entirely.
+
+### Research before patching
+- S30A lost context by patching blind (regrid). S30B confirmed the simple fix (catch-up burst) was the real issue all along. Lesson: confirm root cause before adding complexity. Plan before coding.
+
 ## Database (Supabase)
 
 ### Settings are singletons

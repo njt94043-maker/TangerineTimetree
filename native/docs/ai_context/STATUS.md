@@ -6,19 +6,21 @@
 ---
 
 ## Current State
-- **Phase**: Beat map architecture in place. BTrack full-track analysis working. Click fires at actual detected beat positions. Phase alignment unconfirmed on device — need clean test.
-- **Blocker**: Beat alignment still needs on-device confirmation. Previous "drift" was caused by a rapid-fire catch-up burst when beat map was applied mid-song (now fixed). Need to test from fresh load + ⏮ restart.
-- **Last session**: S30A — Beat alignment major overhaul. Replaced spectral-flux offset detection with BTrack full-track beat map. Fixed BTrack 44100 Hz hardcode (5 locations). Two-pass analysis (rough BPM → seeded full pass). cleanBeatMap (local sliding-window IBI). loadBeatMap now skips past beats on load (no catch-up burst). applyBeatMap passes current track/metro frame. Accent removed (all clicks identical). Restart button (⏮) added to transport. Regrid (uniform grid) was tried and reverted — it drifts on any variable-tempo track.
-- **Next action**: On-device test with ⏮ restart from fresh load. Confirm beat alignment. If drift remains, investigate whether BTrack positions are systematically early/late and consider per-beat latency correction. Manual nudge (Beat Step ½-beat) is already implemented.
+- **Phase**: Beat map confirmed working on device for steady-tempo tracks. Click holds for 97+ bars of Sultans of Swing. Core architecture is sound.
+- **What works**: BTrack per-beat positions → cleanBeatMap → metronome fires at actual beat times. Catch-up burst fix confirmed as the original drift cause. Analysis cap raised to 900s (15 min).
+- **What doesn't work yet**: (1) Syncopated/funky tracks (Cissy Strut) — click never settles to solid tempo. BTrack struggles with swung grooves. (2) Tempo/time-sig changes (War Pigs) — BTrack seeded at one tempo can't handle mid-song tempo shifts.
+- **Last session**: S30B — On-device testing confirmed catch-up burst fix solved the drift. Raised ANALYSIS_SECONDS from 180→900. Tested 3 songs: Sultans (holds), Cissy Strut (fails — syncopation), War Pigs (fails — tempo changes + silence).
+- **Next action**: Research better beat tracking approaches for syncopation and tempo changes. Plan before coding.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S30B — Beat Alignment Confirmation
-- Test with ⏮ restart (fresh from frame 0, beat map active from start)
-- If still drifting: add logcat beat-fire timestamps vs track position to measure actual error
-- If drifting consistently one direction: apply global phase offset to BTrack positions in cleanBeatMap
-- Manual nudge already works (Beat Step ½-beat). User can fine-tune if needed.
-- Do NOT re-introduce regrid — uniform grid fails on variable-tempo tracks.
+## Next Session Plan: S30C — Beat Detection Research + Planning
+- Research: How do Moises / Demucs / madmom / librosa handle beat tracking for syncopated and variable-tempo music?
+- Identify whether BTrack can be tuned (hop size, onset function, tempo weighting) or needs replacing
+- Cissy Strut problem: BTrack can't lock onto swung/funky grooves — is this onset detection or tempo estimation?
+- War Pigs problem: tempo changes mid-song — does BTrack track tempo changes if not seeded? Does the pass 1 seed hurt?
+- Plan the fix before writing code. No patching blind.
+- Consider: "Audio Analysis page" (R'nS concept) where user can re-analyse or manually adjust
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.

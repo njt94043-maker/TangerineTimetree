@@ -14,8 +14,8 @@ namespace gigbooks {
 static constexpr int BTRACK_HOP_SIZE   = 512;
 static constexpr int BTRACK_FRAME_SIZE = 1024;
 
-// Analyse up to 3 minutes
-static constexpr int ANALYSIS_SECONDS  = 180;
+// Analyse the full track (up to 10 minutes — covers any realistic song length)
+static constexpr int ANALYSIS_SECONDS  = 900;
 // First pass uses 30s to get rough BPM before running the full analysis
 static constexpr int PASS1_SECONDS     = 30;
 
