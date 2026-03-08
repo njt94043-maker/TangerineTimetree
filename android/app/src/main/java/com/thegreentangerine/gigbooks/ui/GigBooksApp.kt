@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -129,7 +131,7 @@ fun GigBooksApp() {
         NavHost(
             navController    = navController,
             startDestination = Screen.Calendar.route,
-            modifier = Modifier.fillMaxSize().background(GigColors.background),
+            modifier = Modifier.fillMaxSize().safeDrawingPadding().background(GigColors.background),
         ) {
             composable(Screen.Calendar.route) {
                 CalendarScreen(vm = vm, onMenuClick = { openMenu() })
@@ -178,7 +180,7 @@ fun GigBooksApp() {
 @Composable
 private fun DrawerHeader() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 18.dp),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(

@@ -1,5 +1,9 @@
 #include <jni.h>
+#include <android/log.h>
 #include "audio_engine.h"
+
+#define LOG_TAG "GigBooks"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 /**
  * JNI bridge — connects Kotlin ClickEngineBridge to C++ AudioEngine.
@@ -30,6 +34,7 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeStopEngine(
 JNIEXPORT void JNICALL
 Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeSetBpm(
         JNIEnv*, jclass, jfloat bpm) {
+    LOGI("nativeSetBpm: %.1f", bpm);
     AudioEngine::getInstance().setBpm(bpm);
 }
 
@@ -65,7 +70,9 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeSetCountIn(
 JNIEXPORT void JNICALL
 Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeStartClick(
         JNIEnv*, jclass) {
-    AudioEngine::getInstance().startClick();
+    auto& engine = AudioEngine::getInstance();
+    LOGI("nativeStartClick: sampleRate=%d", engine.getSampleRate());
+    engine.startClick();
 }
 
 JNIEXPORT void JNICALL
@@ -265,6 +272,12 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeSetBeatOffsetM
     auto& engine = AudioEngine::getInstance();
     int32_t frames = static_cast<int32_t>((int64_t)engine.getSampleRate() * ms / 1000);
     engine.setBeatDisplacement(frames);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeGetSampleRate(
+        JNIEnv*, jclass) {
+    return static_cast<jint>(AudioEngine::getInstance().getSampleRate());
 }
 
 } // extern "C"

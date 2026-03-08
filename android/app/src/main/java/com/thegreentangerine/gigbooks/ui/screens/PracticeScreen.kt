@@ -25,6 +25,8 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -91,13 +93,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     )
                 }
 
-                // Play/Stop click
-                PlayStopButton(
-                    isPlaying = vm.isClickPlaying,
-                    accent    = GigColors.purple,
-                    onClick   = { vm.toggleClick() },
-                    enabled   = vm.engineAvailable,
-                )
+                // Unified transport + click mute
+                UnifiedTransport(vm)
 
                 // Speed control
                 SpeedCard(vm)
@@ -365,21 +362,14 @@ private fun TrackSection(vm: AppViewModel, audioUrl: String) {
             val totalStr    = formatFrames(vm.trackTotalFr,    vm.trackSampleRate)
 
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = { if (vm.isTrackPlaying) vm.pauseTrack() else vm.playTrack() },
-                    modifier = Modifier.size(44.dp),
-                ) {
-                    Icon(
-                        if (vm.isTrackPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = null, tint = GigColors.green, modifier = Modifier.size(26.dp),
-                    )
-                }
-                IconButton(onClick = { vm.stopTrack() }, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Default.Stop, contentDescription = "Stop", tint = GigColors.textDim, modifier = Modifier.size(20.dp))
-                }
                 Spacer(Modifier.width(4.dp))
                 Text("$positionStr / $totalStr", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim)
             }
+
+            // Click / Track volume mix
+            MixRow("Click", GigColors.purple, vm.clickGain, 0f, 2f) { vm.changeClickGain(it) }
+            MixRow("Track", GigColors.green,  vm.trackGain, 0f, 1f) { vm.changeTrackGain(it) }
+            Spacer(Modifier.height(4.dp))
 
             WaveformSeekBar(
                 envelope        = vm.waveformEnvelope,
@@ -468,7 +458,7 @@ private fun BeatAlignBanner(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "Apply & Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
+                "Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
                 fontSize = 11.sp,
                 style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 4f)),
             )
@@ -635,6 +625,63 @@ private fun StemSliderRow(label: String, gain: Float, onGainChange: (Float) -> U
             text       = "${(gain * 100).roundToInt()}%",
             fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
             modifier   = Modifier.width(36.dp).padding(start = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun UnifiedTransport(vm: AppViewModel) {
+    val isPlaying = vm.isClickPlaying || vm.isTrackPlaying
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        // Play / Pause
+        PlayStopButton(
+            isPlaying = isPlaying,
+            accent    = GigColors.purple,
+            onClick   = { if (isPlaying) vm.pause() else vm.play() },
+            enabled   = vm.engineAvailable,
+        )
+        Spacer(Modifier.width(16.dp))
+        // Stop (rewind)
+        IconButton(onClick = { vm.stop() }, modifier = Modifier.size(40.dp)) {
+            Icon(Icons.Default.Stop, contentDescription = "Stop", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(16.dp))
+        // Click mute toggle
+        val muteColor = if (vm.isClickMuted) GigColors.danger else GigColors.textDim
+        IconButton(onClick = { vm.toggleClickMute() }, modifier = Modifier.size(40.dp)) {
+            Icon(
+                if (vm.isClickMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                contentDescription = if (vm.isClickMuted) "Click muted" else "Click on",
+                tint = muteColor,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MixRow(label: String, color: Color, value: Float, min: Float, max: Float, onChange: (Float) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontFamily = JetBrainsMono, fontSize = 10.sp, color = color, modifier = Modifier.width(44.dp))
+        Slider(
+            value = value, onValueChange = onChange, valueRange = min..max,
+            modifier = Modifier.weight(1f),
+            colors = SliderDefaults.colors(
+                thumbColor = color, activeTrackColor = color,
+                inactiveTrackColor = GigColors.textMuted.copy(alpha = 0.2f),
+            ),
+        )
+        Text(
+            "${(value / max * 100).roundToInt()}%",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+            modifier = Modifier.width(36.dp).padding(start = 4.dp),
         )
     }
 }

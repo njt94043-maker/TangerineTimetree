@@ -6,12 +6,20 @@
 ---
 
 ## Current State
-- **Phase**: S29A complete. Full app built (Calendar + Library + Live + Practice + Settings). Ready for on-device test.
-- **Blocker**: None.
-- **Last session**: 2026-03-08 session 7 — S29A: Gig.kt + AwayDate.kt (@Serializable models). GigRepository (getGigsForMonth, getAwayDatesForMonth). AppViewModel: calViewYear/Month, calGigs, calAwayDates, calLoading, calNavigate(), loadCalendarMonth() on init. CalendarScreen rewritten: coloured dots (gig=green, practice=purple, away=red), today=orange border, tap-to-expand DayDetail panel (venue/client/time/notes), loading spinner. GigBooksApp: Screen.Calendar, start destination. BUILD SUCCESSFUL. Committed + pushed (9d5ec16).
-- **Next action**: On-device test — install APK → verify Calendar shows gigs/away dates → Practice mode: load track → verify beat banner → Apply & Save → verify click locks. Then upload audio stems via web + test stem mixing.
+- **Phase**: Audio practice mode partially working. BPM fix confirmed working. Beat alignment (phase offset) still wrong.
+- **Blocker**: Beat detector returns wrong beat offset → click fires at correct rate but wrong phase relative to track.
+- **Last session**: 2026-03-08 session 8 — On-device testing. Fixed 4 audio bugs: (1) OOM: `mutableListOf<Short>` boxes PCM → ByteArray chunks + ShortBuffer. (2) 8.8% speed error: Oboe opens at 48kHz, MP3 at 44.1kHz → added linear interpolation resample in decodeAudio. (3) BPM override: applyEngineSettings was overriding detected BPM → guard: if detectedBpm>0 skip metadata BPM. (4) **Beat offset per-beat accumulation bug**: displacement was added to every nextBeatFrame_, making effective BPM = sr*60/(fpb+offset) instead of just delaying first beat. Fixed: offset applied once at start(), per-beat is 0. Nudge now uses pendingPhaseShift_ atomic (applied at next beat boundary). Also: unified transport (play/pause/stop + click mute), sample rate mismatch fix, safe area via safeDrawingPadding + statusBarsPadding. All committed + pushed (bab0050 and later).
+- **Next action**: Research + fix beat alignment (S30A). Beat detector gives wrong offset — click fires at right BPM but not phase-locked to track. See next session plan below.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
+
+## Next Session Plan: S30A — Beat Alignment Fix
+- Research beat_detector.cpp accuracy — does it return correct offset for "Sultans of Swing"?
+- Investigate: SoundTouch BPMDetect vs custom onset autocorrelation
+- Add logcat output of raw analysis result (bpm + offsetMs) at analysis time
+- Possible approach: use FFT-based beat tracking OR manual offset slider as fallback
+- Manual fine-tune: offset slider (±500ms range) in PracticeScreen, saves to Supabase
+- Goal: user can align click to track manually if auto-detect is wrong
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.

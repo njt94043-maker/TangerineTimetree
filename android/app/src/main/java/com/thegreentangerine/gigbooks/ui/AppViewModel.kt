@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -66,6 +67,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val effectiveBpm: Float
         get() = ((selectedSong?.bpm ?: 120.0) * practiceSpeed).toFloat() + bpmOffset
+
+    // ── Mix gains + mute ──────────────────────────────────────────────────────
+    var clickGain    by mutableStateOf(1.5f)
+    var trackGain    by mutableStateOf(0.7f)
+    var isClickMuted by mutableStateOf(false)
+
+    fun changeClickGain(g: Float) { clickGain = g; if (!isClickMuted && engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(0, g) } catch (_: Exception) { } }
+    fun changeTrackGain(g: Float) { trackGain = g; if (engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(1, g) } catch (_: Exception) { } }
+    fun toggleClickMute() {
+        isClickMuted = !isClickMuted
+        if (engineAvailable) try {
+            AudioEngineBridge.nativeSetChannelGain(0, if (isClickMuted) 0f else clickGain)
+        } catch (_: Exception) { }
+    }
 
     // ── Track ─────────────────────────────────────────────────────────────────
     var trackLoaded      by mutableStateOf(false);   private set
@@ -107,6 +122,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     init {
         loadLibrary()
         loadCalendarMonth()
+        // Apply default mix gains to engine
+        if (engineAvailable) try {
+            AudioEngineBridge.nativeSetChannelGain(0, clickGain)
+            AudioEngineBridge.nativeSetChannelGain(1, trackGain)
+        } catch (_: Exception) { }
     }
 
     // ── Library loading ───────────────────────────────────────────────────────
@@ -162,7 +182,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             ?.indexOfFirst { it.songs?.id == song.id }
             ?.takeIf { it >= 0 }
             ?.let { activeSetlistIdx = it }
-        if (isClickPlaying) applyEngineSettings(song)
+        applyEngineSettings(song)  // always sync BPM/time-sig to engine when song selected
     }
 
     fun selectSetlist(setlist: SetlistWithSongs) {
@@ -193,7 +213,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun applyEngineSettings(song: Song) {
         if (!engineAvailable) return
         try {
-            AudioEngineBridge.nativeSetBpm(effectiveBpm)
+            // Only apply metadata BPM if analysis hasn't already set one
+            if (detectedBpm <= 0f) AudioEngineBridge.nativeSetBpm(effectiveBpm)
             AudioEngineBridge.nativeSetTimeSignature(
                 song.timeSignatureTop.toInt(),
                 song.timeSignatureBottom.toInt(),
@@ -204,6 +225,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) { }
     }
 
+    /** Start click engine + begin beat polling. */
     fun startClick() {
         if (!engineAvailable) return
         selectedSong?.let { applyEngineSettings(it) }
@@ -230,6 +252,42 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         currentBeat = 0; currentBar = 0
     }
 
+    /** Unified play: starts click + track (if loaded) together. */
+    fun play() {
+        if (!engineAvailable) return
+        if (!isClickPlaying) startClick()
+        if (trackLoaded && !isTrackPlaying) {
+            try { AudioEngineBridge.nativePlayTrack() } catch (_: Exception) { return }
+            isTrackPlaying = true
+            trackPollJob?.cancel()
+            trackPollJob = viewModelScope.launch(Dispatchers.Default) {
+                while (isActive) {
+                    try {
+                        val p = AudioEngineBridge.nativeGetTrackPosition()
+                        withContext(Dispatchers.Main) { trackPositionFr = p }
+                    } catch (_: Exception) { }
+                    delay(100L)
+                }
+            }
+        }
+    }
+
+    /** Unified pause: pauses both click + track. */
+    fun pause() {
+        if (isTrackPlaying) {
+            if (engineAvailable) try { AudioEngineBridge.nativePauseTrack() } catch (_: Exception) { }
+            isTrackPlaying = false; trackPollJob?.cancel()
+        }
+        stopClick()
+    }
+
+    /** Unified stop: stops and rewinds both. */
+    fun stop() {
+        if (engineAvailable) try { AudioEngineBridge.nativeStopTrack() } catch (_: Exception) { }
+        isTrackPlaying = false; trackPositionFr = 0L; trackPollJob?.cancel()
+        stopClick()
+    }
+
     fun toggleClick() { if (isClickPlaying) stopClick() else startClick() }
 
     fun adjustBpm(delta: Float) {
@@ -245,7 +303,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun applySpeed(speed: Float) {
         practiceSpeed = speed
         if (engineAvailable) try {
-            AudioEngineBridge.nativeSetBpm(effectiveBpm)
+            // Set baseBpm in engine first (nativeSetTrackSpeed will scale it by ratio)
+            val baseBpm = if (detectedBpm > 0f) detectedBpm else (selectedSong?.bpm ?: 120.0).toFloat()
+            AudioEngineBridge.nativeSetBpm(baseBpm)
             if (trackLoaded) AudioEngineBridge.nativeSetTrackSpeed(speed)
         } catch (_: Exception) { }
     }
@@ -320,7 +380,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Beat Analysis ──────────────────────────────────────────────────────────
 
-    /** Run nativeAnalyseTrack() on a background thread; show banner if result is valid. */
+    /** Run nativeAnalyseTrack() on a background thread.
+     *  On valid result: immediately applies detected BPM + offset to the engine,
+     *  then shows the banner so the user can save it to Supabase. */
     private fun runAnalysis() {
         viewModelScope.launch(Dispatchers.Default) {
             withContext(Dispatchers.Main) { isAnalysing = true }
@@ -330,7 +392,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     if (result.size >= 2 && result[0] in 40f..250f) {
                         detectedBpm      = result[0]
                         detectedOffsetMs = result[1].toInt().coerceAtLeast(0)
-                        showBeatBanner   = true
+                        // Auto-apply immediately — analysis drives the click, not metadata
+                        if (engineAvailable) try {
+                            AudioEngineBridge.nativeSetBpm(detectedBpm)
+                            AudioEngineBridge.nativeSetBeatOffsetMs(detectedOffsetMs)
+                        } catch (_: Exception) { }
+                        nudgeOffsetMs       = 0f
+                        appliedBeatOffsetMs = detectedOffsetMs
+                        showBeatBanner      = true  // banner = "Save?" prompt only
                     }
                 }
             } catch (_: Exception) {
@@ -340,24 +409,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Apply detected BPM + offset to engine, update in-memory song, save to Supabase. */
+    /** Save the auto-applied beat analysis result to Supabase. Engine already updated. */
     fun applyDetectedBeat() {
         val song = selectedSong ?: return
         val bpm  = detectedBpm
         val ms   = detectedOffsetMs
 
-        // Apply to engine
-        if (engineAvailable) try {
-            AudioEngineBridge.nativeSetBeatOffsetMs(ms)
-            AudioEngineBridge.nativeSetBpm(bpm)
-        } catch (_: Exception) { }
+        showBeatBanner = false
 
-        // Reset any manual nudge — offset is now set absolutely
-        nudgeOffsetMs       = 0f
-        appliedBeatOffsetMs = ms
-        showBeatBanner      = false
-
-        // Update in-memory song so the BPM display reflects the detected value
+        // Update in-memory song so BPM display reflects detected value
         val updatedSong = song.copy(bpm = bpm.toDouble(), beatOffsetMs = ms.toDouble())
         selectedSong = updatedSong
         songs = songs.map { if (it.id == song.id) updatedSong else it }
@@ -446,9 +506,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         codec.configure(extractor.getTrackFormat(trackIdx), null, null, 0)
         codec.start()
 
-        val info   = MediaCodec.BufferInfo()
-        val shorts = mutableListOf<Short>()
-        var eos    = false
+        val info       = MediaCodec.BufferInfo()
+        val chunks     = mutableListOf<ByteArray>()
+        var totalBytes = 0
+        var eos        = false
 
         while (!eos) {
             val ii = codec.dequeueInputBuffer(10_000L)
@@ -460,27 +521,53 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             val oi = codec.dequeueOutputBuffer(info, 10_000L)
             if (oi >= 0) {
-                val ob = codec.getOutputBuffer(oi)!!.order(ByteOrder.nativeOrder()).asShortBuffer()
-                while (ob.hasRemaining()) shorts.add(ob.get())
+                val ob    = codec.getOutputBuffer(oi)!!
+                val bytes = ByteArray(info.size)
+                ob.position(info.offset); ob.get(bytes)
+                chunks.add(bytes); totalBytes += info.size
                 codec.releaseOutputBuffer(oi, false)
                 if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) eos = true
             }
         }
         codec.stop(); codec.release(); extractor.release()
 
-        val floats = if (ch > 1)
-            FloatArray(shorts.size / ch) { i ->
-                (0 until ch).sumOf { c -> shorts[i * ch + c].toDouble() }.toFloat() / (32768f * ch)
+        // Convert chunk list → mono FloatArray using primitive ShortBuffer (no boxing)
+        val floatCount = totalBytes / 2 / ch
+        val floats     = FloatArray(floatCount)
+        var fi = 0; var chanAcc = 0f; var chanN = 0
+        for (chunk in chunks) {
+            val sb = ByteBuffer.wrap(chunk).order(ByteOrder.nativeOrder()).asShortBuffer()
+            while (sb.hasRemaining()) {
+                chanAcc += sb.get().toFloat()
+                if (++chanN == ch) { floats[fi++] = chanAcc / (32768f * ch); chanAcc = 0f; chanN = 0 }
             }
-        else FloatArray(shorts.size) { shorts[it] / 32768f }
+        }
 
-        Pair(floats, sr)
+        // Resample to engine sample rate if needed (e.g. track=44100, engine=48000)
+        val engineSr = try { AudioEngineBridge.nativeGetSampleRate() } catch (_: Exception) { sr }
+        if (sr == engineSr || engineSr <= 0) {
+            Pair(floats, engineSr)
+        } else {
+            val ratio     = engineSr.toDouble() / sr.toDouble()
+            val newSize   = (floats.size * ratio).toInt()
+            val resampled = FloatArray(newSize) { i ->
+                val srcPos = i / ratio
+                val srcIdx = srcPos.toInt()
+                val frac   = (srcPos - srcIdx).toFloat()
+                val a      = if (srcIdx < floats.size) floats[srcIdx] else 0f
+                val b      = if (srcIdx + 1 < floats.size) floats[srcIdx + 1] else a
+                a + (b - a) * frac
+            }
+            Pair(resampled, engineSr)
+        }
     }
 
     fun playTrack() {
         if (!engineAvailable || !trackLoaded) return
         try { AudioEngineBridge.nativePlayTrack() } catch (_: Exception) { return }
         isTrackPlaying = true
+        // Auto-start click if not already playing (click + track always play together)
+        if (!isClickPlaying) startClick()
         trackPollJob?.cancel()
         trackPollJob = viewModelScope.launch(Dispatchers.Default) {
             while (isActive) {
@@ -497,12 +584,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!engineAvailable) return
         try { AudioEngineBridge.nativePauseTrack() } catch (_: Exception) { }
         isTrackPlaying = false; trackPollJob?.cancel()
+        if (isClickPlaying) stopClick()
     }
 
     fun stopTrack() {
         if (!engineAvailable) return
         try { AudioEngineBridge.nativeStopTrack() } catch (_: Exception) { }
         isTrackPlaying = false; trackPositionFr = 0L; trackPollJob?.cancel()
+        if (isClickPlaying) stopClick()
     }
 
     fun seekTrackFraction(fraction: Float) {

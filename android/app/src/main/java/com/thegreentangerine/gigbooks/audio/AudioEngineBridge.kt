@@ -62,4 +62,7 @@ object AudioEngineBridge {
     // Set absolute beat offset (ms) → converted to frames → setBeatDisplacement.
     // Call after nativeLoadTrack to phase-lock click to track. Pass 0 to reset.
     external fun nativeSetBeatOffsetMs(ms: Int)
+
+    // --- Engine info ---
+    external fun nativeGetSampleRate(): Int
 }

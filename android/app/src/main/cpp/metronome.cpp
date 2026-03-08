@@ -78,6 +78,10 @@ void Metronome::setBeatDisplacement(int32_t frames) {
     beatDisplacementFrames_.store(frames);
 }
 
+void Metronome::addPhaseShift(int64_t frames) {
+    pendingPhaseShift_.fetch_add(frames);
+}
+
 void Metronome::setBackbeat(bool enabled) {
     backbeatEnabled_.store(enabled);
 }
@@ -107,7 +111,9 @@ void Metronome::setMutedBars(bool enabled, int32_t playBars, int32_t muteBars) {
 
 void Metronome::start() {
     framePosition_ = 0;
-    nextBeatFrame_ = 0;
+    // Apply beat offset so first click fires at the correct phase (aligns to track)
+    nextBeatFrame_ = static_cast<int64_t>(beatDisplacementFrames_.load());
+    pendingPhaseShift_.store(0);
     clickSampleIndex_ = 0;
     isClickActive_ = false;
     scheduledBeat_ = 0;
@@ -237,7 +243,6 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
     float swingPct = swingPercent_.load();
     int32_t dropPct = randomDropPercent_.load();
     bool backbeat = backbeatEnabled_.load();
-    int32_t displacement = beatDisplacementFrames_.load();
 
     for (int32_t frame = 0; frame < numFrames; frame++) {
 
@@ -295,7 +300,10 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
             subBeatIndex_ = 1;
             isSubClickActive_ = false;
 
-            nextBeatFrame_ = framePosition_ + fpb + displacement;
+            // Advance to next beat (no per-beat displacement — offset was applied at start())
+            // Apply any pending one-shot nudge (from nudgeClick, thread-safe)
+            int64_t nudge = pendingPhaseShift_.exchange(0);
+            nextBeatFrame_ = framePosition_ + fpb + nudge;
 
             int32_t prevBar = bar;
             scheduledBeat_ = beat + 1;
