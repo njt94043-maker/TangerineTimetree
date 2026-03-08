@@ -17,7 +17,8 @@
 - [x] On-device test: load a practice track (track loads, click fires at correct BPM)
 - [x] **S30A+B: Beat alignment fix + on-device confirmation** — Catch-up burst was the drift cause (fixed). BTrack per-beat positions work for steady-tempo tracks (Sultans holds 97+ bars). ANALYSIS_SECONDS raised to 900s.
 - [x] **S30C: Beat detection research** — DONE. BTrack limits are architectural (onset-based, 5% tempo cap). madmom (RNN+DBN) chosen. Server-side on Cloud Run, beat maps in Supabase, C++ reads timestamps. D-104/105/106.
-- [ ] **S31A: Server-side beat detection (madmom)** — Cloud Run Python service, beat_maps in Supabase, web triggers after upload, Android fetches map, C++ simplified. Test on Sultans + Cissy Strut + War Pigs.
+- [x] **S31A: Server-side beat detection (madmom)** — DONE. Cloud Run service (Dockerfile + main.py), beat_maps migration, shared types/queries, web triggers after upload + status UI, Android fetches server beat map (BTrack fallback), C++ nativeApplyExternalBeatMap. Both apps build clean.
+- [ ] **S31B: Deploy + end-to-end test** — Deploy Cloud Run, run migration, set env vars, test Sultans/Cissy Strut/War Pigs on device.
 - [ ] Add more songs via web app (currently only "Sultans of Swing" in DB)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update

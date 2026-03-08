@@ -378,6 +378,33 @@ void AudioEngine::applyBeatMap(int32_t beatsPerBar) {
          (long long)trackFrame, (long long)metroFrame);
 }
 
+void AudioEngine::applyExternalBeatMap(const float* beatSeconds, size_t count,
+                                        int32_t beatsPerBar, int32_t sampleRate) {
+    if (!beatSeconds || count == 0) {
+        LOGW("applyExternalBeatMap: empty beat array");
+        return;
+    }
+    // Convert seconds to frame positions and store into lastAnalysis_
+    // so that applyBeatMap / resyncBeatMap / nudge all work the same way.
+    lastAnalysis_.beatFrames.clear();
+    lastAnalysis_.beatFrames.reserve(count);
+    for (size_t i = 0; i < count; i++) {
+        int64_t frame = static_cast<int64_t>(beatSeconds[i] * sampleRate);
+        lastAnalysis_.beatFrames.push_back(frame);
+    }
+    lastAnalysis_.valid = true;
+    if (count >= 2) {
+        float totalSec = beatSeconds[count - 1] - beatSeconds[0];
+        lastAnalysis_.bpm = (totalSec > 0) ? (60.0f * (count - 1) / totalSec) : 0.0f;
+    }
+    lastAnalysis_.beatOffsetMs = static_cast<int32_t>(beatSeconds[0] * 1000.0f);
+
+    // Now apply via the standard path
+    applyBeatMap(beatsPerBar);
+    LOGI("applyExternalBeatMap: %zu beats at sr=%d, bpm=%.1f",
+         count, sampleRate, lastAnalysis_.bpm);
+}
+
 // --- Oboe audio callback ---
 
 oboe::DataCallbackResult AudioEngine::onAudioReady(

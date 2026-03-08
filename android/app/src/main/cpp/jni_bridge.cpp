@@ -278,6 +278,22 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeApplyBeatMap(
     AudioEngine::getInstance().applyBeatMap(static_cast<int32_t>(beatsPerBar));
 }
 
+// Apply an external beat map (from server-side madmom analysis).
+// beatSeconds: float array of beat times in seconds.
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeApplyExternalBeatMap(
+        JNIEnv* env, jclass, jfloatArray beatSeconds, jint beatsPerBar, jint sampleRate) {
+    jsize count = env->GetArrayLength(beatSeconds);
+    jfloat* elements = env->GetFloatArrayElements(beatSeconds, nullptr);
+    if (elements != nullptr) {
+        AudioEngine::getInstance().applyExternalBeatMap(
+            elements, static_cast<size_t>(count),
+            static_cast<int32_t>(beatsPerBar),
+            static_cast<int32_t>(sampleRate));
+        env->ReleaseFloatArrayElements(beatSeconds, elements, JNI_ABORT);
+    }
+}
+
 // Set absolute beat offset in ms — aligns click grid to first beat of the loaded track.
 // Converts ms to frames using the engine's sample rate and calls setBeatDisplacement().
 // Call once after nativeLoadTrack to phase-lock the click.
