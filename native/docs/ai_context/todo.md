@@ -15,7 +15,8 @@
 - [x] **Compose app full buildout** — Login, Library, Live Mode, Practice Mode, Settings, AppViewModel, C++ wiring
 - [x] On-device test: verify click track fires (confirmed 157 BPM works correctly)
 - [x] On-device test: load a practice track (track loads, click fires at correct BPM)
-- [ ] **S30A: Beat alignment research + fix** — beat_detector returns wrong offset → click not phase-locked to track. See STATUS.md next session plan.
+- [x] **S30A+B: Beat alignment fix + on-device confirmation** — Catch-up burst was the drift cause (fixed). BTrack per-beat positions work for steady-tempo tracks (Sultans holds 97+ bars). ANALYSIS_SECONDS raised to 900s.
+- [ ] **S30C: Beat detection improvements** — BTrack fails on syncopated tracks (Cissy Strut) and tempo-change tracks (War Pigs). Research needed before coding. See STATUS.md next session plan.
 - [ ] Add more songs via web app (currently only "Sultans of Swing" in DB)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
