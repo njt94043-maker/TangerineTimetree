@@ -2,6 +2,14 @@
 S31A: Beat detection Cloud Run service using madmom.
 Accepts an audio file (POST /analyse) and returns beat timestamps + BPM.
 """
+# madmom 0.16.1 uses collections.MutableSequence (removed in 3.10+)
+import collections
+import collections.abc
+for attr in ('MutableSequence', 'MutableMapping', 'MutableSet',
+             'Mapping', 'Sequence', 'Iterable', 'Iterator'):
+    if not hasattr(collections, attr):
+        setattr(collections, attr, getattr(collections.abc, attr))
+
 import io
 import os
 import tempfile

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # madmom needs gcc + audio libs for building Cython extensions
 RUN apt-get update && \
@@ -9,7 +9,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 # madmom needs Cython + numpy available at build time for setup.py
-RUN pip install --no-cache-dir cython==3.0.12 numpy==1.26.4 && \
+RUN pip install --no-cache-dir cython==3.0.12 numpy==1.23.5 setuptools && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .

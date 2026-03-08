@@ -4,6 +4,19 @@
 
 ---
 
+## Cloud Run / madmom
+
+### madmom 0.16.1 Python compatibility
+- **Python 3.11+**: `collections.MutableSequence` removed — import error. Fix: monkey-patch `collections` from `collections.abc` before importing madmom.
+- **numpy 1.24+**: `np.float` removed — runtime error. Fix: pin `numpy==1.23.5`.
+- **scipy 1.14+**: requires Python 3.10+. Pin `scipy==1.10.1` for Python 3.10.
+- **Cython**: must be pre-installed before `pip install madmom` (madmom's `setup.py` imports Cython at metadata time). Split the pip install: `pip install cython numpy` first, then `pip install -r requirements.txt`.
+- **Working combo**: Python 3.10, numpy 1.23.5, scipy 1.10.1, cython 3.0.12, madmom 0.16.1.
+
+### Cold start is ~53s
+- madmom loads 8 RNN models on first request. Subsequent requests are fast (~10-30s depending on track length).
+- If this is too slow, set `--min-instances 1` on Cloud Run (costs ~$5/month idle).
+
 ## Beat Detection / Audio Engine
 
 ### Uniform grid (regrid) fails on real music
