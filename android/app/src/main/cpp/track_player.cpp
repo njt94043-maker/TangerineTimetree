@@ -116,6 +116,19 @@ void TrackPlayer::clearLoopRegion() {
     loopEnabled_.store(false);
 }
 
+void TrackPlayer::reset() {
+    // Stop the audio thread from rendering this player on the next callback
+    state_.store(0, std::memory_order_seq_cst);
+    // Mark as unloaded so render() returns immediately on subsequent callbacks
+    isLoaded_.store(false, std::memory_order_seq_cst);
+    position_.store(0);
+    totalFrames_.store(0);
+    loopEnabled_.store(false);
+    if (soundTouchInitialized_ && soundTouch_) soundTouch_->clear();
+    // pcmBuffer_ is intentionally NOT cleared here to avoid a race with an
+    // in-progress audio callback. It will be overwritten on the next load().
+}
+
 void TrackPlayer::setSpeed(float ratio) {
     ratio = std::clamp(ratio, 0.25f, 4.0f);
     speed_.store(ratio);

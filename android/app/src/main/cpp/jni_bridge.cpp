@@ -215,6 +215,33 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeNudgeClick(
     AudioEngine::getInstance().nudgeClick(direction);
 }
 
+// --- Stem Players ---
+
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeLoadStem(
+        JNIEnv* env, jclass, jint idx, jfloatArray pcmData, jint numFrames,
+        jint sampleRate, jint channels) {
+    jsize len = env->GetArrayLength(pcmData);
+    jfloat* elements = env->GetFloatArrayElements(pcmData, nullptr);
+    if (elements != nullptr) {
+        std::vector<float> data(elements, elements + len);
+        AudioEngine::getInstance().loadStem(idx, std::move(data), numFrames, sampleRate, channels);
+        env->ReleaseFloatArrayElements(pcmData, elements, JNI_ABORT);
+    }
+}
+
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeClearStem(
+        JNIEnv*, jclass, jint idx) {
+    AudioEngine::getInstance().clearStem(idx);
+}
+
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeClearAllStems(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().clearAllStems();
+}
+
 // --- Beat Detection ---
 // Returns float array: [bpm, beatOffsetMs]
 JNIEXPORT jfloatArray JNICALL

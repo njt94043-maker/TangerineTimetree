@@ -14,9 +14,11 @@ namespace gigbooks {
 /**
  * Central audio engine — singleton.
  * Owns the single Oboe output stream and routes the audio callback
- * to Metronome, TrackPlayer, and Mixer.
+ * to Metronome, TrackPlayer, Mixer, and stem players.
  *
- * Channel 0 = click (metronome), Channel 1 = track (practice MP3).
+ * Channel 0 = click (metronome)
+ * Channel 1 = main practice track
+ * Channel 2..7 = stems (loaded by index: 0=DRUMS, 1=BASS, 2=GUITAR, 3=KEYS, 4=VOCALS, 5=OTHER)
  */
 class AudioEngine : public oboe::AudioStreamDataCallback,
                     public oboe::AudioStreamErrorCallback {
@@ -75,6 +77,14 @@ public:
     int64_t getTrackTotalFrames() const;
     bool isTrackLoaded() const;
 
+    // --- Stem Players (ch2..ch2+MAX_STEMS-1) ---
+    // idx: 0=DRUMS, 1=BASS, 2=GUITAR, 3=KEYS, 4=VOCALS, 5=OTHER
+    static constexpr int32_t MAX_STEMS = 6;
+    void loadStem(int32_t idx, std::vector<float>&& pcmData, int32_t numFrames,
+                  int32_t sampleRate, int32_t channels);
+    void clearStem(int32_t idx);
+    void clearAllStems();
+
     // Time-stretch (adjusts both track speed AND metronome BPM proportionally)
     void setTrackSpeed(float ratio);
     float getTrackSpeed() const;
@@ -114,6 +124,7 @@ private:
     Metronome metronome_;
     Mixer mixer_;
     TrackPlayer trackPlayer_;
+    TrackPlayer stemPlayers_[MAX_STEMS]; // ch2..ch7
 };
 
 } // namespace gigbooks

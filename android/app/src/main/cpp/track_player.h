@@ -39,6 +39,10 @@ public:
     void setLoopRegion(int64_t startFrame, int64_t endFrame);
     void clearLoopRegion();
 
+    // Reset to unloaded state — stops playback and marks as unloaded.
+    // Safe to call from any thread. Does NOT free pcmBuffer_ to avoid audio-thread races.
+    void reset();
+
     // Position queries (atomic — safe from any thread)
     int64_t getPosition() const { return position_.load(); }
     int64_t getTotalFrames() const { return totalFrames_.load(); }

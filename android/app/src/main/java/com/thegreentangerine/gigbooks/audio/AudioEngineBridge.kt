@@ -50,6 +50,11 @@ object AudioEngineBridge {
     external fun nativeGetTrackSpeed(): Float
     external fun nativeNudgeClick(direction: Int)
 
+    // --- Stem Players (ch2..ch7; idx: 0=DRUMS 1=BASS 2=GUITAR 3=KEYS 4=VOCALS 5=OTHER) ---
+    external fun nativeLoadStem(idx: Int, pcmData: FloatArray, numFrames: Int, sampleRate: Int, channels: Int)
+    external fun nativeClearStem(idx: Int)
+    external fun nativeClearAllStems()
+
     // --- Beat Detection ---
     external fun nativeAnalyseTrack(): FloatArray // [bpm, beatOffsetMs]
 }
