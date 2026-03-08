@@ -1,8 +1,10 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,8 +36,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -107,6 +111,11 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 // Track section (if audio available)
                 if (song.hasAudio && !song.audioUrl.isNullOrBlank()) {
                     TrackSection(vm, audioUrl = song.audioUrl)
+                }
+
+                // Stem volume sliders (shown once stems are loaded)
+                if (vm.loadedStems.isNotEmpty()) {
+                    StemsCard(vm)
                 }
 
                 Spacer(Modifier.height(20.dp))
@@ -365,15 +374,13 @@ private fun TrackSection(vm: AppViewModel, audioUrl: String) {
                 Text("$positionStr / $totalStr", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim)
             }
 
-            Slider(
-                value    = positionFraction,
-                onValueChange = { vm.seekTrackFraction(it) },
-                modifier = Modifier.fillMaxWidth(),
-                colors   = SliderDefaults.colors(
-                    thumbColor         = GigColors.green,
-                    activeTrackColor   = GigColors.green,
-                    inactiveTrackColor = GigColors.textMuted.copy(alpha = 0.2f),
-                ),
+            WaveformSeekBar(
+                envelope        = vm.waveformEnvelope,
+                positionFraction = positionFraction,
+                loopAFraction   = vm.loopAFrame?.let { it.toFloat() / vm.trackTotalFr.coerceAtLeast(1) },
+                loopBFraction   = vm.loopBFrame?.let { it.toFloat() / vm.trackTotalFr.coerceAtLeast(1) },
+                onSeek          = { vm.seekTrackFraction(it) },
+                modifier        = Modifier.fillMaxWidth().height(64.dp),
             )
 
             Spacer(Modifier.height(4.dp))
@@ -401,6 +408,158 @@ private fun LoopButton(label: String, color: Color, modifier: Modifier, enabled:
         contentAlignment = Alignment.Center,
     ) {
         Text(label, fontFamily = JetBrainsMono, fontSize = 11.sp, color = if (enabled) color else GigColors.textMuted)
+    }
+}
+
+// ─── Waveform seek bar ───────────────────────────────────────────────────────
+
+@Composable
+private fun WaveformSeekBar(
+    envelope: FloatArray,
+    positionFraction: Float,
+    loopAFraction: Float?,
+    loopBFraction: Float?,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .background(GigColors.surface.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+            .pointerInput(Unit) {
+                detectTapGestures { offset ->
+                    onSeek((offset.x / size.width).coerceIn(0f, 1f))
+                }
+            },
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 6.dp)) {
+            val w = size.width
+            val h = size.height
+            val midY = h / 2f
+
+            // ── Loop region highlight ────────────────────────────────────────
+            val loopA = loopAFraction
+            val loopB = loopBFraction
+            if (loopA != null && loopB != null) {
+                val lx = minOf(loopA, loopB) * w
+                val rx = maxOf(loopA, loopB) * w
+                drawRect(
+                    color    = GigColors.orange.copy(alpha = 0.15f),
+                    topLeft  = Offset(lx, 0f),
+                    size     = Size(rx - lx, h),
+                )
+                // Loop boundary lines
+                for (x in listOf(lx, rx)) {
+                    drawLine(GigColors.orange.copy(alpha = 0.5f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.5f)
+                }
+            } else {
+                // Show single marker for whichever is set
+                loopA?.let {
+                    drawLine(GigColors.orange.copy(alpha = 0.4f), Offset(it * w, 0f), Offset(it * w, h), strokeWidth = 1.5f)
+                }
+                loopB?.let {
+                    drawLine(GigColors.orange.copy(alpha = 0.4f), Offset(it * w, 0f), Offset(it * w, h), strokeWidth = 1.5f)
+                }
+            }
+
+            // ── Waveform bars ────────────────────────────────────────────────
+            if (envelope.isNotEmpty()) {
+                val barW  = (w / envelope.size).coerceAtLeast(1f)
+                val playX = positionFraction * w
+                envelope.forEachIndexed { i, amp ->
+                    val x     = i * barW + barW / 2f
+                    val barH  = amp * midY * 0.9f
+                    val color = if (x < playX) GigColors.green else GigColors.green.copy(alpha = 0.28f)
+                    drawLine(color, Offset(x, midY - barH), Offset(x, midY + barH), strokeWidth = barW * 0.72f)
+                }
+            } else {
+                // Flat centre line while track not yet loaded
+                drawLine(GigColors.textMuted.copy(alpha = 0.2f), Offset(0f, midY), Offset(w, midY), strokeWidth = 1f)
+            }
+
+            // ── Playhead ─────────────────────────────────────────────────────
+            val px = (positionFraction * w).coerceIn(0f, w)
+            drawLine(GigColors.green, Offset(px, 0f), Offset(px, h), strokeWidth = 2f)
+            // Thumb circle
+            drawCircle(GigColors.green, radius = 5f, center = Offset(px, midY))
+        }
+    }
+}
+
+// ─── Stem volume sliders ─────────────────────────────────────────────────────
+
+@Composable
+private fun StemsCard(vm: AppViewModel) {
+    NeuCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Stems", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp, color = GigColors.textDim, modifier = Modifier.weight(1f),
+            )
+            if (vm.stemsLoading) {
+                CircularProgressIndicator(color = GigColors.purple, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+
+        vm.loadedStems.forEach { (idx, stem) ->
+            StemSliderRow(
+                label   = stem.label.uppercase(),
+                gain    = vm.stemGains[idx] ?: 1f,
+                onGainChange = { vm.setStemGain(idx, it) },
+            )
+        }
+
+        // Show any load errors in a small note
+        vm.stemErrors.entries.forEach { (label, err) ->
+            Text(
+                "⚠ $label: $err",
+                fontFamily = Karla, fontSize = 10.sp, color = GigColors.danger,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StemSliderRow(label: String, gain: Float, onGainChange: (Float) -> Unit) {
+    // Label colour per stem type
+    val color = when (label) {
+        "DRUMS"   -> GigColors.orange
+        "BASS"    -> GigColors.teal
+        "GUITAR"  -> GigColors.green
+        "KEYS"    -> GigColors.purple
+        "VOCALS"  -> Color(0xFFE879F9)   // fuchsia
+        "BACKING" -> Color(0xFFFC8181)   // rose
+        else      -> GigColors.textDim
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text     = label,
+            fontFamily = JetBrainsMono, fontSize = 10.sp,
+            color    = color,
+            modifier = Modifier.width(56.dp),
+        )
+        Slider(
+            value         = gain,
+            onValueChange = onGainChange,
+            valueRange    = 0f..1f,
+            modifier      = Modifier.weight(1f),
+            colors        = SliderDefaults.colors(
+                thumbColor         = color,
+                activeTrackColor   = color,
+                inactiveTrackColor = GigColors.textMuted.copy(alpha = 0.2f),
+            ),
+        )
+        Text(
+            text       = "${(gain * 100).roundToInt()}%",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+            modifier   = Modifier.width(36.dp).padding(start = 4.dp),
+        )
     }
 }
 

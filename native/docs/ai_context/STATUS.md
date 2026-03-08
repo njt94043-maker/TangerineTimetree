@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S28B complete. Next: S28C (waveform display + auto-analyse BPM/offset per stem on load).
-- **Blocker**: None. S28A fully complete (SQL migration run + song-stems bucket live).
-- **Last session**: 2026-03-08 session 4 — S28B: C++ N-channel mixer (MAX_STEMS=6, ch2..ch7), TrackPlayer::reset(), AudioEngine::loadStem/clearStem/clearAllStems, transport sync (play/pause/stop/seek/speed/loop all applied to loaded stems). JNI bridge 3 new functions. AudioEngineBridge.kt externals. SongStem.kt model + StemLabel enum (DRUMS/BASS/GUITAR/KEYS/VOCALS/OTHER with fixed stemIndex). StemRepository.kt. AppViewModel: stem state (loadedStems, stemsLoading, stemErrors) + loadStemsForSong() called automatically after track loads. Stems clear on song change.
-- **Next action**: S28C — waveform visualiser in PracticeScreen (amplitude envelope + loop region overlay), per-stem volume sliders, auto-analyse BPM + beat offset on load.
+- **Phase**: S28C complete. Next: S28D (auto-analyse BPM + beat offset from PCM on load).
+- **Blocker**: None.
+- **Last session**: 2026-03-08 session 5 — S28C: WaveformSeekBar Canvas composable (600-pt amplitude envelope, green bars pre/post playhead, orange loop region overlay, tap-to-seek). Waveform computed in AppViewModel.computeEnvelope() on track load. StemsCard composable: per-stem Slider rows with colour-coded labels (DRUMS=orange, BASS=teal, GUITAR=green, KEYS=purple, VOCALS=fuchsia, BACKING=rose). stemGains Map state + setStemGain() → nativeSetChannelGain(2+idx, gain). BUILD SUCCESSFUL.
+- **Next action**: S28D — auto-analyse BPM + beatOffsetMs from PCM (nativeAnalyseTrack() already exists in bridge), populate song fields if empty, show result on PracticeScreen.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
