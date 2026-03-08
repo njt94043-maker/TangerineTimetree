@@ -13,8 +13,9 @@
 - [x] Visual parity audit: 8 fixes (neon glows, Today button, shadows, drawer avatar, card accents, logo)
 - [x] Audio upload UI: practice track upload/replace/remove on song edit forms (both apps)
 - [x] **Compose app full buildout** — Login, Library, Live Mode, Practice Mode, Settings, AppViewModel, C++ wiring
-- [ ] On-device test: verify click track fires (C++ JNI path, nativeStartEngine returns true)
-- [ ] On-device test: load a practice track (upload via web, load URL in Practice screen)
+- [x] On-device test: verify click track fires (confirmed 157 BPM works correctly)
+- [x] On-device test: load a practice track (track loads, click fires at correct BPM)
+- [ ] **S30A: Beat alignment research + fix** — beat_detector returns wrong offset → click not phase-locked to track. See STATUS.md next session plan.
 - [ ] Add more songs via web app (currently only "Sultans of Swing" in DB)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update

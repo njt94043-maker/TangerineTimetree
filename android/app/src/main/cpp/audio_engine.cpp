@@ -283,12 +283,11 @@ float AudioEngine::getTrackSpeed() const {
 }
 
 void AudioEngine::nudgeClick(int32_t direction) {
-    // Shift metronome phase by one beat forward or backward
+    // Shift metronome phase by one beat forward or backward (one-shot, applied at next beat)
     int64_t framesPerBeat = metronome_.getFramesPerBeat();
-    int32_t displacement = static_cast<int32_t>(framesPerBeat * direction);
-    metronome_.setBeatDisplacement(
-        metronome_.getBeatDisplacement() + displacement);
-    LOGI("Nudge click: direction=%d, displacement=%d frames", direction, displacement);
+    int64_t shift = framesPerBeat * direction;
+    metronome_.addPhaseShift(shift);
+    LOGI("Nudge click: direction=%d, shift=%lld frames", direction, (long long)shift);
 }
 
 // --- Stem Players ---

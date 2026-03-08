@@ -185,3 +185,23 @@
 ### App not refreshing on first launch after install
 - First cold-start after install may show stale state. Close and reopen the app to get fresh data.
 - Normal behaviour — ViewModel init loads data from Supabase on first composition.
+
+### PCM decode: never use `mutableListOf<Short>()` for large audio files
+- Each boxed `Short` costs 16 bytes of JVM overhead → 5-min track = 423MB → OOM crash.
+- Use `mutableListOf<ByteArray>()` for chunks, then convert via `ByteBuffer.wrap(chunk).asShortBuffer()` (primitive, no boxing).
+
+### Oboe sample rate vs MP3 sample rate mismatch
+- Oboe opens at device native rate (48000Hz on Samsung). MP3 is often 44100Hz.
+- Loading 44100Hz PCM into 48000Hz Oboe stream plays 8.8% too fast.
+- Fix: after decoding, call `nativeGetSampleRate()` and linear-interpolation resample if rates differ.
+
+### C++ metronome beat offset: apply at start(), not per-beat
+- `Metronome::render()` used to add `beatDisplacementFrames_` to every `nextBeatFrame_` computation.
+- This caused effective BPM = `sampleRate*60/(fpb+offset)` instead of the target BPM. Audible as very slow random-seeming clicks.
+- **Fix**: apply offset ONCE at `Metronome::start()` as initial `nextBeatFrame_`. Render loop uses `nextBeatFrame_ = framePosition_ + fpb`.
+- Nudge uses `pendingPhaseShift_` atomic: accumulated from main thread, applied once at the next beat boundary in the audio thread.
+
+### enableEdgeToEdge needs explicit inset handling in Compose
+- `enableEdgeToEdge()` in Activity makes app draw behind status bar and nav bar.
+- Without inset handling, content appears under the status bar.
+- Fix: add `Modifier.safeDrawingPadding()` to NavHost content, `statusBarsPadding()` to drawer header Row.

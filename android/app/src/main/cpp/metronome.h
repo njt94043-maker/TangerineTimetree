@@ -75,8 +75,12 @@ public:
     void setRandomBeatDrop(int32_t percent);
 
     // --- Practice Mode: Beat Displacement ---
+    // Sets the initial phase offset (frames) applied at start() to align click to track.
     void setBeatDisplacement(int32_t frames);
     int32_t getBeatDisplacement() const { return beatDisplacementFrames_.load(); }
+
+    // --- Nudge: one-shot phase shift applied at next beat boundary (thread-safe) ---
+    void addPhaseShift(int64_t frames);
 
     // --- Practice Mode: Backbeat ---
     void setBackbeat(bool enabled);
@@ -148,6 +152,7 @@ private:
     uint32_t prngState_{12345};
 
     std::atomic<int32_t> beatDisplacementFrames_{0};
+    std::atomic<int64_t> pendingPhaseShift_{0};
 
     std::atomic<bool> backbeatEnabled_{false};
 
