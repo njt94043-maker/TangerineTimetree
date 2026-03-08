@@ -78,8 +78,8 @@ public:
     bool isTrackLoaded() const;
 
     // --- Stem Players (ch2..ch2+MAX_STEMS-1) ---
-    // idx: 0=DRUMS, 1=BASS, 2=GUITAR, 3=KEYS, 4=VOCALS, 5=OTHER
-    static constexpr int32_t MAX_STEMS = 6;
+    // idx: 0=DRUMS, 1=BASS, 2=GUITAR, 3=KEYS, 4=VOCALS, 5=BACKING, 6=OTHER
+    static constexpr int32_t MAX_STEMS = 7;
     void loadStem(int32_t idx, std::vector<float>&& pcmData, int32_t numFrames,
                   int32_t sampleRate, int32_t channels);
     void clearStem(int32_t idx);
