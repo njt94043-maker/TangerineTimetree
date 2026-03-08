@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S28D complete. Practice mode fully beat-locked. Next: on-device test.
+- **Phase**: S29A complete. Full app built (Calendar + Library + Live + Practice + Settings). Ready for on-device test.
 - **Blocker**: None.
-- **Last session**: 2026-03-08 session 6 — S28D: nativeSetBeatOffsetMs(ms) C++/JNI/Kotlin (ms→frames via getSampleRate(), setBeatDisplacement). SongRepository.updateBeatInfo(). AppViewModel: runAnalysis() on Dispatchers.Default, auto-applies stored beat_offset_ms silently if > 0, else runs analysis + shows BeatAlignBanner. applyDetectedBeat() sets engine offset, resets nudge, updates Song in-memory + Supabase. BeatAlignBanner composable (teal, detected BPM + offset, Apply & Save, dismiss ✕). Analysis spinner + "+Xms" aligned indicator in TrackSection header. BUILD SUCCESSFUL.
-- **Next action**: On-device test — load Sultans of Swing → verify click → load track → verify analysis banner appears → Apply & Save → verify click locks to beat. Then upload stems via web and test stem mixing.
+- **Last session**: 2026-03-08 session 7 — S29A: Gig.kt + AwayDate.kt (@Serializable models). GigRepository (getGigsForMonth, getAwayDatesForMonth). AppViewModel: calViewYear/Month, calGigs, calAwayDates, calLoading, calNavigate(), loadCalendarMonth() on init. CalendarScreen rewritten: coloured dots (gig=green, practice=purple, away=red), today=orange border, tap-to-expand DayDetail panel (venue/client/time/notes), loading spinner. GigBooksApp: Screen.Calendar, start destination. BUILD SUCCESSFUL. Committed + pushed (9d5ec16).
+- **Next action**: On-device test — install APK → verify Calendar shows gigs/away dates → Practice mode: load track → verify beat banner → Apply & Save → verify click locks. Then upload audio stems via web + test stem mixing.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

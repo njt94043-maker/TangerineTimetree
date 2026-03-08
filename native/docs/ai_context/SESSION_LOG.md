@@ -7,6 +7,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-08 | S29A — CalendarScreen real data | Gig.kt + AwayDate.kt models; GigRepository; AppViewModel calendar state + loadCalendarMonth(); CalendarScreen rewritten (coloured dots, DayDetail panel, loading spinner); GigBooksApp wired (start destination). BUILD SUCCESSFUL. Committed 9d5ec16. |
 | 2026-03-08 | S28D — Beat-locked click alignment | nativeSetBeatOffsetMs(ms) C++/JNI/Kotlin; SongRepository.updateBeatInfo(); AppViewModel runAnalysis() + applyDetectedBeat() + auto-apply stored offset; BeatAlignBanner composable; analysis spinner + aligned indicator in TrackSection. BUILD SUCCESSFUL. |
 | 2026-03-08 | S28C — Waveform visualiser + stem volume sliders | WaveformSeekBar (Canvas, 600pt envelope, green bars, orange loop region, tap-to-seek). computeEnvelope() in AppViewModel. StemsCard: per-stem sliders with colour-coded labels. stemGains Map + setStemGain() → nativeSetChannelGain. BUILD SUCCESSFUL. |
 | 2026-03-08 | S28B — N-channel mixer + stem loading | C++: TrackPlayer::reset(), MAX_STEMS=6 stemPlayers_[] (ch2..7), loadStem/clearStem/clearAllStems, transport sync on all stems (play/pause/stop/seek/loop/speed), onAudioReady stem render loop. JNI: nativeLoadStem/nativeClearStem/nativeClearAllStems. Kotlin: AudioEngineBridge externals, SongStem.kt+StemLabel enum (DRUMS=ch2..OTHER=ch7), StemRepository.kt, AppViewModel stem state + loadStemsForSong() auto-called after track load. S28A manual step still pending. |
