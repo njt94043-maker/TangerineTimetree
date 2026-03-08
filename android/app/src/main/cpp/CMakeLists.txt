@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project("clickengine" LANGUAGES CXX)
+project("clickengine" LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,6 +35,24 @@ target_compile_definitions(soundtouch PUBLIC
     SOUNDTOUCH_FLOAT_SAMPLES=1
 )
 
+# --- KissFFT (bundled with BTrack) ---
+set(KISSFFT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/btrack/kiss_fft)
+add_library(kissfft STATIC ${KISSFFT_DIR}/kiss_fft.c)
+target_include_directories(kissfft PUBLIC ${KISSFFT_DIR})
+
+# --- BTrack ---
+set(BTRACK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/btrack)
+add_library(btrack STATIC
+    ${BTRACK_DIR}/BTrack.cpp
+    ${BTRACK_DIR}/OnsetDetectionFunction.cpp
+)
+target_include_directories(btrack PUBLIC
+    ${BTRACK_DIR}
+    ${KISSFFT_DIR}
+)
+target_compile_definitions(btrack PUBLIC USE_KISS_FFT)
+target_link_libraries(btrack kissfft)
+
 # --- Native source files ---
 add_library(clickengine SHARED
     jni_bridge.cpp
@@ -53,6 +71,7 @@ target_include_directories(clickengine PRIVATE
 target_link_libraries(clickengine
     oboe::oboe
     soundtouch
+    btrack
     android
     log
 )

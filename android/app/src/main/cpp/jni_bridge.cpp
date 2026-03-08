@@ -222,6 +222,12 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeNudgeClick(
     AudioEngine::getInstance().nudgeClick(direction);
 }
 
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeNudgeClickHalf(
+        JNIEnv*, jclass, jint direction) {
+    AudioEngine::getInstance().nudgeClickHalf(direction);
+}
+
 // --- Stem Players ---
 
 JNIEXPORT void JNICALL
@@ -261,6 +267,15 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeAnalyseTrack(
         env->SetFloatArrayRegion(out, 0, 2, values);
     }
     return out;
+}
+
+// Apply the beat map from the last analyseTrack() to the metronome.
+// The metronome fires at each detected beat position rather than a fixed BPM.
+// Call immediately after nativeAnalyseTrack() returns a valid result.
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeApplyBeatMap(
+        JNIEnv*, jclass, jint beatsPerBar) {
+    AudioEngine::getInstance().applyBeatMap(static_cast<int32_t>(beatsPerBar));
 }
 
 // Set absolute beat offset in ms — aligns click grid to first beat of the loaded track.

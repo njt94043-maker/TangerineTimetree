@@ -89,11 +89,18 @@ public:
     void setTrackSpeed(float ratio);
     float getTrackSpeed() const;
 
-    // Beat step/nudge — shift metronome phase by one beat relative to track
-    void nudgeClick(int32_t direction);
+    // Beat step/nudge — shift metronome phase relative to track
+    void nudgeClick(int32_t direction);      // ±1 full beat
+    void nudgeClickHalf(int32_t direction);  // ±½ beat (Rec'n'Share Beat Step)
 
     // --- Beat Detection (runs offline, NOT in audio callback) ---
     BeatAnalysisResult analyseTrack();
+
+    // --- Beat Map ---
+    // Apply the beat map from the last analyseTrack() result to the metronome.
+    // The metronome will fire at each detected beat position instead of a fixed BPM.
+    // beatsPerBar controls downbeat (accent) detection.
+    void applyBeatMap(int32_t beatsPerBar);
 
     // --- Accessors ---
     int32_t getSampleRate() const { return sampleRate_; }
@@ -123,6 +130,9 @@ private:
 
     // Base BPM before speed adjustment (for proportional speed control)
     std::atomic<float> baseBpm_{120.0f};
+
+    // Last beat analysis result — stored so applyBeatMap() can use it
+    BeatAnalysisResult lastAnalysis_;
 
     Metronome metronome_;
     Mixer mixer_;

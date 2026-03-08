@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstdint>
 #include <array>
+#include <vector>
 
 namespace gigbooks {
 
@@ -81,6 +82,17 @@ public:
 
     // --- Nudge: one-shot phase shift applied at next beat boundary (thread-safe) ---
     void addPhaseShift(int64_t frames);
+
+    // --- Beat Map Mode ---
+    // Load a pre-computed beat map (frame positions in track PCM space at native sample rate).
+    // Once loaded, the metronome fires at each beat position rather than at a constant BPM.
+    // After the beat map is exhausted the metronome falls back to constant-BPM mode.
+    // Call resyncBeatMap whenever track position jumps (seek) or speed changes.
+    void loadBeatMap(const int64_t* frames, size_t count, int32_t beatsPerBar,
+                     int64_t startTrackFrame, int64_t startMetroFrame, float speed);
+    void clearBeatMap();
+    // Called when the track is sought or speed changes: recomputes remaining scaled frames.
+    void resyncBeatMap(int64_t trackFrame, int64_t metroFrame, float speed);
 
     // --- Practice Mode: Backbeat ---
     void setBackbeat(bool enabled);
@@ -174,6 +186,16 @@ private:
     std::atomic<int32_t> countInBars_{0};
     std::atomic<int32_t> countInClickType_{CLICK_HIGH};
     std::atomic<bool> isCountingIn_{false};
+
+    // --- Beat map mode ---
+    std::vector<int64_t> beatMapOrig_;    // beat frames in track PCM space (48kHz)
+    std::vector<int64_t> beatMapScaled_;  // beat frames in metronome-frame space (precomputed)
+    size_t beatMapIdx_{0};
+    bool useBeatMap_{false};
+    int32_t beatMapBpb_{4};              // beats per bar for downbeat detection
+    int32_t beatMapBeatCount_{0};        // total beats fired from map (for bar counting)
+    int64_t beatMapEndFrame_{0};         // metronome frame of last beat (for fallback)
+    int64_t beatMapPhaseOffset_{0};      // cumulative user nudge offset (audio thread only)
 
     std::array<float, MAX_CUSTOM_CLICK_FRAMES> customClickBuffer_{};
     std::atomic<int32_t> customClickFrames_{0};

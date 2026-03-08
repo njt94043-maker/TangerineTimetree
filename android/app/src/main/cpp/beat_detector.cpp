@@ -1,307 +1,197 @@
 #include "beat_detector.h"
+#include "third_party/btrack/BTrack.h"
 #include <android/log.h>
-#include <cmath>
 #include <algorithm>
 #include <numeric>
+#include <cmath>
 
 #define LOG_TAG "GigBooks"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 namespace gigbooks {
 
-// --- Utility: stereo to mono ---
+// BTrack parameters — hop=512 gives onsetDFBufferSize=512 (ratio=1.0, no resampling)
+static constexpr int BTRACK_HOP_SIZE   = 512;
+static constexpr int BTRACK_FRAME_SIZE = 1024;
 
-std::vector<float> BeatDetector::toMono(const float* stereo, int64_t numFrames) {
-    std::vector<float> mono(numFrames);
-    for (int64_t i = 0; i < numFrames; i++) {
-        mono[i] = (stereo[i * 2] + stereo[i * 2 + 1]) * 0.5f;
+// Analyse up to 3 minutes
+static constexpr int ANALYSIS_SECONDS  = 180;
+// First pass uses 30s to get rough BPM before running the full analysis
+static constexpr int PASS1_SECONDS     = 30;
+
+// --- helpers ----------------------------------------------------------------
+
+static double computeMedianMs(const std::vector<int64_t>& frames, size_t skip,
+                               int32_t sampleRate) {
+    std::vector<double> ibis;
+    ibis.reserve(frames.size());
+    for (size_t i = skip + 1; i < frames.size(); i++) {
+        double ms = (double)(frames[i] - frames[i - 1]) * 1000.0 / sampleRate;
+        if (ms > 200.0 && ms < 2000.0) ibis.push_back(ms);
     }
-    return mono;
+    if (ibis.empty()) return 0.0;
+    std::sort(ibis.begin(), ibis.end());
+    return ibis[ibis.size() / 2];
 }
 
-// --- Simple radix-2 FFT ---
+// Run one BTrack pass over [0, maxFrames) and collect beat positions.
+static std::vector<int64_t> runBTrackPass(const float* pcmData,
+                                           int64_t maxFrames,
+                                           int32_t sampleRate,
+                                           float seedBpm) {
+    BTrack bt(BTRACK_HOP_SIZE, BTRACK_FRAME_SIZE);
+    bt.setSampleRate(sampleRate);
+    if (seedBpm > 0.0f) bt.setTempo(static_cast<double>(seedBpm));
 
-void BeatDetector::fft(float* real, float* imag, int32_t n) {
-    // Bit-reversal permutation
-    for (int32_t i = 1, j = 0; i < n; i++) {
-        int32_t bit = n >> 1;
-        for (; j & bit; bit >>= 1) {
-            j ^= bit;
-        }
-        j ^= bit;
-        if (i < j) {
-            std::swap(real[i], real[j]);
-            std::swap(imag[i], imag[j]);
-        }
-    }
-
-    // Cooley-Tukey iterative FFT
-    for (int32_t len = 2; len <= n; len <<= 1) {
-        float ang = -2.0f * static_cast<float>(M_PI) / len;
-        float wRe = std::cos(ang);
-        float wIm = std::sin(ang);
-        for (int32_t i = 0; i < n; i += len) {
-            float curRe = 1.0f, curIm = 0.0f;
-            for (int32_t j = 0; j < len / 2; j++) {
-                float uRe = real[i + j];
-                float uIm = imag[i + j];
-                float vRe = real[i + j + len / 2] * curRe - imag[i + j + len / 2] * curIm;
-                float vIm = real[i + j + len / 2] * curIm + imag[i + j + len / 2] * curRe;
-                real[i + j] = uRe + vRe;
-                imag[i + j] = uIm + vIm;
-                real[i + j + len / 2] = uRe - vRe;
-                imag[i + j + len / 2] = uIm - vIm;
-                float newCurRe = curRe * wRe - curIm * wIm;
-                curIm = curRe * wIm + curIm * wRe;
-                curRe = newCurRe;
-            }
-        }
-    }
-}
-
-// --- Onset Strength Function (spectral flux) ---
-
-std::vector<float> BeatDetector::computeOnsetStrength(
-        const float* mono, int64_t numSamples, int32_t sampleRate,
-        int32_t hopSize, int32_t windowSize) {
-
-    int32_t numHops = static_cast<int32_t>((numSamples - windowSize) / hopSize) + 1;
-    if (numHops <= 0) return {};
-
-    int32_t fftSize = windowSize; // Must be power of 2
-    int32_t numBins = fftSize / 2 + 1;
-
-    std::vector<float> window(fftSize);
-    for (int32_t i = 0; i < fftSize; i++) {
-        window[i] = 0.5f - 0.5f * std::cos(2.0f * static_cast<float>(M_PI) * i / (fftSize - 1));
-    }
-
-    std::vector<float> fftReal(fftSize);
-    std::vector<float> fftImag(fftSize);
-    std::vector<float> prevMag(numBins, 0.0f);
-    std::vector<float> curMag(numBins);
-    std::vector<float> onsetStrength(numHops);
-
-    for (int32_t hop = 0; hop < numHops; hop++) {
-        int64_t offset = static_cast<int64_t>(hop) * hopSize;
-
-        // Window the frame
-        for (int32_t i = 0; i < fftSize; i++) {
-            int64_t idx = offset + i;
-            fftReal[i] = (idx < numSamples) ? mono[idx] * window[i] : 0.0f;
-            fftImag[i] = 0.0f;
-        }
-
-        // FFT
-        fft(fftReal.data(), fftImag.data(), fftSize);
-
-        // Magnitude spectrum
-        for (int32_t i = 0; i < numBins; i++) {
-            curMag[i] = std::sqrt(fftReal[i] * fftReal[i] + fftImag[i] * fftImag[i]);
-        }
-
-        // Spectral flux (half-wave rectified increase)
-        float flux = 0.0f;
-        for (int32_t i = 0; i < numBins; i++) {
-            float diff = curMag[i] - prevMag[i];
-            if (diff > 0.0f) flux += diff;
-        }
-        onsetStrength[hop] = flux;
-
-        std::copy(curMag.begin(), curMag.end(), prevMag.begin());
-    }
-
-    return onsetStrength;
-}
-
-// --- BPM Estimation via Autocorrelation ---
-
-float BeatDetector::estimateBpm(const std::vector<float>& onsetStrength,
-                                 int32_t sampleRate, int32_t hopSize) {
-    if (onsetStrength.empty()) return 120.0f;
-
-    int32_t n = static_cast<int32_t>(onsetStrength.size());
-
-    // BPM range: 60-200 BPM
-    float hopsPerSecond = static_cast<float>(sampleRate) / hopSize;
-    int32_t minLag = static_cast<int32_t>(hopsPerSecond * 60.0f / 200.0f); // 200 BPM
-    int32_t maxLag = static_cast<int32_t>(hopsPerSecond * 60.0f / 60.0f);  // 60 BPM
-    maxLag = std::min(maxLag, n / 2);
-
-    if (minLag >= maxLag || maxLag >= n) return 120.0f;
-
-    // Compute mean for normalization
-    float mean = 0.0f;
-    for (float v : onsetStrength) mean += v;
-    mean /= n;
-
-    // Autocorrelation
-    float bestCorr = -1.0f;
-    int32_t bestLag = minLag;
-
-    for (int32_t lag = minLag; lag <= maxLag; lag++) {
-        float corr = 0.0f;
-        float norm1 = 0.0f;
-        float norm2 = 0.0f;
-        int32_t count = n - lag;
-        for (int32_t i = 0; i < count; i++) {
-            float a = onsetStrength[i] - mean;
-            float b = onsetStrength[i + lag] - mean;
-            corr += a * b;
-            norm1 += a * a;
-            norm2 += b * b;
-        }
-        float denom = std::sqrt(norm1 * norm2);
-        if (denom > 0.0f) corr /= denom;
-
-        // Weight towards common tempos (prefer 100-160 BPM range)
-        float bpm = hopsPerSecond * 60.0f / lag;
-        float weight = 1.0f;
-        if (bpm >= 100.0f && bpm <= 160.0f) weight = 1.2f;
-
-        corr *= weight;
-
-        if (corr > bestCorr) {
-            bestCorr = corr;
-            bestLag = lag;
-        }
-    }
-
-    float bpm = hopsPerSecond * 60.0f / bestLag;
-
-    // Check for half/double tempo ambiguity
-    // If the half-tempo correlation is nearly as strong, prefer it
-    int32_t doubleLag = bestLag * 2;
-    if (doubleLag <= maxLag) {
-        float doubleCorr = 0.0f;
-        float norm1 = 0.0f, norm2 = 0.0f;
-        int32_t count = n - doubleLag;
-        for (int32_t i = 0; i < count; i++) {
-            float a = onsetStrength[i] - mean;
-            float b = onsetStrength[i + doubleLag] - mean;
-            doubleCorr += a * b;
-            norm1 += a * a;
-            norm2 += b * b;
-        }
-        float denom = std::sqrt(norm1 * norm2);
-        if (denom > 0.0f) doubleCorr /= denom;
-
-        float halfBpm = bpm / 2.0f;
-        if (halfBpm >= 60.0f && doubleCorr > bestCorr * 0.85f) {
-            bpm = halfBpm;
-            bestLag = doubleLag;
-        }
-    }
-
-    LOGI("BPM estimated: %.1f (lag=%d, corr=%.3f)", bpm, bestLag, bestCorr);
-    return bpm;
-}
-
-// --- Find Beat Positions ---
-
-std::vector<int64_t> BeatDetector::findBeats(const std::vector<float>& onsetStrength,
-                                              float bpm, int32_t sampleRate,
-                                              int32_t hopSize) {
-    if (onsetStrength.empty() || bpm <= 0.0f) return {};
-
-    float hopsPerSecond = static_cast<float>(sampleRate) / hopSize;
-    float hopsPerBeat = hopsPerSecond * 60.0f / bpm;
-    int32_t n = static_cast<int32_t>(onsetStrength.size());
-
-    // Find the first strong onset to anchor beats
-    float maxOnset = *std::max_element(onsetStrength.begin(), onsetStrength.end());
-    float threshold = maxOnset * 0.3f;
-
-    // Find first onset above threshold
-    int32_t firstOnsetHop = 0;
-    for (int32_t i = 0; i < n; i++) {
-        if (onsetStrength[i] > threshold) {
-            firstOnsetHop = i;
-            break;
-        }
-    }
-
-    // Generate beat grid from first onset, then refine each beat position
-    // by finding the nearest strong onset within a window
+    std::vector<double> frame(BTRACK_FRAME_SIZE);
     std::vector<int64_t> beats;
-    int32_t windowHops = static_cast<int32_t>(hopsPerBeat * 0.25f); // Search window: 25% of beat
 
-    for (float beatHop = static_cast<float>(firstOnsetHop);
-         beatHop < n;
-         beatHop += hopsPerBeat) {
+    for (int64_t hopStart = 0;
+         hopStart + BTRACK_FRAME_SIZE <= maxFrames;
+         hopStart += BTRACK_HOP_SIZE) {
 
-        int32_t center = static_cast<int32_t>(beatHop);
-        int32_t searchStart = std::max(0, center - windowHops);
-        int32_t searchEnd = std::min(n - 1, center + windowHops);
-
-        // Find strongest onset in window
-        int32_t bestHop = center;
-        float bestStrength = -1.0f;
-        for (int32_t h = searchStart; h <= searchEnd; h++) {
-            if (onsetStrength[h] > bestStrength) {
-                bestStrength = onsetStrength[h];
-                bestHop = h;
-            }
+        for (int i = 0; i < BTRACK_FRAME_SIZE; i++) {
+            int64_t idx = hopStart + i;
+            frame[i] = (double)(pcmData[idx * 2] + pcmData[idx * 2 + 1]) * 0.5;
         }
+        bt.processAudioFrame(frame.data());
 
-        int64_t framePos = static_cast<int64_t>(bestHop) * hopSize;
-        beats.push_back(framePos);
+        if (bt.beatDueInCurrentFrame()) {
+            beats.push_back(hopStart + BTRACK_HOP_SIZE / 2);
+        }
     }
-
     return beats;
 }
 
-// --- Main Analysis Entry Point ---
+// Post-process a beat map: remove double-detections and fill single missing
+// beats. Uses a local sliding-window median IBI to handle gradual tempo changes.
+static std::vector<int64_t> cleanBeatMap(const std::vector<int64_t>& raw,
+                                          int32_t sampleRate) {
+    if (raw.size() < 4) return raw;
+
+    // Global median IBI
+    std::vector<int64_t> ibiVec;
+    ibiVec.reserve(raw.size());
+    for (size_t i = 1; i < raw.size(); i++) ibiVec.push_back(raw[i] - raw[i - 1]);
+    std::vector<int64_t> sorted = ibiVec;
+    std::sort(sorted.begin(), sorted.end());
+    int64_t globalMedian = sorted[sorted.size() / 2];
+
+    std::vector<int64_t> clean;
+    clean.reserve(raw.size());
+    clean.push_back(raw[0]);
+
+    for (size_t i = 1; i < raw.size(); i++) {
+        // Local median IBI from the last 8 clean beats
+        int64_t localIBI = globalMedian;
+        if (clean.size() >= 2) {
+            size_t wStart = (clean.size() >= 8) ? clean.size() - 8 : 0;
+            std::vector<int64_t> win;
+            for (size_t j = wStart + 1; j < clean.size(); j++)
+                win.push_back(clean[j] - clean[j - 1]);
+            if (!win.empty()) {
+                std::sort(win.begin(), win.end());
+                localIBI = win[win.size() / 2];
+            }
+        }
+
+        int64_t gap = raw[i] - clean.back();
+
+        if (gap < localIBI * 5 / 10) {
+            // Double-detection: skip
+            continue;
+        }
+        if (gap > localIBI * 15 / 10 && gap < localIBI * 25 / 10) {
+            // Missed one beat: interpolate
+            clean.push_back(clean.back() + gap / 2);
+        }
+        clean.push_back(raw[i]);
+    }
+
+    LOGI("BeatDetector: cleanBeatMap %zu → %zu beats", raw.size(), clean.size());
+    return clean;
+}
+
+// ----------------------------------------------------------------------------
 
 BeatAnalysisResult BeatDetector::analyse(const float* pcmData, int64_t numFrames,
                                           int32_t sampleRate) {
     BeatAnalysisResult result;
 
     if (!pcmData || numFrames < sampleRate) {
-        // Need at least 1 second of audio
         LOGI("BeatDetector: not enough audio data (%lld frames)", (long long)numFrames);
         return result;
     }
 
-    LOGI("BeatDetector: analysing %lld frames at %d Hz", (long long)numFrames, sampleRate);
+    const int64_t maxFrames = std::min(numFrames,
+                                        (int64_t)sampleRate * ANALYSIS_SECONDS);
+    const int64_t pass1Frames = std::min(numFrames,
+                                          (int64_t)sampleRate * PASS1_SECONDS);
 
-    // Convert to mono
-    auto mono = toMono(pcmData, numFrames);
+    LOGI("BeatDetector: analysing %lld frames at %d Hz (%.1fs)",
+         (long long)maxFrames, sampleRate, (double)maxFrames / sampleRate);
 
-    // Analysis parameters
-    int32_t windowSize = 2048; // ~43ms at 48kHz
-    int32_t hopSize = 512;     // ~10.7ms at 48kHz — good onset resolution
+    // ── PASS 1: rough BPM over the first 30 seconds ─────────────────────────
+    // BTrack starts at 120 BPM default. Running a short pass first lets us
+    // extract the true tempo before the full pass, so pass 2 initialises at
+    // the right BPM instead of spending ~25 beats converging from 120.
+    float roughBpm = 0.0f;
+    {
+        std::vector<int64_t> p1beats = runBTrackPass(pcmData, pass1Frames, sampleRate, 0.0f);
+        const size_t skip1 = std::min((size_t)8, p1beats.size() / 4);
+        double med = computeMedianMs(p1beats, skip1, sampleRate);
+        if (med > 0.0) roughBpm = (float)(60000.0 / med);
+        LOGI("BeatDetector: pass1 rough BPM=%.1f (%zu beats)", roughBpm, p1beats.size());
+    }
 
-    // Compute onset strength function
-    auto onsetStrength = computeOnsetStrength(
-        mono.data(), static_cast<int64_t>(mono.size()),
-        sampleRate, hopSize, windowSize);
-
-    if (onsetStrength.empty()) {
-        LOGI("BeatDetector: failed to compute onset strength");
+    if (roughBpm < 40.0f || roughBpm > 250.0f) {
+        LOGI("BeatDetector: pass1 BPM out of range (%.1f) — giving up", roughBpm);
         return result;
     }
 
-    // Estimate BPM
-    result.bpm = estimateBpm(onsetStrength, sampleRate, hopSize);
+    // ── PASS 2: full analysis seeded at the correct tempo ───────────────────
+    // setTempo() initialises BTrack's cumulative score at the right period so
+    // beat positions converge from beat 1 rather than after 25 warmup beats.
+    std::vector<int64_t> beatFrames =
+        runBTrackPass(pcmData, maxFrames, sampleRate, roughBpm);
 
-    // Find beat positions
-    result.beatFrames = findBeats(onsetStrength, result.bpm, sampleRate, hopSize);
+    // Skip the first few beats — even with a good seed there is some startup
+    // transient (BTrack fires beat due immediately after setTempo).
+    const size_t skipBeats = std::min((size_t)4, beatFrames.size() / 6);
 
-    // Beat offset = position of first beat in milliseconds
-    if (!result.beatFrames.empty()) {
-        result.beatOffsetMs = static_cast<int32_t>(
-            result.beatFrames[0] * 1000LL / sampleRate);
+    if (beatFrames.size() < 8) {
+        LOGI("BeatDetector: pass2 too few beats (%zu)", beatFrames.size());
+        return result;
     }
 
-    result.valid = true;
+    // Remove the warmup beats before cleaning
+    beatFrames.erase(beatFrames.begin(), beatFrames.begin() + skipBeats);
 
-    LOGI("BeatDetector: BPM=%.1f, offset=%dms, %zu beats found",
-         result.bpm, result.beatOffsetMs, result.beatFrames.size());
+    // ── POST-PROCESS: remove double-detections, fill single gaps ────────────
+    beatFrames = cleanBeatMap(beatFrames, sampleRate);
+
+    if (beatFrames.size() < 4) {
+        LOGI("BeatDetector: too few beats after cleaning (%zu)", beatFrames.size());
+        return result;
+    }
+
+    // BPM from the actual BTrack beat positions
+    double medianMs = computeMedianMs(beatFrames, 0, sampleRate);
+    if (medianMs <= 0.0) {
+        LOGI("BeatDetector: no valid IBI after cleaning");
+        return result;
+    }
+    result.bpm = (float)(60000.0 / medianMs);
+
+    int64_t firstBeat    = beatFrames[0];
+    result.beatOffsetMs  = (int32_t)(firstBeat * 1000LL / sampleRate);
+    result.beatFrames    = beatFrames;
+    result.valid         = true;
+
+    LOGI("BeatDetector: BPM=%.2f, firstBeat=%lldms, %zu clean beats",
+         result.bpm,
+         (long long)(firstBeat * 1000LL / sampleRate),
+         beatFrames.size());
 
     return result;
 }

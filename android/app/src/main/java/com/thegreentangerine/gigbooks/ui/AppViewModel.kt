@@ -288,6 +288,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         stopClick()
     }
 
+    /** Restart from frame 0 and immediately play — one tap to relisten. */
+    fun restart() {
+        if (!engineAvailable || !trackLoaded) return
+        stop()
+        try { AudioEngineBridge.nativeSeekTrack(0L) } catch (_: Exception) { }
+        trackPositionFr = 0L
+        play()
+    }
+
     fun toggleClick() { if (isClickPlaying) stopClick() else startClick() }
 
     fun adjustBpm(delta: Float) {
@@ -322,14 +331,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun nudge(direction: Int) {
         if (!engineAvailable) return
-        try { AudioEngineBridge.nativeNudgeClick(direction); nudgeOffsetMs += direction * 5f }
-        catch (_: Exception) { }
+        try {
+            AudioEngineBridge.nativeNudgeClick(direction)
+            val bpmNow = if (detectedBpm > 0f) detectedBpm
+                         else (selectedSong?.bpm ?: 120.0).toFloat()
+            nudgeOffsetMs += direction * (60000f / bpmNow)
+        } catch (_: Exception) { }
+    }
+
+    /** Half-beat step — Rec'n'Share Beat Step feature. Shifts by exactly ½ beat. */
+    fun nudgeHalf(direction: Int) {
+        if (!engineAvailable) return
+        try {
+            AudioEngineBridge.nativeNudgeClickHalf(direction)
+            val bpmNow = if (detectedBpm > 0f) detectedBpm
+                         else (selectedSong?.bpm ?: 120.0).toFloat()
+            nudgeOffsetMs += direction * (30000f / bpmNow)  // half a beat in ms
+        } catch (_: Exception) { }
     }
 
     fun resetNudge() {
         nudgeOffsetMs = 0f
-        // Re-apply settings to reset offset
-        selectedSong?.let { if (engineAvailable) applyEngineSettings(it) }
+        // Reload the beat map from scratch — this resets beatMapPhaseOffset_ to 0 in C++
+        if (engineAvailable && detectedBpm > 0f) {
+            val beatsPerBar = selectedSong?.timeSignatureTop?.toInt() ?: 4
+            try { AudioEngineBridge.nativeApplyBeatMap(beatsPerBar) } catch (_: Exception) { }
+        }
     }
 
     // ── Track loading ─────────────────────────────────────────────────────────
@@ -356,14 +383,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     trackLoaded     = true
                     AudioEngineBridge.nativeSetTrackSpeed(practiceSpeed)
 
-                    // Beat alignment: auto-apply stored offset or run analysis
-                    val storedOffsetMs = selectedSong?.beatOffsetMs?.toInt() ?: 0
-                    if (storedOffsetMs > 0) {
-                        AudioEngineBridge.nativeSetBeatOffsetMs(storedOffsetMs)
-                        appliedBeatOffsetMs = storedOffsetMs
-                    } else {
-                        runAnalysis()
-                    }
+                    // Always run full beat-map analysis — gives dynamic per-beat
+                    // alignment rather than a static constant-BPM offset.
+                    runAnalysis()
 
                     // Load stems for the current song in the background
                     selectedSong?.id?.let { loadStemsForSong(it) }
@@ -388,21 +410,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.Main) { isAnalysing = true }
             try {
                 val result = AudioEngineBridge.nativeAnalyseTrack() // [bpm, beatOffsetMs]
+                // Apply full beat map immediately (still on Default dispatcher — no audio thread)
+                if (result.size >= 2 && result[0] in 40f..250f && engineAvailable) {
+                    val beatsPerBar = selectedSong?.timeSignatureTop?.toInt() ?: 4
+                    try { AudioEngineBridge.nativeApplyBeatMap(beatsPerBar) } catch (_: Exception) { }
+                }
                 withContext(Dispatchers.Main) {
                     if (result.size >= 2 && result[0] in 40f..250f) {
                         detectedBpm      = result[0]
                         detectedOffsetMs = result[1].toInt().coerceAtLeast(0)
-                        // Auto-apply immediately — analysis drives the click, not metadata
+                        // Set BPM for display and constant-BPM fallback
                         if (engineAvailable) try {
                             AudioEngineBridge.nativeSetBpm(detectedBpm)
-                            AudioEngineBridge.nativeSetBeatOffsetMs(detectedOffsetMs)
                         } catch (_: Exception) { }
                         nudgeOffsetMs       = 0f
                         appliedBeatOffsetMs = detectedOffsetMs
-                        showBeatBanner      = true  // banner = "Save?" prompt only
+                        showBeatBanner      = true
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                android.util.Log.e("GigBooks", "runAnalysis failed: ${e.message}", e)
             } finally {
                 withContext(Dispatchers.Main) { isAnalysing = false }
             }
