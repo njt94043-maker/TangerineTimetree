@@ -39,7 +39,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { icon: '\uD83C\uDFB5', label: 'Songs', view: 'songs' },
       { icon: '\uD83C\uDFB6', label: 'Setlists', view: 'setlists' },
-      { icon: '\uD83C\uDFA4', label: 'Stage Prompter', view: 'stage-prompter' },
     ],
   },
   {
@@ -78,7 +77,6 @@ const VIEW_TO_NAV: Record<string, View> = {
   'song-form': 'songs',
   'setlists': 'setlists',
   'setlist-detail': 'setlists',
-  'stage-prompter': 'stage-prompter',
   'media': 'media',
   'enquiries': 'enquiries',
   'website': 'website',
@@ -95,7 +93,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
-  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists, goToStagePrompter } = useView();
+  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists } = useView();
   const [showTutorial, setShowTutorial] = useState(false);
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
@@ -110,12 +108,11 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       case 'venues': goToVenues(); break;
       case 'songs': goToSongs(); break;
       case 'setlists': goToSetlists(); break;
-      case 'stage-prompter': goToStagePrompter(); break;
       default: setView(targetView);
     }
     // Close on mobile
     if (window.innerWidth < 768) onClose();
-  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists, goToStagePrompter, onClose]);
+  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists, onClose]);
 
   // Close on Escape
   useEffect(() => {

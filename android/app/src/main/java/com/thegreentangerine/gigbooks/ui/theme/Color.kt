@@ -21,6 +21,7 @@ object GigColors {
     val green = Color(0xFF00e676)
     val teal = Color(0xFF4dd0e1)
     val orange = Color(0xFFf39c12)
+    val purple = Color(0xFFbb86fc)
     val danger = Color(0xFFff5252)
 
     // Calendar colors
@@ -30,7 +31,8 @@ object GigColors {
     val calAway = Color(0xFFff5252)
 
     // Neumorphic
-    val neuBorder = Color(0x0AFFFFFF) // rgba(255,255,255,0.04)
+    val neuBorder = Color(0x0AFFFFFF)      // rgba(255,255,255,0.04)
     val neuInsetBorder = Color(0x4D000000) // rgba(0,0,0,0.3)
     val shadowDark = Color(0xFF000000)
+    val shadowLight = Color(0x08FFFFFF)    // rgba(255,255,255,0.03)
 }

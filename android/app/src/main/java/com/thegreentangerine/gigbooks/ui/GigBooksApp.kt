@@ -1,6 +1,7 @@
 package com.thegreentangerine.gigbooks.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,12 +14,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SportsScore
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -34,31 +33,33 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.thegreentangerine.gigbooks.ui.screens.CalendarScreen
+import com.thegreentangerine.gigbooks.ui.components.glowBehind
+import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    data object Calendar : Screen("calendar", "Gigs", Icons.Default.CalendarMonth)
-    data object Songs : Screen("songs", "Songs", Icons.Default.LibraryMusic)
-    data object Setlists : Screen("setlists", "Setlists", Icons.Default.QueueMusic)
-    data object Live : Screen("live", "Live Mode", Icons.Default.SportsScore)
-    data object Practice : Screen("practice", "Practice", Icons.Default.PlayCircle)
-    data object Settings : Screen("settings", "Settings", Icons.Default.Settings)
+    data object Library  : Screen("library",  "Songs & Setlists", Icons.AutoMirrored.Filled.QueueMusic)
+    data object Live     : Screen("live",     "Live Mode",        Icons.Default.GraphicEq)
+    data object Practice : Screen("practice", "Practice",         Icons.Default.Headphones)
+    data object Settings : Screen("settings", "Settings",         Icons.Default.Settings)
 }
 
-private val managementScreens = listOf(Screen.Calendar, Screen.Songs, Screen.Setlists)
 private val performanceScreens = listOf(Screen.Live, Screen.Practice)
-private val settingsScreens = listOf(Screen.Settings)
 
 @Composable
 fun GigBooksApp() {
@@ -66,7 +67,16 @@ fun GigBooksApp() {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val currentEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentEntry?.destination?.route ?: Screen.Calendar.route
+    val currentRoute = currentEntry?.destination?.route ?: Screen.Library.route
+
+    fun navigate(route: String) {
+        navController.navigate(route) {
+            popUpTo(Screen.Library.route) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+        scope.launch { drawerState.close() }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -74,138 +84,162 @@ fun GigBooksApp() {
             ModalDrawerSheet(
                 drawerContainerColor = GigColors.surface,
                 drawerContentColor = GigColors.text,
-                modifier = Modifier.width(260.dp),
+                modifier = Modifier.width(268.dp),
             ) {
-                // Logo header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // TODO: add logo image
-                    Text(
-                        text = "GigBooks",
-                        fontFamily = Karla,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = GigColors.orange,
-                    )
-                }
-
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.2f))
-
-                // Management section
-                DrawerSectionLabel("MANAGEMENT")
-                managementScreens.forEach { screen ->
-                    DrawerNavItem(
-                        screen = screen,
-                        selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(Screen.Calendar.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                    )
-                }
+                DrawerHeader()
 
                 HorizontalDivider(
-                    color = GigColors.textMuted.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = GigColors.textMuted.copy(alpha = 0.25f),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
 
-                // Performance section
+                Spacer(Modifier.height(8.dp))
+
+                // Library
+                DrawerSectionLabel("LIBRARY")
+                DrawerNavItem(
+                    screen = Screen.Library,
+                    selected = currentRoute == Screen.Library.route,
+                    accentColor = GigColors.teal,
+                    onClick = { navigate(Screen.Library.route) },
+                )
+
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(
+                    color = GigColors.textMuted.copy(alpha = 0.15f),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                Spacer(Modifier.height(4.dp))
+
+                // Performance
                 DrawerSectionLabel("PERFORMANCE")
                 performanceScreens.forEach { screen ->
+                    val accent = if (screen == Screen.Live) GigColors.green else GigColors.purple
                     DrawerNavItem(
                         screen = screen,
                         selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(Screen.Calendar.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                    )
-                }
-
-                HorizontalDivider(
-                    color = GigColors.textMuted.copy(alpha = 0.2f),
-                    modifier = Modifier.padding(vertical = 4.dp),
-                )
-
-                // Settings
-                settingsScreens.forEach { screen ->
-                    DrawerNavItem(
-                        screen = screen,
-                        selected = currentRoute == screen.route,
-                        onClick = {
-                            navController.navigate(screen.route) {
-                                popUpTo(Screen.Calendar.route) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                            scope.launch { drawerState.close() }
-                        },
+                        accentColor = accent,
+                        onClick = { navigate(screen.route) },
                     )
                 }
 
                 Spacer(Modifier.weight(1f))
 
-                // User avatar footer
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(GigColors.surface)
-                            // TODO: green border
-                        ,
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text("N", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GigColors.green)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text("Nathan", fontSize = 12.sp, color = GigColors.textDim)
-                }
+                HorizontalDivider(
+                    color = GigColors.textMuted.copy(alpha = 0.15f),
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+
+                // Settings
+                DrawerNavItem(
+                    screen = Screen.Settings,
+                    selected = currentRoute == Screen.Settings.route,
+                    accentColor = GigColors.textDim,
+                    onClick = { navigate(Screen.Settings.route) },
+                )
+
+                // Avatar footer
+                DrawerUserFooter()
             }
         },
     ) {
         NavHost(
             navController = navController,
-            startDestination = Screen.Calendar.route,
+            startDestination = Screen.Library.route,
             modifier = Modifier
                 .fillMaxSize()
                 .background(GigColors.background),
         ) {
-            composable(Screen.Calendar.route) {
-                CalendarScreen(onMenuClick = { scope.launch { drawerState.open() } })
-            }
-            composable(Screen.Songs.route) {
-                PlaceholderScreen("Songs", onMenuClick = { scope.launch { drawerState.open() } })
-            }
-            composable(Screen.Setlists.route) {
-                PlaceholderScreen("Setlists", onMenuClick = { scope.launch { drawerState.open() } })
+            composable(Screen.Library.route) {
+                LibraryScreen(onMenuClick = { scope.launch { drawerState.open() } })
             }
             composable(Screen.Live.route) {
-                PlaceholderScreen("Live Mode", onMenuClick = { scope.launch { drawerState.open() } })
+                PlaceholderScreen("Live Mode", GigColors.green, onMenuClick = { scope.launch { drawerState.open() } })
             }
             composable(Screen.Practice.route) {
-                PlaceholderScreen("Practice", onMenuClick = { scope.launch { drawerState.open() } })
+                PlaceholderScreen("Practice", GigColors.purple, onMenuClick = { scope.launch { drawerState.open() } })
             }
             composable(Screen.Settings.route) {
-                PlaceholderScreen("Settings", onMenuClick = { scope.launch { drawerState.open() } })
+                PlaceholderScreen("Settings", GigColors.textDim, onMenuClick = { scope.launch { drawerState.open() } })
             }
+        }
+    }
+}
+
+@Composable
+private fun DrawerHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Tangerine circle logo mark
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(GigColors.orange.copy(alpha = 0.15f))
+                .border(1.5.dp, GigColors.orange.copy(alpha = 0.6f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "T",
+                fontFamily = Karla,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = GigColors.orange,
+                textAlign = TextAlign.Center,
+                style = TextStyle(
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = GigColors.orange.copy(alpha = 0.7f),
+                        offset = Offset.Zero,
+                        blurRadius = 12f,
+                    )
+                ),
+            )
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        Column {
+            Row {
+                Text(
+                    text = "Gig",
+                    fontFamily = Karla,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    style = TextStyle(
+                        color = GigColors.orange,
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = GigColors.orange.copy(alpha = 0.6f),
+                            offset = Offset.Zero,
+                            blurRadius = 16f,
+                        ),
+                    ),
+                )
+                Text(
+                    text = "Books",
+                    fontFamily = Karla,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    style = TextStyle(
+                        color = GigColors.green,
+                        shadow = androidx.compose.ui.graphics.Shadow(
+                            color = GigColors.green.copy(alpha = 0.5f),
+                            offset = Offset.Zero,
+                            blurRadius = 14f,
+                        ),
+                    ),
+                )
+            }
+            Text(
+                text = "The Green Tangerine",
+                fontFamily = Karla,
+                fontSize = 10.sp,
+                color = GigColors.textMuted,
+                letterSpacing = 0.3.sp,
+            )
         }
     }
 }
@@ -217,62 +251,149 @@ private fun DrawerSectionLabel(label: String) {
         fontFamily = Karla,
         fontWeight = FontWeight.Bold,
         fontSize = 10.sp,
-        letterSpacing = 0.5.sp,
+        letterSpacing = 1.sp,
         color = GigColors.textMuted,
-        modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+        modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 2.dp),
     )
 }
 
 @Composable
-private fun DrawerNavItem(screen: Screen, selected: Boolean, onClick: () -> Unit) {
+private fun DrawerNavItem(
+    screen: Screen,
+    selected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+) {
     NavigationDrawerItem(
         icon = {
-            Icon(
-                screen.icon,
-                contentDescription = screen.label,
-                tint = if (selected) GigColors.orange else GigColors.textDim,
-                modifier = Modifier.size(20.dp),
-            )
+            Box(
+                modifier = if (selected) Modifier.glowBehind(accentColor, radius = 28.dp, alpha = 0.35f)
+                else Modifier,
+            ) {
+                Icon(
+                    screen.icon,
+                    contentDescription = screen.label,
+                    tint = if (selected) accentColor else GigColors.textDim,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         },
         label = {
             Text(
                 screen.label,
                 fontFamily = Karla,
-                fontSize = 13.sp,
-                color = if (selected) GigColors.text else GigColors.textDim,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                style = if (selected) TextStyle(
+                    color = GigColors.text,
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = accentColor.copy(alpha = 0.3f),
+                        offset = Offset.Zero,
+                        blurRadius = 8f,
+                    ),
+                ) else TextStyle(color = GigColors.textDim),
             )
         },
         selected = selected,
         onClick = onClick,
         colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor = GigColors.orange.copy(alpha = 0.1f),
-            unselectedContainerColor = GigColors.surface,
+            selectedContainerColor = accentColor.copy(alpha = 0.08f),
+            unselectedContainerColor = Color.Transparent,
         ),
         modifier = Modifier
-            .padding(horizontal = 8.dp)
-            .height(40.dp),
+            .padding(horizontal = 8.dp, vertical = 1.dp)
+            .height(44.dp),
     )
 }
 
 @Composable
-fun PlaceholderScreen(title: String, onMenuClick: () -> Unit) {
+private fun DrawerUserFooter() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(GigColors.green.copy(alpha = 0.08f))
+                .border(1.5.dp, GigColors.green.copy(alpha = 0.5f), CircleShape)
+                .drawBehind {
+                    // Subtle green glow ring
+                    drawCircle(
+                        brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(GigColors.green.copy(alpha = 0.2f), Color.Transparent),
+                            center = center,
+                            radius = size.minDimension * 0.8f,
+                        ),
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "N",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                style = TextStyle(
+                    color = GigColors.green,
+                    shadow = androidx.compose.ui.graphics.Shadow(
+                        color = GigColors.green.copy(alpha = 0.6f),
+                        offset = Offset.Zero,
+                        blurRadius = 10f,
+                    ),
+                ),
+            )
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(
+                text = "Nathan",
+                fontFamily = Karla,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                color = GigColors.text,
+            )
+            Text(
+                text = "Drums",
+                fontFamily = Karla,
+                fontSize = 11.sp,
+                color = GigColors.textMuted,
+            )
+        }
+    }
+}
+
+@Composable
+fun PlaceholderScreen(title: String, accentColor: Color = GigColors.orange, onMenuClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(GigColors.background)
             .padding(16.dp),
     ) {
+        Spacer(Modifier.height(56.dp))
         Text(
             text = title,
             fontFamily = Karla,
             fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            color = GigColors.text,
+            fontSize = 22.sp,
+            style = TextStyle(
+                color = accentColor,
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = accentColor.copy(alpha = 0.4f),
+                    offset = Offset.Zero,
+                    blurRadius = 16f,
+                ),
+            ),
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
-            text = "Coming soon...",
-            color = GigColors.textDim,
+            text = "Coming soon",
+            fontFamily = Karla,
+            fontSize = 14.sp,
+            color = GigColors.textMuted,
         )
     }
 }
