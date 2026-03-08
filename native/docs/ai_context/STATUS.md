@@ -6,31 +6,42 @@
 ---
 
 ## Current State
-- **Phase**: S27C complete + visual parity audit + audio upload UI. C++ build VERIFIED. **Ready for S28+ (Recording/Video).**
-- **Blocker**: NONE — C++ build verified. APK installed on device.
-- **Last session**: 2026-03-07 — Visual parity audit (8 fixes): calendar neon glows, Today button restyle, shadow simplification, drawer user avatar, song/setlist card accents, drawer logo single-line. Audio upload UI added to song edit forms (both apps). expo-document-picker installed.
-- **Next action**: S28+ — Recording/Video spec. Future: local audio caching, Moises-style library management.
+- **Phase**: Jetpack Compose rewrite scaffolded + building + installed. Ready to build out screens.
+- **Blocker**: NONE — Compose scaffold builds and installs on Samsung RFCW113WZRM.
+- **Last session**: 2026-03-08 — Compose rewrite scaffolded (android/), builds successfully (4m32s), installed on device. React Native archived to D:/tgt/gigbooks-react-native-backup-2026-03-08.7z (still in git).
+- **Next action**: Build out Compose screens — Songs, Setlists, Live Mode, Practice Mode, Settings. Wire up Supabase Kotlin queries for calendar data. Add login screen.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Big Picture
-- **Vision**: GigBooks = band manager + live performance tool + practice tool. One app for everything.
-- **North star**: Nathan manages gigs/invoices/quotes AND performs with click track + setlists on stage AND practices songs with beat-locked MP3s. Other members get stage prompter (lyrics/chords) on web.
-- **Architecture**: Monorepo (`shared/` + `native/` + `web/`) — Supabase for all data. C++ audio engine (Oboe) via Expo Native Module for native app. Web = no audio, stage prompter only.
-- **Audio engine**: `native/modules/click-engine/` — Expo Native Module wrapping C++/Oboe metronome + track player + mixer + beat detector. SoundTouch for time-stretch. JS API: `native/src/audio/ClickEngine.ts`.
-- **Live Mode**: `native/app/(drawer)/live.tsx` — full-screen stage view, setlist nav, beat viz, transport, swing slider, wake lock (expo-keep-awake).
-- **Design**: Collapsible drawer nav on both apps (IMPLEMENTED S19). Unified theme.
-- **Users**: Nathan (admin/drummer — full audio features), Neil/James/Adam (management + stage prompter)
+- **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.
+- **North star**: Nathan has pixel-perfect dark neumorphic app with click track + setlists on stage + beat-locked MP3 practice. Other band members use web app (invoicing, quotes, stage prompter).
+- **Architecture**: Monorepo (`shared/` + `native/` [shelved] + `web/` + `android/` [new])
+- **Android app scope**: Calendar, Songs, Setlists, Live Mode, Practice Mode, Settings. NO invoicing/quotes/PDF.
+- **Web app scope**: Full band management (invoicing, quotes, clients, venues, dashboard, PDF, stage prompter).
+- **Audio engine**: `android/app/src/main/cpp/` — C++ AudioEngine → JNI → AudioEngineBridge.kt (Oboe + SoundTouch).
+- **Design**: Dark neumorphic — GigColors matching web CSS, Karla + JetBrains Mono, NeuCard/NeuWell composables.
+- **Users**: Nathan (full audio features), Neil/James/Adam (web only)
 
 ## Active Risks
-1. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + track_player + beat_detector all compile and link. 105MB release APK built 2026-03-07.
-2. **APK installed** — 105MB release APK installed on Samsung RFCW113WZRM (2026-03-07).
-3. **SoundTouch licensing** — LGPL. Fine for personal band app. Vendored source in `modules/click-engine/android/third_party/soundtouch/`.
+1. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + all engine files compile and link in Compose project.
+2. **APK installed** — Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08).
+3. **React Native shelved** — archived but still in git. Can resume if Compose doesn't work out.
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
-- **Native**: Release APK installed on Samsung RFCW113WZRM (2026-03-07)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live, S26A migration pushed)
+- **Android**: Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live)
+
+## Compose Project Structure (android/)
+- **Theme**: GigColors, GigTypography, GigBooksTheme (dark, matches web)
+- **Navigation**: ModalNavigationDrawer, 6 screens (Calendar, Songs, Setlists, Live, Practice, Settings)
+- **Screens done**: CalendarScreen (month grid, today highlight, legend) — data not wired yet
+- **Screens TODO**: Songs, Setlists, Live Mode, Practice Mode, Settings, Login
+- **Components**: NeuCard, NeuWell (neumorphic surfaces)
+- **Data**: SupabaseProvider singleton, AuthRepository (sign in/out/session)
+- **Audio**: AudioEngineBridge.kt → C++ (all methods declared, not wired to UI yet)
+- **Build**: `cd android && ./gradlew assembleDebug --no-daemon`
 
 ## Supabase Tables (23 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
@@ -43,19 +54,5 @@
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)
-**Start**: Read STATUS.md → todo.md → (deeper docs only if needed) → `npx tsc --noEmit`
+**Start**: Read STATUS.md → todo.md → (deeper docs only if needed)
 **End**: Update STATUS.md → todo.md → SESSION_LOG.md → gotchas.md (if learned) → decisions_log.md (if decided)
-
-## Sprint Roadmap
-| Sprint | Focus | Status |
-|--------|-------|--------|
-| S1-S25C | Band manager (calendar, invoicing, quotes, venues, clients, setlists, PDF, public site) | ALL DONE |
-| **S26A** | **C++ audio engine Expo Module + schema migration (lyrics/chords/beat_offset_ms) + role-based song form** | **DONE** |
-| **S26B** | **Live Mode UI — stage view, setlist nav, beat viz, transport, wake lock** | **DONE** |
-| **S26C** | **Track player C++ + beat detection + SoundTouch time-stretch + A-B loop + MP3 decode** | **DONE** |
-| **S27A** | **Practice Mode UI — speed slider, A-B markers, beat step/nudge, volume mix** | **DONE** |
-| **S27B** | **Practice tools — tap tempo, save settings to song, song notes display** | **DONE** |
-| **S27C** | **Web stage prompter — lyrics/chords/song info, setlist nav (no audio)** | **DONE** |
-| **S28+** | **Recording/video — spec later** | BACKLOG |
-
-Prompts: `native/docs/ai_context/SPRINT_PROMPTS.md`
