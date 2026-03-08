@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: Android Compose app FULLY built out — all screens complete, installed on device.
-- **Blocker**: NONE — BUILD SUCCESSFUL, installed on Samsung RFCW113WZRM (2026-03-08 session 2).
-- **Last session**: 2026-03-08 — Full app buildout: Login, Library (Songs + Setlists), Live Mode, Practice Mode, Settings. AppViewModel wiring all C++ engine + Supabase state. Fixed API key (publishable key), numeric field deserialization (Postgres numeric → Double). All screens functional.
-- **Next action**: On-device testing of C++ engine (click track + track player). Add more songs/setlists via web app. Test practice track audio upload + load.
+- **Phase**: S28A complete. Next: S28B (C++ N-channel mixer + Kotlin stem loading).
+- **Blocker**: MANUAL STEP REQUIRED — run S28A migration in Supabase dashboard SQL editor. Create `song-stems` storage bucket (public, audio/*, 200MB max).
+- **Last session**: 2026-03-08 session 3 — Big picture realignment: Practice Mode = full R'n'S clone (not bolt-on). S28A: song_stems table + RLS migration, SongStem+StemLabel types, getSongStems/uploadStem/deleteStem queries (storage rollback on DB fail), stem upload UI in SongForm (per-label, audio preview, delete). TypeScript clean.
+- **Next action**: S28B — extend C++ mixer to N dynamic channels; Kotlin loads stems as ch2..chN after track load. Then S28C (waveform + auto-analyse).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -31,7 +31,7 @@
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Android**: Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live + song_stems pending migration)
 
 ## Compose Project Structure (android/)
 - **Theme**: GigColors, GigTypography, GigBooksTheme (dark, matches web)
@@ -42,14 +42,15 @@
 - **Audio**: AppViewModel → AudioEngineBridge.kt → C++ — click + track player wired, beat polling coroutine
 - **Build**: `cd android && ./gradlew assembleDebug --no-daemon`
 
-## Supabase Tables (23 live)
+## Supabase Tables (24 — 23 live + 1 pending migration)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
 - **Public site**: public_media, contact_submissions
 - **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
 - **Quoting (S15)**: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts
 - **S23A**: venue_photos, venues restructured, gigs/quotes/invoices/formal_invoices have venue_id FK
 - **S25A+S26A**: songs (now with lyrics/chords/beat_offset_ms), setlists, setlist_songs
-- **Storage**: public-media, venue-photos, practice-tracks
+- **S28A**: song_stems (pending migration run)
+- **Storage**: public-media, venue-photos, practice-tracks, song-stems (pending bucket creation)
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
 ## Session Protocol (Quick Reference)

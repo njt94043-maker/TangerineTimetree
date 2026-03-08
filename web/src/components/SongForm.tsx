@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack } from '@shared/supabase/queries';
-import type { ClickSound } from '@shared/supabase/types';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem } from '@shared/supabase/queries';
+import type { ClickSound, SongStem, StemLabel } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
+
+const STEM_LABELS: { value: StemLabel; label: string }[] = [
+  { value: 'backing',  label: 'Backing (full band minus you)' },
+  { value: 'drums',   label: 'Drums' },
+  { value: 'bass',    label: 'Bass' },
+  { value: 'vocals',  label: 'Vocals' },
+  { value: 'guitar',  label: 'Guitar' },
+  { value: 'keys',    label: 'Keys' },
+  { value: 'other',   label: 'Other' },
+];
 
 const CLICK_SOUNDS: ClickSound[] = ['default', 'high', 'low', 'wood', 'rim'];
 const TIME_SIG_TOPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
@@ -36,11 +46,18 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const [lyrics, setLyrics] = useState('');
   const [chords, setChords] = useState('');
 
-  // Audio track
+  // Practice track
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioUploading, setAudioUploading] = useState(false);
   const [audioError, setAudioError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Stems
+  const [stems, setStems] = useState<SongStem[]>([]);
+  const [stemUploading, setStemUploading] = useState(false);
+  const [stemError, setStemError] = useState('');
+  const [newStemLabel, setNewStemLabel] = useState<StemLabel>('backing');
+  const stemFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!songId) return;
@@ -62,6 +79,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setChords(song.chords);
       setAudioUrl(song.audio_url);
       setLoading(false);
+      getSongStems(songId).then(setStems).catch(() => {});
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load song');
       setLoading(false);
@@ -120,6 +138,33 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
     } finally {
       setAudioUploading(false);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function handleStemFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !songId) return;
+    setStemUploading(true);
+    setStemError('');
+    try {
+      const buffer = await file.arrayBuffer();
+      const stem = await uploadStem(songId, newStemLabel, file.name, buffer, file.type || 'audio/mpeg');
+      setStems(prev => [...prev.filter(s => s.label !== newStemLabel), stem].sort((a, b) => a.label.localeCompare(b.label)));
+    } catch (err) {
+      setStemError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setStemUploading(false);
+      if (stemFileRef.current) stemFileRef.current.value = '';
+    }
+  }
+
+  async function handleDeleteStem(stemId: string) {
+    if (!confirm('Remove this stem from cloud storage?')) return;
+    try {
+      await deleteStem(stemId);
+      setStems(prev => prev.filter(s => s.id !== stemId));
+    } catch (err) {
+      setStemError(err instanceof Error ? err.message : 'Failed to remove');
     }
   }
 
@@ -278,6 +323,52 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <button className="btn btn-small btn-green" onClick={() => fileRef.current?.click()}>+ Add MP3 / Audio</button>
           )}
           {audioError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginTop: 6 }}>{audioError}</p>}
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <h3 className="form-section-title">Stems</h3>
+          <p style={{ color: 'var(--color-text-dim)', fontSize: 12, marginBottom: 12 }}>
+            Separate stems externally (e.g. Moises) then upload each one. Android practice engine plays them as independent mixer channels.
+          </p>
+
+          {stems.length > 0 && (
+            <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {stems.map(stem => (
+                <div key={stem.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--color-surface-raised, rgba(255,255,255,0.03))', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.07)' }}>
+                  <span style={{ flex: 1, color: 'var(--color-teal)', fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{stem.label}</span>
+                  <audio controls src={stem.audio_url} style={{ height: 28, flex: 2 }} />
+                  <button className="btn btn-small btn-danger" onClick={() => handleDeleteStem(stem.id)}>Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <input ref={stemFileRef} type="file" accept="audio/*" onChange={handleStemFileSelected} style={{ display: 'none' }} />
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="neu-inset" style={{ flex: 1 }}>
+              <select
+                className="input-field"
+                value={newStemLabel}
+                onChange={e => setNewStemLabel(e.target.value as StemLabel)}
+              >
+                {STEM_LABELS.map(({ value, label }) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              className="btn btn-small btn-green"
+              onClick={() => stemFileRef.current?.click()}
+              disabled={stemUploading}
+            >
+              {stemUploading ? 'Uploading…' : '+ Add Stem'}
+            </button>
+          </div>
+
+          {stemError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginTop: 6 }}>{stemError}</p>}
         </div>
       )}
     </div>
