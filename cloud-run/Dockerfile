@@ -8,7 +8,9 @@ RUN apt-get update && \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# madmom needs Cython + numpy available at build time for setup.py
+RUN pip install --no-cache-dir cython==3.0.12 numpy==1.26.4 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
 
