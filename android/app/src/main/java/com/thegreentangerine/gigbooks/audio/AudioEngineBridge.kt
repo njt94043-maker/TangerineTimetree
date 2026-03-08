@@ -49,6 +49,7 @@ object AudioEngineBridge {
     external fun nativeSetTrackSpeed(ratio: Float)
     external fun nativeGetTrackSpeed(): Float
     external fun nativeNudgeClick(direction: Int)
+    external fun nativeNudgeClickHalf(direction: Int)
 
     // --- Stem Players (ch2..ch7; idx: 0=DRUMS 1=BASS 2=GUITAR 3=KEYS 4=VOCALS 5=OTHER) ---
     external fun nativeLoadStem(idx: Int, pcmData: FloatArray, numFrames: Int, sampleRate: Int, channels: Int)
@@ -58,9 +59,14 @@ object AudioEngineBridge {
     // --- Beat Detection ---
     external fun nativeAnalyseTrack(): FloatArray // [bpm, beatOffsetMs]
 
-    // --- Beat Alignment ---
+    // --- Beat Map ---
+    // Apply the beat map from the last nativeAnalyseTrack() to the metronome.
+    // The metronome fires at each detected beat position rather than a fixed BPM.
+    // Call immediately after nativeAnalyseTrack() returns a valid result.
+    external fun nativeApplyBeatMap(beatsPerBar: Int)
+
+    // --- Beat Alignment (legacy fallback) ---
     // Set absolute beat offset (ms) → converted to frames → setBeatDisplacement.
-    // Call after nativeLoadTrack to phase-lock click to track. Pass 0 to reset.
     external fun nativeSetBeatOffsetMs(ms: Int)
 
     // --- Engine info ---

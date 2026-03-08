@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
@@ -637,6 +638,15 @@ private fun UnifiedTransport(vm: AppViewModel) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
+        // Restart from beginning
+        IconButton(
+            onClick  = { vm.restart() },
+            modifier = Modifier.size(40.dp),
+            enabled  = vm.engineAvailable && vm.trackLoaded,
+        ) {
+            Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textDim, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(8.dp))
         // Play / Pause
         PlayStopButton(
             isPlaying = isPlaying,
@@ -644,7 +654,7 @@ private fun UnifiedTransport(vm: AppViewModel) {
             onClick   = { if (isPlaying) vm.pause() else vm.play() },
             enabled   = vm.engineAvailable,
         )
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(8.dp))
         // Stop (rewind)
         IconButton(onClick = { vm.stop() }, modifier = Modifier.size(40.dp)) {
             Icon(Icons.Default.Stop, contentDescription = "Stop", tint = GigColors.textDim, modifier = Modifier.size(22.dp))

@@ -6,20 +6,19 @@
 ---
 
 ## Current State
-- **Phase**: Audio practice mode partially working. BPM fix confirmed working. Beat alignment (phase offset) still wrong.
-- **Blocker**: Beat detector returns wrong beat offset → click fires at correct rate but wrong phase relative to track.
-- **Last session**: 2026-03-08 session 8 — On-device testing. Fixed 4 audio bugs: (1) OOM: `mutableListOf<Short>` boxes PCM → ByteArray chunks + ShortBuffer. (2) 8.8% speed error: Oboe opens at 48kHz, MP3 at 44.1kHz → added linear interpolation resample in decodeAudio. (3) BPM override: applyEngineSettings was overriding detected BPM → guard: if detectedBpm>0 skip metadata BPM. (4) **Beat offset per-beat accumulation bug**: displacement was added to every nextBeatFrame_, making effective BPM = sr*60/(fpb+offset) instead of just delaying first beat. Fixed: offset applied once at start(), per-beat is 0. Nudge now uses pendingPhaseShift_ atomic (applied at next beat boundary). Also: unified transport (play/pause/stop + click mute), sample rate mismatch fix, safe area via safeDrawingPadding + statusBarsPadding. All committed + pushed (bab0050 and later).
-- **Next action**: Research + fix beat alignment (S30A). Beat detector gives wrong offset — click fires at right BPM but not phase-locked to track. See next session plan below.
+- **Phase**: Beat map architecture in place. BTrack full-track analysis working. Click fires at actual detected beat positions. Phase alignment unconfirmed on device — need clean test.
+- **Blocker**: Beat alignment still needs on-device confirmation. Previous "drift" was caused by a rapid-fire catch-up burst when beat map was applied mid-song (now fixed). Need to test from fresh load + ⏮ restart.
+- **Last session**: S30A — Beat alignment major overhaul. Replaced spectral-flux offset detection with BTrack full-track beat map. Fixed BTrack 44100 Hz hardcode (5 locations). Two-pass analysis (rough BPM → seeded full pass). cleanBeatMap (local sliding-window IBI). loadBeatMap now skips past beats on load (no catch-up burst). applyBeatMap passes current track/metro frame. Accent removed (all clicks identical). Restart button (⏮) added to transport. Regrid (uniform grid) was tried and reverted — it drifts on any variable-tempo track.
+- **Next action**: On-device test with ⏮ restart from fresh load. Confirm beat alignment. If drift remains, investigate whether BTrack positions are systematically early/late and consider per-beat latency correction. Manual nudge (Beat Step ½-beat) is already implemented.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S30A — Beat Alignment Fix
-- Research beat_detector.cpp accuracy — does it return correct offset for "Sultans of Swing"?
-- Investigate: SoundTouch BPMDetect vs custom onset autocorrelation
-- Add logcat output of raw analysis result (bpm + offsetMs) at analysis time
-- Possible approach: use FFT-based beat tracking OR manual offset slider as fallback
-- Manual fine-tune: offset slider (±500ms range) in PracticeScreen, saves to Supabase
-- Goal: user can align click to track manually if auto-detect is wrong
+## Next Session Plan: S30B — Beat Alignment Confirmation
+- Test with ⏮ restart (fresh from frame 0, beat map active from start)
+- If still drifting: add logcat beat-fire timestamps vs track position to measure actual error
+- If drifting consistently one direction: apply global phase offset to BTrack positions in cleanBeatMap
+- Manual nudge already works (Beat Step ½-beat). User can fine-tune if needed.
+- Do NOT re-introduce regrid — uniform grid fails on variable-tempo tracks.
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.

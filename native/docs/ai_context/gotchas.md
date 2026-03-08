@@ -4,6 +4,25 @@
 
 ---
 
+## Beat Detection / Audio Engine
+
+### Uniform grid (regrid) fails on real music
+- Attempted to replace BTrack per-beat positions with a constant-IBI uniform grid to eliminate BTrack's causal latency. This drifts on any track with real tempo variation (which is all real tracks). Do NOT re-introduce.
+- Reference: Rec'n'Share / Moises use actual per-beat timestamps, not projected grids.
+
+### loadBeatMap must skip past beats immediately
+- When analysis completes mid-playback, `applyBeatMap` calls `loadBeatMap`. If `beatMapIdx_=0` and `framePosition_` is already at e.g. frame 190000, the render loop rapid-fires all past beats (one per frame) causing an audible burst then a phase discontinuity.
+- Fix: `loadBeatMap` now advances `beatMapIdx_` / `beatMapBeatCount_` past all beats < `startMetroFrame`. `applyBeatMap` passes current `trackPlayer_.getPosition()` and `metronome_.getFramePosition()`.
+
+### BTrack has 44100 Hz hardcoded in 5 places
+- Default `sampleRate_` is 44100 in BTrack.cpp. Fixed by adding `sampleRate_` member, `setSampleRate()` method, and replacing all 5 hardcoded values. Must call `bt.setSampleRate(sampleRate)` before `bt.setTempo()`.
+
+### Two-pass BTrack analysis needed for accurate BPM
+- BTrack defaults to 120 BPM. Running a 30s pass first (pass 1), computing median IBI, then seeding pass 2 with `setTempo(roughBpm)` gives correct beat positions from beat 1. Without this, first ~25 beats are wrong.
+
+### Always test beat alignment from ⏮ (restart), not mid-song
+- If analysis completes after playback starts, there's a constant-BPM→beat-map transition. Any phase mismatch at transition point will confuse feedback. Always restart from frame 0 for clean test.
+
 ## Database (Supabase)
 
 ### Settings are singletons

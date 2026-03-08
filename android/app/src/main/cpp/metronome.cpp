@@ -82,6 +82,55 @@ void Metronome::addPhaseShift(int64_t frames) {
     pendingPhaseShift_.fetch_add(frames);
 }
 
+void Metronome::loadBeatMap(const int64_t* frames, size_t count, int32_t beatsPerBar,
+                             int64_t startTrackFrame, int64_t startMetroFrame, float speed) {
+    beatMapOrig_.assign(frames, frames + count);
+    beatMapBpb_          = std::max(1, beatsPerBar);
+    beatMapPhaseOffset_  = 0;
+
+    beatMapScaled_.resize(count);
+    for (size_t i = 0; i < count; i++) {
+        beatMapScaled_[i] = startMetroFrame +
+            (int64_t)((beatMapOrig_[i] - startTrackFrame) / (double)speed);
+    }
+    beatMapEndFrame_ = (count > 0) ? beatMapScaled_.back() : 0;
+
+    // Skip beats that are already in the past (startMetroFrame is the current
+    // frame position).  Without this, the render loop would rapid-fire all
+    // past beats in consecutive frames, causing a burst of clicks and then a
+    // phase discontinuity when beat-map mode takes over from constant-BPM.
+    beatMapIdx_       = 0;
+    beatMapBeatCount_ = 0;
+    while (beatMapIdx_ < count && beatMapScaled_[beatMapIdx_] < startMetroFrame) {
+        beatMapIdx_++;
+        beatMapBeatCount_++;
+    }
+
+    useBeatMap_ = (count > 0);
+}
+
+void Metronome::clearBeatMap() {
+    useBeatMap_ = false;
+    beatMapOrig_.clear();
+    beatMapScaled_.clear();
+    beatMapIdx_       = 0;
+    beatMapBeatCount_ = 0;
+}
+
+void Metronome::resyncBeatMap(int64_t trackFrame, int64_t metroFrame, float speed) {
+    if (!useBeatMap_ || beatMapOrig_.empty()) return;
+    // Advance index to next beat at or after trackFrame
+    size_t newIdx = beatMapIdx_;
+    while (newIdx < beatMapOrig_.size() && beatMapOrig_[newIdx] < trackFrame) newIdx++;
+    beatMapIdx_ = newIdx;
+    // Recompute scaled positions for remaining beats
+    for (size_t i = newIdx; i < beatMapOrig_.size(); i++) {
+        beatMapScaled_[i] = metroFrame +
+            (int64_t)((beatMapOrig_[i] - trackFrame) / (double)speed);
+    }
+    if (!beatMapScaled_.empty()) beatMapEndFrame_ = beatMapScaled_.back();
+}
+
 void Metronome::setBackbeat(bool enabled) {
     backbeatEnabled_.store(enabled);
 }
@@ -136,6 +185,18 @@ void Metronome::start() {
     currentBarIsMuted_.store(false);
 
     isCountingIn_.store(countInBars_.load() > 0);
+
+    // Reset beat map playhead
+    beatMapIdx_          = 0;
+    beatMapBeatCount_    = 0;
+    beatMapPhaseOffset_  = 0;
+    if (!beatMapOrig_.empty()) {
+        // Re-derive scaled positions from the start (speed=1.0, metroFrame=0, trackFrame=0)
+        for (size_t i = 0; i < beatMapOrig_.size(); i++) {
+            beatMapScaled_[i] = beatMapOrig_[i]; // speed=1.0 at start
+        }
+        useBeatMap_ = true;
+    }
 
     isPlaying_.store(true);
 }
@@ -237,6 +298,16 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
     int32_t bpb = beatsPerBar_.load();
     if (fpb <= 0 || bpb <= 0) return;
 
+    // Consume any pending phase nudge before the frame loop.
+    int64_t pendingNudge = pendingPhaseShift_.exchange(0);
+    if (pendingNudge != 0) {
+        if (useBeatMap_) {
+            beatMapPhaseOffset_ += pendingNudge;
+        } else {
+            nextBeatFrame_ += pendingNudge;
+        }
+    }
+
     int32_t divisor = subdivisionDivisor_.load();
     bool muteActive = muteEnabled_.load();
     bool speedActive = speedTrainerEnabled_.load();
@@ -247,106 +318,135 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
     for (int32_t frame = 0; frame < numFrames; frame++) {
 
         // PRIMARY METRONOME — beat boundary check
-        if (framePosition_ >= nextBeatFrame_) {
-            int32_t beat = scheduledBeat_;
-            int32_t bar = scheduledBar_;
+        // Beat map mode: fires at exact pre-computed track beat positions.
+        // Constant-BPM mode: fires at fixed interval (fallback / live mode).
+        bool beatFired = false;
 
-            currentBeat_.store(beat);
-            currentBar_.store(bar);
+        if (useBeatMap_ && beatMapIdx_ < beatMapScaled_.size()) {
+            // ── BEAT MAP MODE ──────────────────────────────────────────────
+            if (framePosition_ >= beatMapScaled_[beatMapIdx_] + beatMapPhaseOffset_) {
+                int32_t beatInBar = beatMapBeatCount_ % beatMapBpb_;
+                int32_t bar       = beatMapBeatCount_ / beatMapBpb_;
 
-            currentClickIsDownbeat_ = (beat == 0);
+                currentBeat_.store(beatInBar);
+                currentBar_.store(bar);
+                currentClickIsDownbeat_ = false; // no accent — all clicks sound identical
 
-            int32_t accentLen = accentPatternLength_.load();
-            bool shouldSound = true;
-            if (accentLen > 0 && beat < accentLen) {
-                shouldSound = (accentPattern_[beat] > 0);
-                if (accentPattern_[beat] >= 3) {
-                    currentClickIsDownbeat_ = true;
-                }
-            }
-
-            if (muteActive && currentBarIsMuted_.load()) {
-                shouldSound = false;
-            }
-
-            if (backbeat && (beat % 2 == 0)) {
-                shouldSound = false;
-            }
-
-            if (dropPct > 0 && shouldSound) {
-                prngState_ = prngState_ * 1664525u + 1013904223u;
-                int32_t roll = static_cast<int32_t>((prngState_ >> 16) % 100);
-                if (roll < dropPct) {
-                    shouldSound = false;
-                }
-            }
-
-            if (shouldSound) {
-                isClickActive_ = true;
-                clickSampleIndex_ = 0;
-                if (isCountingIn_.load()) {
-                    currentClickType_ = countInClickType_.load();
-                } else {
-                    int32_t btLen = beatClickTypeLength_.load();
-                    if (btLen > 0 && beat < btLen && beatClickType_[beat] >= 0) {
-                        currentClickType_ = beatClickType_[beat];
-                    } else {
-                        currentClickType_ = clickType_.load();
-                    }
-                }
-            }
-
-            currentBeatStartFrame_ = framePosition_;
-            subBeatIndex_ = 1;
-            isSubClickActive_ = false;
-
-            // Advance to next beat (no per-beat displacement — offset was applied at start())
-            // Apply any pending one-shot nudge (from nudgeClick, thread-safe)
-            int64_t nudge = pendingPhaseShift_.exchange(0);
-            nextBeatFrame_ = framePosition_ + fpb + nudge;
-
-            int32_t prevBar = bar;
-            scheduledBeat_ = beat + 1;
-            if (scheduledBeat_ >= bpb) {
-                scheduledBeat_ = 0;
-                scheduledBar_ = bar + 1;
-
-                if (isCountingIn_.load()) {
-                    int32_t ciBars = countInBars_.load();
-                    if (scheduledBar_ >= ciBars) {
-                        isCountingIn_.store(false);
-                    }
+                bool shouldSound = !(muteActive && currentBarIsMuted_.load());
+                if (backbeat && (beatInBar % 2 == 0)) shouldSound = false;
+                if (dropPct > 0 && shouldSound) {
+                    prngState_ = prngState_ * 1664525u + 1013904223u;
+                    if (static_cast<int32_t>((prngState_ >> 16) % 100) < dropPct)
+                        shouldSound = false;
                 }
 
-                if (speedActive && !speedTrainerComplete_.load()) {
-                    speedBarCounter_++;
-                    if (speedBarCounter_ >= speedBarsPerIncrement_.load()) {
-                        speedBarCounter_ = 0;
-                        float currentBpm = speedCurrentBpm_.load();
-                        float endBpm = speedEndBpm_.load();
-                        float inc = speedIncrementBpm_.load();
-                        float newBpm = currentBpm + inc;
-                        if (newBpm >= endBpm) {
-                            newBpm = endBpm;
-                            speedTrainerComplete_.store(true);
-                        }
-                        speedCurrentBpm_.store(newBpm);
-                        bpm_.store(newBpm);
-                        recalcFramesPerBeat();
-                        fpb = framesPerBeat_.load();
-                    }
+                if (shouldSound) {
+                    isClickActive_     = true;
+                    clickSampleIndex_  = 0;
+                    currentClickType_  = clickType_.load();
                 }
 
-                if (muteActive) {
+                // Derive beat interval for subdivision: distance to next beat in map
+                if (beatMapIdx_ + 1 < beatMapScaled_.size()) {
+                    fpb = beatMapScaled_[beatMapIdx_ + 1] - beatMapScaled_[beatMapIdx_];
+                }
+                currentBeatStartFrame_ = framePosition_;
+                subBeatIndex_          = 1;
+                isSubClickActive_      = false;
+
+                if (beatInBar + 1 >= beatMapBpb_ && muteActive) {
                     muteBarCounter_++;
-                    int32_t playBars = mutePlayBars_.load();
-                    int32_t mutBars = muteMuteBars_.load();
-                    int32_t cycle = playBars + mutBars;
-                    int32_t phase = muteBarCounter_ % cycle;
-                    currentBarIsMuted_.store(phase >= playBars);
+                    int32_t cycle = mutePlayBars_.load() + muteMuteBars_.load();
+                    currentBarIsMuted_.store((muteBarCounter_ % cycle) >= mutePlayBars_.load());
                 }
+
+                beatMapBeatCount_++;
+                beatMapIdx_++;
+                beatFired = true;
+
+                // When beat map is exhausted, transition to constant-BPM fallback
+                if (beatMapIdx_ >= beatMapScaled_.size()) {
+                    useBeatMap_     = false;
+                    nextBeatFrame_  = framePosition_ + framesPerBeat_.load();
+                    scheduledBeat_  = beatMapBeatCount_ % beatMapBpb_;
+                    scheduledBar_   = beatMapBeatCount_ / beatMapBpb_;
+                }
+            }
+        } else if (!useBeatMap_) {
+            // ── CONSTANT-BPM MODE ──────────────────────────────────────────
+            if (framePosition_ >= nextBeatFrame_) {
+                int32_t beat = scheduledBeat_;
+                int32_t bar  = scheduledBar_;
+
+                currentBeat_.store(beat);
+                currentBar_.store(bar);
+                currentClickIsDownbeat_ = false; // no accent — all clicks sound identical
+
+                int32_t accentLen = accentPatternLength_.load();
+                bool shouldSound = true;
+                if (accentLen > 0 && beat < accentLen) {
+                    shouldSound = (accentPattern_[beat] > 0);
+                }
+                if (muteActive && currentBarIsMuted_.load()) shouldSound = false;
+                if (backbeat && (beat % 2 == 0)) shouldSound = false;
+                if (dropPct > 0 && shouldSound) {
+                    prngState_ = prngState_ * 1664525u + 1013904223u;
+                    if (static_cast<int32_t>((prngState_ >> 16) % 100) < dropPct)
+                        shouldSound = false;
+                }
+
+                if (shouldSound) {
+                    isClickActive_    = true;
+                    clickSampleIndex_ = 0;
+                    if (isCountingIn_.load()) {
+                        currentClickType_ = countInClickType_.load();
+                    } else {
+                        int32_t btLen = beatClickTypeLength_.load();
+                        currentClickType_ = (btLen > 0 && beat < btLen && beatClickType_[beat] >= 0)
+                            ? beatClickType_[beat] : clickType_.load();
+                    }
+                }
+
+                currentBeatStartFrame_ = framePosition_;
+                subBeatIndex_          = 1;
+                isSubClickActive_      = false;
+
+                nextBeatFrame_   = framePosition_ + fpb;
+
+                scheduledBeat_ = beat + 1;
+                if (scheduledBeat_ >= bpb) {
+                    scheduledBeat_ = 0;
+                    scheduledBar_  = bar + 1;
+
+                    if (isCountingIn_.load()) {
+                        if (scheduledBar_ >= countInBars_.load())
+                            isCountingIn_.store(false);
+                    }
+                    if (speedActive && !speedTrainerComplete_.load()) {
+                        speedBarCounter_++;
+                        if (speedBarCounter_ >= speedBarsPerIncrement_.load()) {
+                            speedBarCounter_ = 0;
+                            float newBpm = speedCurrentBpm_.load() + speedIncrementBpm_.load();
+                            if (newBpm >= speedEndBpm_.load()) {
+                                newBpm = speedEndBpm_.load();
+                                speedTrainerComplete_.store(true);
+                            }
+                            speedCurrentBpm_.store(newBpm);
+                            bpm_.store(newBpm);
+                            recalcFramesPerBeat();
+                            fpb = framesPerBeat_.load();
+                        }
+                    }
+                    if (muteActive) {
+                        muteBarCounter_++;
+                        int32_t cycle = mutePlayBars_.load() + muteMuteBars_.load();
+                        currentBarIsMuted_.store((muteBarCounter_ % cycle) >= mutePlayBars_.load());
+                    }
+                }
+                beatFired = true;
             }
         }
+        (void)beatFired;
 
         // SUBDIVISION CLICKS
         if (divisor > 1 && subBeatIndex_ < divisor) {

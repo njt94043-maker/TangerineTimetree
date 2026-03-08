@@ -131,6 +131,15 @@ void AudioEngine::setCountIn(int32_t bars, int32_t clickType) {
 
 void AudioEngine::startClick() {
     metronome_.start();
+    // If the track is loaded and not at frame 0 (i.e. resuming from pause),
+    // resync the beat map so it aligns to the current track position rather
+    // than assuming both started at frame 0.
+    if (trackPlayer_.isLoaded()) {
+        int64_t trackFrame = trackPlayer_.getPosition();
+        if (trackFrame > 0) {
+            metronome_.resyncBeatMap(trackFrame, 0, trackPlayer_.getSpeed());
+        }
+    }
 }
 
 void AudioEngine::stopClick() {
@@ -210,6 +219,9 @@ void AudioEngine::setSplitStereo(bool enabled) {
 
 void AudioEngine::loadTrack(std::vector<float>&& pcmData, int32_t numFrames,
                               int32_t sampleRate, int32_t channels) {
+    // Clear any beat map from a previous song so it doesn't contaminate playback
+    // before the new track's analysis completes.
+    metronome_.clearBeatMap();
     trackPlayer_.load(std::move(pcmData), numFrames, sampleRate, channels);
 }
 
@@ -239,6 +251,7 @@ void AudioEngine::seekTrack(int64_t frame) {
     for (int32_t i = 0; i < MAX_STEMS; i++) {
         if (stemPlayers_[i].isLoaded()) stemPlayers_[i].seek(frame);
     }
+    metronome_.resyncBeatMap(frame, metronome_.getFramePosition(), trackPlayer_.getSpeed());
 }
 
 void AudioEngine::setLoopRegion(int64_t startFrame, int64_t endFrame) {
@@ -272,9 +285,11 @@ void AudioEngine::setTrackSpeed(float ratio) {
     for (int32_t i = 0; i < MAX_STEMS; i++) {
         if (stemPlayers_[i].isLoaded()) stemPlayers_[i].setSpeed(ratio);
     }
-    // Adjust metronome BPM proportionally
+    // Adjust metronome BPM proportionally (for fallback / live mode)
     float base = baseBpm_.load();
     metronome_.setBpm(base * ratio);
+    // Resync beat map with new speed (beat positions in metronome-frame space change)
+    metronome_.resyncBeatMap(trackPlayer_.getPosition(), metronome_.getFramePosition(), ratio);
     LOGI("Track speed set to %.2f, metronome BPM adjusted to %.1f", ratio, base * ratio);
 }
 
@@ -283,11 +298,17 @@ float AudioEngine::getTrackSpeed() const {
 }
 
 void AudioEngine::nudgeClick(int32_t direction) {
-    // Shift metronome phase by one beat forward or backward (one-shot, applied at next beat)
     int64_t framesPerBeat = metronome_.getFramesPerBeat();
     int64_t shift = framesPerBeat * direction;
     metronome_.addPhaseShift(shift);
-    LOGI("Nudge click: direction=%d, shift=%lld frames", direction, (long long)shift);
+    LOGI("NudgeClick: dir=%d shift=%lld frames (1 beat)", direction, (long long)shift);
+}
+
+void AudioEngine::nudgeClickHalf(int32_t direction) {
+    int64_t framesPerBeat = metronome_.getFramesPerBeat();
+    int64_t shift = (framesPerBeat / 2) * direction;
+    metronome_.addPhaseShift(shift);
+    LOGI("NudgeClickHalf: dir=%d shift=%lld frames (½ beat)", direction, (long long)shift);
 }
 
 // --- Stem Players ---
@@ -325,13 +346,36 @@ BeatAnalysisResult AudioEngine::analyseTrack() {
         LOGW("analyseTrack: no track loaded");
         return {};
     }
-    // Run offline analysis on the loaded PCM data
-    // This accesses pcmBuffer_ directly — safe because analysis runs
-    // on a background thread and the buffer doesn't change during playback
-    return BeatDetector::analyse(
+    lastAnalysis_ = BeatDetector::analyse(
         trackPlayer_.getPcmData(),
         trackPlayer_.getTotalFrames(),
         trackPlayer_.getSampleRate());
+    return lastAnalysis_;
+}
+
+void AudioEngine::applyBeatMap(int32_t beatsPerBar) {
+    if (!lastAnalysis_.valid || lastAnalysis_.beatFrames.empty()) {
+        LOGW("applyBeatMap: no valid analysis result");
+        return;
+    }
+    float speed = trackPlayer_.getSpeed();
+    // Pass current track + metro positions so loadBeatMap skips beats already
+    // in the past. This prevents a rapid-fire catch-up burst in the render
+    // loop and eliminates the phase discontinuity when the beat map takes over
+    // from constant-BPM mode mid-song. When called before playback starts,
+    // both positions are 0 and the full beat map is used from the start.
+    int64_t trackFrame = trackPlayer_.getPosition();
+    int64_t metroFrame = metronome_.getFramePosition();
+    metronome_.loadBeatMap(
+        lastAnalysis_.beatFrames.data(),
+        lastAnalysis_.beatFrames.size(),
+        beatsPerBar,
+        trackFrame,
+        metroFrame,
+        speed);
+    LOGI("applyBeatMap: %zu beats, bpb=%d, speed=%.2f, trackFrame=%lld, metroFrame=%lld",
+         lastAnalysis_.beatFrames.size(), beatsPerBar, speed,
+         (long long)trackFrame, (long long)metroFrame);
 }
 
 // --- Oboe audio callback ---
