@@ -7,7 +7,7 @@
 
 ## Current State
 - **Phase**: S28B complete. Next: S28C (waveform display + auto-analyse BPM/offset per stem on load).
-- **Blocker**: MANUAL STEP REQUIRED (S28A) — run S28A migration in Supabase SQL editor + create `song-stems` storage bucket (public, audio/*, 200MB max). Required before stems will work end-to-end.
+- **Blocker**: ONE MANUAL STEP — run S28A SQL in Supabase dashboard → SQL Editor (`supabase/migrations/20260308000000_s28a_song_stems.sql`). `song-stems` bucket already created via API.
 - **Last session**: 2026-03-08 session 4 — S28B: C++ N-channel mixer (MAX_STEMS=6, ch2..ch7), TrackPlayer::reset(), AudioEngine::loadStem/clearStem/clearAllStems, transport sync (play/pause/stop/seek/speed/loop all applied to loaded stems). JNI bridge 3 new functions. AudioEngineBridge.kt externals. SongStem.kt model + StemLabel enum (DRUMS/BASS/GUITAR/KEYS/VOCALS/OTHER with fixed stemIndex). StemRepository.kt. AppViewModel: stem state (loadedStems, stemsLoading, stemErrors) + loadStemsForSong() called automatically after track loads. Stems clear on song change.
 - **Next action**: S28C — waveform visualiser in PracticeScreen (amplitude envelope + loop region overlay), per-stem volume sliders, auto-analyse BPM + beat offset on load.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
@@ -50,7 +50,7 @@
 - **S23A**: venue_photos, venues restructured, gigs/quotes/invoices/formal_invoices have venue_id FK
 - **S25A+S26A**: songs (now with lyrics/chords/beat_offset_ms), setlists, setlist_songs
 - **S28A**: song_stems (pending migration run in Supabase dashboard)
-- **Storage**: public-media, venue-photos, practice-tracks, song-stems (bucket pending creation)
+- **Storage**: public-media, venue-photos, practice-tracks, song-stems ✓ (bucket live)
 - **S28B**: StemLabel/SongStem Kotlin types, StemRepository, stem engine wired (ch2..7) — awaiting S28A manual step
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
