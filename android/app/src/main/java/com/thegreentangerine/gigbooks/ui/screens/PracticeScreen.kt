@@ -314,10 +314,17 @@ private fun TrackSection(vm: AppViewModel, audioUrl: String) {
                 style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.35f), Offset.Zero, 8f)),
                 modifier = Modifier.weight(1f),
             )
-            if (vm.trackError != null) {
-                Text(
-                    "Error", fontFamily = Karla, fontSize = 11.sp, color = GigColors.danger,
-                )
+            when {
+                vm.trackError != null ->
+                    Text("Error", fontFamily = Karla, fontSize = 11.sp, color = GigColors.danger)
+                vm.isAnalysing ->
+                    CircularProgressIndicator(color = GigColors.teal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                vm.appliedBeatOffsetMs > 0 ->
+                    Text(
+                        "+${vm.appliedBeatOffsetMs}ms",
+                        fontFamily = JetBrainsMono, fontSize = 10.sp,
+                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                    )
             }
         }
 
@@ -385,6 +392,17 @@ private fun TrackSection(vm: AppViewModel, audioUrl: String) {
 
             Spacer(Modifier.height(4.dp))
 
+            // Beat alignment banner
+            if (vm.showBeatBanner) {
+                BeatAlignBanner(
+                    bpm      = vm.detectedBpm,
+                    offsetMs = vm.detectedOffsetMs,
+                    onApply  = { vm.applyDetectedBeat() },
+                    onDismiss = { vm.dismissBeatBanner() },
+                )
+                Spacer(Modifier.height(4.dp))
+            }
+
             // A-B loop
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val hasA = vm.loopAFrame != null
@@ -408,6 +426,64 @@ private fun LoopButton(label: String, color: Color, modifier: Modifier, enabled:
         contentAlignment = Alignment.Center,
     ) {
         Text(label, fontFamily = JetBrainsMono, fontSize = 11.sp, color = if (enabled) color else GigColors.textMuted)
+    }
+}
+
+// ─── Beat align banner ───────────────────────────────────────────────────────
+
+@Composable
+private fun BeatAlignBanner(
+    bpm: Float,
+    offsetMs: Int,
+    onApply: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(GigColors.teal.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Beat detected",
+                fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+            )
+            Text(
+                "${bpm.roundToInt()} BPM · +${offsetMs}ms offset",
+                fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .height(30.dp)
+                .background(GigColors.teal.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .border(0.5.dp, GigColors.teal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                .clickable(onClick = onApply)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                "Apply & Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
+                fontSize = 11.sp,
+                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 4f)),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .height(30.dp)
+                .background(GigColors.textMuted.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
+                .border(0.5.dp, GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .clickable(onClick = onDismiss)
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("✕", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textMuted)
+        }
     }
 }
 

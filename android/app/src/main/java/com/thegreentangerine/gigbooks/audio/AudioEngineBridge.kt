@@ -57,4 +57,9 @@ object AudioEngineBridge {
 
     // --- Beat Detection ---
     external fun nativeAnalyseTrack(): FloatArray // [bpm, beatOffsetMs]
+
+    // --- Beat Alignment ---
+    // Set absolute beat offset (ms) → converted to frames → setBeatDisplacement.
+    // Call after nativeLoadTrack to phase-lock click to track. Pass 0 to reset.
+    external fun nativeSetBeatOffsetMs(ms: Int)
 }

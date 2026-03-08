@@ -95,6 +95,9 @@ public:
     // --- Beat Detection (runs offline, NOT in audio callback) ---
     BeatAnalysisResult analyseTrack();
 
+    // --- Accessors ---
+    int32_t getSampleRate() const { return sampleRate_; }
+
     // Oboe callbacks
     oboe::DataCallbackResult onAudioReady(
         oboe::AudioStream* stream,

@@ -256,4 +256,15 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeAnalyseTrack(
     return out;
 }
 
+// Set absolute beat offset in ms — aligns click grid to first beat of the loaded track.
+// Converts ms to frames using the engine's sample rate and calls setBeatDisplacement().
+// Call once after nativeLoadTrack to phase-lock the click.
+JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeSetBeatOffsetMs(
+        JNIEnv*, jclass, jint ms) {
+    auto& engine = AudioEngine::getInstance();
+    int32_t frames = static_cast<int32_t>((int64_t)engine.getSampleRate() * ms / 1000);
+    engine.setBeatDisplacement(frames);
+}
+
 } // extern "C"

@@ -78,6 +78,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // Amplitude envelope of the main track, normalised to 0..1, ~600 points.
     var waveformEnvelope by mutableStateOf<FloatArray>(floatArrayOf());          private set
 
+    // ── Beat alignment ────────────────────────────────────────────────────────
+    // detectedBpm / detectedOffsetMs: results from nativeAnalyseTrack()
+    // showBeatBanner: true when analysis returned usable results, user hasn't applied yet
+    // isAnalysing: true while analysis is running in background
+    // appliedBeatOffsetMs: non-zero when an offset has been applied to the engine
+    var detectedBpm        by mutableStateOf(0f);    private set
+    var detectedOffsetMs   by mutableStateOf(0);     private set
+    var showBeatBanner     by mutableStateOf(false);  private set
+    var isAnalysing        by mutableStateOf(false);  private set
+    var appliedBeatOffsetMs by mutableStateOf(0);    private set
+
     private var beatPollJob:  Job? = null
     private var trackPollJob: Job? = null
 
@@ -105,11 +116,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun selectSong(song: Song) {
-        selectedSong     = song
-        bpmOffset        = 0f
-        practiceSpeed    = 1f
-        nudgeOffsetMs    = 0f
-        waveformEnvelope = floatArrayOf()
+        selectedSong        = song
+        bpmOffset           = 0f
+        practiceSpeed       = 1f
+        nudgeOffsetMs       = 0f
+        waveformEnvelope    = floatArrayOf()
+        detectedBpm         = 0f
+        detectedOffsetMs    = 0
+        showBeatBanner      = false
+        appliedBeatOffsetMs = 0
         activeSetlist?.songs
             ?.indexOfFirst { it.songs?.id == song.id }
             ?.takeIf { it >= 0 }
@@ -226,10 +241,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Track loading ─────────────────────────────────────────────────────────
     fun loadTrack(audioUrl: String) {
-        // Clear any stems from the previous song immediately
-        loadedStems = emptyList()
-        stemErrors  = emptyMap()
-        if (engineAvailable) try { AudioEngineBridge.nativeClearAllStems() } catch (_: Exception) { }
+        // Clear stems + analysis state from previous song
+        loadedStems         = emptyList()
+        stemErrors          = emptyMap()
+        showBeatBanner      = false
+        appliedBeatOffsetMs = 0
+        if (engineAvailable) try {
+            AudioEngineBridge.nativeClearAllStems()
+            AudioEngineBridge.nativeSetBeatOffsetMs(0) // reset displacement
+        } catch (_: Exception) { }
 
         viewModelScope.launch {
             isLoadingTrack = true; trackError = null
@@ -242,6 +262,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     trackTotalFr    = AudioEngineBridge.nativeGetTrackTotalFrames()
                     trackLoaded     = true
                     AudioEngineBridge.nativeSetTrackSpeed(practiceSpeed)
+
+                    // Beat alignment: auto-apply stored offset or run analysis
+                    val storedOffsetMs = selectedSong?.beatOffsetMs?.toInt() ?: 0
+                    if (storedOffsetMs > 0) {
+                        AudioEngineBridge.nativeSetBeatOffsetMs(storedOffsetMs)
+                        appliedBeatOffsetMs = storedOffsetMs
+                    } else {
+                        runAnalysis()
+                    }
+
                     // Load stems for the current song in the background
                     selectedSong?.id?.let { loadStemsForSong(it) }
                 } else {
@@ -254,6 +284,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    // ── Beat Analysis ──────────────────────────────────────────────────────────
+
+    /** Run nativeAnalyseTrack() on a background thread; show banner if result is valid. */
+    private fun runAnalysis() {
+        viewModelScope.launch(Dispatchers.Default) {
+            withContext(Dispatchers.Main) { isAnalysing = true }
+            try {
+                val result = AudioEngineBridge.nativeAnalyseTrack() // [bpm, beatOffsetMs]
+                withContext(Dispatchers.Main) {
+                    if (result.size >= 2 && result[0] in 40f..250f) {
+                        detectedBpm      = result[0]
+                        detectedOffsetMs = result[1].toInt().coerceAtLeast(0)
+                        showBeatBanner   = true
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                withContext(Dispatchers.Main) { isAnalysing = false }
+            }
+        }
+    }
+
+    /** Apply detected BPM + offset to engine, update in-memory song, save to Supabase. */
+    fun applyDetectedBeat() {
+        val song = selectedSong ?: return
+        val bpm  = detectedBpm
+        val ms   = detectedOffsetMs
+
+        // Apply to engine
+        if (engineAvailable) try {
+            AudioEngineBridge.nativeSetBeatOffsetMs(ms)
+            AudioEngineBridge.nativeSetBpm(bpm)
+        } catch (_: Exception) { }
+
+        // Reset any manual nudge — offset is now set absolutely
+        nudgeOffsetMs       = 0f
+        appliedBeatOffsetMs = ms
+        showBeatBanner      = false
+
+        // Update in-memory song so the BPM display reflects the detected value
+        val updatedSong = song.copy(bpm = bpm.toDouble(), beatOffsetMs = ms.toDouble())
+        selectedSong = updatedSong
+        songs = songs.map { if (it.id == song.id) updatedSong else it }
+
+        // Save to Supabase in background
+        viewModelScope.launch {
+            try { SongRepository.updateBeatInfo(song.id, bpm.toDouble(), ms) } catch (_: Exception) { }
+        }
+    }
+
+    fun dismissBeatBanner() { showBeatBanner = false }
 
     fun loadStemsForSong(songId: String) {
         viewModelScope.launch {
