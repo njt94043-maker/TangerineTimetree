@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem } from '@shared/supabase/queries';
-import type { ClickSound, SongStem, StemLabel } from '@shared/supabase/types';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap } from '@shared/supabase/queries';
+import type { ClickSound, SongStem, StemLabel, BeatMapStatus } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
+
+const BEAT_ANALYSIS_URL = import.meta.env.VITE_BEAT_ANALYSIS_URL as string | undefined;
 
 const STEM_LABELS: { value: StemLabel; label: string }[] = [
   { value: 'backing',  label: 'Backing (full band minus you)' },
@@ -52,6 +54,12 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const [audioError, setAudioError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Beat analysis
+  const [beatStatus, setBeatStatus] = useState<BeatMapStatus | null>(null);
+  const [beatBpm, setBeatBpm] = useState<number | null>(null);
+  const [beatCount, setBeatCount] = useState<number | null>(null);
+  const [beatError, setBeatError] = useState('');
+
   // Stems
   const [stems, setStems] = useState<SongStem[]>([]);
   const [stemUploading, setStemUploading] = useState(false);
@@ -80,6 +88,14 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setAudioUrl(song.audio_url);
       setLoading(false);
       getSongStems(songId).then(setStems).catch(() => {});
+      // Load beat map status
+      getBeatMap(songId).then(bm => {
+        if (bm) {
+          setBeatStatus(bm.status);
+          setBeatBpm(bm.bpm || null);
+          setBeatCount(bm.beats?.length ?? null);
+        }
+      }).catch(() => {});
     }).catch(err => {
       setError(err instanceof Error ? err.message : 'Failed to load song');
       setLoading(false);
@@ -124,6 +140,60 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
     }
   }
 
+  /** Trigger server-side beat analysis via Cloud Run madmom service. */
+  async function triggerBeatAnalysis(trackUrl: string) {
+    if (!songId || !BEAT_ANALYSIS_URL) return;
+
+    setBeatStatus('analysing');
+    setBeatError('');
+    try {
+      // Mark as analysing in Supabase
+      await upsertBeatMap(songId, { status: 'analysing', error: null });
+
+      // Fetch the audio file and send to Cloud Run
+      const audioResp = await fetch(trackUrl);
+      if (!audioResp.ok) throw new Error('Failed to fetch audio file');
+      const audioBlob = await audioResp.blob();
+
+      const resp = await fetch(`${BEAT_ANALYSIS_URL}/analyse`, {
+        method: 'POST',
+        body: audioBlob,
+        headers: { 'Content-Type': audioBlob.type || 'audio/mpeg' },
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({ error: 'Analysis failed' }));
+        throw new Error(errBody.error || `HTTP ${resp.status}`);
+      }
+
+      const result = await resp.json() as { beats: number[]; bpm: number };
+
+      // Store result in Supabase
+      await upsertBeatMap(songId, {
+        beats: result.beats,
+        bpm: result.bpm,
+        status: 'ready',
+        error: null,
+      });
+
+      setBeatStatus('ready');
+      setBeatBpm(result.bpm);
+      setBeatCount(result.beats.length);
+
+      // Also update song BPM if we got a valid detection
+      if (result.bpm > 0) {
+        setBpm(String(result.bpm));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Analysis failed';
+      setBeatStatus('failed');
+      setBeatError(msg);
+      try {
+        await upsertBeatMap(songId, { status: 'failed', error: msg });
+      } catch { /* ignore */ }
+    }
+  }
+
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !songId) return;
@@ -133,6 +203,8 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       const buffer = await file.arrayBuffer();
       const url = await uploadPracticeTrack(songId, file.name, buffer, file.type || 'audio/mpeg');
       setAudioUrl(url);
+      // Auto-trigger beat analysis after successful upload
+      triggerBeatAnalysis(url);
     } catch (err) {
       setAudioError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -173,6 +245,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
     try {
       await deletePracticeTrack(songId);
       setAudioUrl(null);
+      setBeatStatus(null);
+      setBeatBpm(null);
+      setBeatCount(null);
     } catch (err) {
       setAudioError(err instanceof Error ? err.message : 'Failed to remove');
     }
@@ -323,6 +398,43 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <button className="btn btn-small btn-green" onClick={() => fileRef.current?.click()}>+ Add MP3 / Audio</button>
           )}
           {audioError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginTop: 6 }}>{audioError}</p>}
+
+          {/* Beat analysis status */}
+          {audioUrl && (
+            <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12, color: 'var(--color-text-dim)', fontWeight: 700 }}>BEAT ANALYSIS</span>
+                {beatStatus === 'analysing' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-tangerine)' }}>Analysing...</span>
+                )}
+                {beatStatus === 'ready' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-green)' }}>
+                    Ready — {beatBpm} BPM, {beatCount} beats
+                  </span>
+                )}
+                {beatStatus === 'failed' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-danger)' }}>
+                    Failed{beatError ? `: ${beatError}` : ''}
+                  </span>
+                )}
+                {beatStatus === 'pending' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Pending</span>
+                )}
+                {!beatStatus && !BEAT_ANALYSIS_URL && (
+                  <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Not configured</span>
+                )}
+              </div>
+              {(beatStatus === 'failed' || beatStatus === 'ready' || !beatStatus) && BEAT_ANALYSIS_URL && (
+                <button
+                  className="btn btn-small btn-teal"
+                  style={{ marginTop: 6, fontSize: 11 }}
+                  onClick={() => audioUrl && triggerBeatAnalysis(audioUrl)}
+                >
+                  {beatStatus === 'ready' ? 'Re-analyse' : beatStatus === 'failed' ? 'Retry' : 'Analyse Beats'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -364,7 +476,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
               onClick={() => stemFileRef.current?.click()}
               disabled={stemUploading}
             >
-              {stemUploading ? 'Uploading…' : '+ Add Stem'}
+              {stemUploading ? 'Uploading...' : '+ Add Stem'}
             </button>
           </div>
 

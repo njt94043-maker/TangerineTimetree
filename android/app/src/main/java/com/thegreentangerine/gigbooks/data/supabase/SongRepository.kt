@@ -1,5 +1,6 @@
 package com.thegreentangerine.gigbooks.data.supabase
 
+import com.thegreentangerine.gigbooks.data.supabase.models.BeatMap
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
@@ -29,5 +30,19 @@ object SongRepository {
         }) {
             filter { eq("id", songId) }
         }
+    }
+
+    /** Fetch server-side beat map for a song. Returns null if none exists or status != 'ready'. */
+    suspend fun getBeatMap(songId: String): BeatMap? {
+        val result = client
+            .from("beat_maps")
+            .select {
+                filter {
+                    eq("song_id", songId)
+                    eq("status", "ready")
+                }
+            }
+            .decodeList<BeatMap>()
+        return result.firstOrNull()
     }
 }

@@ -102,6 +102,12 @@ public:
     // beatsPerBar controls downbeat (accent) detection.
     void applyBeatMap(int32_t beatsPerBar);
 
+    // Apply an external beat map (e.g. from server-side madmom analysis).
+    // beatSeconds: array of beat times in seconds (e.g. [0.45, 0.92, 1.38, ...])
+    // sampleRate: the sample rate to use for seconds→frames conversion (use track SR)
+    void applyExternalBeatMap(const float* beatSeconds, size_t count,
+                              int32_t beatsPerBar, int32_t sampleRate);
+
     // --- Accessors ---
     int32_t getSampleRate() const { return sampleRate_; }
 

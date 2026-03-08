@@ -402,30 +402,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Beat Analysis ──────────────────────────────────────────────────────────
 
-    /** Run nativeAnalyseTrack() on a background thread.
-     *  On valid result: immediately applies detected BPM + offset to the engine,
-     *  then shows the banner so the user can save it to Supabase. */
+    /** Try server-side beat map first (madmom via Supabase), then fall back to
+     *  on-device BTrack analysis if no server result is available. */
     private fun runAnalysis() {
+        val songId = selectedSong?.id
         viewModelScope.launch(Dispatchers.Default) {
             withContext(Dispatchers.Main) { isAnalysing = true }
             try {
-                val result = AudioEngineBridge.nativeAnalyseTrack() // [bpm, beatOffsetMs]
-                // Apply full beat map immediately (still on Default dispatcher — no audio thread)
-                if (result.size >= 2 && result[0] in 40f..250f && engineAvailable) {
-                    val beatsPerBar = selectedSong?.timeSignatureTop?.toInt() ?: 4
-                    try { AudioEngineBridge.nativeApplyBeatMap(beatsPerBar) } catch (_: Exception) { }
+                var applied = false
+
+                // 1. Try server-side beat map from Supabase
+                if (songId != null) {
+                    try {
+                        val beatMap = SongRepository.getBeatMap(songId)
+                        if (beatMap != null && beatMap.beats.isNotEmpty()) {
+                            val beatsArr = beatMap.beatsAsFloatArray()
+                            if (beatsArr.size >= 2 && engineAvailable) {
+                                val beatsPerBar = selectedSong?.timeSignatureTop?.toInt() ?: 4
+                                val sr = try { AudioEngineBridge.nativeGetSampleRate() } catch (_: Exception) { trackSampleRate }
+                                AudioEngineBridge.nativeApplyExternalBeatMap(beatsArr, beatsPerBar, sr)
+                                withContext(Dispatchers.Main) {
+                                    detectedBpm      = beatMap.bpm.toFloat()
+                                    detectedOffsetMs = (beatsArr[0] * 1000f).toInt().coerceAtLeast(0)
+                                    if (engineAvailable) try {
+                                        AudioEngineBridge.nativeSetBpm(detectedBpm)
+                                    } catch (_: Exception) { }
+                                    nudgeOffsetMs       = 0f
+                                    appliedBeatOffsetMs = detectedOffsetMs
+                                    showBeatBanner      = true
+                                }
+                                applied = true
+                                android.util.Log.i("GigBooks", "Server beat map applied: ${beatsArr.size} beats, ${beatMap.bpm} BPM")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("GigBooks", "Server beat map fetch failed, falling back to BTrack: ${e.message}")
+                    }
                 }
-                withContext(Dispatchers.Main) {
-                    if (result.size >= 2 && result[0] in 40f..250f) {
-                        detectedBpm      = result[0]
-                        detectedOffsetMs = result[1].toInt().coerceAtLeast(0)
-                        // Set BPM for display and constant-BPM fallback
-                        if (engineAvailable) try {
-                            AudioEngineBridge.nativeSetBpm(detectedBpm)
-                        } catch (_: Exception) { }
-                        nudgeOffsetMs       = 0f
-                        appliedBeatOffsetMs = detectedOffsetMs
-                        showBeatBanner      = true
+
+                // 2. Fallback: on-device BTrack analysis
+                if (!applied) {
+                    val result = AudioEngineBridge.nativeAnalyseTrack() // [bpm, beatOffsetMs]
+                    if (result.size >= 2 && result[0] in 40f..250f && engineAvailable) {
+                        val beatsPerBar = selectedSong?.timeSignatureTop?.toInt() ?: 4
+                        try { AudioEngineBridge.nativeApplyBeatMap(beatsPerBar) } catch (_: Exception) { }
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (result.size >= 2 && result[0] in 40f..250f) {
+                            detectedBpm      = result[0]
+                            detectedOffsetMs = result[1].toInt().coerceAtLeast(0)
+                            if (engineAvailable) try {
+                                AudioEngineBridge.nativeSetBpm(detectedBpm)
+                            } catch (_: Exception) { }
+                            nudgeOffsetMs       = 0f
+                            appliedBeatOffsetMs = detectedOffsetMs
+                            showBeatBanner      = true
+                        }
                     }
                 }
             } catch (e: Exception) {

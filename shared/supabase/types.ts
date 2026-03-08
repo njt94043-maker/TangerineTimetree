@@ -410,6 +410,18 @@ export interface FormalReceiptWithMember extends FormalReceipt {
 
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
+export type BeatMapStatus = 'pending' | 'analysing' | 'ready' | 'failed';
+
+export interface BeatMap {
+  id: string;
+  song_id: string;
+  beats: number[];         // seconds: [0.45, 0.92, 1.38, ...]
+  bpm: number;
+  status: BeatMapStatus;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface SongStem {
   id: string;

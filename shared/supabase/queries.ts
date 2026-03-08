@@ -42,6 +42,7 @@ import type {
   ClickSound,
   SongStem,
   StemLabel,
+  BeatMap,
   Setlist,
   SetlistSong,
   SetlistSongWithDetails,
@@ -2159,6 +2160,58 @@ export async function deleteStem(stemId: string): Promise<void> {
     .eq('id', stemId);
 
   if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Beat Maps ──────────────────────────────────────────
+
+export async function getBeatMap(songId: string): Promise<BeatMap | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('beat_maps')
+    .select('*')
+    .eq('song_id', songId)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // not found
+    checkAuthError(error);
+    throw error;
+  }
+  return data;
+}
+
+export async function upsertBeatMap(
+  songId: string,
+  update: { beats?: number[]; bpm?: number; status?: string; error?: string | null },
+): Promise<BeatMap> {
+  const supabase = getSupabase();
+
+  // Try update first (most common — row already exists from 'pending' insert)
+  const { data: existing } = await supabase
+    .from('beat_maps')
+    .select('id')
+    .eq('song_id', songId)
+    .single();
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('beat_maps')
+      .update(update)
+      .eq('song_id', songId)
+      .select()
+      .single();
+    if (error) { checkAuthError(error); throw error; }
+    return data;
+  }
+
+  // Insert new
+  const { data, error } = await supabase
+    .from('beat_maps')
+    .insert({ song_id: songId, ...update })
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  return data;
 }
 
 // ─── Setlists ───────────────────────────────────────────

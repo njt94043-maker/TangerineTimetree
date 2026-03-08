@@ -65,6 +65,11 @@ object AudioEngineBridge {
     // Call immediately after nativeAnalyseTrack() returns a valid result.
     external fun nativeApplyBeatMap(beatsPerBar: Int)
 
+    // --- External Beat Map (server-side madmom) ---
+    // Apply a pre-computed beat map from the server. beatSeconds is an array of
+    // beat times in seconds. Converts to frames internally using sampleRate.
+    external fun nativeApplyExternalBeatMap(beatSeconds: FloatArray, beatsPerBar: Int, sampleRate: Int)
+
     // --- Beat Alignment (legacy fallback) ---
     // Set absolute beat offset (ms) → converted to frames → setBeatDisplacement.
     external fun nativeSetBeatOffsetMs(ms: Int)
