@@ -6,21 +6,23 @@
 ---
 
 ## Current State
-- **Phase**: Beat map confirmed working on device for steady-tempo tracks. Click holds for 97+ bars of Sultans of Swing. Core architecture is sound.
-- **What works**: BTrack per-beat positions → cleanBeatMap → metronome fires at actual beat times. Catch-up burst fix confirmed as the original drift cause. Analysis cap raised to 900s (15 min).
-- **What doesn't work yet**: (1) Syncopated/funky tracks (Cissy Strut) — click never settles to solid tempo. BTrack struggles with swung grooves. (2) Tempo/time-sig changes (War Pigs) — BTrack seeded at one tempo can't handle mid-song tempo shifts.
-- **Last session**: S30B — On-device testing confirmed catch-up burst fix solved the drift. Raised ANALYSIS_SECONDS from 180→900. Tested 3 songs: Sultans (holds), Cissy Strut (fails — syncopation), War Pigs (fails — tempo changes + silence).
-- **Next action**: Research better beat tracking approaches for syncopation and tempo changes. Plan before coding.
+- **Phase**: Beat detection architecture decided. Moving from on-device BTrack to server-side madmom. Beat maps stored in Supabase.
+- **What works**: C++ engine plays click at beat map timestamps (proven with Sultans of Swing, 97+ bars). Upload + stem pipeline works. All screens built.
+- **What's changing**: BTrack (on-device C++ beat detection) being replaced by madmom (server-side Python RNN+DBN). Beat map becomes just data — array of timestamps fetched from Supabase. C++ engine simplified to: load timestamps → fire click.
+- **Last session**: S30C — Deep research on beat tracking. BTrack limits are architectural (not tunable). madmom chosen for best accuracy on syncopation + tempo changes. Cloud Run free tier for hosting. Explored web consolidation — confirmed native still needed for stage latency.
+- **Next action**: Build the madmom Cloud Run service + beat_maps storage in Supabase + wire into upload flow.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S30C — Beat Detection Research + Planning
-- Research: How do Moises / Demucs / madmom / librosa handle beat tracking for syncopated and variable-tempo music?
-- Identify whether BTrack can be tuned (hop size, onset function, tempo weighting) or needs replacing
-- Cissy Strut problem: BTrack can't lock onto swung/funky grooves — is this onset detection or tempo estimation?
-- War Pigs problem: tempo changes mid-song — does BTrack track tempo changes if not seeded? Does the pass 1 seed hurt?
-- Plan the fix before writing code. No patching blind.
-- Consider: "Audio Analysis page" (R'nS concept) where user can re-analyse or manually adjust
+## Next Session Plan: S31A — Server-Side Beat Detection (madmom)
+- Build: Python Cloud Run service (madmom RNNBeatProcessor + DBNBeatTrackingProcessor)
+- API: POST audio file → returns beat timestamps JSON
+- Supabase: beat_maps table (or JSON column on songs) to store beat timestamps
+- Web: trigger analysis after practice track upload, show progress/status
+- Android: fetch beat map from Supabase instead of running BTrack
+- C++ engine: simplify loadBeatMap to accept timestamp array directly
+- BTrack code: keep for now as offline fallback, remove later
+- Test: Sultans (should match), Cissy Strut (should fix), War Pigs (should fix)
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.

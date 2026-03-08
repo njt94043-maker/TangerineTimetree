@@ -35,6 +35,17 @@
 ### Research before patching
 - S30A lost context by patching blind (regrid). S30B confirmed the simple fix (catch-up burst) was the real issue all along. Lesson: confirm root cause before adding complexity. Plan before coding.
 
+### BTrack is architecturally limited — don't try to tune it
+- **Tempo transition matrix**: 41×41 Gaussian, limits change to ~5% between adjacent beats. War Pigs (140→110 BPM = 21% change) is impossible.
+- **Onset-based detection**: equates "loud transient" = "beat". Syncopated music (Cissy Strut) puts accents off the beat — BTrack fires on ghost notes/hi-hats instead.
+- **Alpha=0.9**: 90% momentum from past score, 10% new input. Highly sticky, resists abrupt changes.
+- **Tuning (ODF type, alpha, tightness) gives 10-20% improvement at best** — architectural limits remain.
+- **Solution**: Replace with server-side madmom (RNN+DBN). Beat map = array of timestamps in Supabase. C++ engine just reads them.
+
+### madmom is Python-only
+- No C++ port exists. Can't run in Supabase Edge Functions (Deno/JS). Needs a Python runtime — Cloud Run, Lambda, or local worker.
+- Essentia (C++) is the best on-device alternative but AGPL license and ~80% accuracy vs madmom's ~95%+.
+
 ## Database (Supabase)
 
 ### Settings are singletons
