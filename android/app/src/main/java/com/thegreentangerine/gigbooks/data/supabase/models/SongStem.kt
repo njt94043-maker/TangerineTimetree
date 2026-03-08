@@ -4,16 +4,17 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Mixer channel mapping for stems:
+ * Mixer channel mapping for stems (matches SQL CHECK constraint labels, lowercase in DB):
  *   idx 0 (ch2) = DRUMS
  *   idx 1 (ch3) = BASS
  *   idx 2 (ch4) = GUITAR
  *   idx 3 (ch5) = KEYS
  *   idx 4 (ch6) = VOCALS
- *   idx 5 (ch7) = OTHER
+ *   idx 5 (ch7) = BACKING
+ *   idx 6 (ch8) = OTHER
  */
 enum class StemLabel {
-    DRUMS, BASS, GUITAR, KEYS, VOCALS, OTHER;
+    DRUMS, BASS, GUITAR, KEYS, VOCALS, BACKING, OTHER;
 
     /** Fixed mixer channel index for this label (ch2 = index 0). */
     val stemIndex: Int get() = ordinal
