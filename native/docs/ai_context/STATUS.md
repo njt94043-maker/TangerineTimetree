@@ -6,21 +6,20 @@
 ---
 
 ## Current State
-- **Phase**: Server-side beat detection pipeline built end-to-end. Ready to deploy + test.
-- **What works**: C++ engine plays click at beat map timestamps. Upload + stem pipeline works. All screens built. Server-side madmom service ready to deploy. Web triggers analysis after upload, Android fetches from Supabase with BTrack fallback.
-- **What's new (S31A)**: madmom Cloud Run service (Dockerfile + main.py), beat_maps Supabase table, web analysis trigger + status UI, Android fetches server beat map, C++ nativeApplyExternalBeatMap JNI method.
-- **Last session**: S31A — Built full server-side beat detection pipeline. Both apps build clean (web tsc + android gradle).
-- **Next action**: Deploy Cloud Run service, run beat_maps migration, test end-to-end with Sultans/Cissy Strut/War Pigs.
+- **Phase**: Server-side beat detection deployed and tested end-to-end.
+- **What works**: Cloud Run madmom service live, beat_maps table migrated, web triggers analysis (auto on upload + manual button), Android fetches server beat map with BTrack fallback. All 3 test tracks analysed successfully via CLI.
+- **What's new (S31B)**: Deployed Cloud Run to europe-west1 (Python 3.10 + madmom 0.16.1 + numpy 1.23.5). Fixed: Cython build dep, collections.MutableSequence patch, np.float deprecation. beat_maps migration applied via Supabase CLI. VITE_BEAT_ANALYSIS_URL set on Vercel. Vercel redeployed.
+- **Last session**: S31B — Deployed + tested server-side beat detection pipeline.
+- **Next action**: Test web UI visually (beat analysis button + status), test on Android device, verify BTrack fallback offline.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S31B — Deploy + End-to-End Test
-- Deploy Cloud Run service (`gcloud builds submit` + `gcloud run deploy`)
-- Run beat_maps migration via Supabase dashboard SQL editor
-- Set VITE_BEAT_ANALYSIS_URL in Vercel env vars
-- Upload test tracks (Sultans, Cissy Strut, War Pigs) → verify analysis
-- Test on Android device: verify server beat map applied, BTrack fallback works
-- If working: push to production
+## Next Session Plan: S31C — On-Device Testing + Polish
+- Test web UI: go to thegreentangerine.com, edit songs, click "Analyse Beats" button, verify status UI
+- Test Android: install latest debug APK, load songs in practice mode, check logcat for "Server beat map applied"
+- Test BTrack fallback: disconnect network, verify on-device analysis still works
+- Add more songs via web app (currently only 3: Sultans, Cissy Strut/Meters, War Pigs)
+- Consider --min-instances 1 if cold start (~53s) is too slow
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.
@@ -33,7 +32,7 @@
 - **Users**: Nathan (full audio features), Neil/James/Adam (web only)
 
 ## Active Risks
-1. **Cloud Run not yet deployed** — service built but needs `gcloud` deploy + beat_maps migration.
+1. **Cloud Run deployed** — `https://beat-analysis-672617156755.europe-west1.run.app` (europe-west1, 2Gi RAM, max 3 instances). Cold start ~53s (madmom RNN model loading). GCP project: tangerine-time-tree.
 2. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + all engine files compile and link in Compose project.
 3. **APK installed** — Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08).
 4. **React Native shelved** — archived but still in git. Can resume if Compose doesn't work out.
@@ -41,7 +40,8 @@
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Android**: Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 23 tables live + song_stems + beat_maps pending migration)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (production, 25 tables live including song_stems + beat_maps)
+- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree project (europe-west1)
 
 ## Compose Project Structure (android/)
 - **Theme**: GigColors, GigTypography, GigBooksTheme (dark, matches web)
@@ -61,7 +61,7 @@
 - **S25A+S26A**: songs (now with lyrics/chords/beat_offset_ms), setlists, setlist_songs
 - **S28A**: song_stems (table + RLS live), song-stems storage bucket
 - **S28B**: StemLabel/SongStem Kotlin types, StemRepository, stem engine wired (ch2..8)
-- **S31A**: beat_maps (pending migration) — server-side beat detection results
+- **S31A**: beat_maps (LIVE) — server-side beat detection results
 - **Storage**: public-media, venue-photos, practice-tracks, song-stems
 - **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic increments
 
