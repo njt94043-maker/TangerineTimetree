@@ -5,6 +5,39 @@
 
 ---
 
+## Sprint S31A — Server-Side Beat Detection (madmom)
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S31A.
+
+Context: S30C confirmed BTrack (on-device C++ beat detector) has architectural limits — can't handle syncopation (Cissy Strut) or tempo changes (War Pigs). Decision D-104/105/106: replace with server-side madmom (Python RNN+DBN), store beat maps in Supabase, C++ engine reads timestamps.
+
+Goals:
+1. Build a Python Cloud Run service that accepts an audio file and returns beat timestamps using madmom (RNNBeatProcessor + DBNBeatTrackingProcessor). Dockerfile + requirements.txt + main.py. Endpoint: POST /analyse → JSON { beats: [0.45, 0.92, 1.38, ...], bpm: 104.2 }
+2. Supabase: create beat_maps table (song_id FK, beats JSONB array of float seconds, bpm FLOAT, status TEXT 'pending'|'ready'|'failed', created_at). Migration SQL.
+3. Web app: after practice track upload completes, call the Cloud Run service. Show analysis status on song edit form (pending spinner → ready checkmark → failed error). Store result in beat_maps table.
+4. Android app: when loading a song for practice, fetch beat map from Supabase instead of running BTrack. Pass timestamp array to C++ engine via JNI.
+5. C++ engine: adapt loadBeatMap to accept an array of beat timestamps (seconds) instead of BTrack-generated frames. Convert seconds → frames using sample rate. Keep BTrack as offline fallback for now.
+6. Test on device: Sultans of Swing (should match current quality), Cissy Strut (should now lock), War Pigs (should handle tempo changes).
+
+Key files:
+- New: cloud-run/ directory (Python service)
+- New: supabase/migrations/beat_maps.sql
+- Modify: web song upload flow (trigger analysis)
+- Modify: android/app/src/main/java/.../SongRepository.kt (fetch beat map)
+- Modify: android/app/src/main/java/.../AppViewModel.kt (load beat map instead of BTrack)
+- Modify: android/app/src/main/cpp/beat_detector.cpp (accept external timestamps)
+
+Supabase project: jlufqgslgjowfaqmqlds
+Practice tracks bucket: practice-tracks
+Existing beat detection: android/app/src/main/cpp/beat_detector.cpp + BTrack.cpp
+
+Do NOT remove BTrack code yet — keep as fallback. Wire the new path first, test, then remove later.
+Commit and push all work before session end. Update SOT docs.
+```
+
+---
+
 ## Sprint S2 — APK Build Fix + HIGH Code Issues
 
 ```
