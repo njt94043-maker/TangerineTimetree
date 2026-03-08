@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S28C complete. Next: S28D (auto-analyse BPM + beat offset from PCM on load).
+- **Phase**: S28D complete. Practice mode fully beat-locked. Next: on-device test.
 - **Blocker**: None.
-- **Last session**: 2026-03-08 session 5 — S28C: WaveformSeekBar Canvas composable (600-pt amplitude envelope, green bars pre/post playhead, orange loop region overlay, tap-to-seek). Waveform computed in AppViewModel.computeEnvelope() on track load. StemsCard composable: per-stem Slider rows with colour-coded labels (DRUMS=orange, BASS=teal, GUITAR=green, KEYS=purple, VOCALS=fuchsia, BACKING=rose). stemGains Map state + setStemGain() → nativeSetChannelGain(2+idx, gain). BUILD SUCCESSFUL.
-- **Next action**: S28D — auto-analyse BPM + beatOffsetMs from PCM (nativeAnalyseTrack() already exists in bridge), populate song fields if empty, show result on PracticeScreen.
+- **Last session**: 2026-03-08 session 6 — S28D: nativeSetBeatOffsetMs(ms) C++/JNI/Kotlin (ms→frames via getSampleRate(), setBeatDisplacement). SongRepository.updateBeatInfo(). AppViewModel: runAnalysis() on Dispatchers.Default, auto-applies stored beat_offset_ms silently if > 0, else runs analysis + shows BeatAlignBanner. applyDetectedBeat() sets engine offset, resets nudge, updates Song in-memory + Supabase. BeatAlignBanner composable (teal, detected BPM + offset, Apply & Save, dismiss ✕). Analysis spinner + "+Xms" aligned indicator in TrackSection header. BUILD SUCCESSFUL.
+- **Next action**: On-device test — load Sultans of Swing → verify click → load track → verify analysis banner appears → Apply & Save → verify click locks to beat. Then upload stems via web and test stem mixing.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

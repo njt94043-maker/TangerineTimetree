@@ -116,7 +116,7 @@
 - [x] Tap-to-seek on waveform (pointerInput detectTapGestures)
 - [x] Per-stem volume sliders in PracticeScreen (for each loadedStem: label + gain slider)
 - [x] stemGains state in AppViewModel; setStemGain() calls nativeSetChannelGain(2+idx, gain)
-- [ ] Auto-analyse BPM + beatOffsetMs when stem loads (populate song fields if empty) — deferred to S28D
+- [x] Auto-analyse BPM + beatOffsetMs on track load (populate song fields if empty) — S28D complete
 
 ### S28+ — Recording/Video (defer)
 - [ ] Front camera recording while practicing
