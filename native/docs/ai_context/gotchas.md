@@ -156,3 +156,32 @@
 - `AsyncFunction` lambda in Expo SDK 55 is NOT a suspend function.
 - Cannot use `withContext()` directly — use `runBlocking(Dispatchers.IO)` instead.
 - `withContext` requires suspend context; `runBlocking` creates one.
+
+## Android Compose (android/)
+
+### Postgres `numeric` type serializes with decimals
+- Postgres `numeric` columns (bpm, swing_percent, time_signature_top/bottom, subdivision, count_in_bars, duration_seconds, beat_offset_ms, position) serialize as `150.00` not `150`.
+- Kotlin model fields declared as `Int` will throw: `Unexpected symbol '.' in numeric literal`.
+- Fix: declare ALL Postgres numeric fields as `Double`. Use `.toInt()` for display.
+
+### Supabase publishable key format changed
+- Legacy JWT keys (`eyJhbG...`) were disabled 2026-03-05. Use publishable key from `shared/supabase/config.ts`.
+- Format: `sb_publishable_...`. When rotating keys, update `SupabaseClient.kt` immediately.
+
+### JVM setter clash in AndroidViewModel with `by mutableStateOf()`
+- `var practiceSpeed by mutableStateOf(1f)` auto-generates `setPracticeSpeed(Float)` JVM setter.
+- Adding `fun setPracticeSpeed(x: Float)` method causes: `Platform declaration clash: ... has the same JVM signature`.
+- Fix: rename the method (e.g., `applySpeed(Float)`, `applySubdivision(Int)`).
+
+### `remember {}` required for `mutableStateOf` in composables
+- `var x by mutableStateOf<Foo?>(null)` in a composable function body (not ViewModel) MUST be wrapped with `remember`.
+- Without `remember`, the state is recreated on every recomposition — values reset to null, type inference also breaks.
+- Fix: `var x by remember { mutableStateOf<Foo?>(null) }`. Don't forget the `import androidx.compose.runtime.remember`.
+
+### `skipPartialExpansion` removed in Compose BOM 2025.05
+- `rememberModalBottomSheetState(skipPartialExpansion = true)` throws unresolved parameter.
+- Fix: use `rememberModalBottomSheetState()` with no arguments.
+
+### App not refreshing on first launch after install
+- First cold-start after install may show stale state. Close and reopen the app to get fresh data.
+- Normal behaviour — ViewModel init loads data from Supabase on first composition.
