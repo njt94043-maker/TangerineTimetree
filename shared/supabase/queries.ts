@@ -40,6 +40,8 @@ import type {
   SiteReview,
   Song,
   ClickSound,
+  SongStem,
+  StemLabel,
   Setlist,
   SetlistSong,
   SetlistSongWithDetails,
@@ -2027,10 +2029,16 @@ export async function updateSong(
 export async function deleteSong(id: string): Promise<void> {
   const supabase = getSupabase();
 
-  // Delete audio file from storage if present
+  // Delete practice track from storage if present
   const song = await getSong(id);
   if (song?.audio_storage_path) {
     await supabase.storage.from('practice-tracks').remove([song.audio_storage_path]);
+  }
+
+  // Delete all stems from storage (DB rows cascade via FK)
+  const stems = await getSongStems(id);
+  if (stems.length > 0) {
+    await supabase.storage.from('song-stems').remove(stems.map(s => s.storage_path));
   }
 
   const { error } = await supabase
@@ -2076,6 +2084,81 @@ export async function deletePracticeTrack(songId: string): Promise<void> {
   const supabase = getSupabase();
   await supabase.storage.from('practice-tracks').remove([song.audio_storage_path]);
   await updateSong(songId, { audio_url: null, audio_storage_path: null });
+}
+
+// ─── Song Stems ─────────────────────────────────────────
+
+export async function getSongStems(songId: string): Promise<SongStem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('song_stems')
+    .select('*')
+    .eq('song_id', songId)
+    .order('label');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function uploadStem(
+  songId: string,
+  label: StemLabel,
+  fileName: string,
+  fileBody: Blob | ArrayBuffer,
+  contentType: string = 'audio/mpeg',
+): Promise<SongStem> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const ext = fileName.split('.').pop() ?? 'mp3';
+  const storagePath = `${songId}/${label}-${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('song-stems')
+    .upload(storagePath, fileBody, { contentType, upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from('song-stems')
+    .getPublicUrl(storagePath);
+
+  const { data, error } = await supabase
+    .from('song_stems')
+    .insert({ song_id: songId, label, audio_url: urlData.publicUrl, storage_path: storagePath, created_by: user.id })
+    .select()
+    .single();
+
+  if (error) {
+    // Roll back storage upload on DB failure
+    await supabase.storage.from('song-stems').remove([storagePath]);
+    checkAuthError(error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteStem(stemId: string): Promise<void> {
+  const supabase = getSupabase();
+
+  const { data: stem } = await supabase
+    .from('song_stems')
+    .select('storage_path')
+    .eq('id', stemId)
+    .single();
+
+  if (stem?.storage_path) {
+    await supabase.storage.from('song-stems').remove([stem.storage_path]);
+  }
+
+  const { error } = await supabase
+    .from('song_stems')
+    .delete()
+    .eq('id', stemId);
+
+  if (error) { checkAuthError(error); throw error; }
 }
 
 // ─── Setlists ───────────────────────────────────────────

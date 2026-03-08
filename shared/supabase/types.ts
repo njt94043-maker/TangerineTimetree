@@ -409,6 +409,17 @@ export interface FormalReceiptWithMember extends FormalReceipt {
 // ─── Songs & Setlists ────────────────────────────────────
 
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
+export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
+
+export interface SongStem {
+  id: string;
+  song_id: string;
+  label: StemLabel;
+  audio_url: string;
+  storage_path: string;
+  created_by: string;
+  created_at: string;
+}
 
 export interface Song {
   id: string;
