@@ -34,7 +34,6 @@ object AuthRepository {
         auth.signOut()
     }
 
-    fun currentUserId(): String? {
-        return auth.currentUserOrNull()?.id
-    }
+    fun currentUserId(): String?    = auth.currentUserOrNull()?.id
+    fun currentUserEmail(): String? = auth.currentUserOrNull()?.email
 }
