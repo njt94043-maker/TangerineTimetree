@@ -16,7 +16,7 @@
 - [ ] On-device test: verify click track fires (C++ JNI path, nativeStartEngine returns true)
 - [ ] On-device test: load a practice track (upload via web, load URL in Practice screen)
 - [ ] Add more songs via web app (currently only "Sultans of Swing" in DB)
-- [ ] Build Compose CalendarScreen with real data (currently placeholder)
+- [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Backlog — Performance & Practice Epic
