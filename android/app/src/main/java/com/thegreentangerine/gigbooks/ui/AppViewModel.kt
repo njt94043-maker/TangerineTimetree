@@ -71,6 +71,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var loadedStems   by mutableStateOf<List<Pair<Int, SongStem>>>(emptyList()); private set
     var stemsLoading  by mutableStateOf(false);                                  private set
     var stemErrors    by mutableStateOf<Map<String, String>>(emptyMap());        private set
+    // stemGains: idx → gain (0..1), one entry per loaded stem, default 1.0
+    var stemGains     by mutableStateOf<Map<Int, Float>>(emptyMap());            private set
+
+    // ── Waveform ──────────────────────────────────────────────────────────────
+    // Amplitude envelope of the main track, normalised to 0..1, ~600 points.
+    var waveformEnvelope by mutableStateOf<FloatArray>(floatArrayOf());          private set
 
     private var beatPollJob:  Job? = null
     private var trackPollJob: Job? = null
@@ -93,11 +99,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ── Selection ─────────────────────────────────────────────────────────────
+    fun setStemGain(idx: Int, gain: Float) {
+        stemGains = stemGains + (idx to gain)
+        if (engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(2 + idx, gain) } catch (_: Exception) { }
+    }
+
     fun selectSong(song: Song) {
-        selectedSong  = song
-        bpmOffset     = 0f
-        practiceSpeed = 1f
-        nudgeOffsetMs = 0f
+        selectedSong     = song
+        bpmOffset        = 0f
+        practiceSpeed    = 1f
+        nudgeOffsetMs    = 0f
+        waveformEnvelope = floatArrayOf()
         activeSetlist?.songs
             ?.indexOfFirst { it.songs?.id == song.id }
             ?.takeIf { it >= 0 }
@@ -223,6 +235,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             isLoadingTrack = true; trackError = null
             try {
                 val (pcm, sr) = decodeAudio(audioUrl)
+                waveformEnvelope = computeEnvelope(pcm)
                 if (engineAvailable) {
                     AudioEngineBridge.nativeLoadTrack(pcm, pcm.size, sr, 1)
                     trackSampleRate = sr
@@ -271,12 +284,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
                 loadedStems = loaded.sortedBy { it.first }
                 stemErrors  = errors
+                stemGains   = loaded.associate { (idx, _) -> idx to 1.0f }
             } catch (_: Exception) {
                 // Stem fetch failure is non-critical — track still plays without stems
             } finally {
                 stemsLoading = false
             }
         }
+    }
+
+    /** Compute amplitude envelope from mono PCM, normalised to 0..1 (~600 points). */
+    private fun computeEnvelope(pcm: FloatArray, points: Int = 600): FloatArray {
+        if (pcm.isEmpty()) return floatArrayOf()
+        val chunkSize = maxOf(1, pcm.size / points)
+        val count = minOf(points, pcm.size)
+        var peak = 0f
+        val raw = FloatArray(count) { i ->
+            val start = i * chunkSize
+            val end   = minOf(start + chunkSize, pcm.size)
+            var max = 0f
+            for (j in start until end) { val v = kotlin.math.abs(pcm[j]); if (v > max) max = v }
+            if (max > peak) peak = max
+            max
+        }
+        // Normalise so loudest point = 1.0 (avoids tiny waveforms)
+        val norm = if (peak > 0f) 1f / peak else 1f
+        return FloatArray(count) { raw[it] * norm }
     }
 
     private suspend fun decodeAudio(url: String): Pair<FloatArray, Int> = withContext(Dispatchers.IO) {

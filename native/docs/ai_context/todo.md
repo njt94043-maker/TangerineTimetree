@@ -109,11 +109,14 @@
 - [x] StemRepository.kt — getStemsBySongId()
 - [x] AppViewModel — loadedStems + stemsLoading + stemErrors state; loadStemsForSong() auto-called after track loads; clears on song change
 
-### S28C — Waveform + Per-Stem Mixing (next)
-- [ ] Waveform visualiser in PracticeScreen (amplitude envelope computed from PCM, canvas overlay)
-- [ ] Loop region A-B markers overlaid on waveform
-- [ ] Per-stem volume sliders in PracticeScreen (for each loadedStem: label + gain slider)
-- [ ] Auto-analyse BPM + beatOffsetMs when stem loads (populate song fields if empty)
+### S28C — Waveform + Per-Stem Mixing (DONE)
+- [x] Waveform visualiser in PracticeScreen (amplitude envelope computed from PCM, canvas overlay)
+- [x] Loop region A-B markers overlaid on waveform (orange rect + boundary lines)
+- [x] Playhead green line + thumb circle advancing as track plays
+- [x] Tap-to-seek on waveform (pointerInput detectTapGestures)
+- [x] Per-stem volume sliders in PracticeScreen (for each loadedStem: label + gain slider)
+- [x] stemGains state in AppViewModel; setStemGain() calls nativeSetChannelGain(2+idx, gain)
+- [ ] Auto-analyse BPM + beatOffsetMs when stem loads (populate song fields if empty) — deferred to S28D
 
 ### S28+ — Recording/Video (defer)
 - [ ] Front camera recording while practicing
