@@ -37,7 +37,7 @@ export function GigList({ onGigPress, onAddGig, onCreateInvoice }: GigListProps)
 
   // Check which gigs already have invoices
   useEffect(() => {
-    const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice' && g.payment_type === 'invoice');
+    const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice');
     if (invoiceGigs.length === 0) { setInvoicedGigIds(new Set()); return; }
     Promise.all(
       invoiceGigs.map(async g => {
@@ -165,7 +165,7 @@ export function GigList({ onGigPress, onAddGig, onCreateInvoice }: GigListProps)
                     <div className="gig-list-notes">{gig.notes}</div>
                   )}
 
-                  {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
+                  {!isPractice && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
                     <button
                       className="btn btn-small btn-primary gig-create-invoice-btn"
                       onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
