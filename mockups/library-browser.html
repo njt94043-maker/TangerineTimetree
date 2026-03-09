@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Library Browser — Songs & Setlists</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f; color: #e0e0e0; font-family: 'Karla', sans-serif;
+    width: 390px; min-height: 844px; margin: 0 auto;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; padding: 14px 16px 10px; gap: 12px; flex-shrink: 0;
+  }
+  .header .hamburger { font-size: 20px; opacity: 0.4; cursor: pointer; }
+  .header .title { flex: 1; font-size: 20px; font-weight: 700; color: #fff; }
+  .header .add-btn {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid #1e1e30;
+    background: #141420; color: #00e676; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Tab Bar ────────────────────────────────── */
+  .tab-bar {
+    display: flex; margin: 0 16px; border-bottom: 1px solid #1a1a28; flex-shrink: 0;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 10px 0 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600; color: #555; position: relative;
+    transition: color 0.2s;
+  }
+  .tab.active { color: #00e676; }
+  .tab.active::after {
+    content: ''; position: absolute; bottom: -1px; left: 20%; right: 20%;
+    height: 2px; background: #00e676; border-radius: 1px;
+    box-shadow: 0 0 8px rgba(0,230,118,0.3);
+  }
+  .tab .count {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: #444; margin-left: 4px;
+  }
+
+  /* ── Search Bar ────────────────────────────── */
+  .search-bar {
+    margin: 10px 16px 6px; position: relative; flex-shrink: 0;
+  }
+  .search-bar input {
+    width: 100%; padding: 10px 14px 10px 36px; border-radius: 12px;
+    border: 1px solid #1a1a28; background: #0e0e18; color: #ccc;
+    font-family: 'Karla', sans-serif; font-size: 14px; outline: none;
+  }
+  .search-bar input::placeholder { color: #333; }
+  .search-bar input:focus { border-color: rgba(0,230,118,0.3); }
+  .search-bar .search-icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: #333; font-size: 14px;
+  }
+
+  /* ── Filter Pills ──────────────────────────── */
+  .filter-row {
+    display: flex; gap: 6px; padding: 6px 16px 8px; overflow-x: auto; flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-pill {
+    padding: 5px 14px; border-radius: 16px; border: 1px solid #1e1e30;
+    background: #0e0e18; color: #555; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .filter-pill.active {
+    border-color: rgba(0,230,118,0.4); color: #00e676;
+    background: rgba(0,230,118,0.06);
+  }
+  .filter-pill.member {
+    border-color: rgba(187,134,252,0.3); color: #bb86fc;
+    background: rgba(187,134,252,0.06);
+  }
+
+  /* ── Song List ─────────────────────────────── */
+  .song-list {
+    flex: 1; overflow-y: auto; padding: 0 12px 16px;
+    scrollbar-width: thin; scrollbar-color: #1a1a28 transparent;
+  }
+
+  .song-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; margin-bottom: 6px; border-radius: 14px;
+    background: #0e0e18; border: 1px solid #151520;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .song-card:hover { border-color: #222; }
+  .song-card.active { border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.03); }
+
+  .song-card .song-meta { flex: 1; min-width: 0; }
+  .song-card .song-name {
+    font-size: 14px; font-weight: 700; color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .song-card .song-artist {
+    font-size: 11px; color: #555; margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .song-card .song-tags {
+    display: flex; gap: 4px; margin-top: 4px;
+  }
+  .song-tag {
+    padding: 1px 7px; border-radius: 8px; font-size: 9px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .song-tag.cover { background: rgba(0,230,118,0.08); color: rgba(0,230,118,0.6); border: 1px solid rgba(0,230,118,0.15); }
+  .song-tag.original { background: rgba(243,156,18,0.08); color: rgba(243,156,18,0.6); border: 1px solid rgba(243,156,18,0.15); }
+  .song-tag.personal { background: rgba(187,134,252,0.08); color: rgba(187,134,252,0.6); border: 1px solid rgba(187,134,252,0.15); }
+  .song-tag.has-track { background: rgba(0,188,212,0.08); color: rgba(0,188,212,0.5); border: 1px solid rgba(0,188,212,0.12); }
+  .song-tag.stems { background: rgba(224,64,251,0.08); color: rgba(224,64,251,0.5); border: 1px solid rgba(224,64,251,0.12); }
+
+  .song-card .song-bpm {
+    font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
+    color: #00e676; text-shadow: 0 0 8px rgba(0,230,118,0.2);
+    min-width: 42px; text-align: right;
+  }
+  .song-card .song-bpm-unit {
+    font-size: 8px; color: rgba(0,230,118,0.3); text-transform: uppercase;
+    letter-spacing: 0.5px; text-align: right;
+  }
+
+  /* ── Launch Buttons (on song tap) ──────────── */
+  .song-actions {
+    display: none; flex-direction: column; gap: 6px; margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid #1a1a28;
+  }
+  .song-card.active .song-actions { display: flex; }
+  .song-actions .action-row { display: flex; gap: 6px; }
+  .launch-btn {
+    flex: 1; padding: 10px 0; border-radius: 12px; border: none;
+    font-family: 'Karla', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .launch-btn.live {
+    background: linear-gradient(135deg, rgba(0,230,118,0.15), rgba(0,230,118,0.05));
+    border: 1px solid rgba(0,230,118,0.3); color: #00e676;
+  }
+  .launch-btn.practice {
+    background: linear-gradient(135deg, rgba(187,134,252,0.15), rgba(187,134,252,0.05));
+    border: 1px solid rgba(187,134,252,0.3); color: #bb86fc;
+  }
+  .launch-btn .icon { font-size: 16px; }
+  .launch-btn .sublabel { font-size: 10px; font-weight: 400; opacity: 0.5; margin-left: 2px; }
+
+  /* ── Setlist Tab ───────────────────────────── */
+  .setlist-list { display: none; flex: 1; overflow-y: auto; padding: 0 12px 16px; }
+  .setlist-list.visible { display: block; }
+
+  .setlist-card {
+    padding: 14px 16px; margin-bottom: 6px; border-radius: 14px;
+    background: #0e0e18; border: 1px solid #151520;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .setlist-card:hover { border-color: #222; }
+  .setlist-card.active { border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.03); }
+
+  .setlist-header { display: flex; align-items: center; gap: 10px; }
+  .setlist-name { flex: 1; font-size: 15px; font-weight: 700; color: #fff; }
+  .setlist-band-tag {
+    padding: 2px 8px; border-radius: 8px; font-size: 9px; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace; text-transform: uppercase;
+  }
+  .setlist-band-tag.tange { background: rgba(0,230,118,0.08); color: rgba(0,230,118,0.6); border: 1px solid rgba(0,230,118,0.15); }
+  .setlist-band-tag.other { background: rgba(243,156,18,0.08); color: rgba(243,156,18,0.6); border: 1px solid rgba(243,156,18,0.15); }
+
+  .setlist-meta {
+    display: flex; gap: 12px; margin-top: 4px; font-size: 11px; color: #555;
+  }
+  .setlist-meta span { font-family: 'JetBrains Mono', monospace; }
+
+  .setlist-songs-preview {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid #1a1a28;
+    display: none;
+  }
+  .setlist-card.active .setlist-songs-preview { display: block; }
+  .preview-song {
+    display: flex; align-items: center; padding: 3px 0; font-size: 12px;
+  }
+  .preview-song .num {
+    font-family: 'JetBrains Mono', monospace; color: #333; min-width: 22px; font-size: 10px;
+  }
+  .preview-song .name { color: #999; flex: 1; }
+  .preview-song .bpm {
+    font-family: 'JetBrains Mono', monospace; color: rgba(0,230,118,0.4); font-size: 11px;
+  }
+
+  .setlist-actions {
+    display: none; flex-direction: row; gap: 6px; margin-top: 10px;
+    padding-top: 8px; border-top: 1px solid #1a1a28;
+  }
+  .setlist-card.active .setlist-actions { display: flex; }
+
+  /* ── Filter row for setlists ───────────────── */
+  .filter-row-setlists { display: none; }
+  .filter-row-setlists.visible { display: flex; }
+
+  /* ── Empty state ───────────────────────────── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 40px; color: #333; text-align: center;
+  }
+  .empty-state .icon { font-size: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty-state .msg { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <span class="hamburger">☰</span>
+  <span class="title">Library</span>
+  <button class="add-btn" title="Add Song / Setlist">+</button>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('songs')">Songs <span class="count">47</span></div>
+  <div class="tab" onclick="switchTab('setlists')">Setlists <span class="count">8</span></div>
+</div>
+
+<!-- ═══ SONGS TAB ═══ -->
+<div class="search-bar" id="searchSongs">
+  <span class="search-icon">🔍</span>
+  <input type="text" placeholder="Search songs…">
+</div>
+
+<div class="filter-row" id="filterSongs">
+  <span class="filter-pill active">All</span>
+  <span class="filter-pill" style="border-color: rgba(0,230,118,0.2); color: rgba(0,230,118,0.5);">Tange Covers</span>
+  <span class="filter-pill" style="border-color: rgba(243,156,18,0.2); color: rgba(243,156,18,0.5);">Originals</span>
+  <span class="filter-pill" style="border-color: rgba(187,134,252,0.2); color: rgba(187,134,252,0.5);">Personal</span>
+</div>
+
+<!-- Member sub-filter (shown when Personal is selected) -->
+<div class="filter-row" id="memberFilter" style="display: none; padding-top: 0;">
+  <span class="filter-pill member" style="border-color: rgba(187,134,252,0.4); color: #bb86fc;">All Members</span>
+  <span class="filter-pill">Nathan</span>
+  <span class="filter-pill">Neil</span>
+  <span class="filter-pill">Adam</span>
+  <span class="filter-pill">James</span>
+</div>
+
+<div class="song-list" id="songList">
+  <!-- Tange Covers -->
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Cissy Strut</div>
+      <div class="song-artist">The Meters</div>
+      <div class="song-tags">
+        <span class="song-tag cover">Cover</span>
+        <span class="song-tag has-track">Track</span>
+        <span class="song-tag stems">4 Stems</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">91</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card active" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Sultans of Swing</div>
+      <div class="song-artist">Dire Straits</div>
+      <div class="song-tags">
+        <span class="song-tag cover">Cover</span>
+        <span class="song-tag has-track">Track</span>
+        <span class="song-tag stems">4 Stems</span>
+      </div>
+      <div class="song-actions">
+        <div class="action-row">
+          <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+          <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">150</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">War Pigs</div>
+      <div class="song-artist">Black Sabbath</div>
+      <div class="song-tags">
+        <span class="song-tag cover">Cover</span>
+        <span class="song-tag has-track">Track</span>
+        <span class="song-tag stems">4 Stems</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">91</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Green Tambourine</div>
+      <div class="song-artist">The Green Tangerine</div>
+      <div class="song-tags">
+        <span class="song-tag original">Original</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">120</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice" style="opacity:0.3;"><span class="icon">🎧</span> Practice<span class="sublabel">(no track)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Rosanna</div>
+      <div class="song-artist">Toto</div>
+      <div class="song-tags">
+        <span class="song-tag personal">Personal</span>
+        <span class="song-tag" style="background:rgba(187,134,252,0.06);color:rgba(187,134,252,0.4);border:1px solid rgba(187,134,252,0.1);font-size:8px;">Nathan</span>
+        <span class="song-tag has-track">Track</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">88</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">50 Ways to Leave Your Lover</div>
+      <div class="song-artist">Paul Simon</div>
+      <div class="song-tags">
+        <span class="song-tag personal">Personal</span>
+        <span class="song-tag" style="background:rgba(187,134,252,0.06);color:rgba(187,134,252,0.4);border:1px solid rgba(187,134,252,0.1);font-size:8px;">Nathan</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">110</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice" style="opacity:0.3;"><span class="icon">🎧</span> Practice<span class="sublabel">(no track)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Come Together</div>
+      <div class="song-artist">The Beatles</div>
+      <div class="song-tags">
+        <span class="song-tag cover">Cover</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">83</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice" style="opacity:0.3;"><span class="icon">🎧</span> Practice<span class="sublabel">(no track)</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="song-card" onclick="toggleSong(this)">
+    <div class="song-meta">
+      <div class="song-name">Superstition</div>
+      <div class="song-artist">Stevie Wonder</div>
+      <div class="song-tags">
+        <span class="song-tag cover">Cover</span>
+        <span class="song-tag has-track">Track</span>
+      </div>
+    </div>
+    <div>
+      <div class="song-bpm">100</div>
+      <div class="song-bpm-unit">BPM</div>
+    </div>
+    <div class="song-actions" style="display:none;">
+      <div class="action-row">
+        <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+        <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETLISTS TAB ═══ -->
+<div class="search-bar" id="searchSetlists" style="display:none;">
+  <span class="search-icon">🔍</span>
+  <input type="text" placeholder="Search setlists…">
+</div>
+
+<div class="filter-row filter-row-setlists" id="filterSetlists">
+  <span class="filter-pill active">All</span>
+  <span class="filter-pill" style="border-color: rgba(0,230,118,0.2); color: rgba(0,230,118,0.5);">The Green Tangerine</span>
+  <span class="filter-pill" style="border-color: rgba(243,156,18,0.2); color: rgba(243,156,18,0.5);">Other Bands</span>
+</div>
+
+<div class="setlist-list" id="setlistList">
+  <div class="setlist-card active" onclick="toggleSetlist(this)">
+    <div class="setlist-header">
+      <div class="setlist-name">Friday Night Pub Set</div>
+      <span class="setlist-band-tag tange">TGT</span>
+    </div>
+    <div class="setlist-meta">
+      <span>12 songs</span>
+      <span>~48 min</span>
+    </div>
+    <div class="setlist-songs-preview">
+      <div class="preview-song"><span class="num">1.</span><span class="name">Come Together</span><span class="bpm">83</span></div>
+      <div class="preview-song"><span class="num">2.</span><span class="name">Superstition</span><span class="bpm">100</span></div>
+      <div class="preview-song"><span class="num">3.</span><span class="name">Cissy Strut</span><span class="bpm">91</span></div>
+      <div class="preview-song"><span class="num">4.</span><span class="name">Sultans of Swing</span><span class="bpm">150</span></div>
+      <div class="preview-song" style="color:#333;font-size:11px;padding:4px 0 0 22px;">… +8 more</div>
+    </div>
+    <div class="setlist-actions">
+      <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+      <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+    </div>
+  </div>
+
+  <div class="setlist-card" onclick="toggleSetlist(this)">
+    <div class="setlist-header">
+      <div class="setlist-name">Wedding Reception</div>
+      <span class="setlist-band-tag tange">TGT</span>
+    </div>
+    <div class="setlist-meta">
+      <span>18 songs</span>
+      <span>~72 min</span>
+    </div>
+    <div class="setlist-songs-preview"></div>
+    <div class="setlist-actions">
+      <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+      <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+    </div>
+  </div>
+
+  <div class="setlist-card" onclick="toggleSetlist(this)">
+    <div class="setlist-header">
+      <div class="setlist-name">The Troubadours — Dep Set</div>
+      <span class="setlist-band-tag other">Other</span>
+    </div>
+    <div class="setlist-meta">
+      <span>10 songs</span>
+      <span>~40 min</span>
+    </div>
+    <div class="setlist-songs-preview"></div>
+    <div class="setlist-actions">
+      <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+      <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+    </div>
+  </div>
+
+  <div class="setlist-card" onclick="toggleSetlist(this)">
+    <div class="setlist-header">
+      <div class="setlist-name">Soul Night Acoustic</div>
+      <span class="setlist-band-tag other">Other</span>
+    </div>
+    <div class="setlist-meta">
+      <span>8 songs</span>
+      <span>~32 min</span>
+    </div>
+    <div class="setlist-songs-preview"></div>
+    <div class="setlist-actions">
+      <button class="launch-btn live"><span class="icon">⚡</span> Live<span class="sublabel">(click only)</span></button>
+      <button class="launch-btn practice"><span class="icon">🎧</span> Practice<span class="sublabel">(+ tracks)</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(tab) {
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(t => t.classList.remove('active'));
+
+  if (tab === 'songs') {
+    tabs[0].classList.add('active');
+    document.getElementById('searchSongs').style.display = '';
+    document.getElementById('filterSongs').style.display = '';
+    document.getElementById('songList').style.display = '';
+    document.getElementById('searchSetlists').style.display = 'none';
+    document.getElementById('filterSetlists').classList.remove('visible');
+    document.getElementById('setlistList').classList.remove('visible');
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('searchSongs').style.display = 'none';
+    document.getElementById('filterSongs').style.display = 'none';
+    document.getElementById('memberFilter').style.display = 'none';
+    document.getElementById('songList').style.display = 'none';
+    document.getElementById('searchSetlists').style.display = '';
+    document.getElementById('filterSetlists').classList.add('visible');
+    document.getElementById('setlistList').classList.add('visible');
+  }
+}
+
+// Filter pills
+document.querySelectorAll('#filterSongs .filter-pill').forEach((pill, i) => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('#filterSongs .filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    // Show member sub-filter when Personal is selected
+    document.getElementById('memberFilter').style.display = (i === 3) ? 'flex' : 'none';
+  });
+});
+
+document.querySelectorAll('#filterSetlists .filter-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('#filterSetlists .filter-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+
+// Song card toggle
+function toggleSong(card) {
+  const wasActive = card.classList.contains('active');
+  document.querySelectorAll('.song-card').forEach(c => c.classList.remove('active'));
+  if (!wasActive) card.classList.add('active');
+}
+
+function toggleSetlist(card) {
+  const wasActive = card.classList.contains('active');
+  document.querySelectorAll('.setlist-card').forEach(c => c.classList.remove('active'));
+  if (!wasActive) card.classList.add('active');
+}
+</script>
+
+</body>
+</html>
