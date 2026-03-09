@@ -16,6 +16,22 @@ object SongRepository {
         }
         .decodeList()
 
+    suspend fun getSongsByCategory(category: String): List<Song> = client
+        .from("songs")
+        .select {
+            filter { eq("category", category) }
+            order("name", Order.ASCENDING)
+        }
+        .decodeList()
+
+    suspend fun getSongsByOwner(ownerId: String): List<Song> = client
+        .from("songs")
+        .select {
+            filter { eq("owner_id", ownerId) }
+            order("name", Order.ASCENDING)
+        }
+        .decodeList()
+
     suspend fun getSong(id: String): Song = client
         .from("songs")
         .select {

@@ -3,7 +3,7 @@ import {
   getSetlistWithSongs, updateSetlist, getSongs, setSetlistSongs,
   removeSongFromSetlist,
 } from '@shared/supabase/queries';
-import type { SetlistWithSongs, SetlistSongWithDetails, Song } from '@shared/supabase/types';
+import type { SetlistWithSongs, SetlistSongWithDetails, Song, SetlistType } from '@shared/supabase/types';
 import { getSetlistHtml } from '@shared/templates';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
@@ -20,6 +20,8 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
+  const [setlistType, setSetlistType] = useState<SetlistType>('tange');
+  const [bandName, setBandName] = useState('The Green Tangerine');
 
   // Add song picker
   const [showAddSong, setShowAddSong] = useState(false);
@@ -41,6 +43,8 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
       setName(data.name);
       setDescription(data.description);
       setNotes(data.notes);
+      setSetlistType(data.setlist_type);
+      setBandName(data.band_name);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     }
@@ -51,7 +55,13 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
   async function handleSaveMeta() {
     if (!name.trim()) { setError('Name is required'); return; }
     try {
-      await updateSetlist(setlistId, { name: name.trim(), description: description.trim(), notes: notes.trim() });
+      await updateSetlist(setlistId, {
+        name: name.trim(),
+        description: description.trim(),
+        notes: notes.trim(),
+        setlist_type: setlistType,
+        band_name: setlistType === 'other_band' ? bandName.trim() : 'The Green Tangerine',
+      });
       setEditingName(false);
       await load();
     } catch (err) {
@@ -180,7 +190,7 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
         duration: formatDuration(s.song_duration_seconds),
       })),
       totalDuration: formatTotalDuration(setlist.total_duration_seconds),
-      bandName: 'The Green Tangerine',
+      bandName: setlist.band_name,
       contactEmail: 'bookings@thegreentangerine.com',
       website: 'www.thegreentangerine.com',
       generatedDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
@@ -221,6 +231,21 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
             <div className="neu-inset">
               <textarea className="input-field input-textarea" value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
             </div>
+            <label className="label">TYPE</label>
+            <div className="neu-inset">
+              <select className="input-field" value={setlistType} onChange={e => { setSetlistType(e.target.value as SetlistType); if (e.target.value === 'tange') setBandName('The Green Tangerine'); }}>
+                <option value="tange">The Green Tangerine</option>
+                <option value="other_band">Other Band</option>
+              </select>
+            </div>
+            {setlistType === 'other_band' && (
+              <>
+                <label className="label">BAND NAME</label>
+                <div className="neu-inset">
+                  <input className="input-field" value={bandName} onChange={e => setBandName(e.target.value)} placeholder="e.g. My Other Project" />
+                </div>
+              </>
+            )}
             <div className="form-actions" style={{ marginTop: 8 }}>
               <button className="btn btn-primary btn-small" onClick={handleSaveMeta}>Save</button>
               <button className="btn btn-outline btn-small" onClick={() => setEditingName(false)}>Cancel</button>

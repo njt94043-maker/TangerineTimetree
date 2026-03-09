@@ -41,11 +41,13 @@ import type {
   SiteContent,
   SiteReview,
   Song,
+  SongCategory,
   ClickSound,
   SongStem,
   StemLabel,
   BeatMap,
   Setlist,
+  SetlistType,
   SetlistSong,
   SetlistSongWithDetails,
   SetlistWithSongs,
@@ -2063,9 +2065,35 @@ export async function searchSongs(query: string): Promise<Song[]> {
   return data ?? [];
 }
 
+export async function getSongsByCategory(category: SongCategory): Promise<Song[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .eq('category', category)
+    .order('name');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getSongsByOwner(ownerId: string): Promise<Song[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .order('name');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
 export async function createSong(song: {
   name: string;
   artist?: string;
+  category?: SongCategory;
+  owner_id?: string | null;
   bpm?: number;
   time_signature_top?: number;
   time_signature_bottom?: number;
@@ -2079,6 +2107,7 @@ export async function createSong(song: {
   notes?: string;
   lyrics?: string;
   chords?: string;
+  drum_notation?: string;
   beat_offset_ms?: number;
   audio_url?: string | null;
   audio_storage_path?: string | null;
@@ -2326,10 +2355,24 @@ export async function getSetlist(id: string): Promise<Setlist | null> {
   return data;
 }
 
+export async function getSetlistsByType(type: SetlistType): Promise<Setlist[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlists')
+    .select('*')
+    .eq('setlist_type', type)
+    .order('name');
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
 export async function createSetlist(setlist: {
   name: string;
   description?: string;
   notes?: string;
+  setlist_type?: SetlistType;
+  band_name?: string;
 }): Promise<Setlist> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -2347,7 +2390,7 @@ export async function createSetlist(setlist: {
 
 export async function updateSetlist(
   id: string,
-  updates: Partial<Pick<Setlist, 'name' | 'description' | 'notes'>>,
+  updates: Partial<Pick<Setlist, 'name' | 'description' | 'notes' | 'setlist_type' | 'band_name'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase
@@ -2374,6 +2417,7 @@ interface SetlistSongJoin extends SetlistSong {
   songs: {
     name: string;
     artist: string;
+    category: SongCategory;
     bpm: number;
     time_signature_top: number;
     time_signature_bottom: number;
@@ -2387,6 +2431,7 @@ interface SetlistSongJoin extends SetlistSong {
     notes: string;
     lyrics: string;
     chords: string;
+    drum_notation: string;
     audio_url: string | null;
   } | null;
 }
@@ -2395,7 +2440,7 @@ export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWit
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('setlist_songs')
-    .select('*, songs(name, artist, bpm, time_signature_top, time_signature_bottom, subdivision, swing_percent, accent_pattern, click_sound, count_in_bars, duration_seconds, key, notes, lyrics, chords, audio_url)')
+    .select('*, songs(name, artist, category, bpm, time_signature_top, time_signature_bottom, subdivision, swing_percent, accent_pattern, click_sound, count_in_bars, duration_seconds, key, notes, lyrics, chords, drum_notation, audio_url)')
     .eq('setlist_id', setlistId)
     .order('position');
 
@@ -2405,6 +2450,7 @@ export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWit
     ...row,
     song_name: row.songs?.name ?? '',
     song_artist: row.songs?.artist ?? '',
+    song_category: (row.songs?.category ?? 'tange_cover') as SongCategory,
     song_bpm: row.songs?.bpm ?? 120,
     song_time_signature_top: row.songs?.time_signature_top ?? 4,
     song_time_signature_bottom: row.songs?.time_signature_bottom ?? 4,
@@ -2418,6 +2464,7 @@ export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWit
     song_notes: row.songs?.notes ?? '',
     song_lyrics: row.songs?.lyrics ?? '',
     song_chords: row.songs?.chords ?? '',
+    song_drum_notation: row.songs?.drum_notation ?? '',
     song_audio_url: row.songs?.audio_url ?? null,
     songs: undefined,
   }));
@@ -2504,4 +2551,44 @@ export async function removeSongFromSetlist(
     .eq('setlist_id', setlistId);
 
   if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Player Preferences ─────────────────────────────────
+
+export interface PlayerPrefs {
+  player_click_enabled: boolean;
+  player_flash_enabled: boolean;
+  player_lyrics_enabled: boolean;
+  player_chords_enabled: boolean;
+  player_notes_enabled: boolean;
+  player_drums_enabled: boolean;
+  player_vis_enabled: boolean;
+}
+
+const PLAYER_PREFS_DEFAULTS: PlayerPrefs = {
+  player_click_enabled: true,
+  player_flash_enabled: true,
+  player_lyrics_enabled: true,
+  player_chords_enabled: true,
+  player_notes_enabled: true,
+  player_drums_enabled: false,
+  player_vis_enabled: true,
+};
+
+export async function getPlayerPrefs(): Promise<PlayerPrefs> {
+  const settings = await getUserSettings();
+  if (!settings) return PLAYER_PREFS_DEFAULTS;
+  return {
+    player_click_enabled: settings.player_click_enabled,
+    player_flash_enabled: settings.player_flash_enabled,
+    player_lyrics_enabled: settings.player_lyrics_enabled,
+    player_chords_enabled: settings.player_chords_enabled,
+    player_notes_enabled: settings.player_notes_enabled,
+    player_drums_enabled: settings.player_drums_enabled,
+    player_vis_enabled: settings.player_vis_enabled,
+  };
+}
+
+export async function updatePlayerPrefs(prefs: Partial<PlayerPrefs>): Promise<void> {
+  await upsertUserSettings(prefs);
 }

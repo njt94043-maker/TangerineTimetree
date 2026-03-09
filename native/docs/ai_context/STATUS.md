@@ -6,22 +6,21 @@
 ---
 
 ## Current State
-- **Phase**: S33 complete — Songs/Setlists/Live/Practice big-picture redesign PLANNED.
-- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Practice/Live UI mockup v5 approved.
-- **What's new (this session)**: S33 mockup polish. Player-live v7 with A/B glow toggle (card vs full-screen, one-tap switch in presets panel). Display toggles moved into bottom sheet drawer. Decisions D-118 (drawer toggles) + D-119 (card-level beat glow default, full-screen as testable alternative). All 4 mockups finalised and approved.
+- **Phase**: S34 complete — Migration applied, types/queries updated, web + android forms updated.
+- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Song categories + setlist types + player prefs columns live in Supabase.
+- **What's new (this session)**: S34 migration applied (songs.category, songs.owner_id, songs.drum_notation, setlists.setlist_type, setlists.band_name, user_settings 7x player_*_enabled). Shared TS types updated (SongCategory, SetlistType, PlayerPrefs). Shared queries (getSongsByCategory, getSongsByOwner, getSetlistsByType, getPlayerPrefs, updatePlayerPrefs). Android data classes + repos updated. Web SongForm: category selector + owner picker (personal) + drum notation (drummer). Web SetlistList/SetlistDetail: setlist_type selector + band_name field + dynamic PDF band name.
 - **Last session**: S33 planning — schema design, architecture decisions, 3 new mockups, migration SQL drafted, sprint roadmap S34-S37.
-- **Next action**: S34 implementation — migration + type updates + shared queries for song categories + setlist types + player prefs.
+- **Next action**: S35 — Android Library refactor + player refactor (Library as launchpad, shared player screen).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan — S34: Migration + Types + Queries
+## Next Session Plan — S35: Android Library + Player Refactor
 ### Implementation Tasks
-1. **Supabase migration** — Apply `s33_migration_draft.sql` (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs)
-2. **Shared TypeScript types** — Add SongCategory enum, update Song/Setlist interfaces, update SetlistWithSongs
-3. **Shared queries** — Song filtering by category/owner, setlist filtering by type/band, player prefs CRUD
-4. **Kotlin data classes** — Update Song.kt, Setlist.kt for new columns
-5. **Android SongRepository** — Category/owner filters
-6. **Web song form** — Add category selector + owner picker (for personal songs)
+1. **Library as launchpad** — Songs/Setlists tabs, filter pills (category, member), launch into player
+2. **Shared player screen** — Single composable with mode flag (Live vs Practice)
+3. **Queue overlay** — Reorder mid-performance from song list overlay
+4. **Set complete screen** — End-of-setlist display
+5. **Speed safety check** — Modal confirmation for speed changes during live performance
 
 ### Architecture Decisions (from S33)
 - **Library as launchpad**: Drawer has 4 items (Calendar, Library, Settings, + web-only items). Live/Practice launch FROM Library, not as separate nav destinations.
@@ -85,7 +84,7 @@
 - **Audio**: AppViewModel → AudioEngineBridge.kt → C++ — click (ch0) + main track (ch1) + stems (ch2..7). Server beat map fetch → BTrack fallback. Stems auto-load after track load.
 - **Build**: `cd android && ./gradlew assembleDebug --no-daemon`
 
-## Supabase Tables (25 — 23 live + 2 pending migration)
+## Supabase Tables (25 live)
 - **Calendar**: profiles, gigs, away_dates, gig_changelog, away_date_changelog
 - **Public site**: public_media, contact_submissions
 - **Invoicing (S10)**: clients, venues, invoices, receipts, user_settings, band_settings
