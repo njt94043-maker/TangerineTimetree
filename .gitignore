@@ -29,3 +29,10 @@ native/modules/**/android/.cxx/
 .idea
 .DS_Store
 *.sw?
+
+# TGT Capture
+capture/storage/
+capture/capture.db
+capture/backend/__pycache__/
+capture/backend/.venv/
+capture/backend/**/__pycache__/

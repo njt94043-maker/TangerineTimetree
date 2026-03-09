@@ -16,7 +16,7 @@ data class BeatMap(
     @SerialName("song_id") val songId: String,
     val beats: JsonArray,        // JSONB → JsonArray of JsonPrimitive floats
     val bpm: Double = 0.0,
-    val status: String = "pending",  // pending | analysing | ready | failed
+    val status: String = "pending",  // pending | analysing | separating | ready | failed
     val error: String? = null,
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",

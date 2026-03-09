@@ -15,13 +15,15 @@ interface DayDetailProps {
   onClose: () => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
   onEditGig: (gigId: string) => void;
+  onGigPress?: (gigId: string) => void;
+  onAddBooking?: (date: string) => void;
   onMarkAway: () => void;
   onGigDeleted?: () => void;
   onDateChange?: (date: string) => void;
   onCreateInvoice?: (gig: GigWithCreator) => void;
 }
 
-export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice }: DayDetailProps) {
+export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onGigPress, onAddBooking, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice }: DayDetailProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
   const [expandedLog, setExpandedLog] = useState<string | null>(null);
@@ -173,92 +175,124 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
           <p className="empty-message">Nothing booked</p>
         )}
 
+        {/* Away warning banner */}
+        {awayOnDate.length > 0 && (
+          <div className="bw-banner bw-banner-danger" style={{ margin: '0 16px 10px' }}>
+            <span>{'\u26A0\uFE0F'}</span>
+            <span><strong>Band Unavailable</strong> — {awayOnDate.map(a => a.user_name).join(', ')} away</span>
+          </div>
+        )}
+
         {gigs.map(gig => {
           const isPractice = gig.gig_type === 'practice';
-          return (
-            <div key={gig.id} className="neu-inset gig-card-inset" onClick={() => onEditGig(gig.id)}>
-              {isPractice && <span className="practice-badge">PRACTICE</span>}
-              {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
-              {!isPractice && invoicedGigIds.has(gig.id) && <span className="invoiced-badge">INVOICED</span>}
+          const isClient = !isPractice && gig.gig_subtype === 'client';
+          const accentClass = isPractice ? 'gig-acc-practice' : isClient ? 'gig-acc-client' : 'gig-acc-pub';
+          const isCancelled = gig.status === 'cancelled';
 
-              <div className={`gig-venue-name ${isPractice ? 'gig-venue-practice' : ''}`}>
-                {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
-                {!isPractice && venueAddresses.has(gig.id) && (
+          return (
+            <div
+              key={gig.id}
+              className={`neu-inset gig-card-inset gig-card-accented${isCancelled ? ' gig-card-cancelled' : ''}`}
+              onClick={() => {
+                if (isPractice) onEditGig(gig.id);
+                else if (onGigPress) onGigPress(gig.id);
+                else onEditGig(gig.id);
+              }}
+            >
+              {/* Accent strip */}
+              <div className={`gig-accent-strip ${accentClass}`} />
+
+              <div className="gig-card-body">
+                {/* Status badges */}
+                <div className="gig-badges-row">
+                  {isPractice && <span className="practice-badge">PRACTICE</span>}
+                  {!isPractice && gig.status && gig.status !== 'confirmed' && (
+                    <span className={`badge ${gig.status === 'cancelled' ? 'badge-danger' : gig.status === 'pencilled' ? 'badge-tangerine' : 'badge-dim'}`}>{gig.status}</span>
+                  )}
+                  {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
+                  {!isPractice && invoicedGigIds.has(gig.id) && <span className="invoiced-badge">INVOICED</span>}
+                  {isClient && <span className="badge badge-tangerine">CLIENT</span>}
+                </div>
+
+                <div className={`gig-venue-name ${isPractice ? 'gig-venue-practice' : ''}`}>
+                  {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
+                  {!isPractice && venueAddresses.has(gig.id) && (
+                    <button
+                      className="btn-navigate"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                        const pref = localStorage.getItem('tgt_map_app') || (isIOS ? 'apple' : 'google');
+                        const urls: Record<string, string> = {
+                          google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
+                          waze: `https://waze.com/ul?q=${addr}`,
+                          apple: `https://maps.apple.com/?q=${addr}`,
+                        };
+                        window.open(urls[pref] || urls.google, '_blank', 'noopener');
+                      }}
+                    >
+                      Navigate
+                    </button>
+                  )}
+                </div>
+                {!isPractice && gig.client_name && <div className="gig-client-name">{gig.client_name}</div>}
+
+                <div className="detail-grid">
+                  {!isPractice && <div className="detail-row"><span className="detail-label">Fee</span><span className="detail-value">{fmtFee(gig.fee)}</span></div>}
+                  {!isPractice && <div className="detail-row"><span className="detail-label">Payment</span><span className="detail-value">{gig.payment_type || '\u2014'}</span></div>}
+                  {!isPractice && <div className="detail-row"><span className="detail-label">Load-in</span><span className="detail-value">{fmt(gig.load_time)}</span></div>}
+                  <div className="detail-row"><span className="detail-label">Start</span><span className="detail-value">{fmt(gig.start_time)}</span></div>
+                  {gig.end_time && <div className="detail-row"><span className="detail-label">End</span><span className="detail-value">{fmt(gig.end_time)}</span></div>}
+                </div>
+
+                {gig.notes && <p className="gig-notes-text">{gig.notes}</p>}
+                <p className="gig-creator-text">Added by {gig.creator_name}</p>
+
+                <div className="gig-actions-row">
+                  <button className="changelog-toggle" onClick={(e) => { e.stopPropagation(); toggleLog(gig.id); }}>
+                    {expandedLog === gig.id ? 'Hide history' : 'Show history'}
+                  </button>
+                  <button className="changelog-toggle changelog-toggle-danger" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(gig.id); }}>
+                    Delete
+                  </button>
+                </div>
+
+                {expandedLog === gig.id && (
+                  <div className="changelog-section">
+                    {(changelog.get(gig.id) ?? []).map(entry => (
+                      <div key={entry.id} className="changelog-entry">
+                        <div className="changelog-text">
+                          {entry.action === 'created'
+                            ? `${entry.user_name} created this`
+                            : entry.action === 'deleted'
+                              ? `${entry.user_name} deleted this`
+                              : `${entry.user_name} changed ${entry.field_changed} from "${entry.old_value}" to "${entry.new_value}"`}
+                        </div>
+                        <div className="changelog-time">
+                          {new Date(entry.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    ))}
+                    {(changelog.get(gig.id) ?? []).length === 0 && <div className="changelog-text">No history yet</div>}
+                  </div>
+                )}
+
+                {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
                   <button
-                    className="btn-navigate"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const addr = encodeURIComponent(venueAddresses.get(gig.id)!);
-                      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-                      const pref = localStorage.getItem('tgt_map_app') || (isIOS ? 'apple' : 'google');
-                      const urls: Record<string, string> = {
-                        google: `https://www.google.com/maps/search/?api=1&query=${addr}`,
-                        waze: `https://waze.com/ul?q=${addr}`,
-                        apple: `https://maps.apple.com/?q=${addr}`,
-                      };
-                      window.open(urls[pref] || urls.google, '_blank', 'noopener');
-                    }}
+                    className="btn btn-small btn-primary gig-create-invoice-btn"
+                    onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
+                    style={{ marginTop: 8, width: '100%' }}
                   >
-                    Navigate
+                    Create Invoice
                   </button>
                 )}
               </div>
-              {!isPractice && <div className="gig-client-name">{gig.client_name || 'Client TBC'}</div>}
-
-              <div className="detail-grid">
-                {!isPractice && <div className="detail-row"><span className="detail-label">Fee</span><span className="detail-value">{fmtFee(gig.fee)}</span></div>}
-                {!isPractice && <div className="detail-row"><span className="detail-label">Payment</span><span className="detail-value">{gig.payment_type || '\u2014'}</span></div>}
-                {!isPractice && <div className="detail-row"><span className="detail-label">Load-in</span><span className="detail-value">{fmt(gig.load_time)}</span></div>}
-                <div className="detail-row"><span className="detail-label">Start</span><span className="detail-value">{fmt(gig.start_time)}</span></div>
-                {gig.end_time && <div className="detail-row"><span className="detail-label">End</span><span className="detail-value">{fmt(gig.end_time)}</span></div>}
-              </div>
-
-              {gig.notes && <p className="gig-notes-text">{gig.notes}</p>}
-              <p className="gig-creator-text">Added by {gig.creator_name}</p>
-
-              <div className="gig-actions-row">
-                <button className="changelog-toggle" onClick={(e) => { e.stopPropagation(); toggleLog(gig.id); }}>
-                  {expandedLog === gig.id ? 'Hide history' : 'Show history'}
-                </button>
-                <button className="changelog-toggle changelog-toggle-danger" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(gig.id); }}>
-                  Delete
-                </button>
-              </div>
-
-              {expandedLog === gig.id && (
-                <div className="changelog-section">
-                  {(changelog.get(gig.id) ?? []).map(entry => (
-                    <div key={entry.id} className="changelog-entry">
-                      <div className="changelog-text">
-                        {entry.action === 'created'
-                          ? `${entry.user_name} created this`
-                          : entry.action === 'deleted'
-                            ? `${entry.user_name} deleted this`
-                            : `${entry.user_name} changed ${entry.field_changed} from "${entry.old_value}" to "${entry.new_value}"`}
-                      </div>
-                      <div className="changelog-time">
-                        {new Date(entry.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
-                  {(changelog.get(gig.id) ?? []).length === 0 && <div className="changelog-text">No history yet</div>}
-                </div>
-              )}
-
-              {!isPractice && gig.payment_type === 'invoice' && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
-                <button
-                  className="btn btn-small btn-primary gig-create-invoice-btn"
-                  onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
-                  style={{ marginTop: 8, width: '100%' }}
-                >
-                  Create Invoice
-                </button>
-              )}
             </div>
           );
         })}
 
-        {/* Away section */}
+        {/* Away details */}
         {awayOnDate.length > 0 && (
           <div className="away-section">
             <h3 className="away-section-title">Away</h3>
@@ -273,7 +307,14 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
 
         {/* Actions */}
         <div className="day-actions">
-          <button className="btn btn-green" onClick={() => onAddGig(date, 'gig')}>Add Gig</button>
+          {onAddBooking ? (
+            <button className="btn-add-booking" onClick={() => onAddBooking(date)}>
+              <span className="btn-add-booking-label">Add Booking</span>
+              <span className="btn-add-booking-hint">Pub gig or client booking</span>
+            </button>
+          ) : (
+            <button className="btn btn-green" onClick={() => onAddGig(date, 'gig')}>Add Gig</button>
+          )}
           <div className="day-actions-row">
             <button className="btn btn-practice btn-flex" onClick={() => onAddGig(date, 'practice')}>Add Practice</button>
             <button className="btn btn-tangerine btn-flex" onClick={onMarkAway}>I'm Away</button>

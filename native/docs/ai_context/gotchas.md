@@ -13,9 +13,24 @@
 - **Cython**: must be pre-installed before `pip install madmom` (madmom's `setup.py` imports Cython at metadata time). Split the pip install: `pip install cython numpy` first, then `pip install -r requirements.txt`.
 - **Working combo**: Python 3.10, numpy 1.23.5, scipy 1.10.1, cython 3.0.12, madmom 0.16.1.
 
-### Cold start is ~53s
-- madmom loads 8 RNN models on first request. Subsequent requests are fast (~10-30s depending on track length).
+### Cold start is ~90s (with Demucs)
+- PyTorch + Demucs model loading on first request. madmom RNN models load too.
 - If this is too slow, set `--min-instances 1` on Cloud Run (costs ~$5/month idle).
+- Hidden by Cloud Tasks pattern — user sees 202 immediately, worker runs async.
+
+### Demucs requires torchaudio + soundfile
+- `demucs==4.0.1` uses `torchaudio` for audio I/O. Without it: exit code 1, no useful error.
+- `torchaudio` needs `soundfile` (PySoundFile) as its backend for saving WAV files. Without it: `RuntimeError: Couldn't find appropriate backend to handle uri`.
+- Install both from CPU index: `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu` + `soundfile==0.12.1` in requirements.txt.
+
+### Cloud Run worker has no user context
+- `/process-worker` runs with service role key — no authenticated user.
+- `song_stems.created_by` was NOT NULL → worker inserts fail.
+- Fix: make `created_by` nullable (`ALTER TABLE song_stems ALTER COLUMN created_by DROP NOT NULL`).
+
+### Demucs stderr capture needs text=True
+- `subprocess.run(capture_output=True)` without `text=True` captures stderr as bytes, not logged properly.
+- Add `text=True` to get readable error messages in Cloud Run logs.
 
 ## Beat Detection / Audio Engine
 

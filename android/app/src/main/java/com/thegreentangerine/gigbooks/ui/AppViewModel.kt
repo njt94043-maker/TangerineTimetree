@@ -100,6 +100,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var stemErrors    by mutableStateOf<Map<String, String>>(emptyMap());        private set
     // stemGains: idx → gain (0..1), one entry per loaded stem, default 1.0
     var stemGains     by mutableStateOf<Map<Int, Float>>(emptyMap());            private set
+    // processingStatus: non-null while server is processing stems (pending/analysing/separating)
+    var processingStatus by mutableStateOf<String?>(null);                       private set
 
     // ── Waveform ──────────────────────────────────────────────────────────────
     // Amplitude envelope of the main track, normalised to 0..1, ~600 points.
@@ -519,10 +521,53 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 loadedStems = loaded.sortedBy { it.first }
                 stemErrors  = errors
                 stemGains   = loaded.associate { (idx, _) -> idx to 1.0f }
+
+                // If no stems loaded, check if server is still processing
+                if (loaded.isEmpty()) {
+                    try {
+                        val beatMap = SongRepository.getBeatMap(songId)
+                        processingStatus = when (beatMap?.status) {
+                            "pending", "analysing", "separating" -> beatMap.status
+                            else -> null
+                        }
+                        // Poll while processing
+                        if (processingStatus != null) {
+                            pollForStems(songId)
+                        }
+                    } catch (_: Exception) {
+                        processingStatus = null
+                    }
+                } else {
+                    processingStatus = null
+                }
             } catch (_: Exception) {
                 // Stem fetch failure is non-critical — track still plays without stems
             } finally {
                 stemsLoading = false
+            }
+        }
+    }
+
+    /** Poll beat_maps status every 10s while server is processing, then auto-load stems. */
+    private fun pollForStems(songId: String) {
+        viewModelScope.launch {
+            while (processingStatus != null) {
+                kotlinx.coroutines.delay(10_000)
+                try {
+                    val bm = SongRepository.getBeatMap(songId) ?: break
+                    when (bm.status) {
+                        "ready" -> {
+                            processingStatus = null
+                            loadStemsForSong(songId)
+                            break
+                        }
+                        "failed" -> {
+                            processingStatus = null
+                            break
+                        }
+                        else -> processingStatus = bm.status
+                    }
+                } catch (_: Exception) { break }
             }
         }
     }

@@ -20,6 +20,8 @@ export interface ChangeSummaryItem {
 }
 
 export type GigType = 'gig' | 'practice';
+export type GigSubtype = 'pub' | 'client';
+export type BookingStatus = 'enquiry' | 'pencilled' | 'confirmed' | 'cancelled';
 export type GigVisibility = 'public' | 'private' | 'hidden';
 
 export interface Gig {
@@ -37,6 +39,12 @@ export interface Gig {
   end_time: string | null;
   notes: string;
   visibility: GigVisibility;
+  gig_subtype: GigSubtype;
+  status: BookingStatus;
+  deposit_amount: number | null;
+  deposit_paid: boolean;
+  quote_id: string | null;
+  formal_invoice_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -86,6 +94,7 @@ export interface GigChangelogWithUser extends GigChangelogEntry {
 
 // Calendar day status for coloring
 export type DayStatus = 'available' | 'gig' | 'practice' | 'unavailable' | 'past';
+export type DayDisplay = 'available' | 'pub' | 'client' | 'pencilled' | 'practice' | 'unavailable' | 'past';
 
 // Gig completeness check — flags gigs missing key details
 // Practice sessions only need venue + start_time
@@ -96,7 +105,7 @@ export function isGigIncomplete(gig: Gig): boolean {
   return !gig.venue || gig.fee == null || !gig.start_time;
 }
 
-// Compute calendar day status
+// Legacy: Compute calendar day status (kept for backward compat)
 export function computeDayStatus(
   date: string,
   today: string,
@@ -109,6 +118,40 @@ export function computeDayStatus(
   const hasGig = dateGigs.some(g => g.gig_type !== 'practice');
   const hasPractice = dateGigs.some(g => g.gig_type === 'practice');
   if (hasGig) return 'gig';
+  if (hasPractice) return 'practice';
+
+  const awayUserIds = new Set(
+    awayDates
+      .filter(a => date >= a.start_date && date <= a.end_date)
+      .map(a => a.user_id),
+  );
+
+  if (awayUserIds.size > 0) return 'unavailable';
+  return 'available';
+}
+
+// New: Compute calendar day display with pub/client/pencilled distinction
+export function computeDayDisplay(
+  date: string,
+  today: string,
+  gigs: Gig[],
+  awayDates: AwayDate[],
+): DayDisplay {
+  if (date < today) return 'past';
+
+  const dateGigs = gigs.filter(g => g.date === date && g.status !== 'cancelled');
+  const clientGigs = dateGigs.filter(g => g.gig_type === 'gig' && g.gig_subtype === 'client');
+  const pubGigs = dateGigs.filter(g => g.gig_type === 'gig' && g.gig_subtype === 'pub');
+  const hasPractice = dateGigs.some(g => g.gig_type === 'practice');
+
+  // Client gigs take priority over pub gigs in display
+  if (clientGigs.length > 0) {
+    // If any client gig is pencilled (and none confirmed), show as pencilled
+    const hasConfirmed = clientGigs.some(g => g.status === 'confirmed');
+    if (!hasConfirmed) return 'pencilled';
+    return 'client';
+  }
+  if (pubGigs.length > 0) return 'pub';
   if (hasPractice) return 'practice';
 
   const awayUserIds = new Set(
@@ -247,6 +290,9 @@ export interface UserSettings {
   bank_name: string;
   bank_sort_code: string;
   bank_account_number: string;
+  calendar_colour_pub: string;
+  calendar_colour_client: string;
+  calendar_colour_practice: string;
   updated_at: string;
 }
 
@@ -266,6 +312,8 @@ export interface BandSettings {
   default_terms_and_conditions: string;
   default_quote_validity_days: number;
   next_quote_number: number;
+  // Booking wizard
+  cancellation_threshold_days: number;
   updated_at: string;
 }
 
@@ -410,7 +458,7 @@ export interface FormalReceiptWithMember extends FormalReceipt {
 
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
-export type BeatMapStatus = 'pending' | 'analysing' | 'ready' | 'failed';
+export type BeatMapStatus = 'pending' | 'analysing' | 'separating' | 'ready' | 'failed';
 
 export interface BeatMap {
   id: string;
@@ -429,6 +477,7 @@ export interface SongStem {
   label: StemLabel;
   audio_url: string;
   storage_path: string;
+  source: 'auto' | 'manual';
   created_by: string;
   created_at: string;
 }
