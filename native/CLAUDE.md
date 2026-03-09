@@ -1,14 +1,16 @@
 # TGT — Project Constitution
 
 ## What Is This?
-Monorepo for The Green Tangerine — a 4-piece live music band. Three app targets sharing one Supabase backend:
+Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps + one shelved, sharing one Supabase backend:
 - **GigBooks** (android/) — Jetpack Compose + C++/Oboe native app for calendar, songs, setlists, live mode, practice mode
 - **Tangerine Timetree** (web/) — React/Vite PWA for full band management (invoicing, quotes, calendar, stage prompter, public site)
+- **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. Feeds songs into web app.
 - **Native** (native/) — **SHELVED**. Former React Native/Expo app. Archived at `D:/tgt/gigbooks-react-native-backup-2026-03-08.7z`. Still in git history.
 
 ## Tech Stack (Locked)
 - **Android**: Kotlin 2.1.20, Jetpack Compose BOM 2025.05, Supabase Kotlin SDK 3.1.4, Oboe 1.9.3 (C++ audio), NDK 27.1.12297006, CMake 3.22.1, Gradle 9.0.0
 - **Web**: React + Vite, PWA (vite-plugin-pwa), dark-mode only (`color-scheme: dark only`)
+- **Capture**: Python 3 (FastAPI + uvicorn), React 19 + Vite 7, SQLite, WASAPI loopback (pyaudiowpatch), librosa (BPM/key), mutagen (ID3), FFmpeg (LAME V0 encoding), Chrome extension (MV3 side panel)
 - **Shared**: TypeScript (strict), Supabase (all data), `shared/` directory with types, queries, config, PDF templates
 - **Auth**: Supabase Auth — Android uses Supabase Kotlin SDK session, web uses localStorage
 - **Fonts**: Karla + JetBrains Mono
@@ -22,6 +24,7 @@ Monorepo for The Green Tangerine — a 4-piece live music band. Three app target
 - **Audio**: Android = C++ AudioEngine (Oboe + SoundTouch) via JNI. Web = Web Audio API + SoundTouchJS (S36, built).
 - **State**: Android = AppViewModel (single ViewModel). Web = hooks + realtime subscriptions.
 - **Cloud Run**: `beat-analysis` service — madmom beats + Demucs stems via Cloud Tasks (GCP tangerine-time-tree, europe-west1)
+- **Capture**: SQLite DB (local), WASAPI loopback or Chrome extension WebSocket capture, FFmpeg encoding pipeline, librosa analysis. Runs on Nathan's machine only (localhost:9123 backend, localhost:5174 UI).
 
 ## Key Patterns
 - `@shared/*` path alias imports types, queries, config, templates from `shared/`
@@ -72,19 +75,28 @@ All in `native/docs/ai_context/`:
 6. Commit and push all changes
 
 ## App Scope Split
-| Feature | Android (GigBooks) | Web (Tangerine Timetree) |
-|---------|-------------------|-------------------------|
-| Calendar | Yes | Yes |
-| Songs / Setlists | Yes | Yes |
-| Live Mode | Yes | Yes (S36) |
-| Practice Mode | Yes | Yes (S36) |
-| Invoicing / Quotes | No | Yes |
-| PDF generation | No | Yes |
-| Clients / Venues | No | Yes |
-| Dashboard | No | Yes |
-| Public site | No | Yes |
-| Stage Prompter | No | Yes |
-| Settings | Yes (player only) | Yes (full) |
+| Feature | Android (GigBooks) | Web (Tangerine Timetree) | Capture (TGT Capture) |
+|---------|-------------------|-------------------------|----------------------|
+| Calendar | Yes | Yes | No |
+| Songs / Setlists | Yes | Yes | No (tracks only) |
+| Live Mode | Yes | Yes (S36) | No |
+| Practice Mode | Yes | Yes (S36) | No |
+| Invoicing / Quotes | No | Yes | No |
+| PDF generation | No | Yes | No |
+| Clients / Venues | No | Yes | No |
+| Dashboard | No | Yes | No |
+| Public site | No | Yes | No |
+| Stage Prompter | No | Yes | No |
+| Settings | Yes (player only) | Yes (full) | No |
+| Audio capture (WASAPI/Chrome) | No | No | Yes |
+| BPM/key analysis (librosa) | No | No | Yes |
+| Waveform generation | No | No | Yes |
+| Import to web (planned) | No | Pulls from capture | Serves tracks |
+
+### How the apps connect
+- **Capture → Web**: Capture records audio, analyses BPM/key, encodes MP3. Planned import feature (S38) will let web pull tracks from capture server at localhost:9123, map metadata to Supabase Song fields, upload MP3 to `practice-tracks` bucket, and trigger Cloud Run processing (madmom beats + Demucs stems).
+- **Web → Android**: Both read/write same Supabase tables. Songs created via web import appear in Android automatically.
+- **Capture is standalone**: SQLite DB, local files. No Supabase dependency. Has `song_id` + `setlist_id` FK fields ready for linking post-import.
 
 ## Business Context
 - Nathan Thomas, sole trader, trading as The Green Tangerine
@@ -113,6 +125,11 @@ cd android && ./gradlew assembleRelease  # APK build
 cd web && npx tsc -b                     # Type check
 cd web && npx vite build                 # Production build
 
+# Capture (from capture/ dir)
+cd capture/backend && .venv/Scripts/python.exe -m uvicorn main:app --host 127.0.0.1 --port 9123 --reload  # Backend
+cd capture/ui && npx vite --port 5174      # Frontend
+# Or use launcher: capture/start-silent.vbs (both backend + UI)
+
 # Seed scripts (from root, need SUPABASE_SERVICE_ROLE_KEY env var)
 node --max-old-space-size=512 web/scripts/seed-venues-clients.cjs
 node --max-old-space-size=512 web/scripts/fix-venue-text.cjs
@@ -122,7 +139,8 @@ node --max-old-space-size=512 web/scripts/fix-venue-text.cjs
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (25 tables, 4 storage buckets)
-- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1)
+- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1), revision beat-analysis-00008-dn2 (with CORS)
+- **Capture**: localhost only — backend :9123, UI :5174. Launch via `capture/start-silent.vbs` or `capture/start.ps1`
 
 ## File Map
 ```
@@ -188,4 +206,33 @@ shared/supabase/queries.ts                → All Supabase CRUD (~100 functions)
 shared/supabase/clientRef.ts              → SupabaseClientLike + initSupabase()
 shared/supabase/index.ts                  → Barrel export
 shared/templates/                         → 28 PDF templates + utilities
+
+# Capture — Backend (Python FastAPI)
+capture/backend/main.py                   → FastAPI app + admin endpoints
+capture/backend/config.py                 → Paths, ports, FFmpeg, encoding settings
+capture/backend/db/database.py            → SQLite CRUD (tracks, tags, sessions)
+capture/backend/api/routes_capture.py     → WASAPI start/stop/confirm, encoding pipeline
+capture/backend/api/routes_library.py     → Track CRUD, file import, tags
+capture/backend/api/routes_waveform.py    → Waveform JSON + thumbnail PNG
+capture/backend/api/ws.py                 → WebSocket for Chrome extension tab capture
+capture/backend/capture/wasapi_capture.py → WASAPI loopback (armed mode, writer thread)
+capture/backend/capture/encoder.py        → FFmpeg WAV/WebM → MP3 encoding
+capture/backend/metadata/analyzer.py      → librosa BPM + key detection
+capture/backend/metadata/tagger.py        → Mutagen ID3 tagging
+capture/backend/metadata/waveform.py      → 800-point amplitude + PNG thumbnail
+capture/backend/storage/file_manager.py   → Library paths, filename sanitization
+
+# Capture — UI (React + Vite)
+capture/ui/src/App.tsx                    → View router (library, detail, capture, server)
+capture/ui/src/api.ts                     → Fetch wrapper for localhost:9123
+capture/ui/src/components/CapturePanel.tsx → WASAPI device selector, recording controls
+capture/ui/src/components/TrackDetail.tsx  → Waveform canvas, audio player, metadata form
+capture/ui/src/components/TrackList.tsx    → Track grid with search + favorites
+capture/ui/src/components/TrackCard.tsx    → Thumbnail, meta tags, tag chips
+capture/ui/src/components/ServerPanel.tsx  → Backend status, logs, restart
+
+# Capture — Chrome Extension (MV3)
+capture/extension/manifest.json           → Side panel, tab permissions, localhost access
+capture/extension/background.js           → Tab info relay to backend
+capture/extension/sidepanel.js            → Recording UI (armed/recording/review states)
 ```

@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S37 complete + Capture tool hardened. Web player polish done. Capture tool: armed mode, writer thread, priority boost, server launchers all built.
-- **What works**: Everything from S36/S37. Capture tool: armed mode (threshold detection + pre-roll buffer), writer thread (decoupled disk I/O from audio callback), HIGH_PRIORITY_CLASS process boost during recording, 40ms buffer for OS scheduling jitter tolerance, VBS/PS1 silent launchers, Chrome extension armed UI state with pulse animation.
-- **Last session**: Capture tool hardening — armed mode full-stack (wasapi_capture.py + routes_capture.py + sidepanel.js/css), writer thread + priority boost for glitch-free audio, timer fixes (client-side wall clock, pause tracking), server launchers (start-silent.vbs, start.ps1), band context docs (MEMORY.md + blueprint.md).
-- **Next action**: S38 — Visual testing on thegreentangerine.com, fix CSS issues, add more songs, Android player prefs UI, song import from capture. Capture: real-world audio quality testing, FFmpeg encoding diagnostics.
+- **Phase**: S37 complete + Capture tool hardened + Cloud Run CORS fixed. Pre-S38 alignment session done.
+- **What works**: Web (full), Android (full), Cloud Run (beats + stems + CORS), Capture (built but untested end-to-end).
+- **Last session**: Cloud Run CORS fix (flask-cors, revision beat-analysis-00008-dn2). Capture app documented in CLAUDE.md as 3rd live app. Secrets audit (clean). Dependency check (all installed). CLAUDE.md updated with capture file map, scope split, build commands.
+- **Next action**: S38 — Full end-to-end testing of all 3 apps (web, android, capture). Fix capture issues. Build capture→web import pipeline. Add more songs. Android player prefs UI.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 3 songs (Cissy Strut, Sultans of Swing, War Pigs) fully processed.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -41,7 +41,7 @@
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management + practice for all members.
 - **North star**: Nathan has pixel-perfect dark neumorphic app with click track + setlists on stage + beat-locked MP3 practice. Other band members use web app (invoicing, quotes, stage prompter, practice).
-- **Architecture**: Monorepo (`shared/` + `native/` [shelved] + `web/` + `android/`)
+- **Architecture**: Monorepo (`shared/` + `web/` + `android/` + `capture/` + `native/` [shelved])
 - **Android app scope**: Calendar, Songs, Setlists, Live Mode, Practice Mode, Settings. NO invoicing/quotes/PDF.
 - **Web app scope**: Full band management (invoicing, quotes, clients, venues, dashboard, PDF) + Live Mode + Practice Mode.
 - **Audio**: Android = C++ AudioEngine (Oboe + SoundTouch) via JNI. Web = Web Audio API + SoundTouchJS (S36).
