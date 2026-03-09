@@ -25,8 +25,15 @@ import traceback
 import numpy as np
 import requests as http_requests
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins=[
+    "https://thegreentangerine.com",
+    "https://www.thegreentangerine.com",
+    "http://localhost:5173",
+    "http://localhost:5174",
+])
 
 # ---------------------------------------------------------------------------
 # Config from env vars (set on Cloud Run, never committed)
