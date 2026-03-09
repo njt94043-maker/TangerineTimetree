@@ -195,3 +195,5 @@
 | S32A | Automated stem separation — Demucs on Cloud Run via Cloud Tasks | 2026-03-09 |
 | S32B/C | Testing + polish — all songs processed, re-process verified, APK rebuilt | 2026-03-09 |
 | S33 | Songs/Setlists/Live/Practice planning — schema, mockups, architecture decisions | 2026-03-09 |
+| S34 | Migration + types + queries (song categories, setlist types, player prefs) | 2026-03-09 |
+| S35 | Android Library refactor + player refactor (filter pills, queue overlay, set complete) | 2026-03-09 |
