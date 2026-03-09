@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=390, initial-scale=1.0">
-<title>Live Mode Player — v5</title>
+<title>Live Mode Player — v6</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,27 +13,6 @@
     width: 390px; height: 844px; margin: 0 auto;
     overflow: hidden; display: flex; flex-direction: column;
     position: relative;
-  }
-
-  /* ── FULL-SCREEN BEAT GLOW ─────────────────── */
-  .screen-glow {
-    position: fixed; inset: 0; pointer-events: none; z-index: 50;
-    opacity: 0; transition: opacity 0.08s ease-out;
-    box-shadow: inset 0 0 60px 15px rgba(0,230,118,0.25), inset 0 0 120px 30px rgba(0,230,118,0.08);
-    border: 1px solid rgba(0,230,118,0.15);
-  }
-  .screen-glow.flash {
-    opacity: 1; transition: opacity 0.02s;
-  }
-
-  /* Ambient radial pulse behind cards */
-  .screen-pulse {
-    position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    opacity: 0; transition: opacity 0.1s ease-out;
-    background: radial-gradient(ellipse at center, rgba(0,230,118,0.04) 0%, transparent 50%);
-  }
-  .screen-pulse.flash {
-    opacity: 1; transition: opacity 0.02s;
   }
 
   /* ── Header ─────────────────────────────────── */
@@ -77,8 +56,24 @@
     transition: flex 0.3s ease, border-color 0.08s;
   }
   .visual-area.hidden { display: none; }
-  /* Card glows on beat too */
-  .visual-area.card-flash { border-color: rgba(0,230,118,0.25); }
+
+  /* Card beat glow overlay (same as practice mockup) */
+  .beat-glow {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 20; opacity: 0;
+    box-shadow: inset 0 0 40px 10px rgba(0,230,118,0.35), 0 0 25px rgba(0,230,118,0.12);
+    border: 1.5px solid rgba(0,230,118,0.4);
+    transition: opacity 0.06s ease-out;
+  }
+  .beat-glow.flash { opacity: 1; transition: opacity 0.02s; }
+
+  .screen-flash {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 19; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.07) 0%, transparent 60%);
+    transition: opacity 0.08s ease-out;
+  }
+  .screen-flash.flash { opacity: 1; transition: opacity 0.02s; }
 
   .vis-canvas { position: absolute; inset: 0; z-index: 1; }
 
@@ -102,7 +97,6 @@
     transition: flex 0.3s ease, border-color 0.08s;
   }
   .text-panel.hidden { display: none; }
-  .text-panel.card-flash { border-color: rgba(0,230,118,0.25); }
 
   /* When both visible, split space */
   .content-area.both-visible .visual-area { flex: 0.55; }
@@ -153,7 +147,7 @@
     cursor: pointer; display: flex; align-items: center; gap: 6px;
     transition: border-color 0.08s;
   }
-  .nav-btn.card-flash { border-color: rgba(0,230,118,0.2); }
+  .nav-btn.card-flash { border-color: rgba(0,230,118,0.2); /* subtle flash on nav buttons */ }
   .nav-btn .arrow { font-size: 14px; }
   .nav-song-name { font-size: 10px; color: #333; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .queue-btn {
@@ -282,10 +276,6 @@
 </head>
 <body>
 
-<!-- FULL-SCREEN BEAT GLOW (behind everything) -->
-<div class="screen-glow" id="screenGlow"></div>
-<div class="screen-pulse" id="screenPulse"></div>
-
 <!-- Speed Safety Check Modal -->
 <div class="modal-overlay" id="safetyModal" onclick="this.classList.remove('visible')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -336,6 +326,8 @@
 
   <!-- Visual Hero -->
   <div class="visual-area" id="visualArea">
+    <div class="beat-glow" id="beatGlow"></div>
+    <div class="screen-flash" id="screenFlash"></div>
     <canvas class="vis-canvas" id="visCanvas"></canvas>
     <div class="vis-switcher">
       <button class="vis-mode-btn active" onclick="setVis('spectrum')">Spectrum</button>
@@ -470,21 +462,16 @@ function applyPreset(name) {
   updateLayout();
 }
 
-// ── Beat flash — FULL SCREEN ──
+// ── Beat flash — card edge glow (same as practice) ──
 function fireBeat() {
   beatEnergy = 1.0;
 
-  // Full-screen edge glow
-  const glow = document.getElementById('screenGlow');
-  const pulse = document.getElementById('screenPulse');
-  glow.classList.add('flash'); pulse.classList.add('flash');
-  setTimeout(() => { glow.classList.remove('flash'); pulse.classList.remove('flash'); }, 120);
-
-  // Card border flash on all visible cards
-  document.querySelectorAll('.visual-area:not(.hidden), .text-panel:not(.hidden), .nav-btn').forEach(el => {
-    el.classList.add('card-flash');
-    setTimeout(() => el.classList.remove('card-flash'), 120);
-  });
+  // Card-level edge glow on visual area
+  const glow = document.getElementById('beatGlow');
+  const flash = document.getElementById('screenFlash');
+  glow.classList.add('flash');
+  flash.classList.add('flash');
+  setTimeout(() => { glow.classList.remove('flash'); flash.classList.remove('flash'); }, 100);
 
   // Spectrum spike
   for (let i = 0; i < specTargets.length; i++) specTargets[i] = 0.5 + Math.random() * 0.5;
