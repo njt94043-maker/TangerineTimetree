@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=390, initial-scale=1.0">
-<title>Live Mode Player — v6</title>
+<title>Live Mode Player — v7 (A/B glow test)</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -74,6 +74,37 @@
     transition: opacity 0.08s ease-out;
   }
   .screen-flash.flash { opacity: 1; transition: opacity 0.02s; }
+
+  /* ── FULL-SCREEN GLOW (alternative — hidden by default) ── */
+  .fullscreen-glow {
+    position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    opacity: 0; transition: opacity 0.08s ease-out;
+    box-shadow: inset 0 0 60px 15px rgba(0,230,118,0.25), inset 0 0 120px 30px rgba(0,230,118,0.08);
+    border: 1px solid rgba(0,230,118,0.15);
+    display: none;
+  }
+  .fullscreen-glow.flash { opacity: 1; transition: opacity 0.02s; }
+
+  .fullscreen-pulse {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0; transition: opacity 0.1s ease-out;
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.04) 0%, transparent 50%);
+    display: none;
+  }
+  .fullscreen-pulse.flash { opacity: 1; transition: opacity 0.02s; }
+
+  /* When fullscreen mode active, show fullscreen divs, hide card glow */
+  body.glow-fullscreen .fullscreen-glow,
+  body.glow-fullscreen .fullscreen-pulse { display: block; }
+  body.glow-fullscreen .beat-glow,
+  body.glow-fullscreen .screen-flash { display: none; }
+
+  /* Glow mode indicator */
+  .glow-mode-label {
+    position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%); z-index: 200;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #333;
+    pointer-events: none;
+  }
 
   .vis-canvas { position: absolute; inset: 0; z-index: 1; }
 
@@ -276,6 +307,11 @@
 </head>
 <body>
 
+<!-- Full-screen glow elements (hidden by default, toggled via body.glow-fullscreen) -->
+<div class="fullscreen-glow" id="fullscreenGlow"></div>
+<div class="fullscreen-pulse" id="fullscreenPulse"></div>
+<div class="glow-mode-label" id="glowLabel">CARD GLOW</div>
+
 <!-- Speed Safety Check Modal -->
 <div class="modal-overlay" id="safetyModal" onclick="this.classList.remove('visible')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -304,6 +340,7 @@
   <button class="preset-btn" onclick="applyPreset('neil')">Neil (Chords+Notes)</button>
   <button class="preset-btn" onclick="applyPreset('drums-only')">Drums Only</button>
   <button class="preset-btn" onclick="document.getElementById('safetyModal').classList.add('visible')">Speed Check</button>
+  <button class="preset-btn" id="glowToggle" onclick="toggleGlowMode()" style="border-color:#00e676;color:#00e676">Glow: Card</button>
 </div>
 
 <!-- Header -->
@@ -462,16 +499,38 @@ function applyPreset(name) {
   updateLayout();
 }
 
-// ── Beat flash — card edge glow (same as practice) ──
+// ── Glow mode toggle ──
+let glowMode = 'card'; // 'card' or 'fullscreen'
+function toggleGlowMode() {
+  glowMode = glowMode === 'card' ? 'fullscreen' : 'card';
+  document.body.classList.toggle('glow-fullscreen', glowMode === 'fullscreen');
+  document.getElementById('glowToggle').textContent = 'Glow: ' + (glowMode === 'card' ? 'Card' : 'Screen');
+  document.getElementById('glowLabel').textContent = glowMode === 'card' ? 'CARD GLOW' : 'FULL-SCREEN GLOW';
+}
+
+// ── Beat flash — supports both glow modes ──
 function fireBeat() {
   beatEnergy = 1.0;
 
-  // Card-level edge glow on visual area
-  const glow = document.getElementById('beatGlow');
-  const flash = document.getElementById('screenFlash');
-  glow.classList.add('flash');
-  flash.classList.add('flash');
-  setTimeout(() => { glow.classList.remove('flash'); flash.classList.remove('flash'); }, 100);
+  if (glowMode === 'card') {
+    // Card-level edge glow on visual area
+    const glow = document.getElementById('beatGlow');
+    const flash = document.getElementById('screenFlash');
+    glow.classList.add('flash');
+    flash.classList.add('flash');
+    setTimeout(() => { glow.classList.remove('flash'); flash.classList.remove('flash'); }, 100);
+  } else {
+    // Full-screen edge glow
+    const glow = document.getElementById('fullscreenGlow');
+    const pulse = document.getElementById('fullscreenPulse');
+    glow.classList.add('flash'); pulse.classList.add('flash');
+    setTimeout(() => { glow.classList.remove('flash'); pulse.classList.remove('flash'); }, 120);
+    // Also flash card borders in fullscreen mode
+    document.querySelectorAll('.visual-area:not(.hidden), .text-panel:not(.hidden), .nav-btn').forEach(el => {
+      el.style.borderColor = 'rgba(0,230,118,0.25)';
+      setTimeout(() => { el.style.borderColor = ''; }, 120);
+    });
+  }
 
   // Spectrum spike
   for (let i = 0; i < specTargets.length; i++) specTargets[i] = 0.5 + Math.random() * 0.5;
