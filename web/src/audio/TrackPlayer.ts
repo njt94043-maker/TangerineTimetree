@@ -48,6 +48,10 @@ export class TrackPlayer {
     return this.buffer !== null;
   }
 
+  getBuffer(): AudioBuffer | null {
+    return this.buffer;
+  }
+
   getDuration(): number {
     return this.buffer?.duration ?? 0;
   }

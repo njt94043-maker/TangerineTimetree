@@ -63,6 +63,12 @@ export class StemMixer {
     return Math.max(...this.channels.map(ch => ch.player.getDuration()));
   }
 
+  /** Get the audio buffer of the first stem (for waveform rendering). */
+  getBuffer(): AudioBuffer | null {
+    if (this.channels.length === 0) return null;
+    return this.channels[0].player.getBuffer();
+  }
+
   getPosition(): number {
     if (this.channels.length === 0) return 0;
     return this.channels[0].player.getPosition();
