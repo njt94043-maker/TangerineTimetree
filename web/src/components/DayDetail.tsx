@@ -309,8 +309,8 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
         <div className="day-actions">
           {onAddBooking ? (
             <button className="btn-add-booking" onClick={() => onAddBooking(date)}>
-              <span className="btn-add-booking-label">Add Booking</span>
-              <span className="btn-add-booking-hint">Pub gig or client booking</span>
+              <span className="btn-add-booking-label">+ Add Booking</span>
+              <span className="btn-add-booking-hint">Quick entry or full client booking</span>
             </button>
           ) : (
             <button className="btn btn-green" onClick={() => onAddGig(date, 'gig')}>Add Gig</button>
