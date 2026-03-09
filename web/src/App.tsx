@@ -37,12 +37,14 @@ import { SongList } from './components/SongList';
 import { SongForm } from './components/SongForm';
 import { SetlistList } from './components/SetlistList';
 import { SetlistDetail } from './components/SetlistDetail';
+import { Library } from './components/Library';
+import { Player } from './components/Player';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
-  const { user, profile, loading: authLoading, signIn, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signIn, signOut, resetPassword } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
 
@@ -60,7 +62,7 @@ export default function App() {
       <>
         <PublicSite onLogin={() => setShowLoginModal(true)} />
         {showLoginModal && (
-          <LoginModal onSignIn={signIn} onClose={() => setShowLoginModal(false)} />
+          <LoginModal onSignIn={signIn} onResetPassword={resetPassword} onClose={() => setShowLoginModal(false)} />
         )}
       </>
     );
@@ -88,8 +90,10 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     quoteId,
     goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
     venueId, goToVenues, goToVenueDetail,
-    editSongId, goToSongs, goToNewSong, goToEditSong,
+    editSongId, goToNewSong, goToEditSong,
     setlistId, goToSetlistDetail,
+    goToLibrary, goToPlayer,
+    playerSongId, playerSetlistId, playerMode,
     gigHubGigId, goToBookingWizard, goToEditBooking, goToGigHub,
     goToAway,
     replaceWithInvoiceDetail, replaceWithQuoteDetail,
@@ -215,6 +219,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'venues': case 'venue-detail': return 'Venues';
       case 'songs': case 'song-form': return 'Songs';
       case 'setlists': case 'setlist-detail': return 'Setlists';
+      case 'library': return 'Library';
+      case 'player': return 'Player';
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
@@ -538,7 +544,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
           <SongForm
             songId={editSongId}
             onClose={goBack}
-            onSaved={() => { goToSongs(); }}
+            onSaved={() => { goToLibrary(); }}
             bandRole={profile?.band_role}
           />
         )}
@@ -553,6 +559,29 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'setlist-detail' && setlistId && (
           <SetlistDetail
             setlistId={setlistId}
+            onClose={goBack}
+          />
+        )}
+
+        {view === 'library' && (
+          <Library
+            onNewSong={goToNewSong}
+            onEditSong={goToEditSong}
+            onSetlistPress={goToSetlistDetail}
+            onPlaySong={(songId, mode) => goToPlayer(songId, mode)}
+            onPlaySetlist={(slId, mode) => {
+              // For setlist play, we navigate to player with the first song
+              // The Player component will handle loading the setlist
+              goToPlayer('', mode, slId);
+            }}
+          />
+        )}
+
+        {view === 'player' && (
+          <Player
+            songId={playerSongId}
+            setlistId={playerSetlistId}
+            mode={playerMode}
             onClose={goBack}
           />
         )}

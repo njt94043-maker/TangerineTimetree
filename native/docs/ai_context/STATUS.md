@@ -6,32 +6,29 @@
 ---
 
 ## Current State
-- **Phase**: S35 complete — Android fully built (Library, Live, Practice, Calendar, Settings). Web fully shipped (invoicing, quotes, calendar, stage prompter, public site). Cloud Run pipeline live.
-- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing (madmom beats + Demucs stems). Web + Android builds clean. Song categories + setlist types + player prefs columns live in Supabase. Android Library: filter pills, inline launch, queue overlay, set complete, speed safety. 25 Supabase tables, 4 storage buckets, 28 PDF templates.
-- **Last session**: Full codebase audit + SOT doc overhaul. Created IMPACT_MAP.md, updated schema_map.md, gotchas.md, pain_journal.md, MEMORY.md. Identified 6 open issues (see IMPACT_MAP.md audit findings table).
-- **Next action**: S36 — Web audio engine (TypeScript Web Audio API + SoundTouchJS). Then S37 — Web player UI.
+- **Phase**: S36 complete — Web audio engine + Library redesign + Player UI all built. Android fully built (S35). Cloud Run pipeline live.
+- **What works**: Full Web Audio API stack: AudioEngine singleton, ClickScheduler (frame-accurate, 5 click sounds, beat map mode), TrackPlayer (SoundTouchJS pitch-preserved speed), StemMixer (per-stem gain/mute/solo). Library view (tabbed Songs/Setlists, category + type filter pills, inline Live/Practice launch). Player view (transport, beat counter, lyrics/chords, speed control, A-B loop, stem mixer, setlist queue overlay). Forgot password flow. Both tsc + vite build clean.
+- **Last session**: S36 — 3 sessions. Session 1: Forgot password fix + AudioEngine + ClickScheduler. Session 2: TrackPlayer + StemMixer + useAudioEngine hook. Session 3: Library component + Player component + view routing + CSS.
+- **Next action**: S37 — Polish + visual testing + wake lock + waveform visualiser + player prefs settings UI.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 3 songs (Cissy Strut, Sultans of Swing, War Pigs) fully processed.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Sprint — S36: Web Audio Engine
+## Next Sprint — S37: Web Player Polish
 ### Goals
-1. **TypeScript audio engine** — Web Audio API click scheduling (frame-accurate), track playback (fetch + decode), stem mixing (gain nodes per channel), speed control (SoundTouchJS for pitch-preserved time-stretch), A-B loop region
-2. **Web Library redesign** — Same tabs/filters as Android (Songs/Setlists tabs, category pills, setlist type pills, inline Live/Practice launch buttons)
-3. **Player prefs loading** — Load per-user player_*_enabled toggles from user_settings, wire to engine config
-
-### After S36 — S37: Web Player UI
-- React player component (visual hero, transport, queue overlay, set complete screen)
-- Live + Practice modes (mode flag controls which features show)
-- Per-user prefs toggles in settings UI
-- Wake lock API, waveform visualiser (Canvas)
+1. **Visual testing** — Test Library + Player on thegreentangerine.com, fix any CSS/layout issues
+2. **Wake lock API** — Keep screen awake during playback (Live and Practice modes)
+3. **Waveform visualiser** — Canvas-based amplitude display on seek bar (Practice mode)
+4. **Player prefs settings UI** — 7 toggle switches in Settings screen (click, flash, lyrics, chords, notes, drums, vis)
+5. **Set complete screen** — Between-songs waiting screen + set complete celebration (setlist mode)
+6. **Beat glow polish** — Card-level glow curve (D-119), fade timing
 
 ### Sprint Roadmap
 | Sprint | Scope | Status |
 |--------|-------|--------|
 | S34 | Migration + type updates + shared queries | Done |
 | S35 | Android Library refactor + player refactor | Done |
-| S36 | Web audio engine (TypeScript) + Library redesign | **Next** |
-| S37 | Web player UI (Live + Practice modes) | Blocked on S36 |
+| S36 | Web audio engine + Library redesign + Player UI | **Done** |
+| S37 | Web player polish (wake lock, waveform, prefs UI) | **Next** |
 | S31C | On-device testing (BTrack offline fallback) | Parked |
 
 ### Still Pending (not sprint-assigned)

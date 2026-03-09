@@ -1,0 +1,371 @@
+/**
+ * useAudioEngine — React hook bridging the audio engine to UI.
+ *
+ * Loads song data (beat map, stems, metadata), player prefs,
+ * and provides reactive state for the Player component.
+ *
+ * Supports two modes:
+ *   - 'live': Click only + lyrics/chords. No track/stems.
+ *   - 'practice': Click + track + stems + speed + A-B loop.
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { AudioEngine, type EngineState, type BeatEvent } from '../audio/AudioEngine';
+import { ClickScheduler, type ClickConfig } from '../audio/ClickScheduler';
+import { TrackPlayer, type LoopRegion } from '../audio/TrackPlayer';
+import { StemMixer, type StemLabel } from '../audio/StemMixer';
+import { getSong, getBeatMap, getSongStems, getPlayerPrefs } from '@shared/supabase/queries';
+import type { Song, BeatMap, SongStem } from '@shared/supabase/types';
+import type { PlayerPrefs } from '@shared/supabase/queries';
+
+export type PlayerMode = 'live' | 'practice';
+
+export interface AudioEngineState {
+  // Loading
+  loading: boolean;
+  error: string | null;
+
+  // Song data
+  song: Song | null;
+  beatMap: BeatMap | null;
+  stems: SongStem[];
+  prefs: PlayerPrefs | null;
+
+  // Transport
+  engineState: EngineState;
+  currentTime: number;
+  duration: number;
+  speed: number;
+  loop: LoopRegion | null;
+
+  // Beat
+  currentBeat: number;
+  currentBar: number;
+  beatFlash: boolean;
+
+  // Stem mixer state
+  stemChannels: ReadonlyArray<{
+    label: StemLabel;
+    gain: number;
+    muted: boolean;
+    solo: boolean;
+  }>;
+}
+
+export interface AudioEngineActions {
+  play: () => void;
+  pause: () => void;
+  stop: () => void;
+  seek: (time: number) => void;
+  setSpeed: (speed: number) => void;
+  setLoop: (region: LoopRegion | null) => void;
+  setStemGain: (label: StemLabel, gain: number) => void;
+  toggleStemMute: (label: StemLabel) => void;
+  toggleStemSolo: (label: StemLabel) => void;
+  toggleClick: () => void;
+}
+
+export function useAudioEngine(
+  songId: string | null,
+  mode: PlayerMode,
+): [AudioEngineState, AudioEngineActions] {
+  // Refs for audio objects (not reactive — they're mutable singletons)
+  const clickRef = useRef(new ClickScheduler());
+  const trackRef = useRef(new TrackPlayer());
+  const mixerRef = useRef(new StemMixer());
+  const clickEnabledRef = useRef(true);
+
+  // Reactive state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [song, setSong] = useState<Song | null>(null);
+  const [beatMap, setBeatMap] = useState<BeatMap | null>(null);
+  const [stems, setStems] = useState<SongStem[]>([]);
+  const [prefs, setPrefs] = useState<PlayerPrefs | null>(null);
+  const [engineState, setEngineState] = useState<EngineState>('idle');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [speed, setSpeedState] = useState(1.0);
+  const [loop, setLoopState] = useState<LoopRegion | null>(null);
+  const [currentBeat, setCurrentBeat] = useState(0);
+  const [currentBar, setCurrentBar] = useState(0);
+  const [beatFlash, setBeatFlash] = useState(false);
+  const [stemChannels, setStemChannels] = useState<AudioEngineState['stemChannels']>([]);
+
+  // Load song data
+  useEffect(() => {
+    if (!songId) {
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadSong() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Load all data in parallel
+        const [songData, beatMapData, stemsData, prefsData] = await Promise.all([
+          getSong(songId!),
+          getBeatMap(songId!),
+          getSongStems(songId!),
+          getPlayerPrefs(),
+        ]);
+
+        if (cancelled) return;
+
+        if (!songData) {
+          setError('Song not found');
+          setLoading(false);
+          return;
+        }
+
+        setSong(songData);
+        setBeatMap(beatMapData);
+        setStems(stemsData);
+        setPrefs(prefsData);
+
+        // Configure click scheduler from song metadata
+        const accentPattern = songData.accent_pattern
+          ? songData.accent_pattern.split(',').map(Number)
+          : [];
+
+        const clickConfig: Partial<ClickConfig> = {
+          bpm: songData.bpm,
+          timeSignatureTop: songData.time_signature_top,
+          timeSignatureBottom: songData.time_signature_bottom,
+          subdivision: songData.subdivision,
+          swingPercent: songData.swing_percent,
+          accentPattern,
+          clickSound: songData.click_sound,
+          countInBars: songData.count_in_bars,
+          beatOffsetMs: songData.beat_offset_ms ?? 0,
+        };
+        clickRef.current.configure(clickConfig);
+
+        // Load beat map if available and status is ready
+        if (beatMapData && beatMapData.status === 'ready' && beatMapData.beats.length > 0) {
+          clickRef.current.loadBeatMap(beatMapData.beats);
+        }
+
+        clickEnabledRef.current = prefsData.player_click_enabled;
+
+        // In practice mode, load track or stems
+        if (mode === 'practice') {
+          if (stemsData.length > 0) {
+            // Load stems
+            await mixerRef.current.loadStems(
+              stemsData.map(s => ({ label: s.label as StemLabel, url: s.audio_url }))
+            );
+            setDuration(mixerRef.current.getDuration());
+
+            // Auto-mute drums if pref disabled
+            if (!prefsData.player_drums_enabled) {
+              mixerRef.current.setMuted('drums', true);
+            }
+
+            updateStemChannels();
+          } else if (songData.audio_url) {
+            // Load single practice track
+            await trackRef.current.load(songData.audio_url);
+            setDuration(trackRef.current.getDuration());
+          }
+        }
+
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load song');
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSong();
+
+    return () => {
+      cancelled = true;
+      clickRef.current.stop();
+      trackRef.current.stop();
+      mixerRef.current.stop();
+      AudioEngine.reset();
+    };
+  }, [songId, mode]);
+
+  // Beat event listener
+  useEffect(() => {
+    const removeListener = AudioEngine.addListener({
+      onBeat(event: BeatEvent) {
+        setCurrentBeat(event.beat);
+        setCurrentBar(event.bar);
+        if (prefs?.player_flash_enabled) {
+          setBeatFlash(true);
+          setTimeout(() => setBeatFlash(false), 80);
+        }
+      },
+      onStateChange(state: EngineState) {
+        setEngineState(state);
+      },
+      onSongComplete() {
+        // Track/stems finished — stop everything
+        clickRef.current.stop();
+        AudioEngine.setState('idle');
+        setCurrentTime(0);
+      },
+    });
+
+    return removeListener;
+  }, [prefs?.player_flash_enabled]);
+
+  function updateStemChannels() {
+    setStemChannels(
+      mixerRef.current.getChannels().map(ch => ({
+        label: ch.label,
+        gain: ch.gain,
+        muted: ch.muted,
+        solo: ch.solo,
+      }))
+    );
+  }
+
+  // Determine which audio source is active
+  const hasStems = stems.length > 0 && mixerRef.current.isLoaded();
+  const hasTrack = trackRef.current.isLoaded();
+
+  // --- Actions ---
+
+  const play = useCallback(async () => {
+    await AudioEngine.resume();
+
+    if (clickEnabledRef.current) {
+      clickRef.current.start();
+    }
+
+    if (mode === 'practice' && hasStems) {
+      mixerRef.current.play();
+    } else if (mode === 'practice' && hasTrack) {
+      trackRef.current.play();
+    }
+
+    AudioEngine.setState('playing');
+
+    // Start tick loop for time updates
+    AudioEngine.startTick(() => {
+      let pos = 0;
+      if (hasStems) {
+        pos = mixerRef.current.getPosition();
+        mixerRef.current.checkLoop();
+      } else if (hasTrack) {
+        pos = trackRef.current.getPosition();
+        trackRef.current.checkLoop();
+      }
+      setCurrentTime(pos);
+      AudioEngine.emitTimeUpdate(pos, duration);
+    });
+  }, [mode, hasStems, hasTrack, duration]);
+
+  const pause = useCallback(() => {
+    clickRef.current.stop();
+    if (hasStems) mixerRef.current.pause();
+    else if (hasTrack) trackRef.current.pause();
+    AudioEngine.stopTick();
+    AudioEngine.setState('paused');
+  }, [hasStems, hasTrack]);
+
+  const stop = useCallback(() => {
+    clickRef.current.stop();
+    if (hasStems) mixerRef.current.stop();
+    else if (hasTrack) trackRef.current.stop();
+    AudioEngine.stopTick();
+    AudioEngine.setState('idle');
+    setCurrentTime(0);
+    setCurrentBeat(0);
+    setCurrentBar(0);
+  }, [hasStems, hasTrack]);
+
+  const seek = useCallback((time: number) => {
+    if (hasStems) mixerRef.current.seek(time);
+    else if (hasTrack) trackRef.current.seek(time);
+    setCurrentTime(time);
+  }, [hasStems, hasTrack]);
+
+  const setSpeed = useCallback((newSpeed: number) => {
+    const clamped = Math.max(0.25, Math.min(2.0, newSpeed));
+    setSpeedState(clamped);
+
+    // Update click BPM proportionally
+    if (song) {
+      clickRef.current.configure({ bpm: song.bpm * clamped });
+    }
+
+    if (hasStems) mixerRef.current.setSpeed(clamped);
+    else if (hasTrack) trackRef.current.setSpeed(clamped);
+  }, [song, hasStems, hasTrack]);
+
+  const setLoop = useCallback((region: LoopRegion | null) => {
+    setLoopState(region);
+    if (hasStems) mixerRef.current.setLoop(region);
+    else if (hasTrack) trackRef.current.setLoop(region);
+  }, [hasStems, hasTrack]);
+
+  const setStemGain = useCallback((label: StemLabel, gain: number) => {
+    mixerRef.current.setStemGain(label, gain);
+    updateStemChannels();
+  }, []);
+
+  const toggleStemMute = useCallback((label: StemLabel) => {
+    mixerRef.current.toggleMute(label);
+    updateStemChannels();
+  }, []);
+
+  const toggleStemSolo = useCallback((label: StemLabel) => {
+    mixerRef.current.toggleSolo(label);
+    updateStemChannels();
+  }, []);
+
+  const toggleClick = useCallback(() => {
+    clickEnabledRef.current = !clickEnabledRef.current;
+    if (engineState === 'playing') {
+      if (clickEnabledRef.current) {
+        clickRef.current.start();
+      } else {
+        clickRef.current.stop();
+      }
+    }
+  }, [engineState]);
+
+  const state: AudioEngineState = {
+    loading,
+    error,
+    song,
+    beatMap,
+    stems,
+    prefs,
+    engineState,
+    currentTime,
+    duration,
+    speed,
+    loop,
+    currentBeat,
+    currentBar,
+    beatFlash,
+    stemChannels,
+  };
+
+  const actions: AudioEngineActions = {
+    play,
+    pause,
+    stop,
+    seek,
+    setSpeed,
+    setLoop,
+    setStemGain,
+    toggleStemMute,
+    toggleStemSolo,
+    toggleClick,
+  };
+
+  return [state, actions];
+}
