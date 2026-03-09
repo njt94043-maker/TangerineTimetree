@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Practice Mode — Redesign v5</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f; color: #e0e0e0; font-family: 'Karla', sans-serif;
+    width: 390px; height: 844px; margin: 0 auto;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; padding: 10px 16px 6px; gap: 12px; flex-shrink: 0;
+  }
+  .header .hamburger { font-size: 20px; opacity: 0.4; cursor: pointer; }
+  .header .song-info { flex: 1; }
+  .header .song-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .header .song-artist { font-size: 11px; color: #666; }
+  .header .bpm-value {
+    font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700;
+    color: #00e676; text-shadow: 0 0 12px rgba(0,230,118,0.3); line-height: 1;
+  }
+  .header .bpm-unit { font-size: 9px; color: rgba(0,230,118,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+
+  /* ── Visual Area ────────────────────────────── */
+  .visual-area {
+    position: relative; flex: 1; margin: 6px 10px;
+    border-radius: 14px; background: #08080e; border: 1px solid #111118;
+    overflow: hidden; min-height: 60px;
+  }
+
+  /* Uniform beat edge glow — same for every beat */
+  .beat-glow {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 20; opacity: 0;
+    box-shadow: inset 0 0 40px 10px rgba(0,230,118,0.35), 0 0 25px rgba(0,230,118,0.12);
+    border: 1.5px solid rgba(0,230,118,0.4);
+    transition: opacity 0.06s ease-out;
+  }
+  .beat-glow.flash { opacity: 1; transition: opacity 0.02s; }
+
+  .screen-flash {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 19; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.07) 0%, transparent 60%);
+    transition: opacity 0.08s ease-out;
+  }
+  .screen-flash.flash { opacity: 1; transition: opacity 0.02s; }
+
+  /* Vis mode switcher */
+  .vis-switcher {
+    position: absolute; top: 10px; left: 12px; z-index: 30;
+    display: flex; gap: 4px;
+  }
+  .vis-btn {
+    padding: 3px 10px; border-radius: 10px; border: 1px solid #1a1a2e;
+    background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .vis-btn.active { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+
+  /* Canvas fills visual area */
+  .vis-canvas {
+    position: absolute; inset: 0; z-index: 1;
+  }
+
+  /* ── Waveform Seekbar ───────────────────────── */
+  .waveform-strip {
+    flex-shrink: 0; height: 72px; margin: 0 10px 6px;
+    border-radius: 10px; background: #0c0c14; border: 1px solid #151520;
+    position: relative; overflow: hidden;
+  }
+  .waveform-bars {
+    display: flex; align-items: center; justify-content: center;
+    height: 100%; gap: 1px; padding: 10px 8px;
+  }
+  .waveform-bars .bar { flex: 1; min-width: 1.5px; border-radius: 1px; }
+  .waveform-bars .bar.played { background: #00e676; opacity: 0.75; }
+  .waveform-bars .bar.unplayed { background: #00e676; opacity: 0.12; }
+  .wf-playhead {
+    position: absolute; top: 0; bottom: 0; left: 35%; width: 2px;
+    background: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.4); z-index: 5;
+  }
+  .wf-playhead-dot {
+    position: absolute; top: 50%; left: -5px; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); transform: translateY(-50%);
+  }
+  .wf-loop {
+    position: absolute; top: 0; bottom: 0; left: 18%; width: 35%;
+    background: rgba(243,156,18,0.04); border-left: 1.5px solid rgba(243,156,18,0.35);
+    border-right: 1.5px solid rgba(243,156,18,0.35); z-index: 2;
+  }
+  .wf-position { position: absolute; bottom: 3px; left: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #444; z-index: 10; }
+  .wf-position .current { color: #999; }
+  .wf-speed { position: absolute; bottom: 3px; right: 10px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #bb86fc; z-index: 10; }
+
+  /* ── Transport (2-tier) ─────────────────────── */
+  .transport-wrapper {
+    flex-shrink: 0; padding: 2px 12px 6px;
+  }
+  .transport-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 4px 4px;
+  }
+  .speed-row { display: flex; align-items: center; gap: 4px; }
+  .speed-btn {
+    width: 28px; height: 28px; border-radius: 50%; border: 1px solid #1e1e30;
+    background: #141420; color: #777; font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .speed-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #bb86fc; min-width: 38px; text-align: center; }
+  .loop-controls { display: flex; gap: 5px; align-items: center; }
+  .loop-ctrl-btn {
+    padding: 4px 12px; border-radius: 14px; border: 1px solid #222;
+    background: #141420; color: #555; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 600; cursor: pointer;
+  }
+  .loop-ctrl-btn.set { border-color: rgba(243,156,18,0.4); color: #f39c12; background: rgba(243,156,18,0.08); }
+  .loop-ctrl-btn.clear-btn { color: #666; }
+
+  .transport-bottom {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 2px 0;
+  }
+  .transport-btn {
+    width: 42px; height: 42px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;
+  }
+  .transport-btn.secondary { background: #141420; color: #666; border: 1px solid #1e1e30; }
+  .transport-btn.play {
+    width: 56px; height: 56px; background: linear-gradient(135deg, #00e676, #00c853);
+    color: #000; font-size: 22px; box-shadow: 0 0 24px rgba(0,230,118,0.25);
+  }
+  .transport-btn.stop { background: #141420; color: #ff5252; border: 1px solid #1e1e30; }
+  .transport-btn.click-toggle {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    background: #141420; color: #bb86fc; border: 1px solid rgba(187,134,252,0.25);
+    width: auto; padding: 0 14px; border-radius: 20px; height: 36px;
+  }
+
+  /* ── Bottom Sheet ───────────────────────────── */
+  .drag-handle {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    padding: 4px 0; cursor: pointer;
+  }
+  .drag-handle .pill { width: 36px; height: 4px; background: #2a2a3e; border-radius: 2px; }
+  .drag-handle.open .pill { background: #00e676; }
+
+  .bottom-sheet {
+    flex-shrink: 0; max-height: 0; overflow: hidden;
+    background: #0c0c14; border-top: 1px solid #1a1a28;
+    transition: max-height 0.3s ease;
+  }
+  .bottom-sheet.open { max-height: 400px; }
+  .bottom-sheet-inner { padding: 6px 14px 16px; }
+
+  .section-title {
+    font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 2px;
+    margin: 10px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #151520;
+  }
+  .section-title:first-child { margin-top: 2px; }
+
+  .drawer-mixer { display: flex; justify-content: space-around; gap: 2px; padding: 6px 0 4px; }
+  .dmix-ch { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 48px; }
+  .dmix-label { font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+  .dmix-label.click { color: #bb86fc; } .dmix-label.track { color: #00e676; }
+  .dmix-label.drums { color: #f39c12; } .dmix-label.bass { color: #00bcd4; }
+  .dmix-label.vocals { color: #e040fb; } .dmix-label.other { color: #78909c; }
+  .dmix-fader { position: relative; width: 5px; height: 80px; background: #1a1a28; border-radius: 3px; }
+  .dmix-fill { position: absolute; bottom: 0; left: 0; width: 100%; border-radius: 3px; }
+  .dmix-fill.click { background: linear-gradient(to top, rgba(187,134,252,0.2), #bb86fc); }
+  .dmix-fill.track { background: linear-gradient(to top, rgba(0,230,118,0.2), #00e676); }
+  .dmix-fill.drums { background: linear-gradient(to top, rgba(243,156,18,0.2), #f39c12); }
+  .dmix-fill.bass { background: linear-gradient(to top, rgba(0,188,212,0.2), #00bcd4); }
+  .dmix-fill.vocals { background: linear-gradient(to top, rgba(224,64,251,0.2), #e040fb); }
+  .dmix-fill.other { background: linear-gradient(to top, rgba(120,144,156,0.2), #78909c); }
+  .dmix-thumb { position: absolute; left: -6px; width: 17px; height: 6px; background: #d0d0d0; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+  .dmix-val { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: #444; }
+  .dmix-mute {
+    width: 20px; height: 14px; border-radius: 3px; border: 1px solid #222;
+    background: #141420; font-family: 'JetBrains Mono', monospace; font-size: 7px;
+    font-weight: 700; color: #444; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+
+  .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .setting-label { font-size: 12px; color: #888; }
+  .pill-group { display: flex; gap: 4px; }
+  .pill-btn {
+    padding: 4px 11px; border-radius: 14px; border: 1px solid #222;
+    background: #141420; color: #555; font-size: 11px; cursor: pointer;
+  }
+  .pill-btn.active { background: rgba(187,134,252,0.12); border-color: rgba(187,134,252,0.35); color: #bb86fc; }
+  .nudge-row { display: flex; gap: 6px; align-items: center; }
+  .nudge-btn { padding: 4px 12px; border-radius: 14px; border: 1px solid #222; background: #141420; color: #555; font-size: 11px; cursor: pointer; }
+  .nudge-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #00e676; min-width: 50px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="hamburger">☰</span>
+  <div class="song-info">
+    <div class="song-name">Cissy Strut</div>
+    <div class="song-artist">The Meters</div>
+  </div>
+  <div>
+    <div class="bpm-value">91</div>
+    <div class="bpm-unit">BPM</div>
+  </div>
+</div>
+
+<!-- Visual Area -->
+<div class="visual-area" id="visualArea">
+  <div class="beat-glow" id="beatGlow"></div>
+  <div class="screen-flash" id="screenFlash"></div>
+
+  <div class="vis-switcher">
+    <button class="vis-btn active" onclick="setVis('spectrum')">Spectrum</button>
+    <button class="vis-btn" onclick="setVis('rings')">Rings</button>
+    <button class="vis-btn" onclick="setVis('particles')">Burst</button>
+  </div>
+
+  <canvas class="vis-canvas" id="visCanvas"></canvas>
+</div>
+
+<!-- Waveform -->
+<div class="waveform-strip">
+  <div class="wf-loop"></div>
+  <div class="waveform-bars" id="waveform"></div>
+  <div class="wf-playhead"><div class="wf-playhead-dot"></div></div>
+  <div class="wf-position"><span class="current">1:05</span> / 3:07</div>
+  <div class="wf-speed">× 1.00</div>
+</div>
+
+<!-- Transport (2-tier) -->
+<div class="transport-wrapper">
+  <div class="transport-top">
+    <div class="speed-row">
+      <button class="speed-btn">−5</button>
+      <span class="speed-val">100%</span>
+      <button class="speed-btn">+5</button>
+    </div>
+    <div class="loop-controls">
+      <button class="loop-ctrl-btn set">A</button>
+      <button class="loop-ctrl-btn set">B</button>
+      <button class="loop-ctrl-btn clear-btn">Clear</button>
+    </div>
+  </div>
+  <div class="transport-bottom">
+    <button class="transport-btn secondary">⏮</button>
+    <button class="transport-btn play">▶</button>
+    <button class="transport-btn stop">■</button>
+    <button class="transport-btn click-toggle">CLICK</button>
+  </div>
+</div>
+
+<!-- Bottom Sheet -->
+<div class="drag-handle" id="dragHandle" onclick="toggleSheet()"><div class="pill"></div></div>
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="bottom-sheet-inner">
+    <div class="section-title">Mixer</div>
+    <div class="drawer-mixer">
+      <div class="dmix-ch"><span class="dmix-label click">Click</span><div class="dmix-fader"><div class="dmix-fill click" style="height:33%"></div><div class="dmix-thumb" style="bottom:calc(33% - 3px)"></div></div><span class="dmix-val">33</span><div class="dmix-mute">M</div></div>
+      <div class="dmix-ch"><span class="dmix-label track">Track</span><div class="dmix-fader"><div class="dmix-fill track" style="height:70%"></div><div class="dmix-thumb" style="bottom:calc(70% - 3px)"></div></div><span class="dmix-val">70</span><div class="dmix-mute">M</div></div>
+      <div class="dmix-ch"><span class="dmix-label drums">Drums</span><div class="dmix-fader"><div class="dmix-fill drums" style="height:100%"></div><div class="dmix-thumb" style="bottom:calc(100% - 3px)"></div></div><span class="dmix-val">100</span><div class="dmix-mute">M</div></div>
+      <div class="dmix-ch"><span class="dmix-label bass">Bass</span><div class="dmix-fader"><div class="dmix-fill bass" style="height:100%"></div><div class="dmix-thumb" style="bottom:calc(100% - 3px)"></div></div><span class="dmix-val">100</span><div class="dmix-mute">M</div></div>
+      <div class="dmix-ch"><span class="dmix-label vocals">Vocals</span><div class="dmix-fader"><div class="dmix-fill vocals" style="height:100%"></div><div class="dmix-thumb" style="bottom:calc(100% - 3px)"></div></div><span class="dmix-val">100</span><div class="dmix-mute">M</div></div>
+      <div class="dmix-ch"><span class="dmix-label other">Other</span><div class="dmix-fader"><div class="dmix-fill other" style="height:100%"></div><div class="dmix-thumb" style="bottom:calc(100% - 3px)"></div></div><span class="dmix-val">100</span><div class="dmix-mute">M</div></div>
+    </div>
+    <div class="section-title">Settings</div>
+    <div class="setting-row"><span class="setting-label">Subdivision</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">8th</span><span class="pill-btn">Trip</span><span class="pill-btn">16th</span></div></div>
+    <div class="setting-row"><span class="setting-label">Count-in</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">1</span><span class="pill-btn">2</span><span class="pill-btn">4</span></div></div>
+    <div class="setting-row"><span class="setting-label">Beat Nudge</span><div class="nudge-row"><span class="nudge-btn">◀◀</span><span class="nudge-val">+360ms</span><span class="nudge-btn">▶▶</span></div></div>
+  </div>
+</div>
+
+<script>
+// ── Waveform bars ──
+const wf = document.getElementById('waveform');
+for (let i = 0; i < 200; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'bar ' + (i / 200 < 0.35 ? 'played' : 'unplayed');
+  const h = (Math.random() * 0.6 + 0.08) * (Math.sin((i / 200) * Math.PI) * 0.6 + 0.4) * 100;
+  bar.style.height = Math.max(3, h) + '%';
+  wf.appendChild(bar);
+}
+
+// ── Canvas setup ──
+const canvas = document.getElementById('visCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width = W = r.width;
+  canvas.height = H = r.height;
+}
+resize();
+window.addEventListener('resize', resize);
+// Re-measure canvas whenever visual area changes size (e.g. drawer open/close)
+const resizeObs = new ResizeObserver(() => resize());
+resizeObs.observe(document.getElementById('visualArea'));
+
+// ── Visualisation state ──
+let visMode = 'spectrum';
+let beatEnergy = 0; // 0..1, spikes on beat, decays
+let particles = [];
+let rings = [];
+
+// Simulated "audio" spectrum (fake data that pulses on beat)
+let specBars = new Array(32).fill(0);
+let specTargets = new Array(32).fill(0);
+
+function setVis(mode) {
+  visMode = mode;
+  document.querySelectorAll('.vis-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.vis-btn[onclick="setVis('${mode}')"]`).classList.add('active');
+  particles = [];
+  rings = [];
+}
+
+// ── Beat trigger ──
+function fireBeat() {
+  beatEnergy = 1.0;
+
+  // Edge glow
+  const glow = document.getElementById('beatGlow');
+  const flash = document.getElementById('screenFlash');
+  glow.classList.add('flash');
+  flash.classList.add('flash');
+  setTimeout(() => { glow.classList.remove('flash'); flash.classList.remove('flash'); }, 100);
+
+  // Spectrum: spike all bars
+  for (let i = 0; i < specTargets.length; i++) {
+    specTargets[i] = 0.5 + Math.random() * 0.5;
+  }
+
+  // Particles: spawn burst
+  if (visMode === 'particles') {
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 4;
+      particles.push({
+        x: W / 2, y: H / 2,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1.0,
+        size: 2 + Math.random() * 4,
+        hue: 145 + Math.random() * 30, // green-ish
+      });
+    }
+  }
+
+  // Rings: spawn ring
+  if (visMode === 'rings') {
+    rings.push({ r: 10, opacity: 0.8, speed: 2.5 + Math.random() * 1.5 });
+  }
+}
+
+setInterval(fireBeat, 660); // ~91 BPM
+
+// ── Render loop ──
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  beatEnergy *= 0.92;
+
+  if (visMode === 'spectrum') drawSpectrum();
+  else if (visMode === 'rings') drawRings();
+  else if (visMode === 'particles') drawParticles();
+
+  requestAnimationFrame(draw);
+}
+
+function drawSpectrum() {
+  const barW = (W - 40) / specBars.length;
+  const maxH = H * 0.75;
+  const cx = W / 2;
+
+  for (let i = 0; i < specBars.length; i++) {
+    // Smooth towards target, then decay
+    specBars[i] += (specTargets[i] - specBars[i]) * 0.3;
+    specTargets[i] *= 0.96;
+
+    const h = specBars[i] * maxH;
+    const x = 20 + i * barW;
+    const y = H / 2;
+
+    // Gradient color: green → teal → purple based on frequency
+    const ratio = i / specBars.length;
+    const r = Math.floor(40 + ratio * 140);
+    const g = Math.floor(230 - ratio * 150);
+    const b = Math.floor(118 + ratio * 130);
+
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.5 + specBars[i] * 0.4})`;
+
+    // Mirror: bars go up and down from center
+    const barWidth = barW - 2;
+    ctx.fillRect(x, y - h / 2, barWidth, h / 2);
+    ctx.fillRect(x, y, barWidth, h / 2);
+
+    // Glow on top
+    ctx.shadowColor = `rgba(${r},${g},${b},0.4)`;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(x, y - h / 2, barWidth, 2);
+    ctx.fillRect(x, y + h / 2 - 2, barWidth, 2);
+    ctx.shadowBlur = 0;
+  }
+
+  // Subtle ambient glow in center on beat
+  if (beatEnergy > 0.1) {
+    const grad = ctx.createRadialGradient(cx, H/2, 0, cx, H/2, W * 0.4);
+    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.08})`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawRings() {
+  const cx = W / 2;
+  const cy = H / 2;
+
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const ring = rings[i];
+    ring.r += ring.speed;
+    ring.opacity *= 0.985;
+
+    if (ring.opacity < 0.02) { rings.splice(i, 1); continue; }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,230,118,${ring.opacity})`;
+    ctx.lineWidth = 2 + ring.opacity * 3;
+    ctx.shadowColor = `rgba(0,230,118,${ring.opacity * 0.5})`;
+    ctx.shadowBlur = 15;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // Center dot that pulses
+  const dotSize = 6 + beatEnergy * 20;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, dotSize);
+  grad.addColorStop(0, `rgba(0,230,118,${0.3 + beatEnergy * 0.6})`);
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, dotSize, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.985;
+    p.vy *= 0.985;
+    p.life *= 0.975;
+
+    if (p.life < 0.02) { particles.splice(i, 1); continue; }
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${p.hue},80%,55%,${p.life * 0.8})`;
+    ctx.shadowColor = `hsla(${p.hue},80%,55%,${p.life * 0.4})`;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // Residual glow at center
+  if (beatEnergy > 0.1) {
+    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, 60);
+    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.15})`);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(W/2, H/2, 60, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+draw();
+
+// ── Bottom sheet ──
+let sheetOpen = false;
+function toggleSheet() {
+  sheetOpen = !sheetOpen;
+  document.getElementById('bottomSheet').classList.toggle('open', sheetOpen);
+  document.getElementById('dragHandle').classList.toggle('open', sheetOpen);
+}
+</script>
+
+</body>
+</html>

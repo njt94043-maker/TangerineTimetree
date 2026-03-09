@@ -5,6 +5,78 @@
 
 ---
 
+## Sprint S33 — Songs/Setlists/Live/Practice Big-Picture Redesign (NEXT)
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S33 — a PLANNING session.
+
+CONTEXT:
+- S32B/C complete: full processing pipeline works (madmom beats + Demucs stems), all 3 songs processed, APK installed.
+- Practice/Live UI mockup approved: `mockups/practice-redesign.html` (v5) — visual hero area with canvas visualisations, compact waveform seekbar, 2-tier transport (speed+A/B/Clear top, play/stop/restart/click bottom), bottom sheet drawer (mixer + settings), uniform beat edge glow.
+- C++ TrackPlayer::stop() fixed: loop-aware reset (seeks to A point when loop active, frame 0 otherwise).
+- Current Song schema has NO concept of categories, band ownership, or personal songs.
+- Current Setlist schema has NO concept of "band" vs "other band" setlists.
+
+BIG-PICTURE REQUIREMENTS (from user):
+
+### Song Categories
+Songs should be categorised:
+- **Tange Covers** — covers The Green Tangerine plays live
+- **Tange Originals** — original songs by the band
+- **Personal Songs** — songs each member knows individually (for dep/standing-in gigs with other bands)
+
+### Setlist Types
+- **Tange Setlists** — setlists for TGT gigs
+- **Other Band Setlists** — setlists for bands any member stands in for (linked to personal songs)
+
+### Live Mode (click + visuals, NO backing tracks)
+Three playback modes:
+1. Play entire song library start-to-finish (prev/next buttons + swipe to browse full list and select)
+2. Play filtered library (Tange covers / Tange originals / personal songs by member or all)
+3. Play a full setlist start-to-finish (choose from available setlists)
+
+Features:
+- Click track + flash visuals synced to song BPM (from server analysis + user-preferred speed)
+- **Speed safety check**: If user's preferred playback speed differs from the analysis BPM, prompt before live mode: "Your speed is set to X% — did you forget to reset after practice? Play at analysis BPM / Play at current speed"
+- NO backing tracks in live mode — click and visuals only
+
+### Practice Mode (backing tracks + click + visuals)
+Same three playback modes as live:
+1. Full library start-to-finish
+2. Filtered library
+3. Full setlist
+
+Features:
+- Backing tracks (main track + stems) — the full mixer from mockup v5
+- Click track + flash visuals
+- Speed control, A-B loop, beat nudge, subdivision, count-in — all from approved mockup
+- Same song navigation (prev/next + swipe full list)
+
+### UI Treatment
+- Both modes share the approved mockup layout (visual hero + waveform + 2-tier transport + bottom sheet)
+- Practice Mode: full mixer (click + track + stems) in bottom sheet
+- Live Mode: simplified bottom sheet (click volume only, subdivision, count-in, beat nudge)
+- Same visualisations in both modes
+
+TASKS FOR THIS SESSION:
+1. **Schema design** — What changes to `songs` and `setlists` tables? New columns: song category (enum/text), band_name on setlists, personal song ownership. Migration SQL draft.
+2. **Type updates** — Updated Song + Setlist TypeScript interfaces. SongCategory enum. Kotlin data classes.
+3. **Song browser/picker UX** — How does the user browse songs? Filter pills? Tabs? Search? Mockup the song selection flow for both live and practice entry points.
+4. **Setlist picker UX** — How does the user choose a setlist? Filter by band? Mockup.
+5. **Live mode entry flow** — Choose source (library/filtered/setlist) → speed safety check → enter visual player. Mockup.
+6. **Practice mode entry flow** — Choose source → enter visual player with tracks. Mockup.
+7. **Navigation between songs** — Prev/next + swipe-to-browse in both modes. How does the song list overlay work?
+8. **Shared screen architecture** — Should Live and Practice share one Compose screen with a mode flag, or be separate screens? Pros/cons.
+9. **Web implications** — Does the web song form need category field? Web stage prompter changes?
+10. **Mockups** — Create HTML mockups for: song browser, setlist picker, live entry, practice entry, in-player song list overlay.
+
+DO NOT write implementation code this session. This is planning + mockups only.
+Create mockups in mockups/ directory.
+Update SOT docs (STATUS.md, todo.md, SESSION_LOG.md, decisions_log.md) at end.
+```
+
+---
+
 ## Sprint S31A — Server-Side Beat Detection (madmom)
 
 ```
