@@ -35,7 +35,6 @@ const EVENT_TYPES: { value: EventType; label: string; icon: string }[] = [
 
 const STATUS_OPTIONS: { value: BookingStatus; label: string; icon: string }[] = [
   { value: 'enquiry', label: 'Enquiry', icon: '\u{1F4AC}' },
-  { value: 'pencilled', label: 'Pencilled', icon: '\u270E' },
   { value: 'confirmed', label: 'Confirmed', icon: '\u2713' },
 ];
 
@@ -112,7 +111,7 @@ export function BookingWizard({
 
   // Full booking specific
   const [, setGigSubtype] = useState<GigSubtype>('pub');
-  const [status, setStatus] = useState<BookingStatus>('pencilled');
+  const [status, setStatus] = useState<BookingStatus>('enquiry');
   const [eventType, setEventType] = useState<EventType>('wedding');
   const [depositAmount, setDepositAmount] = useState('');
   const [depositPaid, setDepositPaid] = useState(false);
@@ -316,8 +315,8 @@ export function BookingWizard({
   // ─── Pipeline tracker component ───────────────────────
 
   function PipelineTracker() {
-    const stages = ['Enquiry', 'Pencilled', 'Confirmed', 'Quote', 'Invoice', 'Paid'];
-    const statusIdx = status === 'enquiry' ? 0 : status === 'pencilled' ? 1 : status === 'confirmed' ? 2 : -1;
+    const stages = ['Enquiry', 'Confirmed', 'Quote', 'Invoice', 'Paid'];
+    const statusIdx = status === 'enquiry' || status === 'pencilled' ? 0 : status === 'confirmed' ? 1 : -1;
     return (
       <div className="bw-pipeline">
         {stages.map((s, i) => (

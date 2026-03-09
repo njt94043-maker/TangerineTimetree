@@ -94,7 +94,7 @@ export interface GigChangelogWithUser extends GigChangelogEntry {
 
 // Calendar day status for coloring
 export type DayStatus = 'available' | 'gig' | 'practice' | 'unavailable' | 'past';
-export type DayDisplay = 'available' | 'pub' | 'client' | 'pencilled' | 'practice' | 'unavailable' | 'past';
+export type DayDisplay = 'available' | 'pub' | 'client' | 'enquiry' | 'practice' | 'unavailable' | 'past';
 
 // Gig completeness check — flags gigs missing key details
 // Practice sessions only need venue + start_time
@@ -130,7 +130,7 @@ export function computeDayStatus(
   return 'available';
 }
 
-// New: Compute calendar day display with pub/client/pencilled distinction
+// Compute calendar day display with pub/client/enquiry distinction
 export function computeDayDisplay(
   date: string,
   today: string,
@@ -146,9 +146,9 @@ export function computeDayDisplay(
 
   // Client gigs take priority over pub gigs in display
   if (clientGigs.length > 0) {
-    // If any client gig is pencilled (and none confirmed), show as pencilled
+    // If no client gig is confirmed yet, show as enquiry
     const hasConfirmed = clientGigs.some(g => g.status === 'confirmed');
-    if (!hasConfirmed) return 'pencilled';
+    if (!hasConfirmed) return 'enquiry';
     return 'client';
   }
   if (pubGigs.length > 0) return 'pub';

@@ -16,11 +16,10 @@ interface GigHubProps {
   onGigUpdated: () => void;
 }
 
-const PIPELINE_STAGES = ['Enquiry', 'Pencilled', 'Confirmed', 'Quote', 'Invoice', 'Paid'] as const;
+const PIPELINE_STAGES = ['Enquiry', 'Confirmed', 'Quote', 'Invoice', 'Paid'] as const;
 
 const STATUS_OPTIONS: { value: BookingStatus; label: string }[] = [
   { value: 'enquiry', label: 'Enquiry' },
-  { value: 'pencilled', label: 'Pencilled' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
@@ -33,7 +32,7 @@ function formatDate(dateStr: string): string {
 }
 
 function statusIndex(s: BookingStatus): number {
-  return s === 'enquiry' ? 0 : s === 'pencilled' ? 1 : s === 'confirmed' ? 2 : -1;
+  return s === 'enquiry' || s === 'pencilled' ? 0 : s === 'confirmed' ? 1 : -1;
 }
 
 export function GigHub({

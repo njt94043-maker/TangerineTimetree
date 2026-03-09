@@ -207,7 +207,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                 <div className="gig-badges-row">
                   {isPractice && <span className="practice-badge">PRACTICE</span>}
                   {!isPractice && gig.status && gig.status !== 'confirmed' && (
-                    <span className={`badge ${gig.status === 'cancelled' ? 'badge-danger' : gig.status === 'pencilled' ? 'badge-tangerine' : 'badge-dim'}`}>{gig.status}</span>
+                    <span className={`badge ${gig.status === 'cancelled' ? 'badge-danger' : (gig.status === 'enquiry' || gig.status === 'pencilled') ? 'badge-tangerine' : 'badge-dim'}`}>{gig.status === 'pencilled' ? 'enquiry' : gig.status}</span>
                   )}
                   {!isPractice && isGigIncomplete(gig) && <span className="incomplete-badge">INCOMPLETE</span>}
                   {!isPractice && invoicedGigIds.has(gig.id) && <span className="invoiced-badge">INVOICED</span>}
