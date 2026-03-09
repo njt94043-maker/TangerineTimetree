@@ -1,0 +1,45 @@
+/* TGT Capture — Design tokens (matched from TGT web app) */
+@import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+  color-scheme: dark only;
+
+  /* ── Backgrounds ── near-black + gunmetal */
+  --bg-primary: #08080c;
+  --bg-card: #111118;
+  --bg-card-light: #16161f;
+  --bg-input: #0c0c12;
+
+  /* ── Accents ── */
+  --color-tangerine: #f39c12;
+  --color-tangerine-dark: #d4850b;
+  --color-green: #00e676;
+  --color-green-dark: #00c853;
+
+  /* ── Text ── */
+  --color-text: #d0d0dc;
+  --color-text-dim: #7a7a94;
+  --color-text-muted: #4a4a60;
+
+  /* ── Status ── */
+  --color-danger: #ff5252;
+  --color-success: #00e676;
+  --color-recording: #e74c3c;
+  --color-encoding: #3498db;
+
+  /* ── Neon glows ── */
+  --glow-green: 0 0 8px rgba(0,230,118,0.4), 0 0 20px rgba(0,230,118,0.15);
+  --glow-tangerine: 0 0 8px rgba(243,156,18,0.4), 0 0 20px rgba(243,156,18,0.15);
+  --glow-danger: 0 0 8px rgba(255,82,82,0.35), 0 0 20px rgba(255,82,82,0.12);
+
+  /* ── Typography ── */
+  --font-body: 'Karla', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* ── Depth ── */
+  --shadow-raised: 4px 4px 12px rgba(0,0,0,0.8), -1px -1px 1px rgba(40,40,60,0.12);
+  --shadow-inset: inset 2px 2px 6px rgba(0,0,0,0.7), inset -1px -1px 1px rgba(40,40,60,0.08);
+
+  --radius-card: 16px;
+  --radius-input: 12px;
+}

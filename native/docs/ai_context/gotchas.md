@@ -4,6 +4,31 @@
 
 ---
 
+## Capture Tool (WASAPI Loopback)
+
+### WASAPI doesn't fire callbacks during silence
+- When no system audio is playing, WASAPI loopback delivers zero callbacks. `duration` and `peak_level` stay at 0.0 on the server.
+- **Impact**: Server-polled duration is unreliable during recording. Use client-side wall clock timer instead. Server duration only used for final review display.
+- Armed mode relies on this: no callbacks = no audio = stays armed. Threshold check only fires when audio actually plays.
+
+### Writer thread required for glitch-free capture
+- `wave.writeframes()` in the audio callback thread gets preempted by OS disk I/O scheduling, causing audible micro-pauses in captured audio.
+- **Fix**: Audio callback pushes frames to a `queue.Queue`. Dedicated writer thread drains to WAV. Callback never touches disk.
+- Combined with `HIGH_PRIORITY_CLASS` (via `ctypes.windll.kernel32.SetPriorityClass`) and 40ms buffer (up from 20ms default).
+
+### Backend restart kills active capture session
+- If uvicorn reloads while a capture session is active (armed or recording), the in-memory `WasapiCapture` instance is destroyed. The WASAPI stream dies, partial WAV may be corrupt.
+- **Current state**: No graceful handling. User must restart recording manually.
+- **Future fix**: Detect orphaned WAVs on startup, offer recovery via sidepanel.
+
+### Armed mode pre-roll is ~200ms (10 frames × 20ms)
+- `PRE_ROLL_FRAMES = 10` with default 20ms frame size = ~200ms. This captures the audio just before the threshold trigger so the start of the recording isn't clipped.
+- If the first audio event is very brief (<200ms), the pre-roll may not capture the full onset. Acceptable for music capture.
+
+### Process priority must be restored on all exit paths
+- `_set_process_priority(high=True)` is called at `start()`. Must call `_set_process_priority(high=False)` in both `stop()` and `cleanup()`, and in the error path if stream open fails.
+- Forgetting to restore leaves the Python process at HIGH priority, which can starve other user processes.
+
 ## Cloud Run / madmom
 
 ### madmom 0.16.1 Python compatibility

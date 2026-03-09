@@ -1,0 +1,370 @@
+/* TGT Capture — Side Panel Styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #08080c;
+  font-family: 'Segoe UI', Karla, sans-serif;
+  color: #d0d0dc;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Offline banner */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #1a0a0a;
+  border-bottom: 1px solid #3a1515;
+  font-size: 12px;
+  color: #e74c3c;
+  flex-shrink: 0;
+}
+
+.offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e74c3c;
+  flex-shrink: 0;
+}
+
+/* ============ Control Frame ============ */
+.control-frame {
+  flex-shrink: 0;
+  padding: 8px 10px;
+  background: #0d0d14;
+  border-bottom: 1px solid #1a1a24;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Tab name + timer */
+.control-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tab-name {
+  font-size: 12px;
+  color: #8a8a9a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-name.recording {
+  color: #d0d0dc;
+}
+
+.timer {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: #f39c12;
+  text-shadow: 0 0 8px rgba(243, 156, 18, 0.25);
+  line-height: 1;
+}
+
+/* Control buttons group */
+.control-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Pause / resume button */
+.ctrl-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  color: #d0d0dc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  box-shadow:
+    2px 2px 4px rgba(0,0,0,0.5),
+    -1px -1px 3px rgba(255,255,255,0.04);
+}
+
+.ctrl-btn.pause {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: #08080c;
+}
+
+.ctrl-btn:hover {
+  filter: brightness(1.15);
+}
+
+/* Error bar */
+.error-bar {
+  padding: 6px 10px;
+  background: #1a0a0a;
+  border: 1px solid #3a1515;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #e74c3c;
+}
+
+/* Record button */
+.rec-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  box-shadow:
+    3px 3px 6px rgba(0,0,0,0.5),
+    -2px -2px 4px rgba(255,255,255,0.04);
+}
+
+.rec-btn.idle {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.rec-btn.recording {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  box-shadow:
+    0 0 12px rgba(231, 76, 60, 0.4),
+    3px 3px 6px rgba(0,0,0,0.5);
+}
+
+.rec-btn.armed {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  box-shadow:
+    0 0 12px rgba(243, 156, 18, 0.3),
+    3px 3px 6px rgba(0,0,0,0.5);
+  animation: pulse-armed 2s ease-in-out infinite;
+}
+
+.rec-btn.paused {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.rec-btn.review {
+  background: linear-gradient(135deg, #00e676, #00c853);
+  box-shadow:
+    0 0 10px rgba(0, 230, 118, 0.3),
+    3px 3px 6px rgba(0,0,0,0.5);
+}
+
+.rec-btn:hover {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+
+.rec-btn:active {
+  transform: scale(0.95);
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.4);
+}
+
+.rec-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* Record icon — circle when idle, square when recording */
+.rec-icon {
+  display: block;
+}
+
+.rec-btn.idle .rec-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+}
+
+.rec-btn.recording .rec-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: white;
+  animation: pulse-rec 1s infinite;
+}
+
+.rec-btn.paused .rec-icon {
+  width: 0;
+  height: 0;
+  border-radius: 0;
+  background: none;
+  border-left: 12px solid #08080c;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  margin-left: 3px;
+}
+
+.rec-btn.review .rec-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #08080c;
+  position: relative;
+}
+
+/* Checkmark via pseudo-element won't work on span, so just use a filled circle for save */
+
+.ctrl-btn.discard {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+.rec-btn.armed .rec-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #08080c;
+  border: 2px solid #08080c;
+  box-shadow: 0 0 0 3px rgba(8,8,12,0.5);
+}
+
+@keyframes pulse-armed {
+  0%, 100% { box-shadow: 0 0 12px rgba(243, 156, 18, 0.3), 3px 3px 6px rgba(0,0,0,0.5); }
+  50% { box-shadow: 0 0 20px rgba(243, 156, 18, 0.5), 3px 3px 6px rgba(0,0,0,0.5); }
+}
+
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Source row */
+.source-row {
+  gap: 8px;
+}
+
+.source-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.source-label {
+  font-size: 11px;
+  color: #8a8a9a;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+/* Level meter */
+.level-meter {
+  flex: 1;
+  height: 6px;
+  background: #111118;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.6);
+  min-width: 40px;
+}
+
+.level-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #00e676, #f39c12, #e74c3c);
+  transition: width 0.08s linear;
+}
+
+/* ============ Iframe ============ */
+#app-frame {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: #08080c;
+}
+
+/* ============ Fallback ============ */
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #08080c;
+  z-index: 10;
+}
+
+.fallback-inner {
+  text-align: center;
+  padding: 24px;
+}
+
+.fallback .logo {
+  background: linear-gradient(135deg, #f39c12, #00e676);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: 2px;
+  margin-bottom: 16px;
+}
+
+.fallback p {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.fallback .dim {
+  color: #8a8a9a;
+  font-size: 12px;
+}
+
+.fallback code {
+  display: block;
+  margin: 10px auto;
+  padding: 8px 14px;
+  background: #111118;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 12px;
+  color: #f39c12;
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.6), inset -1px -1px 3px rgba(255,255,255,0.03);
+}
+
+.btn-retry {
+  margin-top: 16px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #00e676, #00c853);
+  color: #08080c;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 3px 3px 6px rgba(0,0,0,0.5), -2px -2px 4px rgba(255,255,255,0.04);
+}
+
+.btn-retry:hover { filter: brightness(1.1); }
+.btn-retry:active { box-shadow: inset 2px 2px 4px rgba(0,0,0,0.4); }
+
+.hidden { display: none !important; }

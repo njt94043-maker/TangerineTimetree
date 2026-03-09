@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S37 complete — Web player polish done. Wake lock, waveform visualiser, player prefs UI, set complete/between-songs, beat glow polish all built. Android fully built (S35). Cloud Run pipeline live.
-- **What works**: Everything from S36 + wake lock (visibility re-acquire), waveform visualiser (canvas amplitude peaks on seek bar), player prefs settings UI (7 toggles in Settings, auto-save), set complete celebration screen + between-songs countdown transition (setlist mode), beat glow polish (pulse animation, multi-layer box-shadow, downbeat accent). Both tsc + vite build clean.
-- **Last session**: S37 — 1 session. Wake lock hook + player prefs toggles in Settings + set complete/between-songs overlay + waveform canvas + beat glow CSS animations + songComplete flag in useAudioEngine.
-- **Next action**: S38 — Visual testing on thegreentangerine.com, fix CSS issues, add more songs, Android player prefs UI, song import from capture.
+- **Phase**: S37 complete + Capture tool hardened. Web player polish done. Capture tool: armed mode, writer thread, priority boost, server launchers all built.
+- **What works**: Everything from S36/S37. Capture tool: armed mode (threshold detection + pre-roll buffer), writer thread (decoupled disk I/O from audio callback), HIGH_PRIORITY_CLASS process boost during recording, 40ms buffer for OS scheduling jitter tolerance, VBS/PS1 silent launchers, Chrome extension armed UI state with pulse animation.
+- **Last session**: Capture tool hardening — armed mode full-stack (wasapi_capture.py + routes_capture.py + sidepanel.js/css), writer thread + priority boost for glitch-free audio, timer fixes (client-side wall clock, pause tracking), server launchers (start-silent.vbs, start.ps1), band context docs (MEMORY.md + blueprint.md).
+- **Next action**: S38 — Visual testing on thegreentangerine.com, fix CSS issues, add more songs, Android player prefs UI, song import from capture. Capture: real-world audio quality testing, FFmpeg encoding diagnostics.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 3 songs (Cissy Strut, Sultans of Swing, War Pigs) fully processed.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -53,6 +53,7 @@
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-08)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (25 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1)
+- **Capture tool**: localhost:5174 (UI) + localhost:9123 (backend). Launch via start-silent.vbs or start.ps1. Backend auto-starts via vite plugin.
 
 ## Session Protocol (Quick Reference)
 **Start**: Read STATUS.md → IMPACT_MAP.md → todo.md → (deeper docs only if needed)
