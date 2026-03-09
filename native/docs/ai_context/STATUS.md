@@ -6,9 +6,9 @@
 ---
 
 ## Current State
-- **Phase**: S34 complete — Migration applied, types/queries updated, web + android forms updated.
+- **Phase**: S35 complete — Android Library refactored as launchpad, queue overlay, set complete, speed safety check.
 - **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Song categories + setlist types + player prefs columns live in Supabase.
-- **What's new (this session)**: S34 migration applied (songs.category, songs.owner_id, songs.drum_notation, setlists.setlist_type, setlists.band_name, user_settings 7x player_*_enabled). Shared TS types updated (SongCategory, SetlistType, PlayerPrefs). Shared queries (getSongsByCategory, getSongsByOwner, getSetlistsByType, getPlayerPrefs, updatePlayerPrefs). Android data classes + repos updated. Web SongForm: category selector + owner picker (personal) + drum notation (drummer). Web SetlistList/SetlistDetail: setlist_type selector + band_name field + dynamic PDF band name.
+- **What's new (this session)**: S35 Android Library + Player refactor. LibraryScreen: category filter pills (All/Covers/Originals/Personal), setlist type filters (All/TGT/Other), category tags on song cards, BPM on right, TRACK badge, inline Live/Practice launch buttons (replaced ModalBottomSheet). GigBooksApp: drawer simplified to Calendar/Library/Settings. LiveScreen: queue overlay with reorder + jump-to-song, set complete celebration screen, speed safety modal. AppViewModel: isSetComplete + restartSetlist + reorderSetlistSong + jumpToSong.
 - **Last session**: S33 planning — schema design, architecture decisions, 3 new mockups, migration SQL drafted, sprint roadmap S34-S37.
 - **Next action**: S35 — Android Library refactor + player refactor (Library as launchpad, shared player screen).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
@@ -16,11 +16,9 @@
 
 ## Next Session Plan — S35: Android Library + Player Refactor
 ### Implementation Tasks
-1. **Library as launchpad** — Songs/Setlists tabs, filter pills (category, member), launch into player
-2. **Shared player screen** — Single composable with mode flag (Live vs Practice)
-3. **Queue overlay** — Reorder mid-performance from song list overlay
-4. **Set complete screen** — End-of-setlist display
-5. **Speed safety check** — Modal confirmation for speed changes during live performance
+1. **TypeScript audio engine** � Web Audio API click scheduling, track playback, stem mixing, speed control (SoundTouchJS), A-B loop
+2. **Library screen redesign** � Same tabs/filters as Android (category pills, setlist type pills, inline launch buttons)
+3. **Player prefs integration** � Load/save per-user player_*_enabled toggles
 
 ### Architecture Decisions (from S33)
 - **Library as launchpad**: Drawer has 4 items (Calendar, Library, Settings, + web-only items). Live/Practice launch FROM Library, not as separate nav destinations.
@@ -77,7 +75,7 @@
 
 ## Compose Project Structure (android/)
 - **Theme**: GigColors, GigTypography, GigBooksTheme (dark, matches web)
-- **Navigation**: ModalNavigationDrawer, 6 screens (Calendar, Songs, Setlists, Live, Practice, Settings)
+- **Navigation**: ModalNavigationDrawer, 3 drawer items (Calendar, Library, Settings). Live/Practice launched from Library
 - **Screens done**: ALL — CalendarScreen, LibraryScreen (songs+setlists tabs), LiveScreen, PracticeScreen, SettingsScreen, LoginScreen
 - **Components**: NeuCard, NeuWell, MetronomeComponents (BeatDisplay, PlayStopButton, BeatDot animated)
 - **Data**: SupabaseProvider singleton, AuthRepository, SongRepository, SetlistRepository — wired to AppViewModel

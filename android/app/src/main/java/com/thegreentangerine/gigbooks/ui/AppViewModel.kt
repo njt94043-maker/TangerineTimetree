@@ -195,11 +195,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearSetlist() { activeSetlist = null }
 
+    // ── Set complete ────────────────────────────────────────────────────────
+    var isSetComplete by mutableStateOf(false); private set
+
+    fun dismissSetComplete() { isSetComplete = false }
+
+    fun restartSetlist() {
+        isSetComplete = false
+        activeSetlistIdx = 0
+        activeSetlist?.songs?.firstOrNull()?.songs?.let { selectSong(it) }
+    }
+
     fun nextSong() {
         val list = activeSetlist?.songs ?: return
         if (activeSetlistIdx < list.size - 1) {
             activeSetlistIdx++
             list[activeSetlistIdx].songs?.let { selectSong(it) }
+        } else {
+            isSetComplete = true
         }
     }
 
@@ -208,6 +221,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (activeSetlistIdx > 0) {
             activeSetlistIdx--
             list[activeSetlistIdx].songs?.let { selectSong(it) }
+        }
+    }
+
+    fun reorderSetlistSong(fromIdx: Int, toIdx: Int) {
+        val current = activeSetlist ?: return
+        if (fromIdx == toIdx) return
+        val songs = current.songs.toMutableList()
+        val moved = songs.removeAt(fromIdx)
+        songs.add(toIdx, moved)
+        activeSetlist = current.copy(songs = songs)
+        activeSetlistIdx = songs.indexOfFirst { it.songs?.id == selectedSong?.id }.coerceAtLeast(0)
+    }
+
+    fun jumpToSong(idx: Int) {
+        val list = activeSetlist?.songs ?: return
+        if (idx in list.indices) {
+            activeSetlistIdx = idx
+            list[idx].songs?.let { selectSong(it) }
         }
     }
 

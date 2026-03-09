@@ -3,6 +3,7 @@ package com.thegreentangerine.gigbooks.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -25,21 +26,17 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,11 +57,24 @@ import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
-import kotlinx.coroutines.launch
 
 enum class LibraryTab { Songs, Setlists }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Category filter for songs
+private enum class SongFilter(val label: String) {
+    All("All"),
+    Covers("Covers"),
+    Originals("Originals"),
+    Personal("Personal"),
+}
+
+// Setlist filter
+private enum class SetlistFilter(val label: String) {
+    All("All"),
+    Tange("TGT"),
+    OtherBand("Other"),
+}
+
 @Composable
 fun LibraryScreen(
     vm: AppViewModel,
@@ -72,11 +82,9 @@ fun LibraryScreen(
     onLaunchLive: (Song) -> Unit,
     onLaunchPractice: (Song) -> Unit,
     onLaunchSetlistLive: (SetlistWithSongs) -> Unit,
+    onLaunchSetlistPractice: (SetlistWithSongs) -> Unit,
 ) {
     var activeTab by rememberSaveable { mutableStateOf(LibraryTab.Songs) }
-    var sheetSong by remember { mutableStateOf<Song?>(null) }
-    val sheetState = rememberModalBottomSheetState()
-    val scope      = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().background(GigColors.background)) {
         LibraryHeader(activeTab = activeTab, onTabChange = { activeTab = it }, onMenuClick = onMenuClick)
@@ -85,26 +93,17 @@ fun LibraryScreen(
             vm.loadError != null -> ErrorState(vm.loadError!!)
             vm.isLoading         -> LoadingState()
             else -> when (activeTab) {
-                LibraryTab.Songs    -> SongsTab(songs = vm.songs, onSongTap = { sheetSong = it })
-                LibraryTab.Setlists -> SetlistsTab(setlists = vm.setlists, onLaunchLive = onLaunchSetlistLive)
+                LibraryTab.Songs -> SongsTab(
+                    songs = vm.songs,
+                    onLaunchLive = onLaunchLive,
+                    onLaunchPractice = onLaunchPractice,
+                )
+                LibraryTab.Setlists -> SetlistsTab(
+                    setlists = vm.setlists,
+                    onLaunchLive = onLaunchSetlistLive,
+                    onLaunchPractice = onLaunchSetlistPractice,
+                )
             }
-        }
-    }
-
-    // Song action sheet
-    val song = sheetSong
-    if (song != null) {
-        ModalBottomSheet(
-            onDismissRequest = { sheetSong = null },
-            sheetState       = sheetState,
-            containerColor   = GigColors.surface,
-            contentColor     = GigColors.text,
-        ) {
-            SongActionSheet(
-                song       = song,
-                onLive     = { scope.launch { sheetState.hide() }.invokeOnCompletion { sheetSong = null; onLaunchLive(song) } },
-                onPractice = { scope.launch { sheetState.hide() }.invokeOnCompletion { sheetSong = null; onLaunchPractice(song) } },
-            )
         }
     }
 }
@@ -174,18 +173,89 @@ private fun LibraryTabBar(activeTab: LibraryTab, onTabChange: (LibraryTab) -> Un
     HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.2f))
 }
 
+// ─── Filter Pills ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun <T> FilterPillRow(
+    filters: List<T>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    label: (T) -> String,
+    accent: Color,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        filters.forEach { filter ->
+            val isSelected = filter == selected
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (isSelected) accent.copy(alpha = 0.15f) else Color.Transparent,
+                        RoundedCornerShape(16.dp),
+                    )
+                    .border(
+                        0.5.dp,
+                        if (isSelected) accent.copy(alpha = 0.5f) else GigColors.textMuted.copy(alpha = 0.25f),
+                        RoundedCornerShape(16.dp),
+                    )
+                    .clickable { onSelect(filter) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = label(filter),
+                    fontFamily = Karla,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 12.sp,
+                    style = if (isSelected) TextStyle(
+                        color = accent,
+                        shadow = Shadow(accent.copy(0.4f), Offset.Zero, 6f),
+                    ) else TextStyle(color = GigColors.textDim),
+                )
+            }
+        }
+    }
+}
+
 // ─── Songs Tab ───────────────────────────────────────────────────────────────
 
 @Composable
-private fun SongsTab(songs: List<Song>, onSongTap: (Song) -> Unit) {
+private fun SongsTab(
+    songs: List<Song>,
+    onLaunchLive: (Song) -> Unit,
+    onLaunchPractice: (Song) -> Unit,
+) {
     var query by rememberSaveable { mutableStateOf("") }
-    val filtered = if (query.isBlank()) songs
-    else songs.filter { it.name.contains(query, ignoreCase = true) || it.artist.contains(query, ignoreCase = true) }
+    var filter by rememberSaveable { mutableStateOf(SongFilter.All) }
+    var expandedSongId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val filtered = songs.filter { song ->
+        val matchesFilter = when (filter) {
+            SongFilter.All -> true
+            SongFilter.Covers -> song.category == "tange_cover"
+            SongFilter.Originals -> song.category == "tange_original"
+            SongFilter.Personal -> song.category == "personal"
+        }
+        val matchesQuery = if (query.isBlank()) true
+        else song.name.contains(query, ignoreCase = true) || song.artist.contains(query, ignoreCase = true)
+        matchesFilter && matchesQuery
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(query = query, onQueryChange = { query = it }, placeholder = "Search songs…")
+        FilterPillRow(
+            filters = SongFilter.entries,
+            selected = filter,
+            onSelect = { filter = it },
+            label = { it.label },
+            accent = GigColors.teal,
+        )
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item { Spacer(Modifier.height(4.dp)) }
             if (filtered.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -194,7 +264,13 @@ private fun SongsTab(songs: List<Song>, onSongTap: (Song) -> Unit) {
                 }
             } else {
                 items(filtered, key = { it.id }) { song ->
-                    SongCard(song = song, onClick = { onSongTap(song) })
+                    SongCard(
+                        song = song,
+                        expanded = expandedSongId == song.id,
+                        onClick = { expandedSongId = if (expandedSongId == song.id) null else song.id },
+                        onLive = { onLaunchLive(song) },
+                        onPractice = { onLaunchPractice(song) },
+                    )
                 }
             }
             item { Spacer(Modifier.height(16.dp)) }
@@ -203,7 +279,13 @@ private fun SongsTab(songs: List<Song>, onSongTap: (Song) -> Unit) {
 }
 
 @Composable
-private fun SongCard(song: Song, onClick: () -> Unit) {
+private fun SongCard(
+    song: Song,
+    expanded: Boolean,
+    onClick: () -> Unit,
+    onLive: () -> Unit,
+    onPractice: () -> Unit,
+) {
     NeuCard(modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onClick)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
@@ -212,42 +294,143 @@ private fun SongCard(song: Song, onClick: () -> Unit) {
                     Text(song.artist, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
                 }
                 Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MetaBadge("${song.bpm.toInt()} BPM", GigColors.orange)
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    CategoryTag(song.category)
                     if (song.key.isNotBlank()) MetaBadge(song.key, GigColors.teal)
                     MetaBadge(song.timeSig, GigColors.textMuted)
                     song.durationFormatted?.let { MetaBadge(it, GigColors.textMuted) }
+                    if (song.hasAudio) MetaBadge("TRACK", GigColors.green)
                 }
             }
-            if (song.hasAudio) {
-                Spacer(Modifier.width(8.dp))
-                Icon(Icons.Default.Headphones, contentDescription = "Has audio", tint = GigColors.green, modifier = Modifier.size(18.dp))
+            // BPM on right side
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${song.bpm.toInt()}",
+                    fontFamily = JetBrainsMono, fontSize = 20.sp,
+                    style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.3f), Offset.Zero, 8f)),
+                )
+                Text("BPM", fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textMuted)
             }
         }
+
+        // Inline launch buttons (shown on tap)
+        if (expanded) {
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LaunchButton(
+                    icon = Icons.Default.GraphicEq,
+                    label = "Live",
+                    color = GigColors.green,
+                    modifier = Modifier.weight(1f),
+                    onClick = onLive,
+                )
+                LaunchButton(
+                    icon = Icons.Default.Headphones,
+                    label = "Practice",
+                    color = GigColors.purple,
+                    modifier = Modifier.weight(1f),
+                    onClick = onPractice,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryTag(category: String) {
+    val (label, color) = when (category) {
+        "tange_cover"    -> "Cover" to GigColors.teal
+        "tange_original" -> "Original" to GigColors.orange
+        "personal"       -> "Personal" to GigColors.purple
+        else             -> "Song" to GigColors.textMuted
+    }
+    MetaBadge(label, color)
+}
+
+@Composable
+private fun LaunchButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    color: Color,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = modifier
+            .height(40.dp)
+            .background(color.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+            .border(0.5.dp, color.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(
+            label, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
+            style = TextStyle(color = color, shadow = Shadow(color.copy(0.35f), Offset.Zero, 6f)),
+        )
     }
 }
 
 // ─── Setlists Tab ────────────────────────────────────────────────────────────
 
 @Composable
-private fun SetlistsTab(setlists: List<SetlistWithSongs>, onLaunchLive: (SetlistWithSongs) -> Unit) {
-    if (setlists.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No setlists yet", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+private fun SetlistsTab(
+    setlists: List<SetlistWithSongs>,
+    onLaunchLive: (SetlistWithSongs) -> Unit,
+    onLaunchPractice: (SetlistWithSongs) -> Unit,
+) {
+    var filter by rememberSaveable { mutableStateOf(SetlistFilter.All) }
+
+    val filtered = setlists.filter { s ->
+        when (filter) {
+            SetlistFilter.All -> true
+            SetlistFilter.Tange -> s.setlist.isTange
+            SetlistFilter.OtherBand -> s.setlist.isOtherBand
         }
-        return
     }
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        item { Spacer(Modifier.height(12.dp)) }
-        items(setlists, key = { it.setlist.id }) { s ->
-            SetlistCard(setlistWithSongs = s, onLaunchLive = { onLaunchLive(s) })
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        FilterPillRow(
+            filters = SetlistFilter.entries,
+            selected = filter,
+            onSelect = { filter = it },
+            label = { it.label },
+            accent = GigColors.orange,
+        )
+
+        if (filtered.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No setlists found", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(filtered, key = { it.setlist.id }) { s ->
+                    SetlistCard(
+                        setlistWithSongs = s,
+                        onLaunchLive = { onLaunchLive(s) },
+                        onLaunchPractice = { onLaunchPractice(s) },
+                    )
+                }
+                item { Spacer(Modifier.height(16.dp)) }
+            }
         }
-        item { Spacer(Modifier.height(16.dp)) }
     }
 }
 
 @Composable
-private fun SetlistCard(setlistWithSongs: SetlistWithSongs, onLaunchLive: () -> Unit) {
+private fun SetlistCard(
+    setlistWithSongs: SetlistWithSongs,
+    onLaunchLive: () -> Unit,
+    onLaunchPractice: () -> Unit,
+) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val setlist = setlistWithSongs.setlist
 
@@ -258,13 +441,16 @@ private fun SetlistCard(setlistWithSongs: SetlistWithSongs, onLaunchLive: () -> 
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(setlist.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MetaBadge("${setlistWithSongs.songCount} songs", GigColors.orange)
+                Spacer(Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    // Band tag
+                    MetaBadge(
+                        if (setlist.isTange) "TGT" else setlist.bandName,
+                        if (setlist.isTange) GigColors.orange else GigColors.purple,
+                    )
+                    MetaBadge("${setlistWithSongs.songCount} songs", GigColors.textDim)
                     setlistWithSongs.totalDurationFormatted?.let { MetaBadge(it, GigColors.textMuted) }
                 }
-            }
-            IconButton(onClick = onLaunchLive, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.PlayCircle, contentDescription = "Launch Live", tint = GigColors.green, modifier = Modifier.size(22.dp))
             }
             Icon(
                 if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
@@ -272,94 +458,65 @@ private fun SetlistCard(setlistWithSongs: SetlistWithSongs, onLaunchLive: () -> 
             )
         }
 
-        if (expanded && setlistWithSongs.songs.isNotEmpty()) {
+        if (expanded) {
             Spacer(Modifier.height(10.dp))
             HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
             Spacer(Modifier.height(6.dp))
-            setlistWithSongs.songs.forEachIndexed { index, row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("${index + 1}", fontFamily = JetBrainsMono, fontSize = 11.sp,
-                        color = GigColors.textMuted, modifier = Modifier.width(20.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(row.songs?.name ?: "", fontFamily = Karla, fontWeight = FontWeight.Medium,
-                            fontSize = 13.sp, color = GigColors.text)
-                        val artist = row.songs?.artist ?: ""
-                        if (artist.isNotBlank()) Text(artist, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim)
-                    }
-                    Text("${row.songs?.bpm?.toInt() ?: ""}", fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.orange)
-                    if (row.songs?.hasAudio == true) {
-                        Spacer(Modifier.width(6.dp))
-                        Icon(Icons.Default.Headphones, contentDescription = null, tint = GigColors.green, modifier = Modifier.size(14.dp))
+
+            // Song preview list
+            if (setlistWithSongs.songs.isNotEmpty()) {
+                setlistWithSongs.songs.forEachIndexed { index, row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "${index + 1}", fontFamily = JetBrainsMono, fontSize = 11.sp,
+                            color = GigColors.textMuted, modifier = Modifier.width(20.dp),
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                row.songs?.name ?: "", fontFamily = Karla, fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp, color = GigColors.text,
+                            )
+                            val artist = row.songs?.artist ?: ""
+                            if (artist.isNotBlank()) Text(artist, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim)
+                        }
+                        Text(
+                            "${row.songs?.bpm?.toInt() ?: ""}", fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.orange,
+                        )
+                        if (row.songs?.hasAudio == true) {
+                            Spacer(Modifier.width(6.dp))
+                            Icon(Icons.Default.Headphones, contentDescription = null, tint = GigColors.green, modifier = Modifier.size(14.dp))
+                        }
                     }
                 }
             }
-        }
-    }
-}
 
-// ─── Song action sheet ────────────────────────────────────────────────────────
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+            Spacer(Modifier.height(10.dp))
 
-@Composable
-private fun SongActionSheet(song: Song, onLive: () -> Unit, onPractice: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GigColors.surface)
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .navigationBarsPadding(),
-    ) {
-        Text(song.name, fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = GigColors.text)
-        if (song.artist.isNotBlank()) {
-            Text(song.artist, fontFamily = Karla, fontSize = 13.sp, color = GigColors.textDim)
-        }
-        Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            MetaBadge("${song.bpm.toInt()} BPM", GigColors.orange)
-            if (song.key.isNotBlank()) MetaBadge(song.key, GigColors.teal)
-            MetaBadge(song.timeSig, GigColors.textMuted)
-        }
-        Spacer(Modifier.height(16.dp))
-        HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
-        Spacer(Modifier.height(12.dp))
-
-        SheetAction(
-            icon = Icons.Default.GraphicEq, label = "Launch in Live Mode",
-            sub = "Click track · setlist view",
-            color = GigColors.green, onClick = onLive,
-        )
-        Spacer(Modifier.height(8.dp))
-        SheetAction(
-            icon = Icons.Default.Headphones, label = "Open in Practice",
-            sub = "Speed · A-B loop · beat nudge",
-            color = GigColors.purple, onClick = onPractice,
-        )
-        Spacer(Modifier.height(20.dp))
-    }
-}
-
-@Composable
-private fun SheetAction(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String, sub: String, color: Color, onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(color.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
-            .border(0.5.dp, color.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(label, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                style = TextStyle(color = color, shadow = Shadow(color.copy(0.35f), Offset.Zero, 6f)))
-            Text(sub, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted)
+            // Launch buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LaunchButton(
+                    icon = Icons.Default.GraphicEq,
+                    label = "Live",
+                    color = GigColors.green,
+                    modifier = Modifier.weight(1f),
+                    onClick = onLaunchLive,
+                )
+                LaunchButton(
+                    icon = Icons.Default.Headphones,
+                    label = "Practice",
+                    color = GigColors.purple,
+                    modifier = Modifier.weight(1f),
+                    onClick = onLaunchPractice,
+                )
+            }
         }
     }
 }

@@ -18,8 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
@@ -63,12 +61,13 @@ import kotlinx.coroutines.launch
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     data object Calendar : Screen("calendar", "Calendar",         Icons.Default.CalendarMonth)
     data object Library  : Screen("library",  "Songs & Setlists", Icons.AutoMirrored.Filled.QueueMusic)
-    data object Live     : Screen("live",     "Live Mode",        Icons.Default.GraphicEq)
-    data object Practice : Screen("practice", "Practice",         Icons.Default.Headphones)
+    data object Live     : Screen("live",     "Live Mode",        Icons.Default.CalendarMonth)  // Not in drawer
+    data object Practice : Screen("practice", "Practice",         Icons.Default.CalendarMonth)  // Not in drawer
     data object Settings : Screen("settings", "Settings",         Icons.Default.Settings)
 }
 
-private val performanceScreens = listOf(Screen.Live, Screen.Practice)
+// Only these appear in the drawer
+private val drawerScreens = listOf(Screen.Calendar, Screen.Library, Screen.Settings)
 
 @Composable
 fun GigBooksApp() {
@@ -102,24 +101,20 @@ fun GigBooksApp() {
                 HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.25f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(8.dp))
 
+                // Calendar
                 DrawerNavItem(Screen.Calendar, currentRoute == Screen.Calendar.route, GigColors.orange) { navigate(Screen.Calendar.route) }
 
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(4.dp))
 
+                // Library (launchpad for Live/Practice)
                 DrawerSectionLabel("LIBRARY")
-                DrawerNavItem(Screen.Library, currentRoute == Screen.Library.route, GigColors.teal) { navigate(Screen.Library.route) }
-
-                Spacer(Modifier.height(4.dp))
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
-                Spacer(Modifier.height(4.dp))
-
-                DrawerSectionLabel("PERFORMANCE")
-                performanceScreens.forEach { screen ->
-                    val accent = if (screen == Screen.Live) GigColors.green else GigColors.purple
-                    DrawerNavItem(screen, currentRoute == screen.route, accent) { navigate(screen.route) }
-                }
+                DrawerNavItem(
+                    Screen.Library,
+                    currentRoute in listOf(Screen.Library.route, Screen.Live.route, Screen.Practice.route),
+                    GigColors.teal,
+                ) { navigate(Screen.Library.route) }
 
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
@@ -151,6 +146,10 @@ fun GigBooksApp() {
                     onLaunchSetlistLive = { setlist ->
                         vm.selectSetlist(setlist)
                         navigate(Screen.Live.route)
+                    },
+                    onLaunchSetlistPractice = { setlist ->
+                        vm.selectSetlist(setlist)
+                        navigate(Screen.Practice.route)
                     },
                 )
             }
