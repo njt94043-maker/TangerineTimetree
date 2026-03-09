@@ -8,7 +8,7 @@
 ## Current State
 - **Phase**: S35 complete — Android fully built (Library, Live, Practice, Calendar, Settings). Web fully shipped (invoicing, quotes, calendar, stage prompter, public site). Cloud Run pipeline live.
 - **What works**: Full pipeline verified for all 3 songs. Cloud Run processing (madmom beats + Demucs stems). Web + Android builds clean. Song categories + setlist types + player prefs columns live in Supabase. Android Library: filter pills, inline launch, queue overlay, set complete, speed safety. 25 Supabase tables, 4 storage buckets, 28 PDF templates.
-- **Last session**: S35 — Android Library + Player refactor (filter pills, queue overlay, set complete, speed safety modal).
+- **Last session**: Full codebase audit + SOT doc overhaul. Created IMPACT_MAP.md, updated schema_map.md, gotchas.md, pain_journal.md, MEMORY.md. Identified 6 open issues (see IMPACT_MAP.md audit findings table).
 - **Next action**: S36 — Web audio engine (TypeScript Web Audio API + SoundTouchJS). Then S37 — Web player UI.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 3 songs (Cissy Strut, Sultans of Swing, War Pigs) fully processed.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
@@ -62,5 +62,5 @@
 - **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1)
 
 ## Session Protocol (Quick Reference)
-**Start**: Read STATUS.md → todo.md → (deeper docs only if needed)
-**End**: Update STATUS.md → todo.md → SESSION_LOG.md → gotchas.md (if learned) → decisions_log.md (if decided)
+**Start**: Read STATUS.md → IMPACT_MAP.md → todo.md → (deeper docs only if needed)
+**End**: Update STATUS.md → todo.md → SESSION_LOG.md → gotchas.md (if learned) → decisions_log.md (if decided) → IMPACT_MAP.md (if coupling changed) → schema_map.md (if schema changed)
