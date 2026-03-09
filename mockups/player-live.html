@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=390, initial-scale=1.0">
-<title>Live Mode Player</title>
+<title>Live Mode Player — Dynamic Layout</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -23,8 +23,7 @@
   .header .song-name { font-size: 16px; font-weight: 700; color: #fff; }
   .header .song-artist { font-size: 11px; color: #666; }
   .header .song-pos {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #333;
-    margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #333; margin-top: 1px;
   }
   .header .bpm-block { text-align: right; }
   .header .bpm-value {
@@ -39,12 +38,38 @@
     background: rgba(0,230,118,0.05);
   }
 
-  /* ── Visual Area ────────────────────────────── */
-  .visual-area {
-    position: relative; height: 180px; margin: 6px 10px; flex-shrink: 0;
-    border-radius: 14px; background: #08080e; border: 1px solid #111118;
-    overflow: hidden;
+  /* ── Toggle Row ────────────────────────────── */
+  .toggle-row {
+    display: flex; gap: 3px; padding: 4px 10px 6px; flex-shrink: 0;
+    justify-content: center;
   }
+  .toggle-btn {
+    padding: 4px 10px; border-radius: 10px; border: 1px solid #1a1a2e;
+    background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; transition: all 0.15s;
+    user-select: none;
+  }
+  .toggle-btn.active-vis { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+  .toggle-btn.active-chords { color: #f39c12; border-color: rgba(243,156,18,0.3); background: rgba(243,156,18,0.06); }
+  .toggle-btn.active-lyrics { color: #ccc; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); }
+  .toggle-btn.active-notes { color: #00bcd4; border-color: rgba(0,188,212,0.3); background: rgba(0,188,212,0.06); }
+  .toggle-btn.active-drums { color: #e040fb; border-color: rgba(224,64,251,0.3); background: rgba(224,64,251,0.06); }
+
+  /* ── Dynamic Content Area ──────────────────── */
+  .content-area {
+    flex: 1; display: flex; flex-direction: column; gap: 6px;
+    margin: 0 10px; overflow: hidden; min-height: 0;
+  }
+
+  /* Visual hero — flex-grows when text panels are off */
+  .visual-area {
+    position: relative; border-radius: 14px;
+    background: #08080e; border: 1px solid #111118;
+    overflow: hidden; min-height: 80px;
+    flex: 1; /* grows to fill available space */
+    transition: flex 0.3s ease;
+  }
+  .visual-area.hidden { display: none; }
 
   .beat-glow {
     position: absolute; inset: 0; border-radius: 14px;
@@ -69,53 +94,84 @@
     position: absolute; top: 10px; left: 12px; z-index: 30;
     display: flex; gap: 4px;
   }
-  .vis-btn {
+  .vis-mode-btn {
     padding: 3px 10px; border-radius: 10px; border: 1px solid #1a1a2e;
     background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
   }
-  .vis-btn.active { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+  .vis-mode-btn.active { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
 
-  /* ── Lyrics / Chords Area ──────────────────── */
-  .lyrics-area {
-    flex: 1; margin: 6px 10px; border-radius: 14px;
-    background: #08080e; border: 1px solid #111118;
-    overflow-y: auto; padding: 16px 18px;
+  /* Text reference panel — flex-grows when visuals are off */
+  .text-panel {
+    border-radius: 14px; background: #08080e; border: 1px solid #111118;
+    overflow-y: auto; padding: 14px 16px;
     scrollbar-width: thin; scrollbar-color: #1a1a28 transparent;
-    position: relative;
+    flex: 1; /* grows to fill available space */
+    min-height: 60px;
+    transition: flex 0.3s ease;
   }
-  .lyrics-area .section-label {
+  .text-panel.hidden { display: none; }
+
+  /* When both visible, split the space */
+  .content-area.both-visible .visual-area { flex: 0.6; }
+  .content-area.both-visible .text-panel { flex: 0.4; }
+
+  .text-section { margin-bottom: 12px; }
+  .text-section:last-child { margin-bottom: 0; }
+  .text-section.hidden { display: none; }
+
+  .section-label {
     font-family: 'JetBrains Mono', monospace; font-size: 9px;
-    color: #00e676; text-transform: uppercase; letter-spacing: 2px;
+    text-transform: uppercase; letter-spacing: 2px;
     margin-bottom: 6px; opacity: 0.5;
   }
-  .lyrics-area .chord-line {
-    font-family: 'JetBrains Mono', monospace; font-size: 13px;
-    color: #f39c12; margin-bottom: 0; line-height: 1.6; white-space: pre;
-  }
-  .lyrics-area .lyric-line {
-    font-size: 15px; color: #ccc; margin-bottom: 12px; line-height: 1.5;
-  }
-  .lyrics-area .lyric-line.current {
-    color: #fff; font-weight: 700;
-  }
+  .section-label.chords-label { color: #f39c12; }
+  .section-label.lyrics-label { color: #999; }
+  .section-label.notes-label { color: #00bcd4; }
+  .section-label.drums-label { color: #e040fb; }
 
-  .lyrics-toggle {
-    position: absolute; top: 8px; right: 8px; z-index: 5;
-    display: flex; gap: 3px;
+  .chord-line {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: #f39c12; line-height: 1.8; white-space: pre;
   }
-  .lyrics-toggle-btn {
-    padding: 3px 8px; border-radius: 8px; border: 1px solid #1a1a2e;
-    background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
-    font-family: 'JetBrains Mono', monospace;
+  .lyric-line {
+    font-size: 15px; color: #ccc; line-height: 1.6; margin-bottom: 4px;
   }
-  .lyrics-toggle-btn.active { color: #f39c12; border-color: rgba(243,156,18,0.3); background: rgba(243,156,18,0.06); }
-  .lyrics-toggle-btn.lyrics-active { color: #ccc; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); }
+  .notes-text {
+    font-size: 13px; color: #00bcd4; line-height: 1.5;
+    font-style: italic;
+  }
+  .drum-line {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: #e040fb; line-height: 1.8; white-space: pre;
+  }
+  .drum-section-name {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: rgba(224,64,251,0.4); text-transform: uppercase;
+    letter-spacing: 1px; margin: 8px 0 2px;
+  }
 
   /* ── Transport ─────────────────────────────── */
   .transport-wrapper {
     flex-shrink: 0; padding: 6px 12px 6px;
   }
+  .nav-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px 6px;
+  }
+  .nav-btn {
+    padding: 6px 16px; border-radius: 12px; border: 1px solid #1e1e30;
+    background: #0e0e18; color: #555; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .nav-btn .arrow { font-size: 14px; }
+  .nav-song-name { font-size: 10px; color: #333; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .queue-btn {
+    padding: 6px 14px; border-radius: 12px; border: 1px solid #1e1e30;
+    background: #0e0e18; color: #444; font-size: 11px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
   .transport-bottom {
     display: flex; align-items: center; justify-content: center;
     gap: 10px; padding: 2px 0;
@@ -135,26 +191,8 @@
     background: #141420; color: #bb86fc; border: 1px solid rgba(187,134,252,0.25);
     width: auto; padding: 0 14px; border-radius: 20px; height: 36px;
   }
-  .transport-btn.prev-next { font-size: 12px; }
 
-  .nav-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 8px 0;
-  }
-  .nav-btn {
-    padding: 6px 16px; border-radius: 12px; border: 1px solid #1e1e30;
-    background: #0e0e18; color: #555; font-size: 12px; font-weight: 600;
-    cursor: pointer; display: flex; align-items: center; gap: 6px;
-  }
-  .nav-btn .arrow { font-size: 14px; }
-  .nav-song-name { font-size: 10px; color: #333; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .queue-btn {
-    padding: 6px 14px; border-radius: 12px; border: 1px solid #1e1e30;
-    background: #0e0e18; color: #444; font-size: 11px; cursor: pointer;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* ── Bottom Sheet (simplified for live) ─────── */
+  /* ── Bottom Sheet ───────────────────────────── */
   .drag-handle {
     flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     padding: 4px 0; cursor: pointer;
@@ -170,30 +208,17 @@
   .bottom-sheet.open { max-height: 300px; }
   .bottom-sheet-inner { padding: 6px 14px 16px; }
 
-  .section-title {
+  .bs-section-title {
     font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 2px;
     margin: 10px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #151520;
   }
-  .section-title:first-child { margin-top: 2px; }
+  .bs-section-title:first-child { margin-top: 2px; }
 
-  /* Single fader for click volume */
-  .click-vol-row {
-    display: flex; align-items: center; gap: 12px; padding: 4px 0;
-  }
-  .click-vol-label {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #bb86fc;
-    min-width: 40px;
-  }
-  .click-vol-bar {
-    flex: 1; height: 6px; background: #1a1a28; border-radius: 3px; position: relative;
-  }
-  .click-vol-fill {
-    height: 100%; border-radius: 3px; width: 33%;
-    background: linear-gradient(to right, rgba(187,134,252,0.3), #bb86fc);
-  }
-  .click-vol-val {
-    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #555; min-width: 24px; text-align: right;
-  }
+  .click-vol-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; }
+  .click-vol-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #bb86fc; min-width: 40px; }
+  .click-vol-bar { flex: 1; height: 6px; background: #1a1a28; border-radius: 3px; position: relative; }
+  .click-vol-fill { height: 100%; border-radius: 3px; width: 33%; background: linear-gradient(to right, rgba(187,134,252,0.3), #bb86fc); }
+  .click-vol-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #555; min-width: 24px; text-align: right; }
 
   .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .setting-label { font-size: 12px; color: #888; }
@@ -221,65 +246,65 @@
   .modal .icon { font-size: 36px; margin-bottom: 12px; }
   .modal .title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px; }
   .modal .desc { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 20px; }
-  .modal .speed-compare {
-    display: flex; justify-content: center; gap: 24px; margin-bottom: 20px;
-  }
-  .speed-box {
-    text-align: center;
-  }
+  .modal .speed-compare { display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; }
+  .speed-box { text-align: center; }
   .speed-box .label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-  .speed-box .value {
-    font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700;
-  }
+  .speed-box .value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; }
   .speed-box .value.analysis { color: #00e676; }
   .speed-box .value.current { color: #f39c12; }
   .speed-box .unit { font-size: 9px; color: #444; }
   .speed-arrow { font-size: 20px; color: #333; align-self: center; }
-
   .modal-actions { display: flex; flex-direction: column; gap: 8px; }
-  .modal-btn {
-    padding: 12px; border-radius: 12px; border: none; font-family: 'Karla', sans-serif;
-    font-size: 14px; font-weight: 700; cursor: pointer;
+  .modal-btn { padding: 12px; border-radius: 12px; border: none; font-family: 'Karla', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .modal-btn.primary { background: linear-gradient(135deg, #00e676, #00c853); color: #000; box-shadow: 0 0 16px rgba(0,230,118,0.2); }
+  .modal-btn.secondary { background: #1a1a28; color: #f39c12; border: 1px solid rgba(243,156,18,0.2); }
+  .modal-btn.tertiary { background: transparent; color: #555; font-size: 12px; font-weight: 400; }
+
+  /* ── Preset selector in mockup ─────────────── */
+  .mockup-presets {
+    position: fixed; top: 0; right: 0; z-index: 200;
+    display: flex; flex-direction: column; gap: 2px; padding: 4px;
+    background: rgba(0,0,0,0.9); border-radius: 0 0 0 8px;
   }
-  .modal-btn.primary {
-    background: linear-gradient(135deg, #00e676, #00c853); color: #000;
-    box-shadow: 0 0 16px rgba(0,230,118,0.2);
+  .preset-btn {
+    padding: 3px 8px; border-radius: 6px; border: 1px solid #222;
+    background: #111; color: #666; font-size: 8px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace; text-align: left;
   }
-  .modal-btn.secondary {
-    background: #1a1a28; color: #f39c12; border: 1px solid rgba(243,156,18,0.2);
-  }
-  .modal-btn.tertiary {
-    background: transparent; color: #555; font-size: 12px; font-weight: 400;
-  }
+  .preset-btn:hover { color: #00e676; border-color: #333; }
 </style>
 </head>
 <body>
 
-<!-- Speed Safety Check Modal -->
-<div class="modal-overlay visible" id="safetyModal">
-  <div class="modal">
+<!-- Speed Safety Check Modal (click to dismiss) -->
+<div class="modal-overlay" id="safetyModal" onclick="this.classList.remove('visible')">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="icon">⚠️</div>
     <div class="title">Speed Mismatch Detected</div>
     <div class="desc">Your playback speed differs from the analysed BPM. Did you forget to reset after practice?</div>
     <div class="speed-compare">
-      <div class="speed-box">
-        <div class="label">Analysis</div>
-        <div class="value analysis">91</div>
-        <div class="unit">BPM (100%)</div>
-      </div>
+      <div class="speed-box"><div class="label">Analysis</div><div class="value analysis">91</div><div class="unit">BPM (100%)</div></div>
       <div class="speed-arrow">→</div>
-      <div class="speed-box">
-        <div class="label">Your Speed</div>
-        <div class="value current">82</div>
-        <div class="unit">BPM (90%)</div>
-      </div>
+      <div class="speed-box"><div class="label">Your Speed</div><div class="value current">82</div><div class="unit">BPM (90%)</div></div>
     </div>
     <div class="modal-actions">
-      <button class="modal-btn primary" onclick="dismissModal()">Reset to 91 BPM (100%)</button>
-      <button class="modal-btn secondary" onclick="dismissModal()">Keep 82 BPM (90%)</button>
-      <button class="modal-btn tertiary" onclick="dismissModal()">Cancel</button>
+      <button class="modal-btn primary" onclick="document.getElementById('safetyModal').classList.remove('visible')">Reset to 91 BPM (100%)</button>
+      <button class="modal-btn secondary" onclick="document.getElementById('safetyModal').classList.remove('visible')">Keep 82 BPM (90%)</button>
+      <button class="modal-btn tertiary" onclick="document.getElementById('safetyModal').classList.remove('visible')">Cancel</button>
     </div>
   </div>
+</div>
+
+<!-- Mockup quick-presets -->
+<div class="mockup-presets">
+  <button class="preset-btn" onclick="applyPreset('all')">All On</button>
+  <button class="preset-btn" onclick="applyPreset('vis-only')">Vis Only</button>
+  <button class="preset-btn" onclick="applyPreset('text-only')">Text Only</button>
+  <button class="preset-btn" onclick="applyPreset('chords-lyrics')">Chords+Lyrics</button>
+  <button class="preset-btn" onclick="applyPreset('drums-only')">Drums Only</button>
+  <button class="preset-btn" onclick="applyPreset('nathan')">Nathan (Vis+Drums)</button>
+  <button class="preset-btn" onclick="applyPreset('neil')">Neil (Chords+Notes)</button>
+  <button class="preset-btn" onclick="document.getElementById('safetyModal').classList.add('visible')">Speed Check</button>
 </div>
 
 <!-- Header -->
@@ -297,58 +322,82 @@
   </div>
 </div>
 
-<!-- Visual Area -->
-<div class="visual-area" id="visualArea">
-  <div class="beat-glow" id="beatGlow"></div>
-  <div class="screen-flash" id="screenFlash"></div>
-  <div class="vis-switcher">
-    <button class="vis-btn active" onclick="setVis('spectrum')">Spectrum</button>
-    <button class="vis-btn" onclick="setVis('rings')">Rings</button>
-    <button class="vis-btn" onclick="setVis('particles')">Burst</button>
-  </div>
-  <canvas class="vis-canvas" id="visCanvas"></canvas>
+<!-- Toggle Row -->
+<div class="toggle-row">
+  <button class="toggle-btn active-vis" data-panel="vis" onclick="togglePanel(this)">Vis</button>
+  <button class="toggle-btn active-chords" data-panel="chords" onclick="togglePanel(this)">Chords</button>
+  <button class="toggle-btn active-lyrics" data-panel="lyrics" onclick="togglePanel(this)">Lyrics</button>
+  <button class="toggle-btn active-notes" data-panel="notes" onclick="togglePanel(this)">Notes</button>
+  <button class="toggle-btn active-drums" data-panel="drums" onclick="togglePanel(this)">Drums</button>
 </div>
 
-<!-- Lyrics / Chords -->
-<div class="lyrics-area">
-  <div class="lyrics-toggle">
-    <button class="lyrics-toggle-btn active" onclick="toggleLyricsView('chords')">Chords</button>
-    <button class="lyrics-toggle-btn lyrics-active" onclick="toggleLyricsView('lyrics')">Lyrics</button>
-    <button class="lyrics-toggle-btn" onclick="toggleLyricsView('both')">Both</button>
-    <button class="lyrics-toggle-btn" onclick="toggleLyricsView('off')">Off</button>
+<!-- Dynamic Content Area -->
+<div class="content-area both-visible" id="contentArea">
+
+  <!-- Visual Hero -->
+  <div class="visual-area" id="visualArea">
+    <div class="beat-glow" id="beatGlow"></div>
+    <div class="screen-flash" id="screenFlash"></div>
+    <div class="vis-switcher">
+      <button class="vis-mode-btn active" onclick="setVis('spectrum')">Spectrum</button>
+      <button class="vis-mode-btn" onclick="setVis('rings')">Rings</button>
+      <button class="vis-mode-btn" onclick="setVis('particles')">Burst</button>
+    </div>
+    <canvas class="vis-canvas" id="visCanvas"></canvas>
   </div>
 
-  <div class="section-label">Intro</div>
-  <div class="chord-line">C7                      C7</div>
-  <div class="lyric-line">&nbsp;</div>
+  <!-- Text Reference Panel -->
+  <div class="text-panel" id="textPanel">
 
-  <div class="section-label">Verse</div>
-  <div class="chord-line">C7          F7          C7          C7</div>
-  <div class="lyric-line current">( instrumental groove )</div>
-  <div class="chord-line">F7          F7          C7          C7</div>
-  <div class="lyric-line">&nbsp;</div>
-  <div class="chord-line">G7          F7          C7          G7</div>
-  <div class="lyric-line">&nbsp;</div>
+    <!-- Chords Section -->
+    <div class="text-section" id="section-chords">
+      <div class="section-label chords-label">Chords</div>
+      <div class="chord-line">C7                      C7</div>
+      <div class="chord-line"> </div>
+      <div class="chord-line">C7          F7          C7          C7</div>
+      <div class="chord-line">F7          F7          C7          C7</div>
+      <div class="chord-line">G7          F7          C7          G7</div>
+      <div class="chord-line"> </div>
+      <div class="chord-line">Eb7         Eb7         C7          C7</div>
+      <div class="chord-line">F7          G7          C7          C7</div>
+    </div>
 
-  <div class="section-label">Bridge</div>
-  <div class="chord-line">Eb7         Eb7         C7          C7</div>
-  <div class="lyric-line">&nbsp;</div>
-  <div class="chord-line">F7          G7          C7          C7</div>
-  <div class="lyric-line">&nbsp;</div>
+    <!-- Lyrics Section -->
+    <div class="text-section" id="section-lyrics">
+      <div class="section-label lyrics-label">Lyrics</div>
+      <div class="lyric-line">( instrumental — no lyrics )</div>
+    </div>
+
+    <!-- Notes Section -->
+    <div class="text-section" id="section-notes">
+      <div class="section-label notes-label">Notes</div>
+      <div class="notes-text">Tight 16th hi-hat groove throughout. Open hat on beat 4 of last bar before turnaround. Watch Adam for the break signal — he nods twice. Count-in from Neil's bass line.</div>
+    </div>
+
+    <!-- Drum Notation Section -->
+    <div class="text-section" id="section-drums">
+      <div class="section-label drums-label">Drum Notation</div>
+      <div class="drum-section-name">Main Groove</div>
+      <div class="drum-line">HH: x-x-x-x-x-x-x-x-</div>
+      <div class="drum-line">SD: ----o-------o---</div>
+      <div class="drum-line">BD: o-------o-o-----</div>
+      <div class="drum-section-name">Fill (bar 8)</div>
+      <div class="drum-line">SD: --o-o-oo--o-o-oo</div>
+      <div class="drum-line">BD: o-------o-------</div>
+      <div class="drum-section-name">Bridge</div>
+      <div class="drum-line">HH: x---x---x---x---</div>
+      <div class="drum-line">SD: ----o-------o---</div>
+      <div class="drum-line">BD: o-----o-o-------</div>
+    </div>
+  </div>
 </div>
 
 <!-- Transport -->
 <div class="transport-wrapper">
   <div class="nav-row">
-    <button class="nav-btn">
-      <span class="arrow">◀</span>
-      <span class="nav-song-name">Superstition</span>
-    </button>
-    <button class="queue-btn" onclick="toggleQueue()">☰ 3/12</button>
-    <button class="nav-btn">
-      <span class="nav-song-name">Sultans of Swing</span>
-      <span class="arrow">▶</span>
-    </button>
+    <button class="nav-btn"><span class="arrow">◀</span><span class="nav-song-name">Superstition</span></button>
+    <button class="queue-btn">☰ 3/12</button>
+    <button class="nav-btn"><span class="nav-song-name">Sultans of Swing</span><span class="arrow">▶</span></button>
   </div>
   <div class="transport-bottom">
     <button class="transport-btn secondary">⏮</button>
@@ -358,17 +407,17 @@
   </div>
 </div>
 
-<!-- Bottom Sheet (simplified for Live) -->
+<!-- Bottom Sheet -->
 <div class="drag-handle" id="dragHandle" onclick="toggleSheet()"><div class="pill"></div></div>
 <div class="bottom-sheet" id="bottomSheet">
   <div class="bottom-sheet-inner">
-    <div class="section-title">Click</div>
+    <div class="bs-section-title">Click</div>
     <div class="click-vol-row">
       <span class="click-vol-label">Vol</span>
       <div class="click-vol-bar"><div class="click-vol-fill"></div></div>
       <span class="click-vol-val">33</span>
     </div>
-    <div class="section-title">Settings</div>
+    <div class="bs-section-title">Settings</div>
     <div class="setting-row"><span class="setting-label">Subdivision</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">8th</span><span class="pill-btn">Trip</span><span class="pill-btn">16th</span></div></div>
     <div class="setting-row"><span class="setting-label">Count-in</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">1</span><span class="pill-btn">2</span><span class="pill-btn">4</span></div></div>
     <div class="setting-row"><span class="setting-label">Beat Nudge</span><div class="nudge-row"><span class="nudge-btn">◀◀</span><span class="nudge-val">+0ms</span><span class="nudge-btn">▶▶</span></div></div>
@@ -376,23 +425,82 @@
 </div>
 
 <script>
-// Modal
-function dismissModal() {
-  document.getElementById('safetyModal').classList.remove('visible');
+// ── Panel toggle logic ──
+const state = { vis: true, chords: true, lyrics: true, notes: true, drums: true };
+
+function togglePanel(btn) {
+  const panel = btn.dataset.panel;
+  state[panel] = !state[panel];
+
+  // Update button appearance
+  const classes = { vis:'active-vis', chords:'active-chords', lyrics:'active-lyrics', notes:'active-notes', drums:'active-drums' };
+  if (state[panel]) btn.classList.add(classes[panel]);
+  else btn.classList.remove(classes[panel]);
+
+  updateLayout();
 }
 
-// Canvas
+function updateLayout() {
+  const visArea = document.getElementById('visualArea');
+  const textPanel = document.getElementById('textPanel');
+  const contentArea = document.getElementById('contentArea');
+
+  // Show/hide individual text sections
+  ['chords','lyrics','notes','drums'].forEach(s => {
+    document.getElementById('section-' + s).classList.toggle('hidden', !state[s]);
+  });
+
+  // Determine if any text content is active
+  const anyText = state.chords || state.lyrics || state.notes || state.drums;
+
+  // Show/hide main panels
+  visArea.classList.toggle('hidden', !state.vis);
+  textPanel.classList.toggle('hidden', !anyText);
+
+  // Layout class
+  contentArea.classList.remove('both-visible');
+  if (state.vis && anyText) contentArea.classList.add('both-visible');
+
+  // Resize canvas
+  setTimeout(resizeCanvas, 50);
+}
+
+function applyPreset(name) {
+  const presets = {
+    'all':           { vis:true, chords:true, lyrics:true, notes:true, drums:true },
+    'vis-only':      { vis:true, chords:false, lyrics:false, notes:false, drums:false },
+    'text-only':     { vis:false, chords:true, lyrics:true, notes:true, drums:true },
+    'chords-lyrics': { vis:false, chords:true, lyrics:true, notes:false, drums:false },
+    'drums-only':    { vis:false, chords:false, lyrics:false, notes:false, drums:true },
+    'nathan':        { vis:true, chords:false, lyrics:false, notes:true, drums:true },
+    'neil':          { vis:false, chords:true, lyrics:false, notes:true, drums:false },
+  };
+  const p = presets[name];
+  Object.assign(state, p);
+
+  // Update all toggle buttons
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    const panel = btn.dataset.panel;
+    const classes = { vis:'active-vis', chords:'active-chords', lyrics:'active-lyrics', notes:'active-notes', drums:'active-drums' };
+    btn.classList.toggle(classes[panel], state[panel]);
+  });
+
+  updateLayout();
+}
+
+// ── Canvas ──
 const canvas = document.getElementById('visCanvas');
 const ctx = canvas.getContext('2d');
 let W, H;
-function resize() {
+function resizeCanvas() {
   const r = canvas.parentElement.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
   canvas.width = W = r.width;
   canvas.height = H = r.height;
 }
-resize();
-window.addEventListener('resize', resize);
-const resizeObs = new ResizeObserver(() => resize());
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+const resizeObs = new ResizeObserver(() => resizeCanvas());
 resizeObs.observe(document.getElementById('visualArea'));
 
 let visMode = 'spectrum';
@@ -404,8 +512,8 @@ let particles = [];
 
 function setVis(mode) {
   visMode = mode;
-  document.querySelectorAll('.vis-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.vis-btn[onclick="setVis('${mode}')"]`).classList.add('active');
+  document.querySelectorAll('.vis-mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.vis-mode-btn[onclick="setVis('${mode}')"]`).classList.add('active');
   particles = []; rings = [];
 }
 
@@ -427,6 +535,7 @@ function fireBeat() {
 setInterval(fireBeat, 660);
 
 function draw() {
+  if (W === 0 || H === 0) { requestAnimationFrame(draw); return; }
   ctx.clearRect(0, 0, W, H);
   beatEnergy *= 0.92;
   if (visMode === 'spectrum') drawSpectrum();
@@ -438,71 +547,62 @@ function draw() {
 function drawSpectrum() {
   const barW = (W - 40) / specBars.length, maxH = H * 0.75;
   for (let i = 0; i < specBars.length; i++) {
-    specBars[i] += (specTargets[i] - specBars[i]) * 0.3;
-    specTargets[i] *= 0.96;
+    specBars[i] += (specTargets[i] - specBars[i]) * 0.3; specTargets[i] *= 0.96;
     const h = specBars[i] * maxH, x = 20 + i * barW;
     const ratio = i / specBars.length;
-    const r = Math.floor(40 + ratio * 140), g = Math.floor(230 - ratio * 150), b = Math.floor(118 + ratio * 130);
-    ctx.fillStyle = `rgba(${r},${g},${b},${0.5 + specBars[i] * 0.4})`;
+    const r = Math.floor(40+ratio*140), g = Math.floor(230-ratio*150), b = Math.floor(118+ratio*130);
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.5+specBars[i]*0.4})`;
     const bw = barW - 2;
-    ctx.fillRect(x, H/2 - h/2, bw, h/2); ctx.fillRect(x, H/2, bw, h/2);
+    ctx.fillRect(x, H/2-h/2, bw, h/2); ctx.fillRect(x, H/2, bw, h/2);
     ctx.shadowColor = `rgba(${r},${g},${b},0.4)`; ctx.shadowBlur = 8;
-    ctx.fillRect(x, H/2 - h/2, bw, 2); ctx.fillRect(x, H/2 + h/2 - 2, bw, 2);
-    ctx.shadowBlur = 0;
+    ctx.fillRect(x, H/2-h/2, bw, 2); ctx.fillRect(x, H/2+h/2-2, bw, 2); ctx.shadowBlur = 0;
   }
   if (beatEnergy > 0.1) {
-    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W * 0.4);
-    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.08})`); grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.4);
+    grad.addColorStop(0,`rgba(0,230,118,${beatEnergy*0.08})`); grad.addColorStop(1,'transparent');
+    ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
   }
 }
 
 function drawRings() {
-  for (let i = rings.length - 1; i >= 0; i--) {
+  for (let i = rings.length-1; i >= 0; i--) {
     const ring = rings[i]; ring.r += ring.speed; ring.opacity *= 0.985;
-    if (ring.opacity < 0.02) { rings.splice(i, 1); continue; }
-    ctx.beginPath(); ctx.arc(W/2, H/2, ring.r, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(0,230,118,${ring.opacity})`; ctx.lineWidth = 2 + ring.opacity * 3;
-    ctx.shadowColor = `rgba(0,230,118,${ring.opacity * 0.5})`; ctx.shadowBlur = 15;
+    if (ring.opacity < 0.02) { rings.splice(i,1); continue; }
+    ctx.beginPath(); ctx.arc(W/2,H/2,ring.r,0,Math.PI*2);
+    ctx.strokeStyle = `rgba(0,230,118,${ring.opacity})`; ctx.lineWidth = 2+ring.opacity*3;
+    ctx.shadowColor = `rgba(0,230,118,${ring.opacity*0.5})`; ctx.shadowBlur = 15;
     ctx.stroke(); ctx.shadowBlur = 0;
   }
-  const dotSize = 6 + beatEnergy * 20;
-  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, dotSize);
-  grad.addColorStop(0, `rgba(0,230,118,${0.3 + beatEnergy * 0.6})`); grad.addColorStop(1, 'transparent');
-  ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2, H/2, dotSize, 0, Math.PI * 2); ctx.fill();
+  const dotSize = 6 + beatEnergy*20;
+  const grad = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,dotSize);
+  grad.addColorStop(0,`rgba(0,230,118,${0.3+beatEnergy*0.6})`); grad.addColorStop(1,'transparent');
+  ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2,H/2,dotSize,0,Math.PI*2); ctx.fill();
 }
 
 function drawParticles() {
-  for (let i = particles.length - 1; i >= 0; i--) {
+  for (let i = particles.length-1; i >= 0; i--) {
     const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.985; p.vy *= 0.985; p.life *= 0.975;
-    if (p.life < 0.02) { particles.splice(i, 1); continue; }
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${p.hue},80%,55%,${p.life * 0.8})`;
-    ctx.shadowColor = `hsla(${p.hue},80%,55%,${p.life * 0.4})`; ctx.shadowBlur = 10;
+    if (p.life < 0.02) { particles.splice(i,1); continue; }
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+    ctx.fillStyle = `hsla(${p.hue},80%,55%,${p.life*0.8})`;
+    ctx.shadowColor = `hsla(${p.hue},80%,55%,${p.life*0.4})`; ctx.shadowBlur = 10;
     ctx.fill(); ctx.shadowBlur = 0;
   }
   if (beatEnergy > 0.1) {
-    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, 60);
-    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.15})`); grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2, H/2, 60, 0, Math.PI * 2); ctx.fill();
+    const grad = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,60);
+    grad.addColorStop(0,`rgba(0,230,118,${beatEnergy*0.15})`); grad.addColorStop(1,'transparent');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2,H/2,60,0,Math.PI*2); ctx.fill();
   }
 }
 
 draw();
 
-// Bottom sheet
+// ── Bottom sheet ──
 let sheetOpen = false;
 function toggleSheet() {
   sheetOpen = !sheetOpen;
   document.getElementById('bottomSheet').classList.toggle('open', sheetOpen);
   document.getElementById('dragHandle').classList.toggle('open', sheetOpen);
-}
-
-function toggleLyricsView(mode) {
-  document.querySelectorAll('.lyrics-toggle-btn').forEach(b => {
-    b.classList.remove('active'); b.classList.remove('lyrics-active');
-  });
-  event.target.classList.add('active');
 }
 </script>
 

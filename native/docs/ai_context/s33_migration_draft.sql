@@ -60,3 +60,21 @@ ALTER TABLE user_settings
 
 ALTER TABLE user_settings
   ADD COLUMN IF NOT EXISTS player_chords_enabled BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS player_notes_enabled BOOLEAN NOT NULL DEFAULT true;
+
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS player_drums_enabled BOOLEAN NOT NULL DEFAULT false;
+
+ALTER TABLE user_settings
+  ADD COLUMN IF NOT EXISTS player_vis_enabled BOOLEAN NOT NULL DEFAULT true;
+
+
+-- ══════════════════════════════════════════════
+-- 4. Drum Notation field on songs
+-- ══════════════════════════════════════════════
+
+-- Drum notation text (Nathan-only field, role-based visibility on edit form)
+ALTER TABLE songs
+  ADD COLUMN IF NOT EXISTS drum_notation TEXT DEFAULT '';
