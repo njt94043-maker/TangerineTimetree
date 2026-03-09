@@ -18,6 +18,14 @@ object SetlistRepository {
         }
         .decodeList()
 
+    suspend fun getSetlistsByType(type: String): List<Setlist> = client
+        .from("setlists")
+        .select {
+            filter { eq("setlist_type", type) }
+            order("name", Order.ASCENDING)
+        }
+        .decodeList()
+
     suspend fun getSetlistSongs(setlistId: String): List<SetlistSongRow> = client
         .from("setlist_songs")
         .select(Columns.raw("*, songs(*)"))

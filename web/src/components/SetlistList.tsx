@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSetlists, createSetlist, deleteSetlist } from '@shared/supabase/queries';
-import type { Setlist } from '@shared/supabase/types';
+import type { Setlist, SetlistType } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -18,6 +18,8 @@ export function SetlistList({ onClose, onSetlistPress }: SetlistListProps) {
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newType, setNewType] = useState<SetlistType>('tange');
+  const [newBandName, setNewBandName] = useState('The Green Tangerine');
   const [saving, setSaving] = useState(false);
 
   async function loadSetlists() {
@@ -35,10 +37,17 @@ export function SetlistList({ onClose, onSetlistPress }: SetlistListProps) {
     setSaving(true);
     setError('');
     try {
-      const created = await createSetlist({ name: newName.trim(), description: newDescription.trim() });
+      const created = await createSetlist({
+        name: newName.trim(),
+        description: newDescription.trim(),
+        setlist_type: newType,
+        band_name: newType === 'other_band' ? newBandName.trim() : 'The Green Tangerine',
+      });
       setShowForm(false);
       setNewName('');
       setNewDescription('');
+      setNewType('tange');
+      setNewBandName('The Green Tangerine');
       onSetlistPress(created.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create');
@@ -67,7 +76,7 @@ export function SetlistList({ onClose, onSetlistPress }: SetlistListProps) {
         <div className="page-header-spacer" />
       </div>
 
-      <button className="btn btn-primary btn-small btn-full" onClick={() => { setNewName(''); setNewDescription(''); setShowForm(true); }} style={{ marginBottom: 12 }}>
+      <button className="btn btn-primary btn-small btn-full" onClick={() => { setNewName(''); setNewDescription(''); setNewType('tange'); setNewBandName('The Green Tangerine'); setShowForm(true); }} style={{ marginBottom: 12 }}>
         + New Setlist
       </button>
 
@@ -78,6 +87,7 @@ export function SetlistList({ onClose, onSetlistPress }: SetlistListProps) {
           <div key={sl.id} className="setlist-card neu-card">
             <div className="setlist-card-info" onClick={() => onSetlistPress(sl.id)} style={{ cursor: 'pointer' }}>
               <span className="setlist-card-name">{sl.name}</span>
+              {sl.setlist_type === 'other_band' && <span className="setlist-card-desc" style={{ color: 'var(--color-tangerine)', fontSize: 11 }}>{sl.band_name}</span>}
               {sl.description && <span className="setlist-card-desc">{sl.description}</span>}
             </div>
             <div className="setlist-card-actions">
@@ -105,6 +115,23 @@ export function SetlistList({ onClose, onSetlistPress }: SetlistListProps) {
             <div className="neu-inset">
               <input className="input-field" value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Optional" />
             </div>
+
+            <label className="label">TYPE</label>
+            <div className="neu-inset">
+              <select className="input-field" value={newType} onChange={e => { setNewType(e.target.value as SetlistType); if (e.target.value === 'tange') setNewBandName('The Green Tangerine'); }}>
+                <option value="tange">The Green Tangerine</option>
+                <option value="other_band">Other Band</option>
+              </select>
+            </div>
+
+            {newType === 'other_band' && (
+              <>
+                <label className="label">BAND NAME</label>
+                <div className="neu-inset">
+                  <input className="input-field" value={newBandName} onChange={e => setNewBandName(e.target.value)} placeholder="e.g. My Other Project" />
+                </div>
+              </>
+            )}
 
             <div className="form-actions">
               <button className="btn btn-primary" onClick={handleCreate} disabled={saving}>

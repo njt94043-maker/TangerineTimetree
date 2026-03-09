@@ -9,10 +9,15 @@ data class Setlist(
     val name: String,
     val description: String = "",
     val notes: String = "",
+    @SerialName("setlist_type") val setlistType: String = "tange",  // tange | other_band
+    @SerialName("band_name") val bandName: String = "The Green Tangerine",
     @SerialName("created_by") val createdBy: String = "",
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
-)
+) {
+    val isTange: Boolean get() = setlistType == "tange"
+    val isOtherBand: Boolean get() = setlistType == "other_band"
+}
 
 /**
  * Raw row from setlist_songs joined with songs(*).

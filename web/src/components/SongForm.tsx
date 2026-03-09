@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap } from '@shared/supabase/queries';
-import type { ClickSound, SongStem, StemLabel, BeatMapStatus } from '@shared/supabase/types';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles } from '@shared/supabase/queries';
+import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, Profile } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
 const BEAT_ANALYSIS_URL = import.meta.env.VITE_BEAT_ANALYSIS_URL as string | undefined;
@@ -13,6 +13,12 @@ const STEM_LABELS: { value: StemLabel; label: string }[] = [
   { value: 'guitar',  label: 'Guitar' },
   { value: 'keys',    label: 'Keys' },
   { value: 'other',   label: 'Other' },
+];
+
+const SONG_CATEGORIES: { value: SongCategory; label: string }[] = [
+  { value: 'tange_cover', label: 'TGT Cover' },
+  { value: 'tange_original', label: 'TGT Original' },
+  { value: 'personal', label: 'Personal' },
 ];
 
 const CLICK_SOUNDS: ClickSound[] = ['default', 'high', 'low', 'wood', 'rim'];
@@ -35,6 +41,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
 
   const [name, setName] = useState('');
   const [artist, setArtist] = useState('');
+  const [category, setCategory] = useState<SongCategory>('tange_cover');
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [bpm, setBpm] = useState('120');
   const [timeSigTop, setTimeSigTop] = useState(4);
   const [timeSigBottom, setTimeSigBottom] = useState(4);
@@ -47,6 +56,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const [notes, setNotes] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [chords, setChords] = useState('');
+  const [drumNotation, setDrumNotation] = useState('');
 
   // Practice track
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -68,11 +78,14 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const stemFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    getProfiles().then(setProfiles).catch(() => {});
     if (!songId) return;
     getSong(songId).then(song => {
       if (!song) { setError('Song not found'); setLoading(false); return; }
       setName(song.name);
       setArtist(song.artist);
+      setCategory(song.category);
+      setOwnerId(song.owner_id);
       setBpm(String(song.bpm));
       setTimeSigTop(song.time_signature_top);
       setTimeSigBottom(song.time_signature_bottom);
@@ -85,6 +98,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setNotes(song.notes);
       setLyrics(song.lyrics);
       setChords(song.chords);
+      setDrumNotation(song.drum_notation);
       setAudioUrl(song.audio_url);
       setLoading(false);
       getSongStems(songId).then(setStems).catch(() => {});
@@ -113,6 +127,8 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       const data = {
         name: name.trim(),
         artist: artist.trim(),
+        category,
+        owner_id: category === 'personal' ? ownerId : null,
         bpm: bpmNum,
         time_signature_top: timeSigTop,
         time_signature_bottom: timeSigBottom,
@@ -125,6 +141,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
         notes: notes.trim(),
         lyrics: lyrics.trim(),
         chords: chords.trim(),
+        drum_notation: drumNotation.trim(),
       };
 
       if (isEdit && songId) {
@@ -289,6 +306,25 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           <input className="input-field" value={artist} onChange={e => setArtist(e.target.value)} placeholder="e.g. Guns N' Roses" />
         </div>
 
+        <label className="label">CATEGORY</label>
+        <div className="neu-inset">
+          <select className="input-field" value={category} onChange={e => setCategory(e.target.value as SongCategory)}>
+            {SONG_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select>
+        </div>
+
+        {category === 'personal' && (
+          <>
+            <label className="label">OWNER</label>
+            <div className="neu-inset">
+              <select className="input-field" value={ownerId ?? ''} onChange={e => setOwnerId(e.target.value || null)}>
+                <option value="">Select member...</option>
+                {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+          </>
+        )}
+
         <label className="label">KEY</label>
         <div className="neu-inset">
           <input className="input-field" value={key} onChange={e => setKey(e.target.value)} placeholder="e.g. D major" />
@@ -383,6 +419,15 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           <textarea className="input-field input-textarea" value={lyrics} onChange={e => setLyrics(e.target.value)} placeholder="Song lyrics..." rows={5} />
         </div>
       </div>
+
+      {isDrummer && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <label className="label">DRUM NOTATION</label>
+          <div className="neu-inset">
+            <textarea className="input-field input-textarea" value={drumNotation} onChange={e => setDrumNotation(e.target.value)} placeholder="Drum notation / sticking patterns..." rows={4} />
+          </div>
+        </div>
+      )}
 
       <div className="neu-card" style={{ marginBottom: 12 }}>
         <label className="label">NOTES</label>

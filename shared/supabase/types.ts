@@ -293,6 +293,14 @@ export interface UserSettings {
   calendar_colour_pub: string;
   calendar_colour_client: string;
   calendar_colour_practice: string;
+  // Player preferences (per-user)
+  player_click_enabled: boolean;
+  player_flash_enabled: boolean;
+  player_lyrics_enabled: boolean;
+  player_chords_enabled: boolean;
+  player_notes_enabled: boolean;
+  player_drums_enabled: boolean;
+  player_vis_enabled: boolean;
   updated_at: string;
 }
 
@@ -456,6 +464,8 @@ export interface FormalReceiptWithMember extends FormalReceipt {
 
 // ─── Songs & Setlists ────────────────────────────────────
 
+export type SongCategory = 'tange_cover' | 'tange_original' | 'personal';
+export type SetlistType = 'tange' | 'other_band';
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
 export type BeatMapStatus = 'pending' | 'analysing' | 'separating' | 'ready' | 'failed';
@@ -486,6 +496,8 @@ export interface Song {
   id: string;
   name: string;
   artist: string;
+  category: SongCategory;       // tange_cover | tange_original | personal
+  owner_id: string | null;      // profile id for personal songs (null for band songs)
   bpm: number;
   time_signature_top: number;
   time_signature_bottom: number;
@@ -499,6 +511,7 @@ export interface Song {
   notes: string;
   lyrics: string;               // Lyrics text (for stage prompter)
   chords: string;               // Chords text (for stage prompter)
+  drum_notation: string;        // Drum notation (Nathan-only field)
   beat_offset_ms: number;       // Manual click-to-track alignment offset
   audio_url: string | null;     // Supabase Storage URL for practice MP3
   audio_storage_path: string | null;
@@ -512,6 +525,8 @@ export interface Setlist {
   name: string;
   description: string;
   notes: string;
+  setlist_type: SetlistType;    // tange | other_band
+  band_name: string;            // default 'The Green Tangerine'
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -528,6 +543,7 @@ export interface SetlistSong {
 export interface SetlistSongWithDetails extends SetlistSong {
   song_name: string;
   song_artist: string;
+  song_category: SongCategory;
   song_bpm: number;
   song_time_signature_top: number;
   song_time_signature_bottom: number;
@@ -541,6 +557,7 @@ export interface SetlistSongWithDetails extends SetlistSong {
   song_notes: string;
   song_lyrics: string;
   song_chords: string;
+  song_drum_notation: string;
   song_audio_url: string | null;
 }
 

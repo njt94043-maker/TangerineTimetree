@@ -8,6 +8,8 @@ data class Song(
     val id: String,
     val name: String,
     val artist: String = "",
+    val category: String = "tange_cover",         // tange_cover | tange_original | personal
+    @SerialName("owner_id") val ownerId: String? = null,  // profile id for personal songs
     val bpm: Double = 120.0,
     @SerialName("time_signature_top") val timeSignatureTop: Double = 4.0,
     @SerialName("time_signature_bottom") val timeSignatureBottom: Double = 4.0,
@@ -21,6 +23,7 @@ data class Song(
     val notes: String = "",
     val lyrics: String = "",
     val chords: String = "",
+    @SerialName("drum_notation") val drumNotation: String = "",
     @SerialName("beat_offset_ms") val beatOffsetMs: Double = 0.0,
     @SerialName("audio_url") val audioUrl: String? = null,
     @SerialName("audio_storage_path") val audioStoragePath: String? = null,
@@ -30,6 +33,8 @@ data class Song(
 ) {
     val hasAudio: Boolean get() = !audioUrl.isNullOrBlank()
     val timeSig: String get() = "${timeSignatureTop.toInt()}/${timeSignatureBottom.toInt()}"
+    val isPersonal: Boolean get() = category == "personal"
+    val isBandSong: Boolean get() = category != "personal"
     val durationFormatted: String? get() = durationSeconds?.let {
         val secs = it.toInt(); val m = secs / 60; val s = secs % 60; "%d:%02d".format(m, s)
     }
