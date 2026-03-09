@@ -3,23 +3,34 @@ import { ErrorAlert } from './ErrorAlert';
 
 interface LoginModalProps {
   onSignIn: (email: string, password: string) => Promise<string | null>;
+  onResetPassword: (email: string) => Promise<string | null>;
   onClose: () => void;
 }
 
-export function LoginModal({ onSignIn, onClose }: LoginModalProps) {
+export function LoginModal({ onSignIn, onResetPassword, onClose }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!email) return;
     setLoading(true);
     setError('');
-    const err = await onSignIn(email.trim().toLowerCase(), password);
-    if (err) setError(err);
+
+    if (resetMode) {
+      const err = await onResetPassword(email.trim().toLowerCase());
+      if (err) setError(err);
+      else setResetSent(true);
+    } else {
+      if (!password) { setLoading(false); return; }
+      const err = await onSignIn(email.trim().toLowerCase(), password);
+      if (err) setError(err);
+    }
     setLoading(false);
   }
 
@@ -36,54 +47,96 @@ export function LoginModal({ onSignIn, onClose }: LoginModalProps) {
           className="login-modal-logo"
         />
 
-        <h2 className="login-modal-title">Band Login</h2>
+        <h2 className="login-modal-title">{resetMode ? 'Reset Password' : 'Band Login'}</h2>
         <p className="login-modal-subtitle">Tangerine Timetree</p>
 
-        <form onSubmit={handleSubmit} className="login-modal-form">
-          <label htmlFor="modal-email" className="label">EMAIL</label>
-          <div className="neu-inset neu-inset-mb">
-            <input
-              id="modal-email"
-              className="input-field"
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              autoComplete="email"
-            />
-          </div>
-
-          <label htmlFor="modal-password" className="label">PASSWORD</label>
-          <div className="neu-inset neu-inset-mb-relative">
-            <input
-              id="modal-password"
-              className="input-field input-pad-right"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
+        {resetSent ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <p style={{ color: 'var(--color-success)', marginBottom: 12 }}>
+              Password reset email sent to <strong>{email}</strong>
+            </p>
+            <p style={{ color: 'var(--color-text-dim)', fontSize: 13 }}>
+              Check your inbox and follow the link to reset your password.
+            </p>
             <button
-              type="button"
-              onClick={() => setShowPassword(s => !s)}
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="password-toggle"
+              className="btn btn-primary btn-full"
+              style={{ marginTop: 20 }}
+              onClick={() => { setResetMode(false); setResetSent(false); setError(''); }}
             >
-              {showPassword ? 'Hide' : 'Show'}
+              Back to Sign In
             </button>
           </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="login-modal-form">
+            <label htmlFor="modal-email" className="label">EMAIL</label>
+            <div className="neu-inset neu-inset-mb">
+              <input
+                id="modal-email"
+                className="input-field"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
 
-          {error && <ErrorAlert message={error} compact />}
+            {!resetMode && (
+              <>
+                <label htmlFor="modal-password" className="label">PASSWORD</label>
+                <div className="neu-inset neu-inset-mb-relative">
+                  <input
+                    id="modal-password"
+                    className="input-field input-pad-right"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(s => !s)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    className="password-toggle"
+                  >
+                    {showPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </>
+            )}
 
-          <button
-            className="btn btn-primary btn-full"
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            {error && <ErrorAlert message={error} compact />}
+
+            <button
+              className="btn btn-primary btn-full"
+              type="submit"
+              disabled={loading}
+            >
+              {loading
+                ? (resetMode ? 'Sending...' : 'Signing in...')
+                : (resetMode ? 'Send Reset Link' : 'Sign In')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setResetMode(!resetMode); setError(''); setResetSent(false); }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-tangerine)',
+                cursor: 'pointer',
+                fontSize: 13,
+                marginTop: 12,
+                textAlign: 'center',
+                width: '100%',
+                padding: 4,
+              }}
+            >
+              {resetMode ? 'Back to Sign In' : 'Forgot password?'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

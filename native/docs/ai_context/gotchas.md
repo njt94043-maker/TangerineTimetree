@@ -270,34 +270,40 @@
 
 ## Audit Findings (2026-03-09)
 
-> Issues found during full codebase audit. Track resolution in IMPACT_MAP.md.
+> Issues found during full codebase audit. Triaged 2026-03-09.
 
 ### Offline queue conflict detection is missing
-- Web `useOfflineQueue.ts` has no optimistic concurrency.
-- Scenario: User A edits gig offline (£500), User B edits online (£600), User A replays → £500 wins silently.
-- **Status**: Open. Needs `updated_at` timestamp comparison before replay.
+- Web `useOfflineQueue.ts` has no optimistic concurrency — last-write-wins.
+- **Status**: DEFERRED. Near-zero real risk (4 users, 117 gigs, Nathan is primary editor). Revisit if conflicts actually happen.
 
 ### No forgot-password flow
 - Neither app has a password reset UI. Supabase `resetPasswordForEmail()` exists but isn't wired.
-- **Impact**: Band member forgets password → locked out → texts Nathan → never logs back in.
-- **Status**: Open. #1 adoption blocker for non-tech members.
+- **Status**: Open. Quick fix — bundle into S36 (~30 min).
 
-### No role-based UI filtering
-- Web drawer shows all 11 nav items to all users (including invoicing, quotes, clients).
-- Band Settings tab visible to non-admin but errors on save (DB rejects via RLS).
-- **Status**: Open. Filter drawer items on `profile.is_admin`. Make Band Settings read-only for members.
+### ~~No role-based UI filtering~~ CLOSED
+- All 4 band members are admin. Everyone needs full access to invoicing, quotes, clients, venues.
+- Nathan invoices ~90%, James invoices some, Adam shares prepared PDFs with clients on Nathan's behalf.
+- **This is intentional. Do NOT add role-based drawer filtering.**
 
-### Changelog depends on its own fetch in updateGig
-- `updateGig()` fetches current values (for field diff) then inserts changelog — but changelog insert is "best-effort" (silent catch).
-- If fetch fails, diff is wrong. If insert fails, no audit trail.
-- **Status**: Open. Decouple changelog from update or make it transactional.
+### ~~Band Settings errors for non-admin~~ CLOSED
+- All members are admin. RLS allows all admins to update band_settings. No guard needed.
+
+### ~~Changelog depends on its own fetch in updateGig~~ CLOSED
+- Verified: changelog is best-effort (silent catch). Fetch failure does NOT block gig update. Already safe by design.
 
 ### Realtime failures are silent
-- `useCalendarData.ts` and other hooks log `console.warn()` on subscription failure.
-- User sees stale data without indication.
-- **Status**: Open. Add polling fallback (30s interval) when channel fails.
+- `useCalendarData.ts` logs `console.warn()` on subscription failure. User sees stale data.
+- **Status**: DEFERRED. Realtime is stable in practice. Add polling fallback if users report stale data.
 
 ### AppViewModel errors silently swallowed (Android)
 - Most Supabase calls in `catch (_: Exception) {}` with no UI feedback.
-- If stem loading or beat analysis fails, user sees nothing.
-- **Status**: Open. Add toast/banner for critical failures.
+- **Status**: DEFERRED. Low priority at current scale. Add toast/banner when it hurts.
+
+## Business Model — Why Things Are The Way They Are
+
+> **READ THIS before flagging any feature as "over-engineered" or "needs role guards".**
+
+- **All 4 members are admin.** There are no non-admin users. There never will be. Do NOT add role-based UI filtering.
+- **Everyone needs full business features.** Nathan handles ~90% of invoicing (his bank, his name). James invoices some gigs. Adam messages clients with PDFs on Nathan's behalf. Filtering the drawer would break the band's workflow.
+- **The booking wizard is intentionally comprehensive.** It trains band members to capture all data Nathan needs. Don't simplify it.
+- **Receipt split (÷4 creates 3 receipts)** is correct. Nathan pays himself — no receipt needed for the admin. First of 3 gets rounding remainder.

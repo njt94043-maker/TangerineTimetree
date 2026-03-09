@@ -9,6 +9,7 @@ type View =
   | 'venues' | 'venue-detail'
   | 'songs' | 'song-form'
   | 'setlists' | 'setlist-detail'
+  | 'library' | 'player'
   | 'booking-wizard' | 'gig-hub';
 
 /* ── History entry: view name + relevant state snapshot ── */
@@ -25,6 +26,9 @@ interface HistoryEntry {
   editSongId?: string | null;
   setlistId?: string | null;
   gigHubGigId?: string | null;
+  playerSongId?: string | null;
+  playerSetlistId?: string | null;
+  playerMode?: 'live' | 'practice';
 }
 
 interface ViewState {
@@ -40,6 +44,9 @@ interface ViewState {
   editSongId: string | null;
   setlistId: string | null;
   gigHubGigId: string | null;
+  playerSongId: string | null;
+  playerSetlistId: string | null;
+  playerMode: 'live' | 'practice';
 }
 
 interface ViewContextValue extends ViewState {
@@ -75,6 +82,9 @@ interface ViewContextValue extends ViewState {
   // Setlist navigation
   goToSetlists: () => void;
   goToSetlistDetail: (id: string) => void;
+  // Library + Player navigation
+  goToLibrary: () => void;
+  goToPlayer: (songId: string, mode: 'live' | 'practice', setlistId?: string) => void;
   // Booking wizard / Gig Hub navigation
   goToBookingWizard: (date: string) => void;
   goToEditBooking: (gigId: string) => void;
@@ -105,6 +115,7 @@ function entryKey(e: HistoryEntry): string {
     case 'venue-detail': return `venue-detail:${e.venueId ?? ''}`;
     case 'song-form': return `song-form:${e.editSongId ?? 'new'}`;
     case 'setlist-detail': return `setlist-detail:${e.setlistId ?? ''}`;
+    case 'player': return `player:${e.playerSongId ?? ''}:${e.playerMode ?? 'live'}`;
     default: return e.view;
   }
 }
@@ -122,6 +133,9 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [editSongId, setEditSongId] = useState<string | null>(null);
   const [setlistId, setSetlistId] = useState<string | null>(null);
   const [gigHubGigId, setGigHubGigId] = useState<string | null>(null);
+  const [playerSongId, setPlayerSongId] = useState<string | null>(null);
+  const [playerSetlistId, setPlayerSetlistId] = useState<string | null>(null);
+  const [playerMode, setPlayerMode] = useState<'live' | 'practice'>('live');
 
   // View history stack — each entry stores the view + its state snapshot
   const historyRef = useRef<HistoryEntry[]>([{ view: 'calendar' }]);
@@ -141,6 +155,9 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (entry.editSongId !== undefined) setEditSongId(entry.editSongId);
     if (entry.setlistId !== undefined) setSetlistId(entry.setlistId);
     if (entry.gigHubGigId !== undefined) setGigHubGigId(entry.gigHubGigId);
+    if (entry.playerSongId !== undefined) setPlayerSongId(entry.playerSongId);
+    if (entry.playerSetlistId !== undefined) setPlayerSetlistId(entry.playerSetlistId);
+    if (entry.playerMode !== undefined) setPlayerMode(entry.playerMode);
   }
 
   /* ── Push a new entry onto the history stack ── */
@@ -246,6 +263,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToQuotes = useCallback(() => resetToView('quotes'), []);
   const goToSongs = useCallback(() => resetToView('songs'), []);
   const goToSetlists = useCallback(() => resetToView('setlists'), []);
+  const goToLibrary = useCallback(() => resetToView('library'), []);
 
   // Invoice drill-down
   const goToNewInvoice = useCallback(() => {
@@ -303,6 +321,14 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToSetlistDetail = useCallback((id: string) => {
     setSetlistId(id);
     pushEntry({ view: 'setlist-detail', setlistId: id });
+  }, []);
+
+  // Player drill-down (from library)
+  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice', slId?: string) => {
+    setPlayerSongId(songId);
+    setPlayerMode(mode);
+    setPlayerSetlistId(slId ?? null);
+    pushEntry({ view: 'player', playerSongId: songId, playerMode: mode, playerSetlistId: slId ?? null });
   }, []);
 
   // Booking wizard / Gig Hub
@@ -384,6 +410,9 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         editSongId,
         setlistId,
         gigHubGigId,
+        playerSongId,
+        playerSetlistId,
+        playerMode,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,
@@ -393,6 +422,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToVenues, goToVenueDetail,
         goToSongs, goToNewSong, goToEditSong,
         goToSetlists, goToSetlistDetail,
+        goToLibrary, goToPlayer,
         goToBookingWizard, goToEditBooking, goToGigHub,
         goToAway,
         replaceWithInvoiceDetail, replaceWithQuoteDetail,

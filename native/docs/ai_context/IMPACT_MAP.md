@@ -234,19 +234,27 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 ---
 
-## Audit Findings (2026-03-09)
-
-Issues discovered during codebase audit. Not all are bugs — some are design gaps to address in future sprints.
+## Audit Findings (2026-03-09) — Triaged
 
 | Finding | Domain | Severity | Status |
 |---------|--------|----------|--------|
-| Offline queue has no conflict detection (last-write-wins) | Gig mutations | CRITICAL | Open — needs `updated_at` check |
-| No forgot-password UI | Auth | HIGH | Open — Supabase supports it natively |
-| Changelog fetch in updateGig can fail, breaking field diffs | Gig mutations | HIGH | Open — decouple changelog from update |
-| No role-based drawer filtering | Navigation | MEDIUM | Open — filter on `is_admin` |
-| Band Settings visible but errors for non-admin | Settings | MEDIUM | Open — make read-only for members |
-| Realtime subscription failures logged silently | Calendar data | MEDIUM | Open — add polling fallback |
-| Receipt split divides by 4 but creates 3 receipts | Invoicing | MEDIUM | Works by accident — document or fix |
+| Offline queue has no conflict detection (last-write-wins) | Gig mutations | CRITICAL | **Deferred** — near-zero risk at current scale (4 users, Nathan primary editor) |
+| No forgot-password UI | Auth | HIGH | **Open — S36 quick fix** (~30 min, wire Supabase `resetPasswordForEmail()`) |
+| Changelog fetch in updateGig can fail | Gig mutations | HIGH | **Closed** — verified: changelog is best-effort, does NOT block gig update |
+| No role-based drawer filtering | Navigation | MEDIUM | **Closed** — all 4 members are admin, everyone needs full access (see Business Model below) |
+| Band Settings errors for non-admin | Settings | MEDIUM | **Closed** — all members are admin, RLS permits update |
+| Receipt split divides by 4 but creates 3 receipts | Invoicing | MEDIUM | **Closed** — correct by design (Nathan pays himself, 3 receipts for others) |
+| Realtime subscription failures logged silently | Calendar data | MEDIUM | **Deferred** — stable in practice, add fallback if users report stale data |
 | No pagination on queries | All queries | LOW | Fine at current scale (117 gigs, 3 songs) |
 | Android AppViewModel is monolithic | Android state | LOW | Works, refactor when it hurts |
-| Android errors silently swallowed | Android data | LOW | Add toast/banner for critical failures |
+| Android errors silently swallowed | Android data | LOW | **Deferred** — add toast/banner when it matters |
+
+## Business Model — Read Before Any Audit
+
+> **Every audit must read this section.** These are not bugs. These are intentional designs matching how the band operates.
+
+- **All 4 members are admin** (`is_admin = true`). There are no non-admin users and never will be. Do NOT recommend role-based UI filtering.
+- **Everyone needs full business features**: Nathan handles ~90% of invoicing (his bank, his name). James invoices some gigs into his own bank. Adam messages venues/clients with pre-prepared PDFs on Nathan's behalf via whatever messenger he uses — this avoids filling phones with WhatsApp PDFs.
+- **The booking wizard is intentionally comprehensive** — it trains band members to capture all booking data Nathan needs for invoicing. Don't recommend simplifying it.
+- **Receipt split (÷4, 3 receipts)** is correct — Nathan pays himself, so only other members get receipts. First gets rounding remainder.
+- **No separate Live/Practice nav items** — Library is the launchpad (D-110). User browses, taps, chooses mode.

@@ -37,8 +37,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Music',
     items: [
-      { icon: '\uD83C\uDFB5', label: 'Songs', view: 'songs' },
-      { icon: '\uD83C\uDFB6', label: 'Setlists', view: 'setlists' },
+      { icon: '\uD83C\uDFB5', label: 'Library', view: 'library' },
     ],
   },
   {
@@ -73,10 +72,12 @@ const VIEW_TO_NAV: Record<string, View> = {
   'clients': 'clients',
   'venues': 'venues',
   'venue-detail': 'venues',
-  'songs': 'songs',
-  'song-form': 'songs',
-  'setlists': 'setlists',
-  'setlist-detail': 'setlists',
+  'songs': 'library',
+  'song-form': 'library',
+  'setlists': 'library',
+  'setlist-detail': 'library',
+  'library': 'library',
+  'player': 'library',
   'media': 'media',
   'enquiries': 'enquiries',
   'website': 'website',
@@ -93,7 +94,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
-  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists } = useView();
+  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary } = useView();
   const [showTutorial, setShowTutorial] = useState(false);
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
@@ -106,13 +107,12 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       case 'settings': goToSettings(); break;
       case 'clients': goToClients(); break;
       case 'venues': goToVenues(); break;
-      case 'songs': goToSongs(); break;
-      case 'setlists': goToSetlists(); break;
+      case 'library': goToLibrary(); break;
       default: setView(targetView);
     }
     // Close on mobile
     if (window.innerWidth < 768) onClose();
-  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToSongs, goToSetlists, onClose]);
+  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, onClose]);
 
   // Close on Escape
   useEffect(() => {
