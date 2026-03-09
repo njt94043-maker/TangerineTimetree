@@ -57,6 +57,8 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
+.mono { font-family: var(--font-mono); }
+
 /* 2.1: safe area padding on app container */
 .app {
   min-height: 100%;
