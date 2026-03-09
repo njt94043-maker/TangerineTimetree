@@ -6,21 +6,20 @@
 ---
 
 ## Current State
-- **Phase**: S32A — Automated stem separation deployed and tested end-to-end.
-- **What works**: Cloud Run service does full pipeline: upload MP3 → madmom beat detection → Demucs htdemucs stem separation (4 stems: drums, bass, vocals, other) → encode to MP3 → upload to Supabase Storage → insert song_stems rows. Web triggers via POST /process (202 Accepted), Cloud Tasks dispatches to /process-worker (8Gi/4CPU, 900s timeout). Status polling on web (3s) and Android (10s). End-to-end verified: Cissy Strut processed (90.9 BPM, 4 stems as MP3, source='auto').
-- **What's new (S32A)**: Dockerfile expanded (PyTorch CPU + torchaudio + Demucs + model pre-download). Cloud Tasks queue `stem-processing` created (europe-west1, max-concurrent=1, max-attempts=2). Worker auth via X-Worker-Secret + OIDC. Web SongForm updated: triggerProcessing() sends JSON (no more blob upload), polls beat_maps status, auto stems show [auto] badge. Android: processingStatus polling + status banner in PracticeScreen. Migrations: song_stems.source column + created_by nullable + beat_maps status CHECK updated.
-- **Last session**: S32A — Automated stem separation pipeline.
-- **Next action**: S32B/C — End-to-end testing, process remaining songs, Android APK rebuild, S31C visual testing.
+- **Phase**: S32B/C — End-to-end testing + polish complete.
+- **What works**: Full pipeline verified for all 3 songs. Cloud Run /process → Cloud Tasks → /process-worker (madmom beats + Demucs stems). Re-process verified (old auto stems deleted, new ones created). Web + Android builds clean. Booking system integrated (BookingWizard + GigHub wired into App.tsx, migration applied).
+- **What's new (S32B/C)**: All 3 songs processed (Cissy Strut 90.9 BPM, Sultans 150 BPM, War Pigs 90.9 BPM — each with 4 auto stems). Re-process test passed (Cissy Strut: old stem IDs replaced with new ones, storage paths updated). Android debug APK rebuilt + installed on Samsung. Booking migration 20260308230000 confirmed applied.
+- **Last session**: S32B/C — Testing + polish.
+- **Next action**: On-device testing (practice with server beat maps + stems, BTrack offline fallback). Add more songs. Visual testing of web UI at thegreentangerine.com.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S32B/C — Testing + Polish
-- Process remaining songs (Sultans of Swing, War Pigs) through new /process pipeline
-- Test web UI visually: upload track → verify 202 → watch status polling → stems appear
-- Test re-process: verify old auto stems replaced, manual stems preserved
-- Rebuild Android debug APK with processingStatus banner
-- Test Android: verify stems auto-load after processing completes
-- S31C carry-over: verify BTrack offline fallback, test beat analysis button
+## Next Session Plan
+- Test on-device: open GigBooks → Practice → select song → verify processing status banner + stems auto-load + playback
+- Test web UI at thegreentangerine.com: edit song → verify "Ready" status + [auto] stems + audio players
+- Test BTrack offline fallback: airplane mode on phone → load song → should fall back to BTrack
+- Add more songs via web app (currently only 3)
+- User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.

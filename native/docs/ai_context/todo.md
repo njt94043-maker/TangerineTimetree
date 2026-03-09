@@ -20,8 +20,8 @@
 - [x] **S31A: Server-side beat detection (madmom)** — DONE. Cloud Run service (Dockerfile + main.py), beat_maps migration, shared types/queries, web triggers after upload + status UI, Android fetches server beat map (BTrack fallback), C++ nativeApplyExternalBeatMap. Both apps build clean.
 - [x] **S31B: Deploy + end-to-end test** — DONE. Cloud Run deployed (Python 3.10, madmom 0.16.1, numpy 1.23.5). beat_maps migration applied via CLI. Vercel env var set + redeployed. All 3 tracks analysed successfully (Cissy Strut 90.9 BPM/287 beats, Sultans, War Pigs). Fixed: Cython build dep, collections.MutableSequence patch, np.float deprecation.
 - [x] **S32A: Automated stem separation** — DONE. Cloud Run expanded (PyTorch CPU + Demucs htdemucs + torchaudio + soundfile). Cloud Tasks queue (stem-processing, europe-west1). /process enqueues, /process-worker runs full pipeline (madmom beats → Demucs 4 stems → MP3 encode → Supabase upload). Web: triggerProcessing + 3s polling + auto badge. Android: processingStatus + 10s polling + PracticeScreen banner. Migrations: song_stems.source, created_by nullable, beat_maps status CHECK. End-to-end verified: Cissy Strut (90.9 BPM, 4 stems). Fixed: torchaudio missing, soundfile backend, created_by NOT NULL constraint.
-- [ ] **S32B/C: Testing + polish** — Process remaining songs (Sultans, War Pigs), test web UI visually, test re-process, rebuild Android APK, verify stems auto-load.
-- [ ] **S31C: On-device testing** — Test web UI visually (beat analysis + stem processing), test Android practice with server beat maps, verify BTrack offline fallback.
+- [x] **S32B/C: Testing + polish** — All 3 songs processed (Cissy Strut 90.9, Sultans 150, War Pigs 90.9 BPM + 4 auto stems each). Re-process verified (old stems replaced). Android APK rebuilt + installed. Booking integration confirmed (BookingWizard + GigHub wired, migration applied).
+- [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
 - [ ] Add more songs via web app (currently only 3: Sultans, Cissy Strut, War Pigs)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
@@ -188,3 +188,4 @@
 | S30A-C | Beat alignment overhaul + detection research (madmom chosen) | 2026-03-08 |
 | S31A-B | Server-side madmom beat detection — Cloud Run deploy + e2e test | 2026-03-08 |
 | S32A | Automated stem separation — Demucs on Cloud Run via Cloud Tasks | 2026-03-09 |
+| S32B/C | Testing + polish — all songs processed, re-process verified, APK rebuilt | 2026-03-09 |
