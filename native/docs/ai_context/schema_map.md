@@ -12,12 +12,12 @@
 - **API keys**: Publishable (`sb_publishable_...`) + Secret (`sb_secret_...`). Legacy JWT keys **disabled** (2026-03-05).
 - **RLS**: Enabled on all tables. Publishable key respects RLS; secret key bypasses it.
 - **Realtime**: Enabled on `gigs` + `away_dates`.
-- **Storage buckets**: `public-media`, `venue-photos`, `practice-tracks`
+- **Storage buckets**: `public-media`, `venue-photos`, `practice-tracks`, `song-stems`
 - **RPC functions**: `next_invoice_number()`, `next_quote_number()` — atomic auto-increment (SECURITY DEFINER)
 
 ---
 
-## Tables (23)
+## Tables (25)
 
 ### Calendar & Profiles
 
@@ -203,6 +203,13 @@ Per-user settings (bank details, contact info). Keyed by user ID.
 | bank_name | TEXT | YES | '' | |
 | bank_sort_code | TEXT | YES | '' | |
 | bank_account_number | TEXT | YES | '' | |
+| player_click_enabled | BOOLEAN | YES | TRUE | S34: player pref toggle |
+| player_flash_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_lyrics_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_chords_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_tracks_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_stems_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_metronome_visual_enabled | BOOLEAN | YES | TRUE | S34 |
 | updated_at | TIMESTAMPTZ | YES | NOW() | |
 
 #### band_settings
@@ -356,6 +363,9 @@ Master song library with metronome data for live/practice modes.
 | beat_offset_ms | INT | YES | 0 | Click-to-track alignment offset — S26A |
 | audio_url | TEXT | YES | NULL | Supabase Storage URL (practice MP3) |
 | audio_storage_path | TEXT | YES | NULL | Storage bucket path |
+| category | TEXT | YES | 'tange_cover' | CHECK: tange_cover, tange_original, personal. S34 |
+| owner_id | UUID | YES | NULL | FK → profiles(id). For personal songs. S34 |
+| drum_notation | TEXT | YES | '' | Drum-specific notation. S34 |
 | created_by | UUID | NO | — | FK → profiles(id) |
 | created_at | TIMESTAMPTZ | YES | NOW() | |
 | updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
@@ -372,6 +382,8 @@ Ordered collections of songs for gigs or practice.
 | name | TEXT | NO | — | |
 | description | TEXT | YES | '' | |
 | notes | TEXT | YES | '' | |
+| setlist_type | TEXT | YES | 'tange' | CHECK: tange, other_band. S34 |
+| band_name | TEXT | YES | '' | For other_band setlists. S34 |
 | created_by | UUID | NO | — | FK → profiles(id) |
 | created_at | TIMESTAMPTZ | YES | NOW() | |
 | updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
@@ -391,6 +403,40 @@ Junction table with position ordering.
 
 **Indexes**: `idx_setlist_songs_setlist`, `idx_setlist_songs_song`.
 **RLS**: All authenticated for all operations.
+
+### Audio Processing (S31A + S32A)
+
+#### beat_maps
+Server-side beat detection results (madmom via Cloud Run).
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| song_id | UUID | NO | — | FK → songs(id) CASCADE |
+| beats | JSONB | NO | — | Array of float seconds (beat timestamps) |
+| bpm | NUMERIC(6,2) | YES | NULL | Detected BPM |
+| status | TEXT | NO | 'pending' | CHECK: pending, processing, ready, failed |
+| error | TEXT | YES | NULL | Error message if failed |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+| updated_at | TIMESTAMPTZ | YES | NOW() | |
+
+**RLS**: SELECT/INSERT/UPDATE all authenticated.
+
+#### song_stems
+Auto-separated or manually uploaded stems per song. Storage bucket: `song-stems`.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| song_id | UUID | NO | — | FK → songs(id) CASCADE |
+| label | TEXT | NO | — | drums, bass, guitar, keys, vocals, other |
+| file_url | TEXT | NO | — | Public URL |
+| storage_path | TEXT | NO | — | Bucket path |
+| source | TEXT | YES | 'manual' | auto (Demucs) or manual |
+| created_by | UUID | YES | NULL | Nullable — Cloud Run worker has no user context |
+| created_at | TIMESTAMPTZ | YES | NOW() | |
+
+**RLS**: SELECT/INSERT/UPDATE/DELETE all authenticated.
 
 ### Public Website
 
@@ -455,7 +501,9 @@ auth.users
         └── public_media (1:many via created_by)
 
 songs (standalone)
-  └── setlist_songs (1:many via song_id, CASCADE)
+  ├── setlist_songs (1:many via song_id, CASCADE)
+  ├── beat_maps (1:many via song_id, CASCADE)
+  └── song_stems (1:many via song_id, CASCADE)
 
 setlists (standalone)
   └── setlist_songs (1:many via setlist_id, CASCADE)
@@ -507,15 +555,17 @@ All types in `shared/supabase/types.ts`. Key interfaces:
 | SiteContent | site_content | Key-value CMS |
 | SiteReview | site_reviews | Customer reviews |
 
-| Song | songs | Metronome data + practice track URL |
-| Setlist | setlists | |
+| Song | songs | Metronome data + practice track URL + category/owner (S34) |
+| Setlist | setlists | + setlist_type/band_name (S34) |
 | SetlistSong | setlist_songs | Junction |
 | SetlistSongWithDetails | setlist_songs + songs | JOIN |
 | SetlistWithSongs | setlists + songs | Aggregate |
+| BeatMap | beat_maps | Server-side detection result (S31A) |
+| SongStem | song_stems | Auto/manual stems (S32A) |
 
-Utility types: `GigType`, `GigVisibility`, `InvoiceStatus`, `InvoiceStyle`, `QuoteStatus`, `EventType`, `PLIOption`, `DayStatus`, `ChangeSummaryItem`, `BillTo` (S24A), `ClickSound` (S25A).
+Utility types: `GigType`, `GigVisibility`, `InvoiceStatus`, `InvoiceStyle`, `QuoteStatus`, `EventType`, `PLIOption`, `DayStatus`, `ChangeSummaryItem`, `BillTo` (S24A), `ClickSound` (S25A), `SongCategory` (S34), `SetlistType` (S34), `BeatMapStatus` (S31A), `StemLabel` (S32A).
 
-Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, awayDates)`, `resolveBillTo(row)` (S24A).
+Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, awayDates)`, `computeDayDisplay(date, gigs)`, `resolveBillTo(row)` (S24A).
 
 ---
 
@@ -542,9 +592,13 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | Contact | submitContact, getContactSubmissions, markContactRead, archiveContact |
 | Site Content | getSiteContent, updateSiteContent |
 | Reviews | getSiteReviews, createSiteReview, updateSiteReview, deleteSiteReview |
-| Songs | getSongs, getSong, searchSongs, createSong, updateSong, deleteSong, uploadPracticeTrack, deletePracticeTrack |
-| Setlists | getSetlists, getSetlist, createSetlist, updateSetlist, deleteSetlist |
+| Songs | getSongs, getSong, searchSongs, createSong, updateSong, deleteSong, uploadPracticeTrack, deletePracticeTrack, getSongsByCategory, getSongsByOwner |
+| Setlists | getSetlists, getSetlist, createSetlist, updateSetlist, deleteSetlist, getSetlistsByType |
 | Setlist Songs | getSetlistSongs, getSetlistWithSongs, setSetlistSongs, addSongToSetlist, removeSongFromSetlist |
+| Beat Maps | getBeatMap, upsertBeatMap |
+| Song Stems | getStemsBySongId, createStem, deleteStem |
+| Player Prefs | getPlayerPrefs, updatePlayerPrefs |
+| Processing | triggerProcessing (web — calls Cloud Run) |
 | Dashboard | getDashboardStats |
 
 ---
@@ -560,4 +614,7 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | supabase/migrations/20260306100000_s24a_bill_to_flexibility.sql | S24A: venue contacts, nullable client_id, gig_id FK, CHECK constraints |
 | supabase/migrations/20260306200000_s25a_songs_setlists.sql | S25A: songs, setlists, setlist_songs tables + practice-tracks bucket |
 | supabase/migrations/20260306_s26a_song_lyrics_chords_beat_offset.sql | S26A: lyrics, chords, beat_offset_ms on songs |
+| supabase/migrations/..._s31a_beat_maps.sql | S31A: beat_maps table (song_id FK, beats JSONB, bpm, status CHECK) |
+| supabase/migrations/..._s32a_song_stems.sql | S32A: song_stems table (label, source auto/manual, created_by nullable), song-stems storage bucket, beat_maps status CHECK expanded |
+| supabase/migrations/..._s34_categories_types_prefs.sql | S34: songs.category + owner_id + drum_notation, setlists.setlist_type + band_name, user_settings 7x player_*_enabled |
 | shared/supabase/types.ts | All TypeScript interfaces |

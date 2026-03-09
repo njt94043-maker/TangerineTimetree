@@ -227,51 +227,77 @@
 - Cannot use `withContext()` directly — use `runBlocking(Dispatchers.IO)` instead.
 - `withContext` requires suspend context; `runBlocking` creates one.
 
-## Android Compose (android/)
+## Android Compose (android/) — Patterns & Traps
 
-### Postgres `numeric` type serializes with decimals
-- Postgres `numeric` columns (bpm, swing_percent, time_signature_top/bottom, subdivision, count_in_bars, duration_seconds, beat_offset_ms, position) serialize as `150.00` not `150`.
-- Kotlin model fields declared as `Int` will throw: `Unexpected symbol '.' in numeric literal`.
-- Fix: declare ALL Postgres numeric fields as `Double`. Use `.toInt()` for display.
+> These are ACTIVE patterns — still relevant even after fixes. Don't re-introduce the anti-patterns.
 
-### Supabase publishable key format changed
-- Legacy JWT keys (`eyJhbG...`) were disabled 2026-03-05. Use publishable key from `shared/supabase/config.ts`.
-- Format: `sb_publishable_...`. When rotating keys, update `SupabaseClient.kt` immediately.
+### Postgres `numeric` type → always use Double in Kotlin
+- Postgres `numeric` columns serialize as `150.00` not `150`.
+- Kotlin `Int` throws: `Unexpected symbol '.' in numeric literal`.
+- **Rule**: ALL Postgres numeric fields = `Double` in Kotlin data classes. Use `.toInt()` for display.
+- Applies to: bpm, swing_percent, time_signature_top/bottom, subdivision, count_in_bars, duration_seconds, beat_offset_ms, position.
 
-### JVM setter clash in AndroidViewModel with `by mutableStateOf()`
-- `var practiceSpeed by mutableStateOf(1f)` auto-generates `setPracticeSpeed(Float)` JVM setter.
-- Adding `fun setPracticeSpeed(x: Float)` method causes: `Platform declaration clash: ... has the same JVM signature`.
-- Fix: rename the method (e.g., `applySpeed(Float)`, `applySubdivision(Int)`).
+### Supabase key must match between web and Android
+- Publishable key is in `shared/supabase/config.ts` (web) AND `SupabaseClient.kt` (Android).
+- Format: `sb_publishable_...`. If key rotates, update BOTH immediately.
+
+### JVM setter clash with `by mutableStateOf()`
+- `var practiceSpeed by mutableStateOf(1f)` auto-generates `setPracticeSpeed(Float)`.
+- Adding `fun setPracticeSpeed(x: Float)` → `Platform declaration clash`.
+- **Rule**: always rename custom setter methods (e.g., `applySpeed()`, `applySubdivision()`).
 
 ### `remember {}` required for `mutableStateOf` in composables
-- `var x by mutableStateOf<Foo?>(null)` in a composable function body (not ViewModel) MUST be wrapped with `remember`.
-- Without `remember`, the state is recreated on every recomposition — values reset to null, type inference also breaks.
-- Fix: `var x by remember { mutableStateOf<Foo?>(null) }`. Don't forget the `import androidx.compose.runtime.remember`.
+- Without `remember`, state resets on every recomposition.
+- **Rule**: `var x by remember { mutableStateOf<Foo?>(null) }` — always.
 
 ### `skipPartialExpansion` removed in Compose BOM 2025.05
-- `rememberModalBottomSheetState(skipPartialExpansion = true)` throws unresolved parameter.
-- Fix: use `rememberModalBottomSheetState()` with no arguments.
+- Use `rememberModalBottomSheetState()` with no arguments.
 
-### App not refreshing on first launch after install
-- First cold-start after install may show stale state. Close and reopen the app to get fresh data.
-- Normal behaviour — ViewModel init loads data from Supabase on first composition.
-
-### PCM decode: never use `mutableListOf<Short>()` for large audio files
-- Each boxed `Short` costs 16 bytes of JVM overhead → 5-min track = 423MB → OOM crash.
-- Use `mutableListOf<ByteArray>()` for chunks, then convert via `ByteBuffer.wrap(chunk).asShortBuffer()` (primitive, no boxing).
+### PCM decode: never use `mutableListOf<Short>()` for large audio
+- Boxed `Short` = 16 bytes → 5-min track = 423MB → OOM.
+- **Rule**: `mutableListOf<ByteArray>()` chunks → `ByteBuffer.wrap(chunk).asShortBuffer()`.
 
 ### Oboe sample rate vs MP3 sample rate mismatch
-- Oboe opens at device native rate (48000Hz on Samsung). MP3 is often 44100Hz.
-- Loading 44100Hz PCM into 48000Hz Oboe stream plays 8.8% too fast.
-- Fix: after decoding, call `nativeGetSampleRate()` and linear-interpolation resample if rates differ.
+- Oboe = device native (48000Hz on Samsung). MP3 = often 44100Hz.
+- **Rule**: after decode, call `nativeGetSampleRate()` and resample if rates differ.
 
 ### C++ metronome beat offset: apply at start(), not per-beat
-- `Metronome::render()` used to add `beatDisplacementFrames_` to every `nextBeatFrame_` computation.
-- This caused effective BPM = `sampleRate*60/(fpb+offset)` instead of the target BPM. Audible as very slow random-seeming clicks.
-- **Fix**: apply offset ONCE at `Metronome::start()` as initial `nextBeatFrame_`. Render loop uses `nextBeatFrame_ = framePosition_ + fpb`.
-- Nudge uses `pendingPhaseShift_` atomic: accumulated from main thread, applied once at the next beat boundary in the audio thread.
+- Offset in render loop causes BPM drift. Apply ONCE at `Metronome::start()`.
+- Nudge uses `pendingPhaseShift_` atomic, applied at next beat boundary.
 
-### enableEdgeToEdge needs explicit inset handling in Compose
-- `enableEdgeToEdge()` in Activity makes app draw behind status bar and nav bar.
-- Without inset handling, content appears under the status bar.
-- Fix: add `Modifier.safeDrawingPadding()` to NavHost content, `statusBarsPadding()` to drawer header Row.
+### enableEdgeToEdge needs explicit inset handling
+- `Modifier.safeDrawingPadding()` on NavHost, `statusBarsPadding()` on drawer header.
+
+## Audit Findings (2026-03-09)
+
+> Issues found during full codebase audit. Track resolution in IMPACT_MAP.md.
+
+### Offline queue conflict detection is missing
+- Web `useOfflineQueue.ts` has no optimistic concurrency.
+- Scenario: User A edits gig offline (£500), User B edits online (£600), User A replays → £500 wins silently.
+- **Status**: Open. Needs `updated_at` timestamp comparison before replay.
+
+### No forgot-password flow
+- Neither app has a password reset UI. Supabase `resetPasswordForEmail()` exists but isn't wired.
+- **Impact**: Band member forgets password → locked out → texts Nathan → never logs back in.
+- **Status**: Open. #1 adoption blocker for non-tech members.
+
+### No role-based UI filtering
+- Web drawer shows all 11 nav items to all users (including invoicing, quotes, clients).
+- Band Settings tab visible to non-admin but errors on save (DB rejects via RLS).
+- **Status**: Open. Filter drawer items on `profile.is_admin`. Make Band Settings read-only for members.
+
+### Changelog depends on its own fetch in updateGig
+- `updateGig()` fetches current values (for field diff) then inserts changelog — but changelog insert is "best-effort" (silent catch).
+- If fetch fails, diff is wrong. If insert fails, no audit trail.
+- **Status**: Open. Decouple changelog from update or make it transactional.
+
+### Realtime failures are silent
+- `useCalendarData.ts` and other hooks log `console.warn()` on subscription failure.
+- User sees stale data without indication.
+- **Status**: Open. Add polling fallback (30s interval) when channel fails.
+
+### AppViewModel errors silently swallowed (Android)
+- Most Supabase calls in `catch (_: Exception) {}` with no UI feedback.
+- If stem loading or beat analysis fails, user sees nothing.
+- **Status**: Open. Add toast/banner for critical failures.
