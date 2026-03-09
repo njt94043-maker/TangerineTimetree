@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=390, initial-scale=1.0">
-<title>Live Mode Player — v4</title>
+<title>Live Mode Player — v5</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,6 +13,27 @@
     width: 390px; height: 844px; margin: 0 auto;
     overflow: hidden; display: flex; flex-direction: column;
     position: relative;
+  }
+
+  /* ── FULL-SCREEN BEAT GLOW ─────────────────── */
+  .screen-glow {
+    position: fixed; inset: 0; pointer-events: none; z-index: 50;
+    opacity: 0; transition: opacity 0.08s ease-out;
+    box-shadow: inset 0 0 60px 15px rgba(0,230,118,0.25), inset 0 0 120px 30px rgba(0,230,118,0.08);
+    border: 1px solid rgba(0,230,118,0.15);
+  }
+  .screen-glow.flash {
+    opacity: 1; transition: opacity 0.02s;
+  }
+
+  /* Ambient radial pulse behind cards */
+  .screen-pulse {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: 0; transition: opacity 0.1s ease-out;
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.04) 0%, transparent 50%);
+  }
+  .screen-pulse.flash {
+    opacity: 1; transition: opacity 0.02s;
   }
 
   /* ── Header ─────────────────────────────────── */
@@ -261,6 +282,10 @@
 </head>
 <body>
 
+<!-- FULL-SCREEN BEAT GLOW (behind everything) -->
+<div class="screen-glow" id="screenGlow"></div>
+<div class="screen-pulse" id="screenPulse"></div>
+
 <!-- Speed Safety Check Modal -->
 <div class="modal-overlay" id="safetyModal" onclick="this.classList.remove('visible')">
   <div class="modal" onclick="event.stopPropagation()">
@@ -445,9 +470,15 @@ function applyPreset(name) {
   updateLayout();
 }
 
-// ── Beat flash — card glow ──
+// ── Beat flash — FULL SCREEN ──
 function fireBeat() {
   beatEnergy = 1.0;
+
+  // Full-screen edge glow
+  const glow = document.getElementById('screenGlow');
+  const pulse = document.getElementById('screenPulse');
+  glow.classList.add('flash'); pulse.classList.add('flash');
+  setTimeout(() => { glow.classList.remove('flash'); pulse.classList.remove('flash'); }, 120);
 
   // Card border flash on all visible cards
   document.querySelectorAll('.visual-area:not(.hidden), .text-panel:not(.hidden), .nav-btn').forEach(el => {
