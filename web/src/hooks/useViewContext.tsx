@@ -11,24 +11,34 @@ type View =
   | 'setlists' | 'setlist-detail'
   | 'booking-wizard' | 'gig-hub';
 
+/* ── History entry: view name + relevant state snapshot ── */
+interface HistoryEntry {
+  view: View;
+  selectedDate?: string;
+  editGigId?: string | null;
+  initialGigType?: 'gig' | 'practice';
+  invoiceId?: string | null;
+  editInvoiceId?: string | null;
+  quoteId?: string | null;
+  editQuoteId?: string | null;
+  venueId?: string | null;
+  editSongId?: string | null;
+  setlistId?: string | null;
+  gigHubGigId?: string | null;
+}
+
 interface ViewState {
   view: View;
   selectedDate: string;
   editGigId: string | null;
   initialGigType: 'gig' | 'practice';
-  // Invoice-specific state
   invoiceId: string | null;
   editInvoiceId: string | null;
-  // Quote-specific state
   quoteId: string | null;
   editQuoteId: string | null;
-  // Venue-specific state
   venueId: string | null;
-  // Song-specific state
   editSongId: string | null;
-  // Setlist-specific state
   setlistId: string | null;
-  // Gig Hub state
   gigHubGigId: string | null;
 }
 
@@ -69,9 +79,35 @@ interface ViewContextValue extends ViewState {
   goToBookingWizard: (date: string) => void;
   goToEditBooking: (gigId: string) => void;
   goToGigHub: (gigId: string) => void;
+  // Post-save replace navigation (swaps current stack entry)
+  goToAway: (date?: string) => void;
+  replaceWithInvoiceDetail: (id: string) => void;
+  replaceWithQuoteDetail: (id: string) => void;
+  replaceWithNewQuote: () => void;
+  replaceWithNewInvoice: () => void;
 }
 
 const ViewContext = createContext<ViewContextValue | null>(null);
+
+/* ── Dedup key: view + primary identifier for that view ── */
+function entryKey(e: HistoryEntry): string {
+  switch (e.view) {
+    case 'day-detail': return `day-detail:${e.selectedDate ?? ''}`;
+    case 'gig-form': return `gig-form:${e.editGigId ?? 'new'}:${e.selectedDate ?? ''}`;
+    case 'gig-hub': return `gig-hub:${e.gigHubGigId ?? ''}`;
+    case 'booking-wizard': return `booking-wizard:${e.editGigId ?? 'new'}:${e.selectedDate ?? ''}`;
+    case 'invoice-detail': return `invoice-detail:${e.invoiceId ?? ''}`;
+    case 'invoice-form': return `invoice-form:${e.editInvoiceId ?? 'new'}`;
+    case 'invoice-preview': return `invoice-preview:${e.invoiceId ?? ''}`;
+    case 'quote-detail': return `quote-detail:${e.quoteId ?? ''}`;
+    case 'quote-form': return `quote-form:${e.editQuoteId ?? 'new'}`;
+    case 'quote-preview': return `quote-preview:${e.quoteId ?? ''}`;
+    case 'venue-detail': return `venue-detail:${e.venueId ?? ''}`;
+    case 'song-form': return `song-form:${e.editSongId ?? 'new'}`;
+    case 'setlist-detail': return `setlist-detail:${e.setlistId ?? ''}`;
+    default: return e.view;
+  }
+}
 
 export function ViewProvider({ children }: { children: ReactNode }) {
   const [view, setViewRaw] = useState<View>('calendar');
@@ -87,30 +123,58 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [setlistId, setSetlistId] = useState<string | null>(null);
   const [gigHubGigId, setGigHubGigId] = useState<string | null>(null);
 
-  // View history stack for step-by-step back navigation
-  const historyRef = useRef<View[]>(['calendar']);
+  // View history stack — each entry stores the view + its state snapshot
+  const historyRef = useRef<HistoryEntry[]>([{ view: 'calendar' }]);
   // Flag to suppress pushState when handling popstate (browser back button)
   const handlingPopState = useRef(false);
 
-  // Push a new view onto the history stack
-  function pushView(v: View) {
-    // Avoid duplicate consecutive entries (e.g. navigating to same day-detail)
+  /* ── Restore state from a history entry ── */
+  function restoreEntry(entry: HistoryEntry) {
+    if (entry.selectedDate !== undefined) setSelectedDate(entry.selectedDate);
+    if (entry.editGigId !== undefined) setEditGigId(entry.editGigId);
+    if (entry.initialGigType !== undefined) setInitialGigType(entry.initialGigType);
+    if (entry.invoiceId !== undefined) setInvoiceId(entry.invoiceId);
+    if (entry.editInvoiceId !== undefined) setEditInvoiceId(entry.editInvoiceId);
+    if (entry.quoteId !== undefined) setQuoteId(entry.quoteId);
+    if (entry.editQuoteId !== undefined) setEditQuoteId(entry.editQuoteId);
+    if (entry.venueId !== undefined) setVenueId(entry.venueId);
+    if (entry.editSongId !== undefined) setEditSongId(entry.editSongId);
+    if (entry.setlistId !== undefined) setSetlistId(entry.setlistId);
+    if (entry.gigHubGigId !== undefined) setGigHubGigId(entry.gigHubGigId);
+  }
+
+  /* ── Push a new entry onto the history stack ── */
+  function pushEntry(entry: HistoryEntry) {
     const stack = historyRef.current;
-    if (stack[stack.length - 1] !== v) {
-      historyRef.current = [...stack, v];
+    const top = stack[stack.length - 1];
+    // Prevent duplicate consecutive entries (e.g. rapid double-tap)
+    if (!top || entryKey(top) !== entryKey(entry)) {
+      historyRef.current = [...stack, entry];
     }
-    setViewRaw(v);
+    // Apply state + view
+    restoreEntry(entry);
+    setViewRaw(entry.view);
     // Push browser history entry so hardware/OS back button navigates within the app
     if (!handlingPopState.current) {
-      window.history.pushState({ view: v, depth: historyRef.current.length }, '');
+      window.history.pushState({ depth: historyRef.current.length }, '');
     }
   }
 
-  // Top-level navigation — resets the history stack
+  /* ── Replace the current top of stack (post-save transitions) ── */
+  function replaceEntry(entry: HistoryEntry) {
+    const stack = historyRef.current;
+    historyRef.current = stack.length > 0 ? [...stack.slice(0, -1), entry] : [entry];
+    restoreEntry(entry);
+    setViewRaw(entry.view);
+    if (!handlingPopState.current) {
+      window.history.replaceState({ depth: historyRef.current.length }, '');
+    }
+  }
+
+  /* ── Top-level navigation — resets the history stack ── */
   function resetToView(v: View) {
-    historyRef.current = [v];
+    historyRef.current = [{ view: v }];
     setViewRaw(v);
-    // Push browser history entry so hardware back button can return to previous view
     if (!handlingPopState.current) {
       window.history.pushState({ view: v, depth: 1 }, '');
     }
@@ -118,54 +182,59 @@ export function ViewProvider({ children }: { children: ReactNode }) {
 
   const setView = useCallback((v: View) => resetToView(v), []);
 
-  const goToDay = useCallback((date: string) => {
-    setSelectedDate(date);
-    pushView('day-detail');
+  /* ── Go back one step, restoring previous state ── */
+  const goBack = useCallback(() => {
+    const stack = historyRef.current;
+    if (stack.length <= 1) {
+      historyRef.current = [{ view: 'calendar' }];
+      setViewRaw('calendar');
+      return;
+    }
+    const newStack = stack.slice(0, -1);
+    historyRef.current = newStack;
+    const prev = newStack[newStack.length - 1];
+    restoreEntry(prev);
+    setViewRaw(prev.view);
+    // Keep browser history in sync
+    if (!handlingPopState.current) {
+      handlingPopState.current = true;
+      window.history.back();
+      setTimeout(() => { handlingPopState.current = false; }, 100);
+    }
   }, []);
 
+  /* ═══ Navigation functions ═══ */
+
+  // Calendar / Day Detail
+  const goToDay = useCallback((date: string) => {
+    setSelectedDate(date);
+    pushEntry({ view: 'day-detail', selectedDate: date });
+  }, []);
+
+  // Gig Form
   const goToAddGig = useCallback((date: string, type: 'gig' | 'practice' = 'gig') => {
     setSelectedDate(date);
     setEditGigId(null);
     setInitialGigType(type);
-    pushView('gig-form');
+    pushEntry({ view: 'gig-form', selectedDate: date, editGigId: null, initialGigType: type });
   }, []);
 
   const goToEditGig = useCallback((gigId: string) => {
     setEditGigId(gigId);
-    pushView('gig-form');
+    pushEntry({ view: 'gig-form', editGigId: gigId });
   }, []);
 
   const goToAddGigFromList = useCallback((date: string, type: 'gig' | 'practice') => {
     setSelectedDate(date);
     setEditGigId(null);
     setInitialGigType(type);
-    pushView('gig-form');
+    pushEntry({ view: 'gig-form', selectedDate: date, editGigId: null, initialGigType: type });
   }, []);
 
   const goToEditGigFromList = useCallback((gigId: string, date: string) => {
     setSelectedDate(date);
     setEditGigId(gigId);
-    pushView('gig-form');
-  }, []);
-
-  const goBack = useCallback(() => {
-    const stack = historyRef.current;
-    if (stack.length <= 1) {
-      // Already at root — stay on calendar
-      setViewRaw('calendar');
-      return;
-    }
-    // Pop current view, go to previous
-    const newStack = stack.slice(0, -1);
-    historyRef.current = newStack;
-    setViewRaw(newStack[newStack.length - 1]);
-    // Keep browser history in sync — go back so popstate doesn't double-pop
-    if (!handlingPopState.current) {
-      handlingPopState.current = true;
-      window.history.back();
-      // Reset flag after a short delay to allow popstate to fire and be skipped
-      setTimeout(() => { handlingPopState.current = false; }, 100);
-    }
+    pushEntry({ view: 'gig-form', editGigId: gigId, selectedDate: date });
   }, []);
 
   // Top-level drawer navigation — resets stack
@@ -175,72 +244,106 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToClients = useCallback(() => resetToView('clients'), []);
   const goToVenues = useCallback(() => resetToView('venues'), []);
   const goToQuotes = useCallback(() => resetToView('quotes'), []);
+  const goToSongs = useCallback(() => resetToView('songs'), []);
+  const goToSetlists = useCallback(() => resetToView('setlists'), []);
 
-  // Drill-down navigation — pushes onto stack
+  // Invoice drill-down
   const goToNewInvoice = useCallback(() => {
     setEditInvoiceId(null);
-    pushView('invoice-form');
+    pushEntry({ view: 'invoice-form', editInvoiceId: null });
   }, []);
   const goToEditInvoice = useCallback((id: string) => {
     setEditInvoiceId(id);
-    pushView('invoice-form');
+    pushEntry({ view: 'invoice-form', editInvoiceId: id });
   }, []);
   const goToInvoiceDetail = useCallback((id: string) => {
     setInvoiceId(id);
-    pushView('invoice-detail');
+    pushEntry({ view: 'invoice-detail', invoiceId: id });
   }, []);
   const goToInvoicePreview = useCallback((id: string) => {
     setInvoiceId(id);
-    pushView('invoice-preview');
+    pushEntry({ view: 'invoice-preview', invoiceId: id });
   }, []);
+
+  // Quote drill-down
   const goToNewQuote = useCallback(() => {
     setEditQuoteId(null);
-    pushView('quote-form');
+    pushEntry({ view: 'quote-form', editQuoteId: null });
   }, []);
   const goToEditQuote = useCallback((id: string) => {
     setEditQuoteId(id);
-    pushView('quote-form');
+    pushEntry({ view: 'quote-form', editQuoteId: id });
   }, []);
   const goToQuoteDetail = useCallback((id: string) => {
     setQuoteId(id);
-    pushView('quote-detail');
+    pushEntry({ view: 'quote-detail', quoteId: id });
   }, []);
   const goToQuotePreview = useCallback((id: string) => {
     setQuoteId(id);
-    pushView('quote-preview');
+    pushEntry({ view: 'quote-preview', quoteId: id });
   }, []);
+
+  // Venue drill-down
   const goToVenueDetail = useCallback((id: string) => {
     setVenueId(id);
-    pushView('venue-detail');
+    pushEntry({ view: 'venue-detail', venueId: id });
   }, []);
-  const goToSongs = useCallback(() => resetToView('songs'), []);
+
+  // Song drill-down
   const goToNewSong = useCallback(() => {
     setEditSongId(null);
-    pushView('song-form');
+    pushEntry({ view: 'song-form', editSongId: null });
   }, []);
   const goToEditSong = useCallback((id: string) => {
     setEditSongId(id);
-    pushView('song-form');
+    pushEntry({ view: 'song-form', editSongId: id });
   }, []);
-  const goToSetlists = useCallback(() => resetToView('setlists'), []);
+
+  // Setlist drill-down
   const goToSetlistDetail = useCallback((id: string) => {
     setSetlistId(id);
-    pushView('setlist-detail');
+    pushEntry({ view: 'setlist-detail', setlistId: id });
   }, []);
+
   // Booking wizard / Gig Hub
   const goToBookingWizard = useCallback((date: string) => {
     setSelectedDate(date);
     setEditGigId(null);
-    pushView('booking-wizard');
+    pushEntry({ view: 'booking-wizard', selectedDate: date, editGigId: null });
   }, []);
   const goToEditBooking = useCallback((gigId: string) => {
     setEditGigId(gigId);
-    pushView('booking-wizard');
+    pushEntry({ view: 'booking-wizard', editGigId: gigId });
   }, []);
   const goToGigHub = useCallback((gigId: string) => {
     setGigHubGigId(gigId);
-    pushView('gig-hub');
+    pushEntry({ view: 'gig-hub', gigHubGigId: gigId });
   }, []);
+
+  // Away (push-based, preserves day-detail in stack)
+  const goToAway = useCallback((date?: string) => {
+    if (date) setSelectedDate(date);
+    pushEntry({ view: 'away', selectedDate: date });
+  }, []);
+
+  /* ── Post-save replace helpers (swap current entry, no extra back step) ── */
+  const replaceWithInvoiceDetail = useCallback((id: string) => {
+    setInvoiceId(id);
+    replaceEntry({ view: 'invoice-detail', invoiceId: id });
+  }, []);
+  const replaceWithQuoteDetail = useCallback((id: string) => {
+    setQuoteId(id);
+    replaceEntry({ view: 'quote-detail', quoteId: id });
+  }, []);
+  const replaceWithNewQuote = useCallback(() => {
+    setEditQuoteId(null);
+    replaceEntry({ view: 'quote-form', editQuoteId: null });
+  }, []);
+  const replaceWithNewInvoice = useCallback(() => {
+    setEditInvoiceId(null);
+    replaceEntry({ view: 'invoice-form', editInvoiceId: null });
+  }, []);
+
   // Listen for browser back button / hardware back (Android & iOS PWA)
   useEffect(() => {
     // Seed initial browser history state
@@ -253,13 +356,16 @@ export function ViewProvider({ children }: { children: ReactNode }) {
       const stack = historyRef.current;
       if (stack.length <= 1) {
         // At root — push a dummy entry so the next back doesn't close the app
+        historyRef.current = [{ view: 'calendar' }];
         setViewRaw('calendar');
         window.history.pushState({ view: 'calendar', depth: 1 }, '');
       } else {
-        // Pop current view, go to previous
+        // Pop current view, restore previous
         const newStack = stack.slice(0, -1);
         historyRef.current = newStack;
-        setViewRaw(newStack[newStack.length - 1]);
+        const prev = newStack[newStack.length - 1];
+        restoreEntry(prev);
+        setViewRaw(prev.view);
       }
       handlingPopState.current = false;
     }
@@ -288,6 +394,9 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToSongs, goToNewSong, goToEditSong,
         goToSetlists, goToSetlistDetail,
         goToBookingWizard, goToEditBooking, goToGigHub,
+        goToAway,
+        replaceWithInvoiceDetail, replaceWithQuoteDetail,
+        replaceWithNewQuote, replaceWithNewInvoice,
       }}
     >
       {children}

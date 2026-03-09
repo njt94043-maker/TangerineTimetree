@@ -91,6 +91,9 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     editSongId, goToSongs, goToNewSong, goToEditSong,
     setlistId, goToSetlistDetail,
     gigHubGigId, goToBookingWizard, goToEditBooking, goToGigHub,
+    goToAway,
+    replaceWithInvoiceDetail, replaceWithQuoteDetail,
+    replaceWithNewQuote, replaceWithNewInvoice,
   } = useView();
 
   const now = new Date();
@@ -169,7 +172,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   function handleInvoiceSaved(id: string) {
     refreshInvoices();
     setInvoicePrefill(undefined);
-    goToInvoiceDetail(id);
+    replaceWithInvoiceDetail(id);
   }
 
   function handleCreateInvoiceFromGig(gig: GigWithCreator) {
@@ -187,7 +190,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
   function handleQuoteSaved(id: string) {
     refreshQuotes();
-    goToQuoteDetail(id);
+    replaceWithQuoteDetail(id);
   }
 
   async function handleAddGigFromQuote(date: string, venue: string, fee: number, venueId?: string | null, clientId?: string | null, clientName?: string) {
@@ -349,7 +352,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onEditGig={goToEditGig}
             onGigPress={goToGigHub}
             onAddBooking={goToBookingWizard}
-            onMarkAway={() => setView('away')}
+            onMarkAway={() => goToAway(selectedDate)}
             onGigDeleted={() => { refresh(); refreshQueueCount(); }}
             onDateChange={goToDay}
             onCreateInvoice={handleCreateInvoiceFromGig}
@@ -375,10 +378,21 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             profiles={allProfiles}
             onClose={goBack}
             onSaved={handleGigSaved}
-            onGenerateQuote={() => { refresh(); goToNewQuote(); }}
+            onGenerateQuote={() => { refresh(); replaceWithNewQuote(); }}
             onCreateInvoice={(id) => {
               const gig = gigs.find(g => g.id === id);
-              if (gig) handleCreateInvoiceFromGig(gig as GigWithCreator);
+              if (gig) {
+                setInvoicePrefill({
+                  venue: gig.venue,
+                  venue_id: gig.venue_id ?? undefined,
+                  client_id: gig.client_id ?? undefined,
+                  gig_id: gig.id,
+                  gig_date: gig.date,
+                  amount: gig.fee != null ? String(gig.fee) : undefined,
+                  description: `Live music performance at ${gig.venue}`,
+                });
+                replaceWithNewInvoice();
+              }
             }}
           />
         )}
@@ -425,7 +439,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             loading={invoicesLoading}
             onNewInvoice={goToNewInvoice}
             onInvoicePress={goToInvoiceDetail}
-            onClose={() => setView('calendar')}
+            onClose={goBack}
           />
         )}
 
@@ -450,7 +464,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'invoice-preview' && invoiceId && (
           <InvoicePreview
             invoiceId={invoiceId}
-            onClose={() => goToInvoiceDetail(invoiceId)}
+            onClose={goBack}
           />
         )}
 
@@ -460,7 +474,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             loading={quotesLoading}
             onNewQuote={goToNewQuote}
             onQuotePress={goToQuoteDetail}
-            onClose={() => setView('calendar')}
+            onClose={goBack}
           />
         )}
 
@@ -485,21 +499,21 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
         {view === 'quote-preview' && quoteId && (
           <QuotePreview
             quoteId={quoteId}
-            onClose={() => goToQuoteDetail(quoteId)}
+            onClose={goBack}
           />
         )}
 
         {view === 'settings' && (
-          <Settings onClose={() => setView('calendar')} />
+          <Settings onClose={goBack} />
         )}
 
         {view === 'clients' && (
-          <ClientList onClose={() => setView('calendar')} />
+          <ClientList onClose={goBack} />
         )}
 
         {view === 'venues' && (
           <VenueList
-            onClose={() => setView('calendar')}
+            onClose={goBack}
             onVenuePress={goToVenueDetail}
           />
         )}
@@ -514,7 +528,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'songs' && (
           <SongList
-            onClose={() => setView('calendar')}
+            onClose={goBack}
             onNewSong={goToNewSong}
             onEditSong={goToEditSong}
           />
@@ -531,7 +545,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
         {view === 'setlists' && (
           <SetlistList
-            onClose={() => setView('calendar')}
+            onClose={goBack}
             onSetlistPress={goToSetlistDetail}
           />
         )}
