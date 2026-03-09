@@ -26,7 +26,7 @@
 - [x] **S35: Android Library + player refactor** — Library as launchpad (Songs/Setlists tabs, filter pills, launch into player). Shared player screen (mode flag: Live vs Practice). Queue overlay with reorder. Set complete screen. Speed safety check.
 - [x] **S36: Web audio engine + Library redesign + Player UI** — AudioEngine singleton, ClickScheduler (5 click sounds, beat map mode, subdivisions, swing), TrackPlayer (SoundTouchJS), StemMixer (per-stem gain/mute/solo), useAudioEngine hook. Library component (Songs/Setlists tabs, category/type filter pills, inline Live/Practice launch). Player component (transport, beat counter, lyrics/chords, speed, A-B loop, stem mixer, setlist queue). Forgot password fix. View routing (library + player views). Drawer updated (single Library item). All CSS. tsc + vite build clean.
 - [x] **S37: Web player polish** — Wake lock API (visibility re-acquire). Waveform visualiser (canvas amplitude peaks). Player prefs settings UI (7 toggles in Settings, auto-save). Set complete celebration + between-songs countdown. Beat glow polish (pulse animation, multi-layer box-shadow). songComplete flag in useAudioEngine.
-- [ ] **S38: Visual testing + content** — Test Library + Player on thegreentangerine.com. Add more songs. Lyrics/chords scroll sync. Android player prefs UI.
+- [ ] **S38: Visual testing + content** — Test Library + Player on thegreentangerine.com. Add more songs. Android player prefs UI. Song import from capture tool.
 - [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
 - [ ] Add more songs via web app (currently only 3: Sultans, Cissy Strut, War Pigs)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
@@ -150,6 +150,7 @@
 - Role-based song forms: Nathan sees metronome settings, others see simplified
 - Lyrics + chords on Song (stage prompter for all members)
 - Web stage prompter = read-only, no audio (C++ engine is native-only)
+- Lyrics/chords display = static prompter, NOT auto-scrolling karaoke (D-122). Content is reference material (key, chords, structure, fill notes) — glanced at between sections, not followed line-by-line.
 - ClickTrack evolves separately into sticking/rudiment practice app
 - Full feature parity for management features (invoicing, quotes, calendar)
 - Supabase replaces SQLite for ALL data

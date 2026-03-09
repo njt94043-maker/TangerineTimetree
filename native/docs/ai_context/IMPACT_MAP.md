@@ -137,12 +137,12 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 |-------|--------|
 | `user_settings` table (7 player prefs columns) | `shared/supabase/types.ts` — UserSettings interface, player_*_enabled fields |
 | | `shared/supabase/queries.ts` — getPlayerPrefs, updatePlayerPrefs |
-| | Android SettingsScreen (NOT YET — prefs UI doesn't exist) |
-| | Web Settings (NOT YET — prefs UI doesn't exist) |
+| | Android SettingsScreen — **NOT YET** (prefs UI needed, S38 target) |
+| | **Web Settings.tsx** — 7 toggle switches, auto-save (built S37) |
 | | Android LiveScreen + PracticeScreen — should read prefs to show/hide features |
-| | Web Player (S37) — prefs control which features are visible |
+| | **Web Player.tsx** — prefs control lyrics/chords/notes/drums/vis visibility (built S36/S37) |
 
-**Status**: 7 columns exist in DB, no UI exposes them yet. Sprint not assigned.
+**Status**: 7 columns exist in DB. Web UI built (S37 — Settings toggles + Player respects prefs). Android SettingsScreen still needs toggle UI (S38).
 
 ---
 
@@ -189,7 +189,7 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 | | Currently NO role-based filtering — all users see all items |
 | | `android/.../GigBooksApp.kt` — Compose drawer (3 items: Calendar, Library, Settings) |
 
-**Audit finding**: Non-admin users see business features (invoices, quotes, clients) they don't need. Band Settings is visible but errors on save for non-admin. Role-based drawer filtering is not yet implemented.
+**Note**: All 4 members are admin (D-120). No role-based filtering needed or planned.
 
 ---
 
@@ -239,7 +239,7 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 | Finding | Domain | Severity | Status |
 |---------|--------|----------|--------|
 | Offline queue has no conflict detection (last-write-wins) | Gig mutations | CRITICAL | **Deferred** — near-zero risk at current scale (4 users, Nathan primary editor) |
-| No forgot-password UI | Auth | HIGH | **Open — S36 quick fix** (~30 min, wire Supabase `resetPasswordForEmail()`) |
+| No forgot-password UI | Auth | HIGH | **Done (S36)** — wired in useAuth + LoginModal |
 | Changelog fetch in updateGig can fail | Gig mutations | HIGH | **Closed** — verified: changelog is best-effort, does NOT block gig update |
 | No role-based drawer filtering | Navigation | MEDIUM | **Closed** — all 4 members are admin, everyone needs full access (see Business Model below) |
 | Band Settings errors for non-admin | Settings | MEDIUM | **Closed** — all members are admin, RLS permits update |
