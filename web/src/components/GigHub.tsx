@@ -172,7 +172,7 @@ export function GigHub({
           <div className="hub-venue">{gig.venue || 'No venue'}</div>
           {isClient && gig.client_name && (
             <div className="hub-client">
-              <span className="badge badge-tangerine" style={{ marginRight: 4 }}>{gig.gig_type}</span>
+              <span className="badge badge-tangerine" style={{ marginRight: 4 }}>Client</span>
               {gig.client_name}
             </div>
           )}

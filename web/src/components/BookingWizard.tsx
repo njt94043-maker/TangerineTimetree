@@ -763,7 +763,7 @@ export function BookingWizard({
             {STATUS_OPTIONS.map(s => (
               <button
                 key={s.value}
-                className={`bw-status-tile${status === s.value ? ' selected' : ''}`}
+                className={`bw-status-tile${status === s.value ? ` selected-${s.value}` : ''}`}
                 onClick={() => setStatus(s.value)}
               >
                 <div className="bw-status-icon">{s.icon}</div>
