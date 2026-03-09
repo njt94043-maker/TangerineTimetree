@@ -20,6 +20,24 @@ import type { PlayerPrefs } from '@shared/supabase/queries';
 
 export type PlayerMode = 'live' | 'practice';
 
+/** Downsample an AudioBuffer to N amplitude peaks (0–1). */
+function generateWaveform(buffer: AudioBuffer, numBins = 200): Float32Array {
+  const channel = buffer.getChannelData(0);
+  const samplesPerBin = Math.floor(channel.length / numBins);
+  const peaks = new Float32Array(numBins);
+  for (let i = 0; i < numBins; i++) {
+    let max = 0;
+    const start = i * samplesPerBin;
+    const end = Math.min(start + samplesPerBin, channel.length);
+    for (let j = start; j < end; j++) {
+      const abs = Math.abs(channel[j]);
+      if (abs > max) max = abs;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
 export interface AudioEngineState {
   // Loading
   loading: boolean;
@@ -42,6 +60,12 @@ export interface AudioEngineState {
   currentBeat: number;
   currentBar: number;
   beatFlash: boolean;
+
+  // Song completion (track ended naturally, not user stop)
+  songComplete: boolean;
+
+  // Waveform data (downsampled amplitude peaks, 0-1 range)
+  waveformData: Float32Array | null;
 
   // Stem mixer state
   stemChannels: ReadonlyArray<{
@@ -91,6 +115,8 @@ export function useAudioEngine(
   const [currentBar, setCurrentBar] = useState(0);
   const [beatFlash, setBeatFlash] = useState(false);
   const [stemChannels, setStemChannels] = useState<AudioEngineState['stemChannels']>([]);
+  const [songComplete, setSongComplete] = useState(false);
+  const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
 
   // Load song data
   useEffect(() => {
@@ -167,10 +193,18 @@ export function useAudioEngine(
             }
 
             updateStemChannels();
+
+            // Generate waveform from first stem
+            const buf = mixerRef.current.getBuffer();
+            if (buf) setWaveformData(generateWaveform(buf));
           } else if (songData.audio_url) {
             // Load single practice track
             await trackRef.current.load(songData.audio_url);
             setDuration(trackRef.current.getDuration());
+
+            // Generate waveform
+            const buf = trackRef.current.getBuffer();
+            if (buf) setWaveformData(generateWaveform(buf));
           }
         }
 
@@ -213,6 +247,7 @@ export function useAudioEngine(
         clickRef.current.stop();
         AudioEngine.setState('idle');
         setCurrentTime(0);
+        setSongComplete(true);
       },
     });
 
@@ -237,6 +272,7 @@ export function useAudioEngine(
   // --- Actions ---
 
   const play = useCallback(async () => {
+    setSongComplete(false);
     await AudioEngine.resume();
 
     if (clickEnabledRef.current) {
@@ -351,6 +387,8 @@ export function useAudioEngine(
     currentBeat,
     currentBar,
     beatFlash,
+    songComplete,
+    waveformData,
     stemChannels,
   };
 

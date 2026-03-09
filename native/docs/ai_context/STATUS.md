@@ -6,40 +6,37 @@
 ---
 
 ## Current State
-- **Phase**: S36 complete — Web audio engine + Library redesign + Player UI all built. Android fully built (S35). Cloud Run pipeline live.
-- **What works**: Full Web Audio API stack: AudioEngine singleton, ClickScheduler (frame-accurate, 5 click sounds, beat map mode), TrackPlayer (SoundTouchJS pitch-preserved speed), StemMixer (per-stem gain/mute/solo). Library view (tabbed Songs/Setlists, category + type filter pills, inline Live/Practice launch). Player view (transport, beat counter, lyrics/chords, speed control, A-B loop, stem mixer, setlist queue overlay). Forgot password flow. Both tsc + vite build clean.
-- **Last session**: S36 — 3 sessions. Session 1: Forgot password fix + AudioEngine + ClickScheduler. Session 2: TrackPlayer + StemMixer + useAudioEngine hook. Session 3: Library component + Player component + view routing + CSS.
-- **Next action**: S37 — Polish + visual testing + wake lock + waveform visualiser + player prefs settings UI.
+- **Phase**: S37 complete — Web player polish done. Wake lock, waveform visualiser, player prefs UI, set complete/between-songs, beat glow polish all built. Android fully built (S35). Cloud Run pipeline live.
+- **What works**: Everything from S36 + wake lock (visibility re-acquire), waveform visualiser (canvas amplitude peaks on seek bar), player prefs settings UI (7 toggles in Settings, auto-save), set complete celebration screen + between-songs countdown transition (setlist mode), beat glow polish (pulse animation, multi-layer box-shadow, downbeat accent). Both tsc + vite build clean.
+- **Last session**: S37 — 1 session. Wake lock hook + player prefs toggles in Settings + set complete/between-songs overlay + waveform canvas + beat glow CSS animations + songComplete flag in useAudioEngine.
+- **Next action**: S38 — Visual testing on thegreentangerine.com, fix CSS issues, add more songs, lyrics/chords scroll sync.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 3 songs (Cissy Strut, Sultans of Swing, War Pigs) fully processed.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Sprint — S37: Web Player Polish
+## Next Sprint — S38: Visual Testing + Content
 ### Goals
 1. **Visual testing** — Test Library + Player on thegreentangerine.com, fix any CSS/layout issues
-2. **Wake lock API** — Keep screen awake during playback (Live and Practice modes)
-3. **Waveform visualiser** — Canvas-based amplitude display on seek bar (Practice mode)
-4. **Player prefs settings UI** — 7 toggle switches in Settings screen (click, flash, lyrics, chords, notes, drums, vis)
-5. **Set complete screen** — Between-songs waiting screen + set complete celebration (setlist mode)
-6. **Beat glow polish** — Card-level glow curve (D-119), fade timing
+2. **Add more songs** — Bulk add flow or manual via web (currently only 3)
+3. **Lyrics/chords scroll sync** — Auto-sync to playback position
+4. **Android player prefs UI** — Mirror web's 7 toggles in SettingsScreen
 
 ### Sprint Roadmap
 | Sprint | Scope | Status |
 |--------|-------|--------|
 | S34 | Migration + type updates + shared queries | Done |
 | S35 | Android Library refactor + player refactor | Done |
-| S36 | Web audio engine + Library redesign + Player UI | **Done** |
-| S37 | Web player polish (wake lock, waveform, prefs UI) | **Next** |
+| S36 | Web audio engine + Library redesign + Player UI | Done |
+| S37 | Web player polish (wake lock, waveform, prefs UI, set complete, beat glow) | **Done** |
+| S38 | Visual testing + add songs + scroll sync | **Next** |
 | S31C | On-device testing (BTrack offline fallback) | Parked |
 
 ### Still Pending (not sprint-assigned)
 - Add more songs via web app (currently only 3)
 - User to verify 44 WhatsApp-confirmed fees, then batch-update
-- **Player prefs UI** — 7 toggles exist in DB, no settings screen shows them (Android or web)
 - **Dep gig calendar feature** — diagonal split colour for member-away + dep-gig days (D-117)
 - **Offline cache management** — user controls local storage
 - **Song import / bulk add** — no batch flow, manual add only
 - **Lyrics/chords scroll sync** — auto-sync to playback position (discussed, not decided)
-- **Beat visualization timing** — card glow locked (D-119) but fade curve not specified
 - **Recording/video capture** — front camera during practice (D-089, deferred)
 
 ## Big Picture

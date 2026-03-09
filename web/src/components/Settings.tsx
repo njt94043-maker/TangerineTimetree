@@ -5,7 +5,9 @@ import {
   updateServiceItem, deleteServiceItem,
   getSiteContent, upsertSiteContent,
   getAllReviews, createReview, updateReview, deleteReview,
+  getPlayerPrefs, updatePlayerPrefs,
 } from '@shared/supabase/queries';
+import type { PlayerPrefs } from '@shared/supabase/queries';
 import type { ServiceCatalogueItem, SiteReview } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
@@ -142,13 +144,24 @@ export function Settings({ onClose }: SettingsProps) {
   const [revSourceUrl, setRevSourceUrl] = useState('');
   const [revDate, setRevDate] = useState('');
 
+  // Player prefs
+  const [playerPrefs, setPlayerPrefs] = useState<PlayerPrefs>({
+    player_click_enabled: true,
+    player_flash_enabled: true,
+    player_lyrics_enabled: true,
+    player_chords_enabled: true,
+    player_notes_enabled: true,
+    player_drums_enabled: true,
+    player_vis_enabled: true,
+  });
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    Promise.all([getUserSettings(), getBandSettings(), getAllServiceCatalogue(), getSiteContent(), getAllReviews()]).then(([us, bs, svc, sc, rev]) => {
+    Promise.all([getUserSettings(), getBandSettings(), getAllServiceCatalogue(), getSiteContent(), getAllReviews(), getPlayerPrefs()]).then(([us, bs, svc, sc, rev, pp]) => {
       if (us) {
         setYourName(us.your_name);
         setEmail(us.email);
@@ -181,6 +194,7 @@ export function Settings({ onClose }: SettingsProps) {
       for (const row of sc) contentMap[row.key] = row.value;
       setSiteContent(contentMap);
       setSiteReviews(rev);
+      setPlayerPrefs(pp);
       setLoaded(true);
     });
   }, []);
@@ -434,6 +448,39 @@ export function Settings({ onClose }: SettingsProps) {
             <option value="apple">Apple Maps</option>
           </select>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Player Settings</h3>
+        <p className="hint-text">Defaults for Live and Practice modes</p>
+        {([
+          ['player_click_enabled', 'Click Track', 'Metronome click during playback'],
+          ['player_flash_enabled', 'Beat Flash', 'Screen flash on downbeat'],
+          ['player_lyrics_enabled', 'Lyrics', 'Show lyrics panel'],
+          ['player_chords_enabled', 'Chords', 'Show chord symbols inline'],
+          ['player_notes_enabled', 'Notes', 'Show song notes'],
+          ['player_drums_enabled', 'Drum Track', 'Include drum stem in mix'],
+          ['player_vis_enabled', 'Waveform', 'Show waveform visualiser'],
+        ] as const).map(([key, label, hint]) => (
+          <label key={key} className="settings-toggle-row">
+            <div className="settings-toggle-text">
+              <span className="settings-toggle-label">{label}</span>
+              <span className="settings-toggle-hint">{hint}</span>
+            </div>
+            <div
+              className={`settings-toggle${playerPrefs[key] ? ' active' : ''}`}
+              role="switch"
+              aria-checked={playerPrefs[key]}
+              onClick={() => {
+                const next = { ...playerPrefs, [key]: !playerPrefs[key] };
+                setPlayerPrefs(next);
+                updatePlayerPrefs({ [key]: next[key] });
+              }}
+            >
+              <div className="settings-toggle-thumb" />
+            </div>
+          </label>
+        ))}
       </div>
 
       <div className="settings-section">
