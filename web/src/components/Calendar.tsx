@@ -108,8 +108,8 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
                 ? 'var(--color-tangerine)'
                 : 'var(--color-gig)';
             const inc = g.gig_type !== 'practice' && isGigIncomplete(g);
-            const dashed = g.status === 'pencilled';
-            return <span key={i} className={`day-dot${inc ? ' incomplete' : ''}${dashed ? ' pencilled' : ''}`} style={{ background: color }} />;
+            const dashed = g.status === 'enquiry' || g.status === 'pencilled';
+            return <span key={i} className={`day-dot${inc ? ' incomplete' : ''}${dashed ? ' enquiry' : ''}`} style={{ background: color }} />;
           });
 
           // Venue words — split name into one word per line
@@ -150,7 +150,7 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
         <LegendItem color="var(--color-available)" label="Available" />
         <LegendItem color="var(--color-gig)" label="Pub Gig" />
         <LegendItem color="var(--color-tangerine)" label="Client" />
-        <LegendItem color="var(--color-tangerine)" label="Pencilled" dashed />
+        <LegendItem color="var(--color-tangerine)" label="Enquiry" dashed />
         <LegendItem color="var(--color-practice)" label="Practice" />
         <LegendItem color="var(--color-unavailable)" label="Away" />
       </div>

@@ -660,13 +660,13 @@ html, body, #root {
 }
 .calendar-cell.client .day-num { color: var(--color-tangerine); font-weight: 700; }
 
-/* Pencilled = dashed tangerine, striped background */
-.calendar-cell.pencilled {
+/* Enquiry = dashed tangerine, striped background */
+.calendar-cell.enquiry {
   background: repeating-linear-gradient(135deg, rgba(243,156,18,0.04), rgba(243,156,18,0.04) 3px, transparent 3px, transparent 6px);
   border-color: rgba(243,156,18,0.12);
   border-style: dashed;
 }
-.calendar-cell.pencilled .day-num { color: var(--color-tangerine); font-weight: 700; opacity: 0.7; }
+.calendar-cell.enquiry .day-num { color: var(--color-tangerine); font-weight: 700; opacity: 0.7; }
 
 /* Practice = purple inset glow */
 .calendar-cell.practice {
@@ -723,7 +723,7 @@ html, body, #root {
   border-radius: 50%;
   position: relative;
 }
-.day-dot.pencilled {
+.day-dot.enquiry {
   background: transparent !important;
   border: 1.5px dashed var(--color-tangerine);
   width: 4px;
@@ -5444,10 +5444,8 @@ select.ps-form-input {
 .bw-status-tile { flex: 1; padding: 10px 4px; border-radius: 12px; text-align: center; cursor: pointer; background: var(--color-well); border: 1px solid rgba(255,255,255,0.04); transition: 0.2s; }
 .bw-status-icon { font-size: 16px; margin-bottom: 3px; }
 .bw-status-name { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--color-text-muted); }
-.bw-status-tile.selected-enquiry { border-color: rgba(122,122,148,0.4); background: rgba(122,122,148,0.06); }
-.bw-status-tile.selected-enquiry .bw-status-name { color: var(--color-text-dim); }
-.bw-status-tile.selected-pencilled { border-color: rgba(243,156,18,0.4); background: rgba(243,156,18,0.06); }
-.bw-status-tile.selected-pencilled .bw-status-name { color: var(--color-tangerine); }
+.bw-status-tile.selected-enquiry { border-color: rgba(243,156,18,0.4); background: rgba(243,156,18,0.06); }
+.bw-status-tile.selected-enquiry .bw-status-name { color: var(--color-tangerine); }
 .bw-status-tile.selected-confirmed { border-color: rgba(0,230,118,0.4); background: rgba(0,230,118,0.06); }
 .bw-status-tile.selected-confirmed .bw-status-name { color: var(--color-gig); }
 
