@@ -7,9 +7,20 @@
 
 ## Purpose
 
-Band management platform for **The Green Tangerine** (Nathan Thomas, sole trader). Two apps sharing one backend:
-- **GigBooks** (Android/Compose) — Nathan's stage performance + practice tool (click tracks, setlists, beat-locked MP3 practice)
-- **Tangerine Timetree** (Web/React PWA) — Full band management (invoicing, quotes, calendar, stage prompter, practice) for all 4 members
+Band management platform for **The Green Tangerine** (Nathan Thomas, sole trader, CIS carpenter). Two apps + one capture tool sharing one backend:
+- **GigBooks** (Android/Compose) — Nathan's personal stage performance + practice tool (click tracks via IEMs, setlists, beat-locked MP3 practice). Nathan only — sideloaded APK.
+- **Tangerine Timetree** (Web/React PWA) — Full band management (invoicing, quotes, calendar, stage prompter, practice) for all 4 members. Primary interface for Neil, Adam, James.
+- **TGT Capture** (Chrome extension + FastAPI + React) — WASAPI loopback audio capture for YouTube practice references. Nathan only.
+
+## Band Context
+
+- **Genre**: Mix of everything — covers + originals, no genre lean. Function/wedding band trajectory. BPM range 80-180+.
+- **Members**: Nathan (drums, IEMs, management), Neil (bass), Adam (guitar + backing vocals, customer-facing), James (lead vocals)
+- **Side projects**: Everyone plays in other bands — hence `other_band` setlist type and `personal` song category
+- **Rehearsal**: Regular band rehearsals + individual practice. Apps serve both use cases.
+- **Goal**: Regular wedding/event bookings for higher pay. Building towards making TGT their job.
+- **Tech comfort**: Nathan builds with AI. One or two others are techy. Rest need things to just work via web.
+- **Infrastructure**: All free tiers (Supabase, GCP, Vercel). No Google Play account — APK sideloaded.
 
 ## Tech Stack
 

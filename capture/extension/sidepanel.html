@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TGT Audio Capture</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- Connection banner (hidden when connected) -->
+  <div id="offline-banner" class="offline-banner hidden">
+    <span class="offline-dot"></span>
+    <span>Backend offline — start the server first</span>
+  </div>
+
+  <!-- Persistent control frame -->
+  <div id="control-frame" class="control-frame">
+    <!-- Top row: tab info + buttons -->
+    <div class="control-row">
+      <div class="control-info">
+        <span id="tab-name" class="tab-name">Ready</span>
+        <span id="timer" class="timer hidden">00:00</span>
+      </div>
+      <div class="control-buttons">
+        <button id="btn-pause" class="ctrl-btn pause hidden" title="Pause (skip ad)">| |</button>
+        <button id="btn-rec" class="rec-btn idle" title="Start recording">
+          <span id="rec-icon" class="rec-icon"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom row: audio source + level meter -->
+    <div class="control-row source-row">
+      <span class="source-icon" id="source-icon">&#x1F3A4;</span>
+      <span class="source-label" id="source-label">WASAPI System Audio</span>
+      <div id="level-meter" class="level-meter hidden">
+        <div id="level-fill" class="level-fill"></div>
+      </div>
+    </div>
+
+    <!-- Error display -->
+    <div id="error-bar" class="error-bar hidden">
+      <span id="error-text"></span>
+    </div>
+  </div>
+
+  <!-- Full React UI in iframe -->
+  <iframe id="app-frame" src="http://localhost:5174" frameborder="0"></iframe>
+
+  <!-- Fallback if iframe can't load -->
+  <div id="fallback" class="fallback hidden">
+    <div class="fallback-inner">
+      <div class="logo">TGT</div>
+      <p>Cannot connect to the capture UI.</p>
+      <p class="dim">Make sure the dev server is running:</p>
+      <code>cd capture/ui && npm run dev</code>
+      <button id="retry-btn" class="btn-retry">Retry</button>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

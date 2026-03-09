@@ -32,6 +32,30 @@
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
+## Capture Tool — Diagnostics & Planning
+
+### Immediate Diagnostics (next session)
+- [ ] **Real-world audio quality test** — Play a full song through speakers/headphones while recording via capture tool. Listen to playback for micro-pauses/glitches. Compare WAV waveform in Audacity for dropouts. This validates the writer thread + priority boost fix.
+- [ ] **Armed mode end-to-end test** — Start armed, play audio, verify auto-trigger, check pre-roll captures first ~200ms of audio cleanly. Verify stop-while-armed cancels cleanly (no leftover WAV).
+- [ ] **FFmpeg encoding audit** — Check FFmpeg MP3 encoding quality settings (bitrate, sample rate). Verify encoded MP3 matches WAV quality. Check for encoding errors in logs.
+- [ ] **Concurrent load test** — Record while Chrome plays YouTube + other apps active. Verify no glitches with HIGH_PRIORITY_CLASS + 40ms buffer + writer thread.
+
+### Capture → Library Pipeline (S38 target)
+- [ ] **Song import workflow** — Design flow: capture WAV → FFmpeg encode MP3 → upload to Supabase `practice-tracks` bucket → create Song record → trigger Cloud Run processing (beats + stems). This is the key bridge between capture tool and web/android practice modes.
+- [ ] **Bulk import UX** — Multiple recordings → batch import with metadata entry (song name, artist, BPM if known). Queue processing for each.
+- [ ] **Capture history view** — Show previous recordings in sidepanel with play/review/import/delete actions. Currently only shows current session.
+
+### Extension UX Improvements
+- [ ] **Level meter visualization** — Current peak_level is a number. Add visual meter bar (green→yellow→red) in sidepanel during armed/recording states.
+- [ ] **Recording timer format** — Show MM:SS format instead of raw seconds for longer recordings.
+- [ ] **Error handling UI** — Surface WASAPI errors (device not found, stream open failed) in sidepanel with user-friendly messages and retry button.
+- [ ] **Device selector** — Allow choosing which WASAPI loopback device to capture from (currently auto-detects default speakers).
+
+### Backend Robustness
+- [ ] **Graceful shutdown** — Handle uvicorn reload while recording is active (currently crashes the session). Save partial WAV, clean up state.
+- [ ] **Session recovery** — If backend restarts mid-recording, detect orphaned WAV files and offer recovery in the sidepanel.
+- [ ] **Logging** — Add structured logging to wasapi_capture.py (writer thread stats: frames written, queue depth, dropped frames count). Surface in /api/admin/logs.
+
 ## Backlog — Performance & Practice Epic
 
 ### S26A — Audio Engine Foundation (DONE)
