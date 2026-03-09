@@ -5,7 +5,134 @@
 
 ---
 
-## Sprint S34 — Migration + Types + Queries (NEXT)
+## Sprint S36 — Web Audio Engine + Library Redesign (NEXT)
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S36.
+
+CONTEXT:
+- S34 (migration) and S35 (Android Library + Player refactor) are complete.
+- Android has: LibraryScreen (category pills, setlist type pills, inline Live/Practice launch), LiveScreen (queue overlay, set complete, speed safety), PracticeScreen (stems, speed, A-B loop).
+- Web has: stage prompter, invoicing, quotes, calendar, songs/setlists CRUD — but NO audio at all.
+- Supabase has: songs (category, owner_id, drum_notation), setlists (setlist_type, band_name), user_settings (7x player_*_enabled prefs), song_stems, beat_maps, practice-tracks bucket.
+- Key decisions: D-110 (Library as launchpad), D-111 (shared player with mode flag), D-112 (Web Audio + SoundTouchJS), D-113 (stage prompter merges into Live Mode), D-119 (card-level beat glow).
+- Mockups: mockups/library-browser.html, mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html
+
+GOALS:
+1. **Web Audio engine module** (`web/src/audio/` or similar):
+   - AudioContext setup + resume on user gesture
+   - Click scheduler: frame-accurate metronome using Web Audio API scheduling (lookahead pattern — schedule clicks ahead of time using audioContext.currentTime)
+   - Track player: fetch practice track from Supabase Storage → AudioContext.decodeAudioData() → AudioBufferSourceNode
+   - Stem mixer: load 4 auto stems (drums/bass/other/vocals) as separate AudioBufferSourceNodes, each with GainNode for volume
+   - Master gain, click gain, track gain controls
+   - Speed control: SoundTouchJS (npm: soundtouchjs) for pitch-preserved time-stretch on track + stems. Click BPM adjusts proportionally.
+   - A-B loop: set start/end times, loop region playback
+   - Beat map integration: fetch beat_maps from Supabase, schedule clicks at actual beat positions (not uniform grid)
+   - Position reporting: current time, total duration
+   - Split stereo option (click L, track R) using ChannelMergerNode
+
+2. **Web Library redesign** (`web/src/views/songs.tsx` + `web/src/views/setlists.tsx` or new Library view):
+   - Songs tab + Setlists tab (like Android LibraryScreen)
+   - Category filter pills: All / Covers / Originals / Personal
+   - Setlist type filter pills: All / TGT / Other
+   - Song cards: name, artist, BPM, category tag, TRACK badge if has audio_url
+   - Inline Live/Practice launch buttons on each song/setlist card
+   - Search/filter existing functionality preserved
+
+3. **Player prefs loading**:
+   - Fetch player_*_enabled from user_settings on auth
+   - Store in React context or hook
+   - Pass to audio engine (e.g. click enabled/disabled, etc.)
+
+KEY FILES to study:
+- android/app/src/main/java/.../ui/screens/LibraryScreen.kt (reference for filter pills + layout)
+- android/app/src/main/java/.../audio/AudioEngineBridge.kt (reference for engine API surface)
+- android/app/src/main/java/.../AppViewModel.kt (reference for state management)
+- shared/supabase/queries.ts (getSongsByCategory, getPlayerPrefs, getBeatMap, etc.)
+- shared/supabase/types.ts (Song, SongStem, BeatMap, UserSettings)
+- web/src/views/stage-prompter.tsx (existing setlist/song display — will merge into Live Mode in S37)
+
+AUDIO ARCHITECTURE NOTES:
+- Web Audio API lookahead pattern: use setInterval(~25ms) to schedule clicks 100ms ahead via audioContext.currentTime. This gives sample-accurate timing despite JS timer jitter.
+- SoundTouchJS: `npm install soundtouchjs`. Creates a ScriptProcessorNode (or AudioWorkletNode) that reads from source buffer and outputs time-stretched audio. Set tempo without changing pitch.
+- For stems: each stem is a separate AudioBufferSourceNode → GainNode → destination. All start at same time. Speed change must apply to all simultaneously.
+- Beat maps: array of float seconds. Schedule click at each beat position (adjusted for speed). Don't use uniform grid.
+
+CONSTRAINTS:
+- Do NOT touch Android code
+- Web tsc must pass clean
+- Vite build must pass clean
+- Keep existing web functionality working (invoicing, calendar, etc.)
+- Dark neumorphic styling consistent with existing web app
+```
+
+---
+
+## Sprint S37 — Web Player UI (AFTER S36)
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S37.
+
+CONTEXT:
+- S36 complete — Web audio engine exists (Web Audio API + SoundTouchJS). Library redesigned with filter pills + launch buttons.
+- Audio engine can: schedule clicks, play tracks, mix stems, control speed, A-B loop, load beat maps.
+- Need to build the React UI that drives the audio engine.
+- Reference mockups: mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html
+- Reference Android: LiveScreen.kt, PracticeScreen.kt (Compose implementations)
+
+GOALS:
+1. **Player component** (`web/src/views/player.tsx` or similar):
+   - Single component with mode prop: 'live' | 'practice'
+   - Visual hero area (song name, artist, BPM large, key, time sig)
+   - Beat visualization (LED dots: beat 1 = red accent, others = teal, scale + glow on active beat) — card-level glow (D-119)
+   - Transport controls: play/stop (large), prev/next song
+   - Song position ("3 of 12") + progress bar with playhead
+   - Queue overlay (slide-up song list, reorder via drag, tap to jump)
+   - Between-songs waiting screen ("Next Up: Song Name" + Go button)
+   - Set Complete celebration screen (confetti or similar + restart/home)
+   - Speed safety modal (warn if speed != 100% when entering Live mode)
+
+2. **Live Mode features**:
+   - Click engine active (per user prefs — Neil/James/Adam may disable)
+   - Lyrics display (scrollable, from song.lyrics field)
+   - Chords display (ChordPro inline, from song.chords field)
+   - Display toggles in bottom sheet/drawer: Vis, Chords, Lyrics, Notes, Drums (D-118)
+   - Stage prompter functionality merged in (D-113) — existing stage-prompter.tsx code can be reused/absorbed
+   - Wake lock (Navigator.wakeLock API)
+
+3. **Practice Mode features**:
+   - Everything from Live Mode PLUS:
+   - Track waveform visualiser (Canvas, amplitude envelope)
+   - Speed slider (50%-150%) with +/-5% buttons and reset
+   - A-B loop markers on waveform (set A, set B, clear)
+   - Per-stem volume sliders (drums/bass/other/vocals)
+   - Click volume + track volume + master volume
+   - Split stereo toggle
+   - Count-in selector (off, 1, 2, 4 bars)
+   - Beat nudge (earlier/later) — shift click phase
+   - BPM display (effective + original)
+
+4. **Player prefs UI**:
+   - Settings screen section: 7 toggles (click, flash, lyrics, chords, notes, drums, vis)
+   - Save to user_settings via updatePlayerPrefs()
+   - Load on auth, apply to player
+
+5. **Navigation integration**:
+   - Library song/setlist cards → launch player with mode + queue
+   - ViewContext integration (drawer nav)
+   - Back button returns to Library
+
+CONSTRAINTS:
+- Do NOT touch Android code
+- Web tsc + vite build must pass clean
+- Existing web features must keep working
+- Dark neumorphic styling
+- Responsive (phone, tablet, desktop)
+```
+
+---
+
+## Sprint S34 — Migration + Types + Queries (DONE)
 
 ```
 Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S34.

@@ -1,4 +1,4 @@
-# GigBooks — Blueprint (North Star)
+# TGT — Blueprint (North Star)
 
 > Source of Truth for architecture, tech stack, and locked rules.
 > Update ONLY on architectural changes. Never contradict CLAUDE.md.
@@ -7,94 +7,145 @@
 
 ## Purpose
 
-Mobile invoice and receipt generator for **Nathan Thomas** (sole trader, trading as **The Green Tangerine**). Creates professional PDF invoices for live music gigs and receipts for band member payment splits.
+Band management platform for **The Green Tangerine** (Nathan Thomas, sole trader). Two apps sharing one backend:
+- **GigBooks** (Android/Compose) — Nathan's stage performance + practice tool (click tracks, setlists, beat-locked MP3 practice)
+- **Tangerine Timetree** (Web/React PWA) — Full band management (invoicing, quotes, calendar, stage prompter, practice) for all 4 members
 
-## Tech Stack (Locked)
+## Tech Stack
 
+### Android — GigBooks
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Framework | React Native | 0.83.2 |
-| Platform | Expo SDK | 55 |
-| Language | TypeScript (strict) | ~5.9.2 |
-| Navigation | expo-router (file-based) | ~55.0.3 |
-| Database | expo-sqlite (WAL mode) | ~55.0.10 |
-| PDF | expo-print + expo-sharing | ~55.0.5 |
-| File System | expo-file-system (new API) | ~55.0.7 |
-| Fonts | Karla + JetBrains Mono | Google Fonts |
-| UI | Dark neumorphic (custom components) | — |
+| Framework | Jetpack Compose | BOM 2025.05 |
+| Language | Kotlin | 2.1.20 |
+| Build | Gradle | 9.0.0 |
+| Audio | C++/Oboe + SoundTouch (JNI) | Oboe 1.9.3 |
+| Beat detection | madmom (server-side, Cloud Run) | 0.16.1 |
+| Stem separation | Demucs (server-side, Cloud Run) | 4.0.1 |
+| Backend | Supabase Kotlin SDK | 3.1.4 |
+| NDK | Android NDK | 27.1.12297006 |
+
+### Web — Tangerine Timetree
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | React (Vite PWA) | 19.x |
+| Language | TypeScript (strict) | ~5.9 |
+| Audio (S36) | Web Audio API + SoundTouchJS | TBD |
+| Backend | Supabase JS SDK | 2.x |
+| Deploy | Vercel (auto-deploy from master) | — |
+| Domain | thegreentangerine.com | IONOS DNS → Vercel |
+
+### Shared
+| Layer | Technology |
+|-------|-----------|
+| Database | Supabase (Postgres, 25 tables, RLS) |
+| Storage | Supabase Storage (4 buckets) |
+| Auth | Supabase Auth (publishable/secret keys) |
+| Types/Queries | `shared/supabase/` (TypeScript, `@shared/*` alias) |
+| PDF | 28 HTML templates (inline CSS, 7 per type: invoice/receipt/quote/formal) |
+| Processing | Google Cloud Run (europe-west1) — madmom + Demucs |
 
 ## Architecture
 
-### Navigation Structure
+### Monorepo Layout (`C:\Apps\TGT\`)
 ```
-app/_layout.tsx              → Root (fonts, DB init, splash)
-app/(tabs)/
-  ├── index.tsx              → Dashboard (stats + recent invoices + pull-to-refresh)
-  ├── invoices.tsx           → Full invoice list with search + pull-to-refresh
-  ├── clients.tsx            → Client list with search
-  └── settings.tsx           → User/bank/invoice/band config
-app/invoice/
-  ├── new.tsx                → 3-step wizard (client → details → preview)
-  ├── [id].tsx               → Invoice detail + status management
-  └── receipts.tsx           → Receipt generation per band member
-app/client/
-  ├── new.tsx                → Add client
-  └── [id].tsx               → Edit/delete client
+shared/           — Supabase types, queries, config, PDF templates
+web/              — Tangerine Timetree (Vite + React PWA)
+android/          — GigBooks (Jetpack Compose + C++/Oboe)
+native/           — React Native/Expo (SHELVED, archived)
+native/docs/      — SOT documentation (shared across all apps)
 ```
+
+### Android App Structure
+```
+android/app/src/main/
+  java/.../gigbooks/
+    ui/screens/     — CalendarScreen, LibraryScreen, LiveScreen, PracticeScreen, SettingsScreen, LoginScreen
+    ui/components/  — NeuCard, NeuWell, MetronomeComponents
+    ui/theme/       — GigColors, GigTypography, GigBooksTheme
+    data/           — SupabaseProvider, AuthRepository, SongRepository, SetlistRepository
+    audio/          — AudioEngineBridge.kt (JNI)
+    AppViewModel.kt — Shared state + engine wiring
+    GigBooksApp.kt  — ModalNavigationDrawer (Calendar/Library/Settings)
+  cpp/              — AudioEngine (C++/Oboe): metronome, track_player, mixer, SoundTouch, BTrack
+```
+
+### Web App Structure
+```
+web/src/
+  components/       — Shared UI components
+  views/            — Calendar, Dashboard, Invoices, Quotes, Venues, Clients, Songs, Setlists, StagePrompter, Settings, PublicSite
+  hooks/            — useAuth, useSettings, useOfflineQueue, etc.
+  utils/            — Helpers, formatters
+```
+
+### Navigation
+- **Android**: ModalNavigationDrawer — Calendar, Library, Settings. Live/Practice launched from Library.
+- **Web**: Collapsible drawer — Calendar, Library, Invoices, Quotes, Venues, Clients, Dashboard, Settings, Public Site, Stage Prompter.
 
 ### Data Layer
-- **Single SQLite database** — opened once at startup via `getDb()` singleton
-- **6 tables:** settings, clients, venues, band_members, invoices, receipts
-- **No ORM** — raw SQL via expo-sqlite async API
-- **ID generation:** `genId()` = `Date.now().toString(36) + Math.random().toString(36).slice(2, 8)`
-- **Settings singleton:** `id = 'default'`
+- **Supabase** for ALL data (no local SQLite)
+- **25 tables**: profiles, gigs, away_dates, songs, setlists, setlist_songs, song_stems, beat_maps, clients, venues, invoices, receipts, quotes, formal_invoices, etc.
+- **4 storage buckets**: public-media, venue-photos, practice-tracks, song-stems
+- **RPC**: `next_invoice_number()`, `next_quote_number()` — atomic auto-increment
+- **Android**: Supabase Kotlin SDK (direct queries)
+- **Web**: Shared TypeScript queries from `shared/supabase/queries.ts` (91+ functions)
 
-### State Management
-- React hooks (`useState`, `useCallback`, `useEffect`)
-- `useSettings()` custom hook — loads/saves settings with dirty tracking
-- `useFocusEffect()` — refetch data when screen gains focus
-- No Redux, no Context API — direct SQLite queries
+### Audio Engine
+- **Android (C++)**: Single Oboe stream — metronome (ch0) + track (ch1) + stems (ch2..7). SoundTouch time-stretch. Beat maps from Supabase (madmom server). BTrack offline fallback.
+- **Web (S36)**: Web Audio API — AudioContext, GainNodes, SoundTouchJS for speed. Same beat map data from Supabase.
 
-### UI System
-- **NeuCard** — raised card container
-- **NeuWell** — inset input field
-- **NeuButton** — interactive button with press-state inversion
-- **StepIndicator** — 3-step progress (invoice wizard)
-- **StatusBadge** — draft/sent/paid display
-- **CalendarPicker** — date selection modal
-
-### Theme
-- **Colors:** Dark neumorphic — background `#1e1e2e`, teal `#1abc9c`, orange `#f39c12`
-- **Fonts:** Karla (body), JetBrains Mono (monospace/numbers)
-- **Shadows:** `neuRaisedStyle()` / `neuInsetStyle()` with intensity levels (subtle/normal/strong)
-
-### PDF System
-- HTML templates with inline CSS → `expo-print` → PDF file
-- Saved to `Documents/pdfs/` directory
-- Shared via `expo-sharing` native share sheet
-- Professional layout: TGT logo PNG (base64), teal/orange brand colours
-- All template data HTML-escaped via `htmlEscape()` utility
-
-## Core Business Flow
-
+### Processing Pipeline
 ```
-1. Configure Settings → business details, bank info, band members
-2. Add Clients → venue/company records
-3. Create Invoice → 3-step wizard → generates PDF → shares
-4. Track Status → draft → sent → paid (with paid date)
-5. Generate Receipts → equal split for non-Nathan members → individual PDFs
-6. Export → CSV of all invoices
+Upload MP3 → Supabase Storage → POST /process (Cloud Run, 202) →
+  Cloud Tasks queue → /process-worker:
+    1. madmom RNN+DBN → beat_maps table (timestamps + BPM)
+    2. Demucs htdemucs → 4 stems (drums/bass/other/vocals) → song_stems table + storage
+```
+
+## Theme
+- **Colors**: Dark neumorphic — background `#1e1e2e` / `#08080c`, teal `#1abc9c`, orange `#f39c12`, green gigs `#00e676`, purple practice `#bb86fc`, red away `#ff5252`
+- **Fonts**: Karla (body), JetBrains Mono (numbers/data)
+- **Shadows**: Neumorphic raised/inset with border simulation (Android NeuCard/NeuWell, web CSS)
+- **Dark mode only** (web: `color-scheme: dark only`)
+
+## Core Business Flows
+
+### Band Management (Web)
+```
+Configure Settings → Add Clients/Venues → Book Gigs (calendar) →
+  Create Invoice → Track Status (draft→sent→paid) → Generate Receipts →
+  Create Quotes → Accept → Formal Invoice → Export CSV
+```
+
+### Performance (Android)
+```
+Library → Browse songs/setlists (filter by category/type) →
+  Launch Live Mode (click + setlist nav + lyrics) or Practice Mode (tracks + stems + speed) →
+  Queue overlay (reorder mid-set) → Set Complete screen
+```
+
+### Practice (Web, S36/S37)
+```
+Library → Browse songs → Launch Practice Mode →
+  Web Audio playback (track + stems + click) → SoundTouchJS speed control →
+  A-B loop → Per-user prefs (click/lyrics/chords toggles)
 ```
 
 ## Locked Rules
 
-1. **Local only for invoicing** — No cloud sync for invoices/receipts/clients (except PDF sharing). Gig calendar uses Supabase (shared with web app) — see schema_map.md Part B
-2. **Single user** — `id = 'default'` settings, no auth
-3. **Equal splits only** — invoice amount ÷ total members
-4. **Receipts for others only** — Nathan doesn't get a receipt (is_self = 1)
-5. **7 invoice styles** — classic, premium dark, clean professional, bold rock, autumn warmth, winter frost, summer breeze; HTML templates with htmlEscape
-6. **4 band members fixed** — seeded at DB init, names editable
-7. **Invoice numbers sequential** — INV-001 format, auto-incremented
-8. **TypeScript strict** — `npx tsc --noEmit` must pass clean
-9. **No emulators** — physical device testing only
-10. **Dark neumorphic UI** — consistent with Budget app
+1. **Supabase for ALL data** — no local SQLite (supersedes D-003/D-015)
+2. **4 band members fixed** — Nathan (Drums), Neil (Bass), James (Vocals), Adam (Guitar). Count not editable.
+3. **Equal payment splits only** — invoice amount / total members
+4. **Receipts for other members only** — Nathan doesn't get a receipt (is_self)
+5. **Dark neumorphic UI** — consistent across both apps
+6. **NEVER hardcode API keys** — use env vars, `.env` is gitignored
+7. **API keys: publishable + secret** — legacy JWT keys disabled (D-077)
+8. **TypeScript strict** — `npx tsc --noEmit` must pass clean (web)
+9. **Android build must pass** — `./gradlew assembleDebug` clean
+10. **Library as launchpad** — Live/Practice launch from Library, not separate nav (D-110)
+11. **1 setlist = 1 gig** — no multi-set. Player waits between songs. Set Complete at end (D-114)
+12. **Stage prompter merges into Live Mode** — per-user display toggles (D-113)
+13. **Server-side beat detection** — madmom on Cloud Run, not on-device (D-104/D-105)
+14. **Card-level beat glow** — not full-screen (D-119)
+15. **Git commit + push at end of every session**
