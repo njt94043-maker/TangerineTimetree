@@ -6,18 +6,51 @@
 ---
 
 ## Current State
-- **Phase**: S32B/C — End-to-end testing + polish complete.
-- **What works**: Full pipeline verified for all 3 songs. Cloud Run /process → Cloud Tasks → /process-worker (madmom beats + Demucs stems). Re-process verified (old auto stems deleted, new ones created). Web + Android builds clean. Booking system integrated (BookingWizard + GigHub wired into App.tsx, migration applied).
-- **What's new (S32B/C)**: All 3 songs processed (Cissy Strut 90.9 BPM, Sultans 150 BPM, War Pigs 90.9 BPM — each with 4 auto stems). Re-process test passed (Cissy Strut: old stem IDs replaced with new ones, storage paths updated). Android debug APK rebuilt + installed on Samsung. Booking migration 20260308230000 confirmed applied.
-- **Last session**: S32B/C — Testing + polish.
-- **Next action**: On-device testing (practice with server beat maps + stems, BTrack offline fallback). Add more songs. Visual testing of web UI at thegreentangerine.com.
+- **Phase**: S33 planning — Songs/Setlists/Live/Practice big-picture redesign.
+- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Practice/Live UI mockup v5 approved (2-tier transport, visual hero, bottom sheet mixer).
+- **What's new (this session)**: Practice mockup v5 approved. C++ TrackPlayer::stop() fixed (loop-aware reset). A/B/Clear promoted to main transport (2-tier: speed+loop top, play/stop/restart/click bottom). Big-picture songs/setlists/live/practice flow requirements captured (see Next Session Plan).
+- **Last session**: S32B/C testing + Practice/Live UI redesign mockup iteration.
+- **Next action**: S33 planning session — full flow redesign for songs → setlists → live/practice. Schema changes needed. Mockups for each screen. See SPRINT_PROMPTS.md.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan
-- Test on-device: open GigBooks → Practice → select song → verify processing status banner + stems auto-load + playback
-- Test web UI at thegreentangerine.com: edit song → verify "Ready" status + [auto] stems + audio players
-- Test BTrack offline fallback: airplane mode on phone → load song → should fall back to BTrack
+## Next Session Plan — S33: Songs/Setlists/Live/Practice Big-Picture Redesign
+### Song Categories (schema change needed)
+- **Tange Covers** — covers the band plays live
+- **Tange Originals** — original songs by the band
+- **Personal Songs** — songs each member knows individually (for dep/standing-in gigs)
+
+### Setlist Types (schema change needed)
+- **Tange Setlists** — band setlists for TGT gigs
+- **Other Band Setlists** — setlists for bands any member stands in for
+
+### Live Mode (no backing tracks, click + visuals only)
+1. Play entire library start-to-finish (prev/next + swipe full list to select)
+2. Play filtered library (Tange covers / originals / personal by member or all)
+3. Play a setlist start-to-finish (choose from available setlists)
+- Click + flash visuals from song BPM (server analysis + user-preferred speed)
+- **Speed safety check**: if user's preferred speed differs from analysis BPM, prompt "Did you forget to reset speed after practice?" before live mode starts
+- No backing tracks in live mode
+
+### Practice Mode (backing tracks + click + visuals)
+- Same 3 playback modes as live (library / filtered / setlist)
+- Same song navigation (prev/next + swipe list)
+- With backing tracks (main track + stems)
+- With click + flash visuals
+- Speed control, A-B loop, mixer, beat nudge — all from approved mockup v5
+
+### UI Redesign
+- Approved mockup: `mockups/practice-redesign.html` (v5)
+- Visual hero area with canvas visualisations (spectrum/rings/burst)
+- Compact waveform seekbar
+- 2-tier transport (top: speed ±5 + A/B/Clear; bottom: restart + play + stop + click)
+- Bottom sheet drawer (mixer faders + settings: subdivision, count-in, beat nudge)
+- Uniform beat edge glow (no downbeat distinction)
+- Same treatment for both Live and Practice (Practice adds backing tracks + mixer)
+
+### Still Pending
+- On-device testing: BTrack offline fallback (airplane mode)
+- Web UI visual testing at thegreentangerine.com
 - Add more songs via web app (currently only 3)
 - User to verify 44 WhatsApp-confirmed fees, then batch-update
 

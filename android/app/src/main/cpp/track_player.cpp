@@ -88,7 +88,12 @@ void TrackPlayer::pause() {
 
 void TrackPlayer::stop() {
     state_.store(0);
-    position_.store(0);
+    // If loop is active, reset to loop start; otherwise reset to beginning
+    if (loopEnabled_.load()) {
+        position_.store(loopStartFrame_.load());
+    } else {
+        position_.store(0);
+    }
     if (soundTouchInitialized_ && soundTouch_) {
         soundTouch_->clear();
     }
