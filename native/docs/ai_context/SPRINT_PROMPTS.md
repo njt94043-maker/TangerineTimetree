@@ -5,7 +5,42 @@
 
 ---
 
-## Sprint S33 — Songs/Setlists/Live/Practice Big-Picture Redesign (NEXT)
+## Sprint S34 — Migration + Types + Queries (NEXT)
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S34.
+
+CONTEXT:
+- S33 planning complete. Schema designed, mockups approved, architecture locked.
+- Migration SQL draft at: native/docs/ai_context/s33_migration_draft.sql
+- Mockups at: mockups/library-browser.html, mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html (v5)
+- Key decisions: D-107 to D-117 (see decisions_log.md)
+
+GOALS:
+1. Apply Supabase migration (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs)
+2. Update shared/supabase/types.ts — SongCategory type, Song interface (+ category, owner_id), Setlist interface (+ setlist_type, band_name), UserSettings (+ player prefs)
+3. Update shared/supabase/queries.ts — song filtering by category/owner, setlist filtering by type/band, player prefs CRUD, update existing song/setlist queries for new columns
+4. Update android/ Kotlin data classes — Song.kt (category, owner_id), Setlist.kt (setlist_type, band_name)
+5. Update android/ repositories — SongRepository category/owner filters, SetlistRepository type/band filters
+6. Update web song form — category selector dropdown, owner picker (shown when category=personal)
+7. Update web setlist form — setlist_type selector, band_name field (shown when type=other_band)
+8. Both apps build clean (tsc + gradle)
+
+Key files:
+- shared/supabase/types.ts
+- shared/supabase/queries.ts
+- android/app/src/main/java/.../Song.kt
+- android/app/src/main/java/.../Setlist.kt
+- android/app/src/main/java/.../SongRepository.kt
+- android/app/src/main/java/.../SetlistRepository.kt
+- web/src/ song and setlist form components
+
+Commit and push all work before session end. Update SOT docs.
+```
+
+---
+
+## Sprint S33 — Songs/Setlists/Live/Practice Big-Picture Redesign (DONE)
 
 ```
 Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S33 — a PLANNING session.

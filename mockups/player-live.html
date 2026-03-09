@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1.0">
+<title>Live Mode Player</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000; color: #e0e0e0; font-family: 'Karla', sans-serif;
+    width: 390px; height: 844px; margin: 0 auto;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+
+  /* ── Header ─────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; padding: 10px 16px 6px; gap: 12px; flex-shrink: 0;
+  }
+  .header .back-btn { font-size: 18px; opacity: 0.4; cursor: pointer; color: #888; }
+  .header .song-info { flex: 1; }
+  .header .song-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .header .song-artist { font-size: 11px; color: #666; }
+  .header .song-pos {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #333;
+    margin-top: 1px;
+  }
+  .header .bpm-block { text-align: right; }
+  .header .bpm-value {
+    font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700;
+    color: #00e676; text-shadow: 0 0 12px rgba(0,230,118,0.3); line-height: 1;
+  }
+  .header .bpm-unit { font-size: 9px; color: rgba(0,230,118,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+  .header .mode-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;
+    color: #00e676; text-transform: uppercase; letter-spacing: 2px;
+    padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(0,230,118,0.2);
+    background: rgba(0,230,118,0.05);
+  }
+
+  /* ── Visual Area ────────────────────────────── */
+  .visual-area {
+    position: relative; height: 180px; margin: 6px 10px; flex-shrink: 0;
+    border-radius: 14px; background: #08080e; border: 1px solid #111118;
+    overflow: hidden;
+  }
+
+  .beat-glow {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 20; opacity: 0;
+    box-shadow: inset 0 0 40px 10px rgba(0,230,118,0.35), 0 0 25px rgba(0,230,118,0.12);
+    border: 1.5px solid rgba(0,230,118,0.4);
+    transition: opacity 0.06s ease-out;
+  }
+  .beat-glow.flash { opacity: 1; transition: opacity 0.02s; }
+
+  .screen-flash {
+    position: absolute; inset: 0; border-radius: 14px;
+    pointer-events: none; z-index: 19; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(0,230,118,0.07) 0%, transparent 60%);
+    transition: opacity 0.08s ease-out;
+  }
+  .screen-flash.flash { opacity: 1; transition: opacity 0.02s; }
+
+  .vis-canvas { position: absolute; inset: 0; z-index: 1; }
+
+  .vis-switcher {
+    position: absolute; top: 10px; left: 12px; z-index: 30;
+    display: flex; gap: 4px;
+  }
+  .vis-btn {
+    padding: 3px 10px; border-radius: 10px; border: 1px solid #1a1a2e;
+    background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .vis-btn.active { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+
+  /* ── Lyrics / Chords Area ──────────────────── */
+  .lyrics-area {
+    flex: 1; margin: 6px 10px; border-radius: 14px;
+    background: #08080e; border: 1px solid #111118;
+    overflow-y: auto; padding: 16px 18px;
+    scrollbar-width: thin; scrollbar-color: #1a1a28 transparent;
+    position: relative;
+  }
+  .lyrics-area .section-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    color: #00e676; text-transform: uppercase; letter-spacing: 2px;
+    margin-bottom: 6px; opacity: 0.5;
+  }
+  .lyrics-area .chord-line {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: #f39c12; margin-bottom: 0; line-height: 1.6; white-space: pre;
+  }
+  .lyrics-area .lyric-line {
+    font-size: 15px; color: #ccc; margin-bottom: 12px; line-height: 1.5;
+  }
+  .lyrics-area .lyric-line.current {
+    color: #fff; font-weight: 700;
+  }
+
+  .lyrics-toggle {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    display: flex; gap: 3px;
+  }
+  .lyrics-toggle-btn {
+    padding: 3px 8px; border-radius: 8px; border: 1px solid #1a1a2e;
+    background: #0e0e18; color: #444; font-size: 9px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .lyrics-toggle-btn.active { color: #f39c12; border-color: rgba(243,156,18,0.3); background: rgba(243,156,18,0.06); }
+  .lyrics-toggle-btn.lyrics-active { color: #ccc; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.04); }
+
+  /* ── Transport ─────────────────────────────── */
+  .transport-wrapper {
+    flex-shrink: 0; padding: 6px 12px 6px;
+  }
+  .transport-bottom {
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; padding: 2px 0;
+  }
+  .transport-btn {
+    width: 42px; height: 42px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer;
+  }
+  .transport-btn.secondary { background: #141420; color: #666; border: 1px solid #1e1e30; }
+  .transport-btn.play {
+    width: 56px; height: 56px; background: linear-gradient(135deg, #00e676, #00c853);
+    color: #000; font-size: 22px; box-shadow: 0 0 24px rgba(0,230,118,0.25);
+  }
+  .transport-btn.stop { background: #141420; color: #ff5252; border: 1px solid #1e1e30; }
+  .transport-btn.click-toggle {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700;
+    background: #141420; color: #bb86fc; border: 1px solid rgba(187,134,252,0.25);
+    width: auto; padding: 0 14px; border-radius: 20px; height: 36px;
+  }
+  .transport-btn.prev-next { font-size: 12px; }
+
+  .nav-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px 0;
+  }
+  .nav-btn {
+    padding: 6px 16px; border-radius: 12px; border: 1px solid #1e1e30;
+    background: #0e0e18; color: #555; font-size: 12px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .nav-btn .arrow { font-size: 14px; }
+  .nav-song-name { font-size: 10px; color: #333; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .queue-btn {
+    padding: 6px 14px; border-radius: 12px; border: 1px solid #1e1e30;
+    background: #0e0e18; color: #444; font-size: 11px; cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Bottom Sheet (simplified for live) ─────── */
+  .drag-handle {
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    padding: 4px 0; cursor: pointer;
+  }
+  .drag-handle .pill { width: 36px; height: 4px; background: #2a2a3e; border-radius: 2px; }
+  .drag-handle.open .pill { background: #00e676; }
+
+  .bottom-sheet {
+    flex-shrink: 0; max-height: 0; overflow: hidden;
+    background: #0c0c14; border-top: 1px solid #1a1a28;
+    transition: max-height 0.3s ease;
+  }
+  .bottom-sheet.open { max-height: 300px; }
+  .bottom-sheet-inner { padding: 6px 14px 16px; }
+
+  .section-title {
+    font-size: 9px; color: #444; text-transform: uppercase; letter-spacing: 2px;
+    margin: 10px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #151520;
+  }
+  .section-title:first-child { margin-top: 2px; }
+
+  /* Single fader for click volume */
+  .click-vol-row {
+    display: flex; align-items: center; gap: 12px; padding: 4px 0;
+  }
+  .click-vol-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #bb86fc;
+    min-width: 40px;
+  }
+  .click-vol-bar {
+    flex: 1; height: 6px; background: #1a1a28; border-radius: 3px; position: relative;
+  }
+  .click-vol-fill {
+    height: 100%; border-radius: 3px; width: 33%;
+    background: linear-gradient(to right, rgba(187,134,252,0.3), #bb86fc);
+  }
+  .click-vol-val {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #555; min-width: 24px; text-align: right;
+  }
+
+  .setting-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .setting-label { font-size: 12px; color: #888; }
+  .pill-group { display: flex; gap: 4px; }
+  .pill-btn {
+    padding: 4px 11px; border-radius: 14px; border: 1px solid #222;
+    background: #141420; color: #555; font-size: 11px; cursor: pointer;
+  }
+  .pill-btn.active { background: rgba(187,134,252,0.12); border-color: rgba(187,134,252,0.35); color: #bb86fc; }
+  .nudge-row { display: flex; gap: 6px; align-items: center; }
+  .nudge-btn { padding: 4px 12px; border-radius: 14px; border: 1px solid #222; background: #141420; color: #555; font-size: 11px; cursor: pointer; }
+  .nudge-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #00e676; min-width: 50px; text-align: center; }
+
+  /* ── Speed Safety Dialog ────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    width: 340px; background: #12121e; border-radius: 18px;
+    border: 1px solid #1e1e30; padding: 24px 20px; text-align: center;
+    box-shadow: 0 0 60px rgba(0,0,0,0.6);
+  }
+  .modal .icon { font-size: 36px; margin-bottom: 12px; }
+  .modal .title { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .modal .desc { font-size: 13px; color: #888; line-height: 1.5; margin-bottom: 20px; }
+  .modal .speed-compare {
+    display: flex; justify-content: center; gap: 24px; margin-bottom: 20px;
+  }
+  .speed-box {
+    text-align: center;
+  }
+  .speed-box .label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .speed-box .value {
+    font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700;
+  }
+  .speed-box .value.analysis { color: #00e676; }
+  .speed-box .value.current { color: #f39c12; }
+  .speed-box .unit { font-size: 9px; color: #444; }
+  .speed-arrow { font-size: 20px; color: #333; align-self: center; }
+
+  .modal-actions { display: flex; flex-direction: column; gap: 8px; }
+  .modal-btn {
+    padding: 12px; border-radius: 12px; border: none; font-family: 'Karla', sans-serif;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  .modal-btn.primary {
+    background: linear-gradient(135deg, #00e676, #00c853); color: #000;
+    box-shadow: 0 0 16px rgba(0,230,118,0.2);
+  }
+  .modal-btn.secondary {
+    background: #1a1a28; color: #f39c12; border: 1px solid rgba(243,156,18,0.2);
+  }
+  .modal-btn.tertiary {
+    background: transparent; color: #555; font-size: 12px; font-weight: 400;
+  }
+</style>
+</head>
+<body>
+
+<!-- Speed Safety Check Modal -->
+<div class="modal-overlay visible" id="safetyModal">
+  <div class="modal">
+    <div class="icon">⚠️</div>
+    <div class="title">Speed Mismatch Detected</div>
+    <div class="desc">Your playback speed differs from the analysed BPM. Did you forget to reset after practice?</div>
+    <div class="speed-compare">
+      <div class="speed-box">
+        <div class="label">Analysis</div>
+        <div class="value analysis">91</div>
+        <div class="unit">BPM (100%)</div>
+      </div>
+      <div class="speed-arrow">→</div>
+      <div class="speed-box">
+        <div class="label">Your Speed</div>
+        <div class="value current">82</div>
+        <div class="unit">BPM (90%)</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn primary" onclick="dismissModal()">Reset to 91 BPM (100%)</button>
+      <button class="modal-btn secondary" onclick="dismissModal()">Keep 82 BPM (90%)</button>
+      <button class="modal-btn tertiary" onclick="dismissModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <span class="back-btn">←</span>
+  <div class="song-info">
+    <div class="song-name">Cissy Strut</div>
+    <div class="song-artist">The Meters</div>
+    <div class="song-pos">3 of 12 — Friday Night Pub Set</div>
+  </div>
+  <div class="bpm-block">
+    <span class="mode-badge">LIVE</span>
+    <div class="bpm-value">91</div>
+    <div class="bpm-unit">BPM</div>
+  </div>
+</div>
+
+<!-- Visual Area -->
+<div class="visual-area" id="visualArea">
+  <div class="beat-glow" id="beatGlow"></div>
+  <div class="screen-flash" id="screenFlash"></div>
+  <div class="vis-switcher">
+    <button class="vis-btn active" onclick="setVis('spectrum')">Spectrum</button>
+    <button class="vis-btn" onclick="setVis('rings')">Rings</button>
+    <button class="vis-btn" onclick="setVis('particles')">Burst</button>
+  </div>
+  <canvas class="vis-canvas" id="visCanvas"></canvas>
+</div>
+
+<!-- Lyrics / Chords -->
+<div class="lyrics-area">
+  <div class="lyrics-toggle">
+    <button class="lyrics-toggle-btn active" onclick="toggleLyricsView('chords')">Chords</button>
+    <button class="lyrics-toggle-btn lyrics-active" onclick="toggleLyricsView('lyrics')">Lyrics</button>
+    <button class="lyrics-toggle-btn" onclick="toggleLyricsView('both')">Both</button>
+    <button class="lyrics-toggle-btn" onclick="toggleLyricsView('off')">Off</button>
+  </div>
+
+  <div class="section-label">Intro</div>
+  <div class="chord-line">C7                      C7</div>
+  <div class="lyric-line">&nbsp;</div>
+
+  <div class="section-label">Verse</div>
+  <div class="chord-line">C7          F7          C7          C7</div>
+  <div class="lyric-line current">( instrumental groove )</div>
+  <div class="chord-line">F7          F7          C7          C7</div>
+  <div class="lyric-line">&nbsp;</div>
+  <div class="chord-line">G7          F7          C7          G7</div>
+  <div class="lyric-line">&nbsp;</div>
+
+  <div class="section-label">Bridge</div>
+  <div class="chord-line">Eb7         Eb7         C7          C7</div>
+  <div class="lyric-line">&nbsp;</div>
+  <div class="chord-line">F7          G7          C7          C7</div>
+  <div class="lyric-line">&nbsp;</div>
+</div>
+
+<!-- Transport -->
+<div class="transport-wrapper">
+  <div class="nav-row">
+    <button class="nav-btn">
+      <span class="arrow">◀</span>
+      <span class="nav-song-name">Superstition</span>
+    </button>
+    <button class="queue-btn" onclick="toggleQueue()">☰ 3/12</button>
+    <button class="nav-btn">
+      <span class="nav-song-name">Sultans of Swing</span>
+      <span class="arrow">▶</span>
+    </button>
+  </div>
+  <div class="transport-bottom">
+    <button class="transport-btn secondary">⏮</button>
+    <button class="transport-btn play">▶</button>
+    <button class="transport-btn stop">■</button>
+    <button class="transport-btn click-toggle">CLICK</button>
+  </div>
+</div>
+
+<!-- Bottom Sheet (simplified for Live) -->
+<div class="drag-handle" id="dragHandle" onclick="toggleSheet()"><div class="pill"></div></div>
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="bottom-sheet-inner">
+    <div class="section-title">Click</div>
+    <div class="click-vol-row">
+      <span class="click-vol-label">Vol</span>
+      <div class="click-vol-bar"><div class="click-vol-fill"></div></div>
+      <span class="click-vol-val">33</span>
+    </div>
+    <div class="section-title">Settings</div>
+    <div class="setting-row"><span class="setting-label">Subdivision</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">8th</span><span class="pill-btn">Trip</span><span class="pill-btn">16th</span></div></div>
+    <div class="setting-row"><span class="setting-label">Count-in</span><div class="pill-group"><span class="pill-btn active">Off</span><span class="pill-btn">1</span><span class="pill-btn">2</span><span class="pill-btn">4</span></div></div>
+    <div class="setting-row"><span class="setting-label">Beat Nudge</span><div class="nudge-row"><span class="nudge-btn">◀◀</span><span class="nudge-val">+0ms</span><span class="nudge-btn">▶▶</span></div></div>
+  </div>
+</div>
+
+<script>
+// Modal
+function dismissModal() {
+  document.getElementById('safetyModal').classList.remove('visible');
+}
+
+// Canvas
+const canvas = document.getElementById('visCanvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  canvas.width = W = r.width;
+  canvas.height = H = r.height;
+}
+resize();
+window.addEventListener('resize', resize);
+const resizeObs = new ResizeObserver(() => resize());
+resizeObs.observe(document.getElementById('visualArea'));
+
+let visMode = 'spectrum';
+let beatEnergy = 0;
+let specBars = new Array(32).fill(0);
+let specTargets = new Array(32).fill(0);
+let rings = [];
+let particles = [];
+
+function setVis(mode) {
+  visMode = mode;
+  document.querySelectorAll('.vis-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.vis-btn[onclick="setVis('${mode}')"]`).classList.add('active');
+  particles = []; rings = [];
+}
+
+function fireBeat() {
+  beatEnergy = 1.0;
+  const glow = document.getElementById('beatGlow');
+  const flash = document.getElementById('screenFlash');
+  glow.classList.add('flash'); flash.classList.add('flash');
+  setTimeout(() => { glow.classList.remove('flash'); flash.classList.remove('flash'); }, 100);
+  for (let i = 0; i < specTargets.length; i++) specTargets[i] = 0.5 + Math.random() * 0.5;
+  if (visMode === 'particles') {
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random() * 4;
+      particles.push({ x:W/2, y:H/2, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:1, size:2+Math.random()*4, hue:145+Math.random()*30 });
+    }
+  }
+  if (visMode === 'rings') rings.push({ r:10, opacity:0.8, speed:2.5+Math.random()*1.5 });
+}
+setInterval(fireBeat, 660);
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  beatEnergy *= 0.92;
+  if (visMode === 'spectrum') drawSpectrum();
+  else if (visMode === 'rings') drawRings();
+  else if (visMode === 'particles') drawParticles();
+  requestAnimationFrame(draw);
+}
+
+function drawSpectrum() {
+  const barW = (W - 40) / specBars.length, maxH = H * 0.75;
+  for (let i = 0; i < specBars.length; i++) {
+    specBars[i] += (specTargets[i] - specBars[i]) * 0.3;
+    specTargets[i] *= 0.96;
+    const h = specBars[i] * maxH, x = 20 + i * barW;
+    const ratio = i / specBars.length;
+    const r = Math.floor(40 + ratio * 140), g = Math.floor(230 - ratio * 150), b = Math.floor(118 + ratio * 130);
+    ctx.fillStyle = `rgba(${r},${g},${b},${0.5 + specBars[i] * 0.4})`;
+    const bw = barW - 2;
+    ctx.fillRect(x, H/2 - h/2, bw, h/2); ctx.fillRect(x, H/2, bw, h/2);
+    ctx.shadowColor = `rgba(${r},${g},${b},0.4)`; ctx.shadowBlur = 8;
+    ctx.fillRect(x, H/2 - h/2, bw, 2); ctx.fillRect(x, H/2 + h/2 - 2, bw, 2);
+    ctx.shadowBlur = 0;
+  }
+  if (beatEnergy > 0.1) {
+    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W * 0.4);
+    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.08})`); grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  }
+}
+
+function drawRings() {
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const ring = rings[i]; ring.r += ring.speed; ring.opacity *= 0.985;
+    if (ring.opacity < 0.02) { rings.splice(i, 1); continue; }
+    ctx.beginPath(); ctx.arc(W/2, H/2, ring.r, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(0,230,118,${ring.opacity})`; ctx.lineWidth = 2 + ring.opacity * 3;
+    ctx.shadowColor = `rgba(0,230,118,${ring.opacity * 0.5})`; ctx.shadowBlur = 15;
+    ctx.stroke(); ctx.shadowBlur = 0;
+  }
+  const dotSize = 6 + beatEnergy * 20;
+  const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, dotSize);
+  grad.addColorStop(0, `rgba(0,230,118,${0.3 + beatEnergy * 0.6})`); grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2, H/2, dotSize, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vx *= 0.985; p.vy *= 0.985; p.life *= 0.975;
+    if (p.life < 0.02) { particles.splice(i, 1); continue; }
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${p.hue},80%,55%,${p.life * 0.8})`;
+    ctx.shadowColor = `hsla(${p.hue},80%,55%,${p.life * 0.4})`; ctx.shadowBlur = 10;
+    ctx.fill(); ctx.shadowBlur = 0;
+  }
+  if (beatEnergy > 0.1) {
+    const grad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, 60);
+    grad.addColorStop(0, `rgba(0,230,118,${beatEnergy * 0.15})`); grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(W/2, H/2, 60, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+draw();
+
+// Bottom sheet
+let sheetOpen = false;
+function toggleSheet() {
+  sheetOpen = !sheetOpen;
+  document.getElementById('bottomSheet').classList.toggle('open', sheetOpen);
+  document.getElementById('dragHandle').classList.toggle('open', sheetOpen);
+}
+
+function toggleLyricsView(mode) {
+  document.querySelectorAll('.lyrics-toggle-btn').forEach(b => {
+    b.classList.remove('active'); b.classList.remove('lyrics-active');
+  });
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>

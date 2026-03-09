@@ -6,53 +6,53 @@
 ---
 
 ## Current State
-- **Phase**: S33 planning — Songs/Setlists/Live/Practice big-picture redesign.
-- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Practice/Live UI mockup v5 approved (2-tier transport, visual hero, bottom sheet mixer).
-- **What's new (this session)**: Practice mockup v5 approved. C++ TrackPlayer::stop() fixed (loop-aware reset). A/B/Clear promoted to main transport (2-tier: speed+loop top, play/stop/restart/click bottom). Big-picture songs/setlists/live/practice flow requirements captured (see Next Session Plan).
+- **Phase**: S33 complete — Songs/Setlists/Live/Practice big-picture redesign PLANNED.
+- **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Practice/Live UI mockup v5 approved.
+- **What's new (this session)**: S33 planning complete. Schema design (song categories, setlist types, player prefs). 3 new mockups (library-browser, player-live, player-queue). Architecture decisions: Library-as-launchpad (4 drawer items), shared player screen with mode flag, web gets Live+Practice modes (Web Audio API + SoundTouchJS), stage prompter merges into Live Mode with per-user toggle prefs. Migration SQL drafted. Sprint roadmap S34-S37.
 - **Last session**: S32B/C testing + Practice/Live UI redesign mockup iteration.
-- **Next action**: S33 planning session — full flow redesign for songs → setlists → live/practice. Schema changes needed. Mockups for each screen. See SPRINT_PROMPTS.md.
+- **Next action**: S34 implementation — migration + type updates + shared queries for song categories + setlist types + player prefs.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan — S33: Songs/Setlists/Live/Practice Big-Picture Redesign
-### Song Categories (schema change needed)
-- **Tange Covers** — covers the band plays live
-- **Tange Originals** — original songs by the band
-- **Personal Songs** — songs each member knows individually (for dep/standing-in gigs)
+## Next Session Plan — S34: Migration + Types + Queries
+### Implementation Tasks
+1. **Supabase migration** — Apply `s33_migration_draft.sql` (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs)
+2. **Shared TypeScript types** — Add SongCategory enum, update Song/Setlist interfaces, update SetlistWithSongs
+3. **Shared queries** — Song filtering by category/owner, setlist filtering by type/band, player prefs CRUD
+4. **Kotlin data classes** — Update Song.kt, Setlist.kt for new columns
+5. **Android SongRepository** — Category/owner filters
+6. **Web song form** — Add category selector + owner picker (for personal songs)
 
-### Setlist Types (schema change needed)
-- **Tange Setlists** — band setlists for TGT gigs
-- **Other Band Setlists** — setlists for bands any member stands in for
+### Architecture Decisions (from S33)
+- **Library as launchpad**: Drawer has 4 items (Calendar, Library, Settings, + web-only items). Live/Practice launch FROM Library, not as separate nav destinations.
+- **Shared player screen**: One screen with mode flag (Live = click+visuals+lyrics, Practice = +tracks+mixer). Compose: single composable. Web: single React component.
+- **Web gets Live + Practice**: Web Audio API + SoundTouchJS for audio. All 4 members can practice from browser.
+- **Stage prompter merges into Live Mode**: Per-user toggles (click, flash, lyrics, chords) in user_settings. Neil/James/Adam disable click, keep lyrics.
+- **1 setlist = 1 gig**: No multi-set. Player waits between songs. "Set Complete" screen at end.
+- **Live reorder**: Queue can be reordered mid-performance from song list overlay.
+- **Personal songs unrestricted**: Can go in any setlist (TGT or other band).
 
-### Live Mode (no backing tracks, click + visuals only)
-1. Play entire library start-to-finish (prev/next + swipe full list to select)
-2. Play filtered library (Tange covers / originals / personal by member or all)
-3. Play a setlist start-to-finish (choose from available setlists)
-- Click + flash visuals from song BPM (server analysis + user-preferred speed)
-- **Speed safety check**: if user's preferred speed differs from analysis BPM, prompt "Did you forget to reset speed after practice?" before live mode starts
-- No backing tracks in live mode
+### Sprint Roadmap
+| Sprint | Scope |
+|--------|-------|
+| S34 | Migration + type updates + shared queries |
+| S35 | Android Library refactor + player refactor |
+| S36 | Web audio engine (TypeScript) + Library redesign |
+| S37 | Web player UI (Live + Practice modes) |
 
-### Practice Mode (backing tracks + click + visuals)
-- Same 3 playback modes as live (library / filtered / setlist)
-- Same song navigation (prev/next + swipe list)
-- With backing tracks (main track + stems)
-- With click + flash visuals
-- Speed control, A-B loop, mixer, beat nudge — all from approved mockup v5
-
-### UI Redesign
-- Approved mockup: `mockups/practice-redesign.html` (v5)
-- Visual hero area with canvas visualisations (spectrum/rings/burst)
-- Compact waveform seekbar
-- 2-tier transport (top: speed ±5 + A/B/Clear; bottom: restart + play + stop + click)
-- Bottom sheet drawer (mixer faders + settings: subdivision, count-in, beat nudge)
-- Uniform beat edge glow (no downbeat distinction)
-- Same treatment for both Live and Practice (Practice adds backing tracks + mixer)
+### Mockups (S33 output)
+- `mockups/library-browser.html` — Songs/Setlists tabs, category filters, member sub-filter, launch buttons
+- `mockups/player-live.html` — Live mode with lyrics/chords, speed safety check modal, simplified bottom sheet
+- `mockups/player-queue.html` — Queue overlay (reorder), between-songs waiting screen, set complete screen
+- `mockups/practice-redesign.html` — Practice mode v5 (approved, existing)
 
 ### Still Pending
 - On-device testing: BTrack offline fallback (airplane mode)
 - Web UI visual testing at thegreentangerine.com
 - Add more songs via web app (currently only 3)
 - User to verify 44 WhatsApp-confirmed fees, then batch-update
+- **Dep gig calendar feature** — diagonal split colour for member-away + dep-gig days (separate planning session)
+- **Offline cache management** — user controls local storage (separate implementation sprint)
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.
