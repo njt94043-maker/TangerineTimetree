@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import type { Gig, AwayDate } from '@shared/supabase/types';
-import { computeDayStatus, isGigIncomplete } from '@shared/supabase/types';
+import { computeDayDisplay, isGigIncomplete } from '@shared/supabase/types';
 
 interface CalendarProps {
   year: number;
@@ -90,28 +90,38 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
           if (day === null) return <div key={`empty-${idx}`} className="calendar-cell" style={{ cursor: 'default' }} />;
 
           const iso = toISO(year, month, day);
-          const status = computeDayStatus(iso, today, gigs, awayDates);
+          const display = computeDayDisplay(iso, today, gigs, awayDates);
           const isToday = iso === today;
           const dateGigs = gigsByDate.get(iso) ?? [];
+          const activeGigs = dateGigs.filter(g => g.status !== 'cancelled');
 
-          const classes = ['calendar-cell', status];
+          const classes = ['calendar-cell', display];
           if (isToday) classes.push('today');
 
-          const gigCount = dateGigs.length;
+          const gigCount = activeGigs.length;
 
-          // Build dots: one per gig (max 3), colored by type
-          const dots = dateGigs.slice(0, 3).map((g, i) => {
-            const color = g.gig_type === 'practice' ? 'var(--color-practice)' : 'var(--color-gig)';
+          // Build dots: one per active gig (max 3), colored by subtype
+          const dots = activeGigs.slice(0, 3).map((g, i) => {
+            const color = g.gig_type === 'practice'
+              ? 'var(--color-practice)'
+              : g.gig_subtype === 'client'
+                ? 'var(--color-tangerine)'
+                : 'var(--color-gig)';
             const inc = g.gig_type !== 'practice' && isGigIncomplete(g);
-            return <span key={i} className={`day-dot ${inc ? 'incomplete' : ''}`} style={{ background: color }} />;
+            const dashed = g.status === 'pencilled';
+            return <span key={i} className={`day-dot${inc ? ' incomplete' : ''}${dashed ? ' pencilled' : ''}`} style={{ background: color }} />;
           });
 
           // Venue words — split name into one word per line
           const venueWords: { word: string; color: string }[] = [];
-          for (const g of dateGigs.slice(0, 1)) {
+          for (const g of activeGigs.slice(0, 1)) {
             const label = g.venue || '';
             if (!label) continue;
-            const color = g.gig_type === 'practice' ? 'var(--color-practice)' : 'var(--color-gig)';
+            const color = g.gig_type === 'practice'
+              ? 'var(--color-practice)'
+              : g.gig_subtype === 'client'
+                ? 'var(--color-tangerine)'
+                : 'var(--color-gig)';
             for (const word of label.split(/\s+/)) {
               venueWords.push({ word, color });
             }
@@ -138,7 +148,9 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
 
       <div className="legend">
         <LegendItem color="var(--color-available)" label="Available" />
-        <LegendItem color="var(--color-gig)" label="Gig" />
+        <LegendItem color="var(--color-gig)" label="Pub Gig" />
+        <LegendItem color="var(--color-tangerine)" label="Client" />
+        <LegendItem color="var(--color-tangerine)" label="Pencilled" dashed />
         <LegendItem color="var(--color-practice)" label="Practice" />
         <LegendItem color="var(--color-unavailable)" label="Away" />
       </div>
@@ -146,10 +158,10 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
   );
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
+function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
   return (
     <div className="legend-item">
-      <span className="legend-dot" style={{ background: color }} />
+      <span className={`legend-dot${dashed ? ' legend-dot-dashed' : ''}`} style={{ background: dashed ? 'transparent' : color, borderColor: dashed ? color : undefined }} />
       <span className="legend-label">{label}</span>
     </div>
   );

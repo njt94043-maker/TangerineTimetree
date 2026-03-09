@@ -3,6 +3,8 @@ import type {
   Profile,
   Gig,
   GigType,
+  GigSubtype,
+  BookingStatus,
   GigVisibility,
   GigWithCreator,
   GigAttachment,
@@ -156,6 +158,8 @@ export async function getGigsByDate(date: string): Promise<GigWithCreator[]> {
 export async function createGig(gig: {
   date: string;
   gig_type?: GigType;
+  gig_subtype?: GigSubtype;
+  status?: BookingStatus;
   venue?: string;
   client_name?: string;
   venue_id?: string | null;
@@ -167,6 +171,10 @@ export async function createGig(gig: {
   end_time?: string | null;
   notes?: string;
   visibility?: GigVisibility;
+  deposit_amount?: number | null;
+  deposit_paid?: boolean;
+  quote_id?: string | null;
+  formal_invoice_id?: string | null;
 }): Promise<Gig> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -177,6 +185,8 @@ export async function createGig(gig: {
     .insert({
       date: gig.date,
       gig_type: gig.gig_type ?? 'gig',
+      gig_subtype: gig.gig_subtype ?? 'pub',
+      status: gig.status ?? 'confirmed',
       venue: gig.venue ?? '',
       client_name: gig.client_name ?? '',
       venue_id: gig.venue_id ?? null,
@@ -188,6 +198,10 @@ export async function createGig(gig: {
       end_time: gig.end_time ?? null,
       notes: gig.notes ?? '',
       visibility: gig.visibility ?? 'hidden',
+      deposit_amount: gig.deposit_amount ?? null,
+      deposit_paid: gig.deposit_paid ?? false,
+      quote_id: gig.quote_id ?? null,
+      formal_invoice_id: gig.formal_invoice_id ?? null,
       created_by: user.id,
     })
     .select()
@@ -609,6 +623,75 @@ export async function deleteGigAttachment(id: string, storagePath: string): Prom
 
   const { error } = await supabase.from('gig_attachments').delete().eq('id', id);
   if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Booking Wizard Queries ────────────────────────────────
+
+export async function getVenueHistory(venueId: string): Promise<{ lastFee: number | null; usualStartTime: string | null }> {
+  const supabase = getSupabase();
+  const { data } = await supabase
+    .from('gigs')
+    .select('fee, start_time')
+    .eq('venue_id', venueId)
+    .eq('gig_type', 'gig')
+    .order('date', { ascending: false })
+    .limit(5);
+
+  if (!data || data.length === 0) return { lastFee: null, usualStartTime: null };
+
+  const lastFee = data[0].fee;
+  // Most common start time across recent gigs at this venue
+  const times = data.map((g: { fee: number | null; start_time: string | null }) => g.start_time).filter(Boolean) as string[];
+  const timeCounts = new Map<string, number>();
+  for (const t of times) timeCounts.set(t, (timeCounts.get(t) ?? 0) + 1);
+  let usualStartTime: string | null = null;
+  let maxCount = 0;
+  for (const [t, c] of timeCounts) {
+    if (c > maxCount) { maxCount = c; usualStartTime = t; }
+  }
+
+  return { lastFee, usualStartTime };
+}
+
+export async function getGigWithLinkedDocs(gigId: string): Promise<GigWithCreator & {
+  quote: Quote | null;
+  invoice: Invoice | null;
+  formalInvoice: FormalInvoice | null;
+}> {
+  const supabase = getSupabase();
+
+  // Fetch gig with creator name
+  const { data: gig, error } = await supabase
+    .from('gigs')
+    .select('*, profiles!gigs_created_by_fkey(name)')
+    .eq('id', gigId)
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+
+  const creator = gig.profiles as { name: string } | null;
+  const gigWithCreator: GigWithCreator = { ...gig, creator_name: creator?.name ?? 'Unknown' };
+
+  // Fetch linked quote
+  let quote: Quote | null = null;
+  if (gig.quote_id) {
+    const { data } = await supabase.from('quotes').select('*').eq('id', gig.quote_id).single();
+    quote = data;
+  }
+
+  // Fetch linked simple invoice (via invoices.gig_id)
+  let invoice: Invoice | null = null;
+  const { data: inv } = await supabase.from('invoices').select('*').eq('gig_id', gigId).limit(1).maybeSingle();
+  invoice = inv;
+
+  // Fetch linked formal invoice
+  let formalInvoice: FormalInvoice | null = null;
+  if (gig.formal_invoice_id) {
+    const { data } = await supabase.from('formal_invoices').select('*').eq('id', gig.formal_invoice_id).single();
+    formalInvoice = data;
+  }
+
+  return { ...gigWithCreator, quote, invoice, formalInvoice };
 }
 
 export async function getPublicMedia(): Promise<PublicMedia[]> {
@@ -1793,7 +1876,7 @@ export async function getFormalReceipts(invoiceId: string): Promise<FormalReceip
 // ─── Band Settings (extended) ───────────────────────────
 
 export async function updateBandSettingsExtended(
-  updates: Partial<Pick<BandSettings, 'trading_as' | 'business_type' | 'website' | 'payment_terms_days' | 'pli_insurer' | 'pli_policy_number' | 'pli_cover_amount' | 'pli_expiry_date' | 'default_terms_and_conditions' | 'default_quote_validity_days'>>,
+  updates: Partial<Pick<BandSettings, 'trading_as' | 'business_type' | 'website' | 'payment_terms_days' | 'pli_insurer' | 'pli_policy_number' | 'pli_cover_amount' | 'pli_expiry_date' | 'default_terms_and_conditions' | 'default_quote_validity_days' | 'cancellation_threshold_days'>>,
 ): Promise<void> {
   const supabase = getSupabase();
   const { error } = await supabase

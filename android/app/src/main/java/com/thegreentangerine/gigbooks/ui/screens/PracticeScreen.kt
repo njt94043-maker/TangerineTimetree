@@ -111,6 +111,33 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     TrackSection(vm, audioUrl = song.audioUrl)
                 }
 
+                // Processing status banner (while server is generating stems)
+                if (vm.loadedStems.isEmpty() && vm.processingStatus != null) {
+                    NeuCard(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(
+                                color = GigColors.purple,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = when (vm.processingStatus) {
+                                    "pending" -> "Processing queued..."
+                                    "analysing" -> "Detecting beats..."
+                                    "separating" -> "Separating stems..."
+                                    else -> "Processing..."
+                                },
+                                fontFamily = Karla,
+                                fontSize = 12.sp,
+                                color = GigColors.purple,
+                            )
+                        }
+                    }
+                }
+
                 // Stem volume sliders (shown once stems are loaded)
                 if (vm.loadedStems.isNotEmpty()) {
                     StemsCard(vm)

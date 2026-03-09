@@ -14,6 +14,8 @@ import { Calendar } from './components/Calendar';
 import { GigList } from './components/GigList';
 import { DayDetail } from './components/DayDetail';
 import { GigForm } from './components/GigForm';
+import { BookingWizard } from './components/BookingWizard';
+import { GigHub } from './components/GigHub';
 import { AwayManager } from './components/AwayManager';
 import { ProfilePage } from './components/ProfilePage';
 import { MediaManager } from './components/MediaManager';
@@ -88,6 +90,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     venueId, goToVenues, goToVenueDetail,
     editSongId, goToSongs, goToNewSong, goToEditSong,
     setlistId, goToSetlistDetail,
+    gigHubGigId, goToBookingWizard, goToEditBooking, goToGigHub,
   } = useView();
 
   const now = new Date();
@@ -96,7 +99,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [invoicePrefill, setInvoicePrefill] = useState<{ venue?: string; venue_id?: string; client_id?: string; gig_id?: string; gig_date?: string; amount?: string; description?: string } | undefined>();
 
-  const { gigs, awayDates, error: calendarError, refresh } = useCalendarData(year, month);
+  const { gigs, awayDates, profiles: allProfiles, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
   const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
 
@@ -189,7 +192,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
   async function handleAddGigFromQuote(date: string, venue: string, fee: number, venueId?: string | null, clientId?: string | null, clientName?: string) {
     try {
-      await createGig({ date, venue, fee, venue_id: venueId, client_id: clientId, client_name: clientName || '', payment_type: 'invoice', visibility: 'hidden' });
+      await createGig({ date, venue, fee, venue_id: venueId, client_id: clientId, client_name: clientName || '', payment_type: 'invoice', visibility: 'hidden', gig_subtype: 'client', status: 'confirmed' });
       refresh();
     } catch {
       // Silently fail — gig creation is optional
@@ -215,6 +218,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'profile': return 'Profile';
       case 'day-detail': return 'Day Detail';
       case 'gig-form': return 'Gig Form';
+      case 'booking-wizard': return 'New Booking';
+      case 'gig-hub': return 'Gig Details';
       default: return 'Timetree';
     }
   })();
@@ -342,6 +347,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onClose={goBack}
             onAddGig={goToAddGig}
             onEditGig={goToEditGig}
+            onGigPress={goToGigHub}
+            onAddBooking={goToBookingWizard}
             onMarkAway={() => setView('away')}
             onGigDeleted={() => { refresh(); refreshQueueCount(); }}
             onDateChange={goToDay}
@@ -356,6 +363,36 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             initialType={initialGigType}
             onClose={goBack}
             onSaved={handleGigSaved}
+          />
+        )}
+
+        {view === 'booking-wizard' && (
+          <BookingWizard
+            date={selectedDate}
+            gigId={editGigId}
+            gigs={gigs}
+            awayDates={awayDates}
+            profiles={allProfiles}
+            onClose={goBack}
+            onSaved={handleGigSaved}
+            onGenerateQuote={() => { refresh(); goToNewQuote(); }}
+            onCreateInvoice={(id) => {
+              const gig = gigs.find(g => g.id === id);
+              if (gig) handleCreateInvoiceFromGig(gig as GigWithCreator);
+            }}
+          />
+        )}
+
+        {view === 'gig-hub' && gigHubGigId && (
+          <GigHub
+            gigId={gigHubGigId}
+            onClose={goBack}
+            onEdit={goToEditBooking}
+            onViewQuote={(id) => goToQuoteDetail(id)}
+            onViewInvoice={(id) => goToInvoiceDetail(id)}
+            onCreateInvoice={handleCreateInvoiceFromGig}
+            onGenerateQuote={(_gig) => { refresh(); goToNewQuote(); }}
+            onGigUpdated={() => { refresh(); refreshQueueCount(); }}
           />
         )}
 

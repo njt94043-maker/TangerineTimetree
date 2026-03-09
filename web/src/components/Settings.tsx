@@ -109,6 +109,14 @@ export function Settings({ onClose }: SettingsProps) {
   const [defaultTerms, setDefaultTerms] = useState('');
   const [quoteValidityDays, setQuoteValidityDays] = useState(30);
 
+  // Calendar colours (per-user)
+  const [calColourPub, setCalColourPub] = useState('#00e676');
+  const [calColourClient, setCalColourClient] = useState('#f39c12');
+  const [calColourPractice, setCalColourPractice] = useState('#bb86fc');
+
+  // Cancellation threshold (band setting)
+  const [cancellationThresholdDays, setCancellationThresholdDays] = useState(14);
+
   // Service Catalogue
   const [services, setServices] = useState<ServiceCatalogueItem[]>([]);
   const [showAddService, setShowAddService] = useState(false);
@@ -150,6 +158,11 @@ export function Settings({ onClose }: SettingsProps) {
         setBankSortCode(us.bank_sort_code);
         setBankAccountNumber(us.bank_account_number);
       }
+      if (us) {
+        setCalColourPub(us.calendar_colour_pub ?? '#00e676');
+        setCalColourClient(us.calendar_colour_client ?? '#f39c12');
+        setCalColourPractice(us.calendar_colour_practice ?? '#bb86fc');
+      }
       if (bs) {
         setTradingAs(bs.trading_as);
         setBusinessType(bs.business_type);
@@ -161,6 +174,7 @@ export function Settings({ onClose }: SettingsProps) {
         setPliExpiryDate(bs.pli_expiry_date ?? '');
         setDefaultTerms(bs.default_terms_and_conditions ?? '');
         setQuoteValidityDays(bs.default_quote_validity_days ?? 30);
+        setCancellationThresholdDays(bs.cancellation_threshold_days ?? 14);
       }
       setServices(svc);
       const contentMap: Record<string, string> = {};
@@ -192,6 +206,9 @@ export function Settings({ onClose }: SettingsProps) {
           bank_name: bankName,
           bank_sort_code: bankSortCode,
           bank_account_number: bankAccountNumber,
+          calendar_colour_pub: calColourPub,
+          calendar_colour_client: calColourClient,
+          calendar_colour_practice: calColourPractice,
         }),
         updateBandSettings({
           trading_as: tradingAs,
@@ -206,6 +223,7 @@ export function Settings({ onClose }: SettingsProps) {
           pli_expiry_date: pliExpiryDate || null,
           default_terms_and_conditions: defaultTerms,
           default_quote_validity_days: Math.max(1, Math.min(365, quoteValidityDays)),
+          cancellation_threshold_days: Math.max(1, Math.min(90, cancellationThresholdDays)),
         }),
       ]);
       setSaved(true);
@@ -419,6 +437,13 @@ export function Settings({ onClose }: SettingsProps) {
       </div>
 
       <div className="settings-section">
+        <h3 className="settings-section-title">Calendar Colours</h3>
+        <CalendarColourPicker label="PUB GIGS" value={calColourPub} onChange={setCalColourPub} />
+        <CalendarColourPicker label="CLIENT BOOKINGS" value={calColourClient} onChange={setCalColourClient} />
+        <CalendarColourPicker label="PRACTICE" value={calColourPractice} onChange={setCalColourPractice} />
+      </div>
+
+      <div className="settings-section">
         <h3 className="settings-section-title">Your Details</h3>
 
         <label className="label" htmlFor="s-name">YOUR NAME</label>
@@ -488,6 +513,21 @@ export function Settings({ onClose }: SettingsProps) {
             onBlur={() => setPaymentTermsDays(Math.max(1, Math.min(365, paymentTermsDays)))}
           />
         </div>
+
+        <label className="label" htmlFor="s-cancel-threshold">CANCELLATION WINDOW (DAYS)</label>
+        <div className="neu-inset">
+          <input
+            id="s-cancel-threshold"
+            className="input-field"
+            type="number"
+            min={1}
+            max={90}
+            value={cancellationThresholdDays}
+            onChange={e => setCancellationThresholdDays(parseInt(e.target.value) || 14)}
+            onBlur={() => setCancellationThresholdDays(Math.max(1, Math.min(90, cancellationThresholdDays)))}
+          />
+        </div>
+        <p className="settings-hint">Minimum days' notice required for pub gig cancellation</p>
       </div>
 
       {/* Service Catalogue */}
@@ -909,6 +949,35 @@ export function Settings({ onClose }: SettingsProps) {
         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+const COLOUR_SWATCHES = [
+  '#00e676', '#f39c12', '#bb86fc', '#1abc9c', '#42a5f5', '#ff5252', '#ff6ec7', '#ffd54f',
+];
+
+function CalendarColourPicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <label className="label">{label}</label>
+      <div className="colour-swatch-grid">
+        {COLOUR_SWATCHES.map(c => (
+          <button
+            key={c}
+            className={`colour-swatch${value === c ? ' selected' : ''}`}
+            style={{ background: c }}
+            onClick={() => onChange(c)}
+            aria-label={`Select colour ${c}`}
+          >
+            {value === c && <span className="colour-swatch-check">{'\u2713'}</span>}
+          </button>
+        ))}
+      </div>
+      <div className="colour-preview" style={{ background: `${value}10`, borderColor: `${value}30` }}>
+        <span className="colour-preview-dot" style={{ background: value }} />
+        <span className="colour-preview-label" style={{ color: value }}>{label}</span>
       </div>
     </div>
   );

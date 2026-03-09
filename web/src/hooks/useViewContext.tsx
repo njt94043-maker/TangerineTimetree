@@ -8,7 +8,8 @@ type View =
   | 'settings' | 'clients'
   | 'venues' | 'venue-detail'
   | 'songs' | 'song-form'
-  | 'setlists' | 'setlist-detail';
+  | 'setlists' | 'setlist-detail'
+  | 'booking-wizard' | 'gig-hub';
 
 interface ViewState {
   view: View;
@@ -27,6 +28,8 @@ interface ViewState {
   editSongId: string | null;
   // Setlist-specific state
   setlistId: string | null;
+  // Gig Hub state
+  gigHubGigId: string | null;
 }
 
 interface ViewContextValue extends ViewState {
@@ -62,6 +65,10 @@ interface ViewContextValue extends ViewState {
   // Setlist navigation
   goToSetlists: () => void;
   goToSetlistDetail: (id: string) => void;
+  // Booking wizard / Gig Hub navigation
+  goToBookingWizard: (date: string) => void;
+  goToEditBooking: (gigId: string) => void;
+  goToGigHub: (gigId: string) => void;
 }
 
 const ViewContext = createContext<ViewContextValue | null>(null);
@@ -78,6 +85,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [venueId, setVenueId] = useState<string | null>(null);
   const [editSongId, setEditSongId] = useState<string | null>(null);
   const [setlistId, setSetlistId] = useState<string | null>(null);
+  const [gigHubGigId, setGigHubGigId] = useState<string | null>(null);
 
   // View history stack for step-by-step back navigation
   const historyRef = useRef<View[]>(['calendar']);
@@ -219,6 +227,20 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setSetlistId(id);
     pushView('setlist-detail');
   }, []);
+  // Booking wizard / Gig Hub
+  const goToBookingWizard = useCallback((date: string) => {
+    setSelectedDate(date);
+    setEditGigId(null);
+    pushView('booking-wizard');
+  }, []);
+  const goToEditBooking = useCallback((gigId: string) => {
+    setEditGigId(gigId);
+    pushView('booking-wizard');
+  }, []);
+  const goToGigHub = useCallback((gigId: string) => {
+    setGigHubGigId(gigId);
+    pushView('gig-hub');
+  }, []);
   // Listen for browser back button / hardware back (Android & iOS PWA)
   useEffect(() => {
     // Seed initial browser history state
@@ -255,6 +277,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         venueId,
         editSongId,
         setlistId,
+        gigHubGigId,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,
@@ -264,6 +287,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToVenues, goToVenueDetail,
         goToSongs, goToNewSong, goToEditSong,
         goToSetlists, goToSetlistDetail,
+        goToBookingWizard, goToEditBooking, goToGigHub,
       }}
     >
       {children}

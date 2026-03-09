@@ -6,20 +6,21 @@
 ---
 
 ## Current State
-- **Phase**: Server-side beat detection deployed and tested end-to-end.
-- **What works**: Cloud Run madmom service live, beat_maps table migrated, web triggers analysis (auto on upload + manual button), Android fetches server beat map with BTrack fallback. All 3 test tracks analysed successfully via CLI.
-- **What's new (S31B)**: Deployed Cloud Run to europe-west1 (Python 3.10 + madmom 0.16.1 + numpy 1.23.5). Fixed: Cython build dep, collections.MutableSequence patch, np.float deprecation. beat_maps migration applied via Supabase CLI. VITE_BEAT_ANALYSIS_URL set on Vercel. Vercel redeployed.
-- **Last session**: S31B — Deployed + tested server-side beat detection pipeline.
-- **Next action**: Test web UI visually (beat analysis button + status), test on Android device, verify BTrack fallback offline.
+- **Phase**: S32A — Automated stem separation deployed and tested end-to-end.
+- **What works**: Cloud Run service does full pipeline: upload MP3 → madmom beat detection → Demucs htdemucs stem separation (4 stems: drums, bass, vocals, other) → encode to MP3 → upload to Supabase Storage → insert song_stems rows. Web triggers via POST /process (202 Accepted), Cloud Tasks dispatches to /process-worker (8Gi/4CPU, 900s timeout). Status polling on web (3s) and Android (10s). End-to-end verified: Cissy Strut processed (90.9 BPM, 4 stems as MP3, source='auto').
+- **What's new (S32A)**: Dockerfile expanded (PyTorch CPU + torchaudio + Demucs + model pre-download). Cloud Tasks queue `stem-processing` created (europe-west1, max-concurrent=1, max-attempts=2). Worker auth via X-Worker-Secret + OIDC. Web SongForm updated: triggerProcessing() sends JSON (no more blob upload), polls beat_maps status, auto stems show [auto] badge. Android: processingStatus polling + status banner in PracticeScreen. Migrations: song_stems.source column + created_by nullable + beat_maps status CHECK updated.
+- **Last session**: S32A — Automated stem separation pipeline.
+- **Next action**: S32B/C — End-to-end testing, process remaining songs, Android APK rebuild, S31C visual testing.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Next Session Plan: S31C — On-Device Testing + Polish
-- Test web UI: go to thegreentangerine.com, edit songs, click "Analyse Beats" button, verify status UI
-- Test Android: install latest debug APK, load songs in practice mode, check logcat for "Server beat map applied"
-- Test BTrack fallback: disconnect network, verify on-device analysis still works
-- Add more songs via web app (currently only 3: Sultans, Cissy Strut/Meters, War Pigs)
-- Consider --min-instances 1 if cold start (~53s) is too slow
+## Next Session Plan: S32B/C — Testing + Polish
+- Process remaining songs (Sultans of Swing, War Pigs) through new /process pipeline
+- Test web UI visually: upload track → verify 202 → watch status polling → stems appear
+- Test re-process: verify old auto stems replaced, manual stems preserved
+- Rebuild Android debug APK with processingStatus banner
+- Test Android: verify stems auto-load after processing completes
+- S31C carry-over: verify BTrack offline fallback, test beat analysis button
 
 ## Big Picture
 - **Vision**: GigBooks (Android/Compose) = Nathan's personal performance + practice tool. Web = full band management.
@@ -32,7 +33,7 @@
 - **Users**: Nathan (full audio features), Neil/James/Adam (web only)
 
 ## Active Risks
-1. **Cloud Run deployed** — `https://beat-analysis-672617156755.europe-west1.run.app` (europe-west1, 2Gi RAM, max 3 instances). Cold start ~53s (madmom RNN model loading). GCP project: tangerine-time-tree.
+1. **Cloud Run deployed** — `https://beat-analysis-672617156755.europe-west1.run.app` (europe-west1, 8Gi RAM, 4 CPU, 900s timeout, max 2 instances, concurrency 1). Cold start ~90s (PyTorch + Demucs model loading). GCP project: tangerine-time-tree. Cloud Tasks queue: stem-processing.
 2. **C++ build VERIFIED** — Oboe 1.9.3 + SoundTouch + all engine files compile and link in Compose project.
 3. **APK installed** — Compose debug APK installed on Samsung RFCW113WZRM (2026-03-08).
 4. **React Native shelved** — archived but still in git. Can resume if Compose doesn't work out.

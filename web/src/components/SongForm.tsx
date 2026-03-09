@@ -140,57 +140,68 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
     }
   }
 
-  /** Trigger server-side beat analysis via Cloud Run madmom service. */
-  async function triggerBeatAnalysis(trackUrl: string) {
+  // Polling ref for processing status
+  const pollRef = useRef<number | null>(null);
+
+  function stopPolling() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollRef.current = window.setInterval(async () => {
+      if (!songId) return;
+      const bm = await getBeatMap(songId).catch(() => null);
+      if (!bm) return;
+      setBeatStatus(bm.status);
+      setBeatBpm(bm.bpm || null);
+      setBeatCount(bm.beats?.length ?? null);
+      if (bm.status === 'ready' || bm.status === 'failed') {
+        stopPolling();
+        if (bm.status === 'ready') {
+          getSongStems(songId).then(setStems).catch(() => {});
+          if (bm.bpm > 0) setBpm(String(bm.bpm));
+        }
+        if (bm.status === 'failed') setBeatError(bm.error || 'Processing failed');
+      }
+    }, 3000);
+  }
+
+  // Clean up polling on unmount
+  useEffect(() => () => stopPolling(), []);
+
+  // Resume polling if we load a song that's currently processing
+  useEffect(() => {
+    if (beatStatus === 'pending' || beatStatus === 'analysing' || beatStatus === 'separating') {
+      startPolling();
+    }
+  }, [beatStatus]);
+
+  /** Trigger full processing pipeline: beats + stem separation via Cloud Tasks. */
+  async function triggerProcessing(trackUrl: string) {
     if (!songId || !BEAT_ANALYSIS_URL) return;
 
-    setBeatStatus('analysing');
+    setBeatStatus('pending');
     setBeatError('');
     try {
-      // Mark as analysing in Supabase
-      await upsertBeatMap(songId, { status: 'analysing', error: null });
-
-      // Fetch the audio file and send to Cloud Run
-      const audioResp = await fetch(trackUrl);
-      if (!audioResp.ok) throw new Error('Failed to fetch audio file');
-      const audioBlob = await audioResp.blob();
-
-      const resp = await fetch(`${BEAT_ANALYSIS_URL}/analyse`, {
+      const resp = await fetch(`${BEAT_ANALYSIS_URL}/process`, {
         method: 'POST',
-        body: audioBlob,
-        headers: { 'Content-Type': audioBlob.type || 'audio/mpeg' },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song_id: songId, audio_url: trackUrl }),
       });
 
       if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({ error: 'Analysis failed' }));
+        const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
         throw new Error(errBody.error || `HTTP ${resp.status}`);
       }
 
-      const result = await resp.json() as { beats: number[]; bpm: number };
-
-      // Store result in Supabase
-      await upsertBeatMap(songId, {
-        beats: result.beats,
-        bpm: result.bpm,
-        status: 'ready',
-        error: null,
-      });
-
-      setBeatStatus('ready');
-      setBeatBpm(result.bpm);
-      setBeatCount(result.beats.length);
-
-      // Also update song BPM if we got a valid detection
-      if (result.bpm > 0) {
-        setBpm(String(result.bpm));
-      }
+      // Start polling for status updates
+      startPolling();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Analysis failed';
+      const msg = err instanceof Error ? err.message : 'Failed to start processing';
       setBeatStatus('failed');
       setBeatError(msg);
-      try {
-        await upsertBeatMap(songId, { status: 'failed', error: msg });
-      } catch { /* ignore */ }
+      await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
     }
   }
 
@@ -203,8 +214,8 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       const buffer = await file.arrayBuffer();
       const url = await uploadPracticeTrack(songId, file.name, buffer, file.type || 'audio/mpeg');
       setAudioUrl(url);
-      // Auto-trigger beat analysis after successful upload
-      triggerBeatAnalysis(url);
+      // Auto-trigger full processing (beats + stem separation)
+      triggerProcessing(url);
     } catch (err) {
       setAudioError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -403,9 +414,15 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           {audioUrl && (
             <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.07)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, color: 'var(--color-text-dim)', fontWeight: 700 }}>BEAT ANALYSIS</span>
+                <span style={{ fontSize: 12, color: 'var(--color-text-dim)', fontWeight: 700 }}>PROCESSING</span>
+                {beatStatus === 'pending' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-tangerine)' }}>Queued...</span>
+                )}
                 {beatStatus === 'analysing' && (
-                  <span style={{ fontSize: 12, color: 'var(--color-tangerine)' }}>Analysing...</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-tangerine)' }}>Detecting beats...</span>
+                )}
+                {beatStatus === 'separating' && (
+                  <span style={{ fontSize: 12, color: 'var(--color-purple)' }}>Separating stems...</span>
                 )}
                 {beatStatus === 'ready' && (
                   <span style={{ fontSize: 12, color: 'var(--color-green)' }}>
@@ -417,9 +434,6 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
                     Failed{beatError ? `: ${beatError}` : ''}
                   </span>
                 )}
-                {beatStatus === 'pending' && (
-                  <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Pending</span>
-                )}
                 {!beatStatus && !BEAT_ANALYSIS_URL && (
                   <span style={{ fontSize: 12, color: 'var(--color-text-dim)' }}>Not configured</span>
                 )}
@@ -428,9 +442,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
                 <button
                   className="btn btn-small btn-teal"
                   style={{ marginTop: 6, fontSize: 11 }}
-                  onClick={() => audioUrl && triggerBeatAnalysis(audioUrl)}
+                  onClick={() => audioUrl && triggerProcessing(audioUrl)}
                 >
-                  {beatStatus === 'ready' ? 'Re-analyse' : beatStatus === 'failed' ? 'Retry' : 'Analyse Beats'}
+                  {beatStatus === 'ready' ? 'Re-process' : beatStatus === 'failed' ? 'Retry' : 'Process Track'}
                 </button>
               )}
             </div>
@@ -442,14 +456,25 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
         <div className="neu-card" style={{ marginBottom: 12 }}>
           <h3 className="form-section-title">Stems</h3>
           <p style={{ color: 'var(--color-text-dim)', fontSize: 12, marginBottom: 12 }}>
-            Separate stems externally (e.g. Moises) then upload each one. Android practice engine plays them as independent mixer channels.
+            Stems are auto-generated when you upload a practice track. You can also upload custom stems manually.
           </p>
+
+          {(beatStatus === 'pending' || beatStatus === 'analysing' || beatStatus === 'separating') && stems.filter(s => s.source === 'auto').length === 0 && (
+            <div style={{ padding: '10px 12px', marginBottom: 12, background: 'rgba(168,85,247,0.08)', borderRadius: 8, border: '0.5px solid rgba(168,85,247,0.2)' }}>
+              <span style={{ fontSize: 12, color: 'var(--color-purple)' }}>
+                {beatStatus === 'separating' ? 'Separating stems on server...' : 'Processing queued — stems will appear automatically...'}
+              </span>
+            </div>
+          )}
 
           {stems.length > 0 && (
             <div style={{ marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {stems.map(stem => (
                 <div key={stem.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--color-surface-raised, rgba(255,255,255,0.03))', borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.07)' }}>
-                  <span style={{ flex: 1, color: 'var(--color-teal)', fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{stem.label}</span>
+                  <span style={{ flex: 1, color: 'var(--color-teal)', fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>
+                    {stem.label}
+                    {stem.source === 'auto' && <span style={{ color: 'var(--color-purple)', fontSize: 10, fontWeight: 400, marginLeft: 6 }}>[auto]</span>}
+                  </span>
                   <audio controls src={stem.audio_url} style={{ height: 28, flex: 2 }} />
                   <button className="btn btn-small btn-danger" onClick={() => handleDeleteStem(stem.id)}>Remove</button>
                 </div>
