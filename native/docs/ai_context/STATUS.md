@@ -8,8 +8,8 @@
 ## Current State
 - **Phase**: S33 complete — Songs/Setlists/Live/Practice big-picture redesign PLANNED.
 - **What works**: Full pipeline verified for all 3 songs. Cloud Run processing. Web + Android builds clean. Booking system integrated. Practice/Live UI mockup v5 approved.
-- **What's new (this session)**: S33 planning complete. Schema design (song categories, setlist types, player prefs). 3 new mockups (library-browser, player-live, player-queue). Architecture decisions: Library-as-launchpad (4 drawer items), shared player screen with mode flag, web gets Live+Practice modes (Web Audio API + SoundTouchJS), stage prompter merges into Live Mode with per-user toggle prefs. Migration SQL drafted. Sprint roadmap S34-S37.
-- **Last session**: S32B/C testing + Practice/Live UI redesign mockup iteration.
+- **What's new (this session)**: S33 mockup polish. Player-live v7 with A/B glow toggle (card vs full-screen, one-tap switch in presets panel). Display toggles moved into bottom sheet drawer. Decisions D-118 (drawer toggles) + D-119 (card-level beat glow default, full-screen as testable alternative). All 4 mockups finalised and approved.
+- **Last session**: S33 planning — schema design, architecture decisions, 3 new mockups, migration SQL drafted, sprint roadmap S34-S37.
 - **Next action**: S34 implementation — migration + type updates + shared queries for song categories + setlist types + player prefs.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
@@ -42,7 +42,7 @@
 
 ### Mockups (S33 output)
 - `mockups/library-browser.html` — Songs/Setlists tabs, category filters, member sub-filter, launch buttons
-- `mockups/player-live.html` — Live mode with lyrics/chords, speed safety check modal, simplified bottom sheet
+- `mockups/player-live.html` — Live mode v7: A/B glow toggle, display toggles in drawer, speed safety check modal
 - `mockups/player-queue.html` — Queue overlay (reorder), between-songs waiting screen, set complete screen
 - `mockups/practice-redesign.html` — Practice mode v5 (approved, existing)
 

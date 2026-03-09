@@ -14,7 +14,7 @@ CONTEXT:
 - S33 planning complete. Schema designed, mockups approved, architecture locked.
 - Migration SQL draft at: native/docs/ai_context/s33_migration_draft.sql
 - Mockups at: mockups/library-browser.html, mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html (v5)
-- Key decisions: D-107 to D-117 (see decisions_log.md)
+- Key decisions: D-107 to D-119 (see decisions_log.md)
 
 GOALS:
 1. Apply Supabase migration (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs)
