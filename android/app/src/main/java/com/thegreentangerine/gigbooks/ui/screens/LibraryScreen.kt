@@ -60,12 +60,19 @@ import com.thegreentangerine.gigbooks.ui.theme.Karla
 
 enum class LibraryTab { Songs, Setlists }
 
-// Category filter for songs
-private enum class SongFilter(val label: String) {
-    All("All"),
+// Scope filter (D-128)
+private enum class ScopeFilter(val label: String) {
+    All("All Songs"),
+    Tgt("TGT"),
+    Mine("My Songs"),
+    Shared("Shared With Me"),
+}
+
+// Type filter (D-128)
+private enum class TypeFilter(val label: String) {
+    All("All Types"),
     Covers("Covers"),
     Originals("Originals"),
-    Personal("Personal"),
 }
 
 // Setlist filter
@@ -95,6 +102,9 @@ fun LibraryScreen(
             else -> when (activeTab) {
                 LibraryTab.Songs -> SongsTab(
                     songs = vm.songs,
+                    currentUserId = vm.currentUserId,
+                    profileNames = vm.profileNames,
+                    sharedSongIds = vm.sharedSongIds,
                     onLaunchLive = onLaunchLive,
                     onLaunchPractice = onLaunchPractice,
                 )
@@ -227,34 +237,62 @@ private fun <T> FilterPillRow(
 @Composable
 private fun SongsTab(
     songs: List<Song>,
+    currentUserId: String?,
+    profileNames: Map<String, String>,
+    sharedSongIds: Set<String>,
     onLaunchLive: (Song) -> Unit,
     onLaunchPractice: (Song) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableStateOf(SongFilter.All) }
+    var scopeFilter by rememberSaveable { mutableStateOf(ScopeFilter.All) }
+    var typeFilter by rememberSaveable { mutableStateOf(TypeFilter.All) }
     var expandedSongId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val filtered = songs.filter { song ->
-        val matchesFilter = when (filter) {
-            SongFilter.All -> true
-            SongFilter.Covers -> song.category == "tange_cover"
-            SongFilter.Originals -> song.category == "tange_original"
-            SongFilter.Personal -> song.category == "personal"
+        // Scope filter
+        val matchesScope = when (scopeFilter) {
+            ScopeFilter.All -> true
+            ScopeFilter.Tgt -> song.isTgtSong
+            ScopeFilter.Mine -> song.ownerId == currentUserId
+            ScopeFilter.Shared -> sharedSongIds.contains(song.id)
+        }
+        // Type filter
+        val matchesType = when (typeFilter) {
+            TypeFilter.All -> true
+            TypeFilter.Covers -> song.isCover
+            TypeFilter.Originals -> song.isOriginal
         }
         val matchesQuery = if (query.isBlank()) true
         else song.name.contains(query, ignoreCase = true) || song.artist.contains(query, ignoreCase = true)
-        matchesFilter && matchesQuery
+        matchesScope && matchesType && matchesQuery
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SearchBar(query = query, onQueryChange = { query = it }, placeholder = "Search songs…")
-        FilterPillRow(
-            filters = SongFilter.entries,
-            selected = filter,
-            onSelect = { filter = it },
-            label = { it.label },
-            accent = GigColors.teal,
-        )
+
+        // Two dropdown rows
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            FilterDropdown(
+                entries = ScopeFilter.entries,
+                selected = scopeFilter,
+                onSelect = { scopeFilter = it },
+                label = { it.label },
+                accent = GigColors.teal,
+                modifier = Modifier.weight(1f),
+            )
+            FilterDropdown(
+                entries = TypeFilter.entries,
+                selected = typeFilter,
+                onSelect = { typeFilter = it },
+                label = { it.label },
+                accent = GigColors.teal,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             if (filtered.isEmpty()) {
                 item {
@@ -270,6 +308,9 @@ private fun SongsTab(
                         onClick = { expandedSongId = if (expandedSongId == song.id) null else song.id },
                         onLive = { onLaunchLive(song) },
                         onPractice = { onLaunchPractice(song) },
+                        currentUserId = currentUserId,
+                        ownerName = if (song.isPersonalSong && song.ownerId != null) profileNames[song.ownerId] else null,
+                        isShared = sharedSongIds.contains(song.id),
                     )
                 }
             }
@@ -285,17 +326,29 @@ private fun SongCard(
     onClick: () -> Unit,
     onLive: () -> Unit,
     onPractice: () -> Unit,
+    currentUserId: String?,
+    ownerName: String?,
+    isShared: Boolean,
 ) {
+    val canEdit = song.canEdit(currentUserId)
+
     NeuCard(modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onClick)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(song.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(song.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
+                    if (!canEdit) {
+                        Text("\uD83D\uDD12", fontSize = 12.sp, color = GigColors.textMuted)
+                    }
+                }
                 if (song.artist.isNotBlank()) {
                     Text(song.artist, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     CategoryTag(song.category)
+                    if (ownerName != null) MetaBadge(ownerName, GigColors.textDim)
+                    if (isShared) MetaBadge("Shared", GigColors.purple)
                     if (song.key.isNotBlank()) MetaBadge(song.key, GigColors.teal)
                     MetaBadge(song.timeSig, GigColors.textMuted)
                     song.durationFormatted?.let { MetaBadge(it, GigColors.textMuted) }
@@ -344,12 +397,69 @@ private fun SongCard(
 @Composable
 private fun CategoryTag(category: String) {
     val (label, color) = when (category) {
-        "tange_cover"    -> "Cover" to GigColors.teal
-        "tange_original" -> "Original" to GigColors.orange
-        "personal"       -> "Personal" to GigColors.purple
-        else             -> "Song" to GigColors.textMuted
+        "tgt_cover"          -> "TGT Cover" to GigColors.teal
+        "tgt_original"       -> "TGT Original" to GigColors.teal
+        "personal_cover"     -> "Personal Cover" to GigColors.orange
+        "personal_original"  -> "Personal Original" to GigColors.orange
+        else                 -> "Song" to GigColors.textMuted
     }
     MetaBadge(label, color)
+}
+
+/** Dropdown selector styled as a neumorphic pill. */
+@Composable
+private fun <T> FilterDropdown(
+    entries: List<T>,
+    selected: T,
+    onSelect: (T) -> Unit,
+    label: (T) -> String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val shape = RoundedCornerShape(10.dp)
+
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(GigColors.surfaceInset)
+                .border(0.5.dp, if (selected != entries.first()) accent.copy(0.4f) else GigColors.neuBorder, shape)
+                .clickable { expanded = true }
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label(selected),
+                fontFamily = Karla,
+                fontSize = 12.sp,
+                fontWeight = if (selected != entries.first()) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (selected != entries.first()) accent else GigColors.textDim,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = GigColors.textMuted, modifier = Modifier.size(16.dp))
+        }
+        androidx.compose.material3.DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = GigColors.surface,
+        ) {
+            entries.forEach { entry ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = {
+                        Text(
+                            label(entry),
+                            fontFamily = Karla, fontSize = 13.sp,
+                            color = if (entry == selected) accent else GigColors.text,
+                            fontWeight = if (entry == selected) FontWeight.Bold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = { onSelect(entry); expanded = false },
+                )
+            }
+        }
+    }
 }
 
 @Composable

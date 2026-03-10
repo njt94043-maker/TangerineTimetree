@@ -2,6 +2,7 @@ package com.thegreentangerine.gigbooks.data.supabase
 
 import com.thegreentangerine.gigbooks.data.supabase.models.AwayDate
 import com.thegreentangerine.gigbooks.data.supabase.models.Gig
+import com.thegreentangerine.gigbooks.data.supabase.models.Profile
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 
@@ -33,4 +34,12 @@ object GigRepository {
             }
         }.decodeList()
     }
+
+    /** All band member profiles (id → name). */
+    suspend fun getProfiles(): List<Profile> = client
+        .from("profiles")
+        .select {
+            order("name", Order.ASCENDING)
+        }
+        .decodeList()
 }

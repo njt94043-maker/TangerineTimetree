@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles } from '@shared/supabase/queries';
-import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, Profile } from '@shared/supabase/types';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles, getSongShares, shareSong, unshareSong } from '@shared/supabase/queries';
+import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, Profile, SongShareWithProfile } from '@shared/supabase/types';
+import { isPersonalSong } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
 const BEAT_ANALYSIS_URL = import.meta.env.VITE_BEAT_ANALYSIS_URL as string | undefined;
@@ -31,14 +32,16 @@ interface SongFormProps {
   onClose: () => void;
   onSaved: () => void;
   bandRole?: string;
+  userId?: string;
 }
 
-export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) {
+export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFormProps) {
   const isEdit = !!songId;
   const isDrummer = bandRole === 'Drums';
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [readOnly, setReadOnly] = useState(false);
 
   const [name, setName] = useState('');
   const [artist, setArtist] = useState('');
@@ -78,6 +81,11 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
   const [newStemLabel, setNewStemLabel] = useState<StemLabel>('backing');
   const stemFileRef = useRef<HTMLInputElement>(null);
 
+  // Sharing (personal_original only)
+  const [shares, setShares] = useState<SongShareWithProfile[]>([]);
+  const [sharingWith, setSharingWith] = useState<string>('');
+  const [sharingLoading, setSharingLoading] = useState(false);
+
   useEffect(() => {
     getProfiles().then(setProfiles).catch(() => {});
     if (!songId) return;
@@ -101,8 +109,16 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setChords(song.chords);
       setDrumNotation(song.drum_notation);
       setAudioUrl(song.audio_url);
+      // Read-only: personal songs owned by someone else
+      if (isPersonalSong(song.category) && song.owner_id && song.owner_id !== userId) {
+        setReadOnly(true);
+      }
       setLoading(false);
       getSongStems(songId).then(setStems).catch(() => {});
+      // Load shares for personal_original songs owned by current user
+      if (song.category === 'personal_original' && song.owner_id === userId) {
+        getSongShares(songId).then(setShares).catch(() => {});
+      }
       // Load beat map status
       getBeatMap(songId).then(bm => {
         if (bm) {
@@ -115,7 +131,35 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       setError(err instanceof Error ? err.message : 'Failed to load song');
       setLoading(false);
     });
-  }, [songId]);
+  }, [songId, userId]);
+
+  async function handleShareAdd() {
+    if (!songId || !sharingWith) return;
+    setSharingLoading(true);
+    try {
+      await shareSong(songId, sharingWith);
+      const updated = await getSongShares(songId);
+      setShares(updated);
+      setSharingWith('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to share');
+    } finally {
+      setSharingLoading(false);
+    }
+  }
+
+  async function handleShareRemove(sharedWithUserId: string) {
+    if (!songId) return;
+    setSharingLoading(true);
+    try {
+      await unshareSong(songId, sharedWithUserId);
+      setShares(prev => prev.filter(s => s.shared_with !== sharedWithUserId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unshare');
+    } finally {
+      setSharingLoading(false);
+    }
+  }
 
   async function handleSave() {
     if (!name.trim()) { setError('Song name is required'); return; }
@@ -288,28 +332,35 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
     <div className="form-wrap form-top">
       <div className="page-header">
         <button className="btn btn-small btn-green" onClick={onClose}>{'\u25C0'} Back</button>
-        <h2 className="page-title">{isEdit ? 'Edit Song' : 'New Song'}</h2>
-        <button className="btn btn-small btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
-        </button>
+        <h2 className="page-title">{readOnly ? 'View Song' : isEdit ? 'Edit Song' : 'New Song'}</h2>
+        {!readOnly && (
+          <button className="btn btn-small btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        )}
       </div>
+      {readOnly && (
+        <div style={{ padding: '6px 12px', marginBottom: 8, background: 'rgba(243,156,18,0.08)', borderRadius: 8, border: '0.5px solid rgba(243,156,18,0.2)', fontSize: 12, color: 'var(--color-tangerine)' }}>
+          This song is owned by another member. You can play it and add your own stems, but cannot edit its details.
+        </div>
+      )}
 
       {error && <ErrorAlert message={error} compact />}
 
       <div className="neu-card" style={{ marginBottom: 12 }}>
         <label className="label">SONG NAME *</label>
         <div className="neu-inset">
-          <input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sweet Child O' Mine" />
+          <input className="input-field" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sweet Child O' Mine" disabled={readOnly} />
         </div>
 
         <label className="label">ARTIST</label>
         <div className="neu-inset">
-          <input className="input-field" value={artist} onChange={e => setArtist(e.target.value)} placeholder="e.g. Guns N' Roses" />
+          <input className="input-field" value={artist} onChange={e => setArtist(e.target.value)} placeholder="e.g. Guns N' Roses" disabled={readOnly} />
         </div>
 
         <label className="label">CATEGORY</label>
         <div className="neu-inset">
-          <select className="input-field" value={category} onChange={e => setCategory(e.target.value as SongCategory)}>
+          <select className="input-field" value={category} onChange={e => setCategory(e.target.value as SongCategory)} disabled={readOnly}>
             {SONG_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
@@ -318,7 +369,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           <>
             <label className="label">OWNER</label>
             <div className="neu-inset">
-              <select className="input-field" value={ownerId ?? ''} onChange={e => setOwnerId(e.target.value || null)}>
+              <select className="input-field" value={ownerId ?? ''} onChange={e => setOwnerId(e.target.value || null)} disabled={readOnly}>
                 <option value="">Select member...</option>
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -328,34 +379,80 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
 
         <label className="label">KEY</label>
         <div className="neu-inset">
-          <input className="input-field" value={key} onChange={e => setKey(e.target.value)} placeholder="e.g. D major" />
+          <input className="input-field" value={key} onChange={e => setKey(e.target.value)} placeholder="e.g. D major" disabled={readOnly} />
         </div>
 
         <label className="label">DURATION (SECONDS)</label>
         <div className="neu-inset">
-          <input className="input-field" type="number" value={durationSeconds} onChange={e => setDurationSeconds(e.target.value)} placeholder="e.g. 240" />
+          <input className="input-field" type="number" value={durationSeconds} onChange={e => setDurationSeconds(e.target.value)} placeholder="e.g. 240" disabled={readOnly} />
         </div>
       </div>
+
+      {/* Sharing section — personal_original owned by current user */}
+      {isEdit && category === 'personal_original' && ownerId === userId && !readOnly && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <h3 className="form-section-title">Sharing</h3>
+          <p style={{ color: 'var(--color-text-dim)', fontSize: 12, marginBottom: 10 }}>
+            Share this original with band members so they can play it and add their own stems.
+          </p>
+
+          {shares.length > 0 && (
+            <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {shares.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(187,134,252,0.06)', borderRadius: 6, border: '0.5px solid rgba(187,134,252,0.15)' }}>
+                  <span style={{ flex: 1, fontSize: 13, color: 'var(--color-text)' }}>{s.shared_with_name}</span>
+                  <button
+                    className="btn btn-small btn-danger"
+                    onClick={() => handleShareRemove(s.shared_with)}
+                    disabled={sharingLoading}
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div className="neu-inset" style={{ flex: 1 }}>
+              <select className="input-field" value={sharingWith} onChange={e => setSharingWith(e.target.value)}>
+                <option value="">Add member...</option>
+                {profiles
+                  .filter(p => p.id !== userId && !shares.some(s => s.shared_with === p.id))
+                  .map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <button
+              className="btn btn-small btn-primary"
+              onClick={handleShareAdd}
+              disabled={!sharingWith || sharingLoading}
+            >
+              Share
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="neu-card" style={{ marginBottom: 12 }}>
         <div className="form-row-2col">
           <div>
             <label className="label">BPM *</label>
             <div className="neu-inset">
-              <input className="input-field" type="number" min="20" max="400" step="0.5" value={bpm} onChange={e => setBpm(e.target.value)} />
+              <input className="input-field" type="number" min="20" max="400" step="0.5" value={bpm} onChange={e => setBpm(e.target.value)} disabled={readOnly} />
             </div>
           </div>
           <div>
             <label className="label">TIME SIGNATURE</label>
             <div className="form-row-inline">
               <div className="neu-inset" style={{ flex: 1 }}>
-                <select className="input-field" value={timeSigTop} onChange={e => setTimeSigTop(Number(e.target.value))}>
+                <select className="input-field" value={timeSigTop} onChange={e => setTimeSigTop(Number(e.target.value))} disabled={readOnly}>
                   {TIME_SIG_TOPS.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
               <span style={{ color: 'var(--text-dim)', padding: '0 4px' }}>/</span>
               <div className="neu-inset" style={{ flex: 1 }}>
-                <select className="input-field" value={timeSigBottom} onChange={e => setTimeSigBottom(Number(e.target.value))}>
+                <select className="input-field" value={timeSigBottom} onChange={e => setTimeSigBottom(Number(e.target.value))} disabled={readOnly}>
                   {TIME_SIG_BOTTOMS.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
@@ -372,7 +469,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <div>
               <label className="label">SUBDIVISION</label>
               <div className="neu-inset">
-                <select className="input-field" value={subdivision} onChange={e => setSubdivision(Number(e.target.value))}>
+                <select className="input-field" value={subdivision} onChange={e => setSubdivision(Number(e.target.value))} disabled={readOnly}>
                   <option value={1}>Quarter notes</option>
                   <option value={2}>Eighth notes</option>
                   <option value={3}>Triplets</option>
@@ -383,7 +480,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <div>
               <label className="label">SWING %</label>
               <div className="neu-inset">
-                <input className="input-field" type="number" min="50" max="75" value={swingPercent} onChange={e => setSwingPercent(e.target.value)} />
+                <input className="input-field" type="number" min="50" max="75" value={swingPercent} onChange={e => setSwingPercent(e.target.value)} disabled={readOnly} />
               </div>
             </div>
           </div>
@@ -392,7 +489,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <div>
               <label className="label">CLICK SOUND</label>
               <div className="neu-inset">
-                <select className="input-field" value={clickSound} onChange={e => setClickSound(e.target.value as ClickSound)}>
+                <select className="input-field" value={clickSound} onChange={e => setClickSound(e.target.value as ClickSound)} disabled={readOnly}>
                   {CLICK_SOUNDS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                 </select>
               </div>
@@ -400,7 +497,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
             <div>
               <label className="label">COUNT-IN BARS</label>
               <div className="neu-inset">
-                <select className="input-field" value={countInBars} onChange={e => setCountInBars(Number(e.target.value))}>
+                <select className="input-field" value={countInBars} onChange={e => setCountInBars(Number(e.target.value))} disabled={readOnly}>
                   {[0, 1, 2, 4, 8].map(n => <option key={n} value={n}>{n === 0 ? 'None' : `${n} bar${n > 1 ? 's' : ''}`}</option>)}
                 </select>
               </div>
@@ -412,12 +509,12 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       <div className="neu-card" style={{ marginBottom: 12 }}>
         <label className="label">CHORDS</label>
         <div className="neu-inset">
-          <textarea className="input-field input-textarea" value={chords} onChange={e => setChords(e.target.value)} placeholder="e.g. Am - F - C - G" rows={3} />
+          <textarea className="input-field input-textarea" value={chords} onChange={e => setChords(e.target.value)} placeholder="e.g. Am - F - C - G" rows={3} disabled={readOnly} />
         </div>
 
         <label className="label">LYRICS</label>
         <div className="neu-inset">
-          <textarea className="input-field input-textarea" value={lyrics} onChange={e => setLyrics(e.target.value)} placeholder="Song lyrics..." rows={5} />
+          <textarea className="input-field input-textarea" value={lyrics} onChange={e => setLyrics(e.target.value)} placeholder="Song lyrics..." rows={5} disabled={readOnly} />
         </div>
       </div>
 
@@ -425,7 +522,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
         <div className="neu-card" style={{ marginBottom: 12 }}>
           <label className="label">DRUM NOTATION</label>
           <div className="neu-inset">
-            <textarea className="input-field input-textarea" value={drumNotation} onChange={e => setDrumNotation(e.target.value)} placeholder="Drum notation / sticking patterns..." rows={4} />
+            <textarea className="input-field input-textarea" value={drumNotation} onChange={e => setDrumNotation(e.target.value)} placeholder="Drum notation / sticking patterns..." rows={4} disabled={readOnly} />
           </div>
         </div>
       )}
@@ -433,7 +530,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
       <div className="neu-card" style={{ marginBottom: 12 }}>
         <label className="label">NOTES</label>
         <div className="neu-inset">
-          <textarea className="input-field input-textarea" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Performance notes..." rows={3} />
+          <textarea className="input-field input-textarea" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Performance notes..." rows={3} disabled={readOnly} />
         </div>
       </div>
 
