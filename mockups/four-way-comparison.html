@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TGT — 4-Way Player Comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000;
+    --bg2: #0a0a0f;
+    --surface: #08080e;
+    --card: #0e0e18;
+    --card2: #0c0c14;
+    --border: #111118;
+    --border2: #151520;
+    --border3: #1a1a28;
+    --border4: #1e1e30;
+    --text: #e0e0e0;
+    --text2: #ccc;
+    --text3: #999;
+    --text4: #888;
+    --text5: #666;
+    --text6: #555;
+    --text7: #444;
+    --text8: #333;
+    --green: #00e676;
+    --green2: #00c853;
+    --teal: #1abc9c;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --cyan: #00bcd4;
+    --pink: #e040fb;
+    --red: #ff5252;
+    --slate: #78909c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #050508; color: var(--text); font-family: 'Karla', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── Page header ─── */
+  .page-header { text-align: center; padding: 20px 20px 8px; }
+  .page-header h1 { font-size: 22px; color: var(--orange); text-shadow: 0 0 20px rgba(243,156,18,0.4); }
+  .page-header p { font-size: 12px; color: var(--text6); margin-top: 4px; max-width: 800px; margin-left: auto; margin-right: auto; }
+
+  /* ─── Screen nav ─── */
+  .nav-bar {
+    display: flex; justify-content: center; gap: 6px; padding: 12px 16px;
+    flex-wrap: wrap; position: sticky; top: 0; z-index: 100;
+    background: rgba(5,5,8,0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .nav-btn {
+    padding: 6px 12px; border-radius: 14px; border: 1px solid var(--border4);
+    background: var(--card); color: var(--text6); font-family: inherit;
+    font-size: 11px; cursor: pointer; transition: all 0.15s;
+  }
+  .nav-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text3); }
+  .nav-btn.active { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: 600; }
+
+  /* ─── 4-column layout ─── */
+  .screen { display: none; padding: 16px; }
+  .screen.active { display: block; }
+  .comparison {
+    display: grid;
+    grid-template-columns: repeat(4, 320px);
+    gap: 16px;
+    justify-content: center;
+    overflow-x: auto;
+    padding-bottom: 20px;
+  }
+  .column-label {
+    text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; padding: 6px 0; margin-bottom: 4px;
+  }
+  .column-label.v1 { color: var(--orange); text-shadow: 0 0 10px rgba(243,156,18,0.3); }
+  .column-label.v2 { color: var(--green); text-shadow: 0 0 10px rgba(0,230,118,0.3); }
+  .column-label.v3 { color: var(--teal); text-shadow: 0 0 10px rgba(26,188,156,0.3); }
+  .column-label.v4 { color: var(--purple); text-shadow: 0 0 10px rgba(187,134,252,0.3); }
+  .column-sublabel { font-size: 9px; color: var(--text7); text-align: center; margin-bottom: 8px; }
+
+  /* ─── Phone frame ─── */
+  .phone {
+    width: 320px;
+    min-height: 600px;
+    background: var(--bg);
+    border-radius: 20px;
+    border: 2px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    position: relative;
+  }
+  .phone.bg2 { background: var(--bg2); }
+
+  /* ─── Common elements ─── */
+  .hdr {
+    display: flex; align-items: center; padding: 10px 14px 6px; gap: 10px;
+  }
+  .hdr-hamburger { font-size: 18px; opacity: 0.4; color: var(--text4); }
+  .hdr-back { font-size: 16px; opacity: 0.4; color: var(--text4); cursor: pointer; }
+  .hdr-info { flex: 1; min-width: 0; }
+  .hdr-song { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-artist { font-size: 10px; color: var(--text5); }
+  .hdr-pos { font-size: 9px; color: var(--text8); font-family: 'JetBrains Mono', monospace; }
+  .hdr-bpm-block { text-align: right; }
+  .hdr-bpm { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--green); text-shadow: 0 0 12px rgba(0,230,118,0.3); line-height: 1; }
+  .hdr-bpm-unit { font-size: 8px; color: rgba(0,230,118,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+  .mode-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 700;
+    color: var(--green); text-transform: uppercase; letter-spacing: 2px;
+    padding: 2px 7px; border-radius: 5px; border: 1px solid rgba(0,230,118,0.2);
+    background: rgba(0,230,118,0.05);
+  }
+
+  /* Visual area (hero) */
+  .vis-area {
+    position: relative; margin: 5px 8px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    overflow: hidden; min-height: 100px;
+  }
+  .vis-area.flex1 { flex: 1; }
+  .vis-area.h120 { height: 120px; }
+  .vis-area.h160 { height: 160px; }
+  .vis-area.h200 { height: 200px; }
+  .vis-placeholder {
+    width: 100%; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px;
+    font-size: 10px; color: var(--text7);
+  }
+  .vis-placeholder .bars {
+    display: flex; align-items: flex-end; gap: 2px; height: 50px; padding: 4px;
+  }
+  .vis-placeholder .bar {
+    width: 4px; border-radius: 2px;
+    background: linear-gradient(to top, var(--green), rgba(0,230,118,0.3));
+    box-shadow: 0 0 4px rgba(0,230,118,0.15);
+  }
+  .beat-glow-demo {
+    position: absolute; inset: 0; border-radius: 12px;
+    box-shadow: inset 0 0 30px 8px rgba(0,230,118,0.3), 0 0 20px rgba(0,230,118,0.1);
+    border: 1.5px solid rgba(0,230,118,0.35);
+    opacity: 0.7; pointer-events: none;
+  }
+  .vis-switcher {
+    position: absolute; top: 8px; left: 10px; display: flex; gap: 3px; z-index: 5;
+  }
+  .vis-btn {
+    padding: 2px 8px; border-radius: 8px; border: 1px solid var(--border3);
+    background: var(--card); color: var(--text7); font-size: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .vis-btn.active { color: var(--green); border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+
+  /* Text panel */
+  .text-panel {
+    margin: 0 8px 5px; border-radius: 12px; background: var(--surface);
+    border: 1px solid var(--border); padding: 10px 12px;
+    overflow-y: auto; max-height: 160px; font-size: 11px; line-height: 1.7;
+  }
+  .text-section-label { font-size: 8px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
+  .text-chords { color: var(--orange); font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: pre; line-height: 1.6; }
+  .text-lyrics { color: var(--text2); font-size: 13px; line-height: 1.6; }
+  .text-notes { color: var(--cyan); font-size: 11px; font-style: italic; }
+  .text-drums { color: var(--pink); font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: pre; }
+
+  /* Waveform */
+  .waveform {
+    margin: 0 8px 5px; height: 52px; border-radius: 8px;
+    background: var(--card2); border: 1px solid var(--border2);
+    position: relative; overflow: hidden;
+  }
+  .wf-bars { display: flex; align-items: center; height: 100%; gap: 1px; padding: 8px 6px; }
+  .wf-bar { flex: 1; min-width: 1px; border-radius: 1px; }
+  .wf-bar.p { background: var(--green); opacity: 0.7; }
+  .wf-bar.u { background: var(--green); opacity: 0.12; }
+  .wf-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.4); left: 35%; }
+  .wf-loop { position: absolute; top: 0; bottom: 0; left: 18%; width: 35%; background: rgba(243,156,18,0.04); border-left: 1.5px solid rgba(243,156,18,0.35); border-right: 1.5px solid rgba(243,156,18,0.35); }
+  .wf-time { position: absolute; bottom: 2px; left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+  .wf-time .cur { color: var(--text3); }
+  .wf-time .tot { color: var(--text7); }
+  .wf-speed { position: absolute; bottom: 2px; right: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--purple); }
+
+  /* Transport */
+  .transport {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 6px 12px;
+  }
+  .transport.two-tier { flex-direction: column; gap: 6px; }
+  .transport-row { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+  .t-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #141420; border: 1px solid var(--border4);
+    color: var(--text5); font-size: 14px; display: flex;
+    align-items: center; justify-content: center; cursor: pointer;
+  }
+  .t-play {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--green), var(--green2));
+    border: none; color: var(--bg); font-size: 18px;
+    box-shadow: 0 0 20px rgba(0,230,118,0.2); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .t-stop { color: var(--red); }
+  .t-click {
+    padding: 0 12px; height: 32px; border-radius: 16px;
+    border: 1px solid rgba(187,134,252,0.25); background: transparent;
+    color: var(--purple); font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .t-speed-btn {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid var(--border4); background: #141420;
+    color: var(--text4); font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .t-speed-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--purple); min-width: 36px; text-align: center; }
+  .t-loop-btn {
+    padding: 4px 10px; border-radius: 8px; font-size: 9px;
+    font-family: 'JetBrains Mono', monospace; cursor: pointer;
+    border: 1px solid rgba(243,156,18,0.3); background: rgba(243,156,18,0.06);
+    color: var(--orange);
+  }
+  .t-loop-btn.dim { border-color: var(--border4); color: var(--text5); background: transparent; }
+
+  /* Nav row */
+  .nav-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 12px; gap: 6px;
+  }
+  .nav-song-btn {
+    padding: 4px 12px; border-radius: 10px; border: 1px solid var(--border4);
+    background: var(--card); color: var(--text6); font-size: 11px;
+    font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;
+    max-width: 120px; overflow: hidden;
+  }
+  .nav-song-btn .name { font-size: 9px; color: var(--text8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+  .nav-queue-btn {
+    padding: 4px 12px; border-radius: 10px; border: 1px solid var(--border4);
+    background: var(--card); color: var(--text5); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; cursor: pointer;
+  }
+
+  /* Bottom sheet preview */
+  .drawer-preview {
+    margin: 8px 8px 0; background: var(--card2); border-top: 1px solid var(--border3);
+    border-radius: 14px 14px 0 0; padding: 10px 12px;
+  }
+  .drawer-handle {
+    width: 30px; height: 3px; background: var(--green); border-radius: 2px;
+    margin: 0 auto 8px;
+  }
+  .drawer-section-label {
+    font-size: 9px; color: var(--text6); text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 6px;
+  }
+
+  /* Display toggles */
+  .toggle-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .toggle-pill {
+    padding: 4px 10px; border-radius: 12px; font-size: 9px;
+    border: 1px solid var(--border4); background: var(--card);
+    color: var(--text7); cursor: pointer;
+  }
+  .toggle-pill.on-green { border-color: rgba(0,230,118,0.4); color: var(--green); background: rgba(0,230,118,0.08); }
+  .toggle-pill.on-orange { border-color: rgba(243,156,18,0.4); color: var(--orange); background: rgba(243,156,18,0.08); }
+  .toggle-pill.on-white { border-color: rgba(255,255,255,0.2); color: var(--text2); background: rgba(255,255,255,0.04); }
+  .toggle-pill.on-cyan { border-color: rgba(0,188,212,0.4); color: var(--cyan); background: rgba(0,188,212,0.08); }
+  .toggle-pill.on-pink { border-color: rgba(224,64,251,0.4); color: var(--pink); background: rgba(224,64,251,0.08); }
+
+  /* Mixer faders */
+  .mixer-row { display: flex; gap: 2px; justify-content: center; margin-bottom: 6px; }
+  .mixer-ch {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    width: 40px;
+  }
+  .mixer-label { font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+  .mixer-track {
+    width: 4px; height: 60px; background: var(--border3); border-radius: 2px;
+    position: relative; overflow: hidden;
+  }
+  .mixer-fill { position: absolute; bottom: 0; width: 100%; border-radius: 2px; }
+  .mixer-val { font-family: 'JetBrains Mono', monospace; font-size: 7px; color: var(--text7); }
+  .mixer-mute {
+    width: 16px; height: 12px; border-radius: 2px; border: 1px solid #222;
+    background: #141420; font-family: 'JetBrains Mono', monospace;
+    font-size: 6px; font-weight: 700; color: var(--text7);
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Settings pills */
+  .setting-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .setting-label { font-size: 9px; color: var(--text6); min-width: 55px; }
+  .setting-pills { display: flex; gap: 3px; }
+  .setting-pill {
+    padding: 3px 8px; border-radius: 10px; font-size: 8px;
+    border: 1px solid var(--border4); background: var(--card);
+    color: var(--text7); cursor: pointer;
+  }
+  .setting-pill.active { background: rgba(187,134,252,0.12); border-color: rgba(187,134,252,0.35); color: var(--purple); }
+
+  /* Nudge */
+  .nudge-row { display: flex; align-items: center; gap: 6px; }
+  .nudge-btn {
+    padding: 3px 8px; border-radius: 8px; border: 1px solid var(--border4);
+    background: var(--card); color: var(--text5); font-size: 10px; cursor: pointer;
+  }
+  .nudge-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--green); flex: 1; text-align: center; }
+
+  /* ─── Annotations ─── */
+  .ann {
+    font-size: 9px; padding: 3px 6px; border-radius: 4px;
+    margin: 3px 8px; display: flex; align-items: center; gap: 4px;
+  }
+  .ann.same { background: rgba(0,230,118,0.05); border: 1px solid rgba(0,230,118,0.12); color: var(--green); }
+  .ann.diff { background: rgba(243,156,18,0.05); border: 1px solid rgba(243,156,18,0.12); color: var(--orange); }
+  .ann.miss { background: rgba(255,82,82,0.05); border: 1px solid rgba(255,82,82,0.12); color: var(--red); }
+  .ann.add { background: rgba(187,134,252,0.05); border: 1px solid rgba(187,134,252,0.12); color: var(--purple); }
+
+  /* ─── Web flat style (current web) ─── */
+  .web-flat-topbar {
+    display: flex; align-items: center; padding: 10px 14px; gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .web-flat-back {
+    background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2);
+    color: var(--green); font-size: 11px; padding: 3px 8px; border-radius: 5px;
+    font-family: 'Karla', sans-serif; font-weight: 600;
+  }
+  .web-flat-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 2px 6px;
+    border-radius: 3px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .web-flat-tags {
+    display: flex; justify-content: center; gap: 6px; padding: 6px;
+  }
+  .web-flat-tag {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    padding: 2px 6px; border-radius: 3px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text5);
+  }
+  .web-flat-beats { text-align: center; padding: 6px; }
+  .web-flat-dots { display: flex; justify-content: center; gap: 8px; }
+  .web-flat-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  }
+  .web-flat-dot.a { background: var(--green); box-shadow: 0 0 8px rgba(0,230,118,0.4); }
+  .web-flat-lyrics {
+    padding: 10px 14px; font-size: 12px; line-height: 1.7; color: var(--text5);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    min-height: 80px;
+  }
+  .web-flat-chord { color: var(--teal); font-weight: 700; font-size: 11px; display: block; margin-bottom: -2px; }
+  .web-flat-controls {
+    display: flex; justify-content: center; gap: 8px; padding: 8px 14px;
+  }
+  .web-flat-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03); color: var(--text5);
+    font-family: 'Karla', sans-serif; font-size: 12px;
+  }
+  .web-flat-btn.playing { background: rgba(0,230,118,0.08); border-color: rgba(0,230,118,0.2); color: var(--green); }
+  .web-flat-speed {
+    display: flex; justify-content: center; align-items: center; gap: 8px; padding: 4px 14px;
+  }
+  .web-flat-speed-btn {
+    padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);
+    background: transparent; color: var(--text6); font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  }
+  .web-flat-stems {
+    padding: 6px 14px; border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .web-flat-stem-row {
+    display: flex; align-items: center; gap: 4px; padding: 2px 0;
+  }
+  .web-flat-stem-icon {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    width: 22px; height: 18px; border-radius: 3px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .web-flat-stem-slider {
+    flex: 1; height: 3px; -webkit-appearance: none; background: rgba(85,85,94,0.2); border-radius: 2px;
+  }
+  .web-flat-ms-btn {
+    width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03); color: var(--text6); font-size: 8px;
+    font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ─── NeuCard (Android Compose style) ─── */
+  .neu-card {
+    background: #16161e; border-radius: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06); border-left: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(0,0,0,0.3); border-right: 1px solid rgba(0,0,0,0.2);
+    padding: 12px; margin: 0 12px 8px;
+  }
+  .neu-song-title { font-weight: 700; font-size: 18px; color: var(--text); }
+  .neu-song-artist { font-size: 12px; color: var(--text5); margin-top: 2px; }
+  .neu-chips { display: flex; gap: 5px; margin-top: 6px; }
+  .neu-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    padding: 2px 4px; border-radius: 3px;
+  }
+  .chip-o { color: var(--orange); background: rgba(243,156,18,0.1); border: 0.5px solid rgba(243,156,18,0.3); }
+  .chip-t { color: var(--teal); background: rgba(26,188,156,0.1); border: 0.5px solid rgba(26,188,156,0.3); }
+  .chip-m { color: var(--text6); background: rgba(85,85,94,0.1); border: 0.5px solid rgba(85,85,94,0.3); }
+
+  .neu-beat-dots { display: flex; justify-content: center; gap: 10px; padding: 12px 0; }
+  .neu-beat-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+  }
+  .neu-dot-g { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.25); }
+  .neu-dot-g.a { background: var(--green); box-shadow: 0 0 14px rgba(0,230,118,0.6); }
+  .neu-dot-p { background: rgba(187,134,252,0.12); border: 1px solid rgba(187,134,252,0.25); }
+  .neu-dot-p.a { background: var(--purple); box-shadow: 0 0 14px rgba(187,134,252,0.6); }
+  .neu-dot-r { background: var(--red); box-shadow: 0 0 14px rgba(255,82,82,0.6); }
+
+  .neu-play-btn {
+    width: 50px; height: 50px; border-radius: 50%; border: 2px solid;
+    font-size: 20px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center; margin: 0 auto 8px;
+  }
+  .neu-play-green { background: rgba(0,230,118,0.12); color: var(--green); border-color: rgba(0,230,118,0.3); }
+  .neu-play-purple { background: rgba(187,134,252,0.12); color: var(--purple); border-color: rgba(187,134,252,0.3); }
+
+  .neu-bpm-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .neu-bpm-label { font-weight: 600; font-size: 12px; color: var(--text5); }
+  .neu-bpm-val { font-family: 'JetBrains Mono', monospace; font-size: 24px; color: var(--text); }
+  .neu-bpm-btns { display: flex; gap: 5px; }
+  .neu-bpm-btn {
+    flex: 1; height: 30px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    border: none; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+  }
+  .neu-bpm-minus { background: rgba(255,82,82,0.08); color: rgba(255,82,82,0.7); border: 0.5px solid rgba(255,82,82,0.25); }
+  .neu-bpm-dim { background: rgba(155,155,164,0.08); color: var(--text5); border: 0.5px solid rgba(155,155,164,0.25); }
+  .neu-bpm-reset { background: rgba(243,156,18,0.08); color: var(--orange); border: 0.5px solid rgba(243,156,18,0.25); flex: 1.3; }
+  .neu-bpm-plus { background: rgba(0,230,118,0.08); color: rgba(0,230,118,0.7); border: 0.5px solid rgba(0,230,118,0.25); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>4-Way Player Comparison</h1>
+  <p>
+    <b style="color:var(--orange)">V1</b> = S33 Mockup (approved design before fork) &nbsp;
+    <b style="color:var(--green)">V2</b> = Android (what got built from V1) &nbsp;
+    <b style="color:var(--teal)">V3</b> = Web (what got built separately) &nbsp;
+    <b style="color:var(--purple)">V4</b> = Mirror App (what both should look like)
+  </p>
+</div>
+
+<div class="nav-bar">
+  <button class="nav-btn active" onclick="show('live')">Live Mode</button>
+  <button class="nav-btn" onclick="show('practice')">Practice Mode</button>
+  <button class="nav-btn" onclick="show('queue')">Queue / Set Complete</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- LIVE MODE                                                   -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="screen active" id="s-live">
+<div class="comparison">
+
+<!-- V1: S33 Mockup (player-live.html) -->
+<div>
+  <div class="column-label v1">V1 — S33 Mockup</div>
+  <div class="column-sublabel">The approved design (player-live.html)</div>
+  <div class="phone">
+    <div class="hdr">
+      <span class="hdr-back">&larr;</span>
+      <div class="hdr-info">
+        <div class="hdr-song">Cissy Strut</div>
+        <div class="hdr-artist">The Meters</div>
+        <div class="hdr-pos">3 of 12 &mdash; Friday Night Pub Set</div>
+      </div>
+      <div class="hdr-bpm-block">
+        <span class="mode-badge">LIVE</span>
+        <div class="hdr-bpm">91</div>
+        <div class="hdr-bpm-unit">BPM</div>
+      </div>
+    </div>
+    <div class="vis-area h200">
+      <div class="vis-switcher">
+        <span class="vis-btn active">Spectrum</span>
+        <span class="vis-btn">Rings</span>
+        <span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-placeholder">
+        <div class="bars">
+          <div class="bar" style="height:15%"></div><div class="bar" style="height:35%"></div>
+          <div class="bar" style="height:55%"></div><div class="bar" style="height:78%"></div>
+          <div class="bar" style="height:92%"></div><div class="bar" style="height:65%"></div>
+          <div class="bar" style="height:80%"></div><div class="bar" style="height:45%"></div>
+          <div class="bar" style="height:70%"></div><div class="bar" style="height:85%"></div>
+        </div>
+        <span>Canvas visualiser + beat glow</span>
+      </div>
+      <div class="beat-glow-demo"></div>
+    </div>
+    <div class="text-panel">
+      <div class="text-section-label" style="color:var(--orange)">Chords</div>
+      <div class="text-chords">C7  |  C7  |  C7  |  C7
+F7  |  F7  |  C7  |  C7
+G7  |  F7  |  C7  |  C7</div>
+      <div style="height:8px"></div>
+      <div class="text-section-label" style="color:var(--cyan)">Notes</div>
+      <div class="text-notes">Hi-hat groove. Break signal bar 16. Count-in 2 bars.</div>
+    </div>
+    <div class="nav-row">
+      <span class="nav-song-btn">&larr; <span class="name">Superstition</span></span>
+      <span class="nav-queue-btn mono">3/12</span>
+      <span class="nav-song-btn"><span class="name">Sultans</span> &rarr;</span>
+    </div>
+    <div class="transport">
+      <button class="t-btn">&#9198;</button>
+      <button class="t-play">&#9654;</button>
+      <button class="t-btn t-stop">&#9632;</button>
+      <button class="t-click">CLICK</button>
+    </div>
+    <div class="drawer-preview">
+      <div class="drawer-handle"></div>
+      <div class="drawer-section-label">Display</div>
+      <div class="toggle-row">
+        <span class="toggle-pill on-green">Visuals</span>
+        <span class="toggle-pill on-orange">Chords</span>
+        <span class="toggle-pill on-white">Lyrics</span>
+        <span class="toggle-pill on-cyan">Notes</span>
+        <span class="toggle-pill on-pink">Drums</span>
+      </div>
+      <div class="drawer-section-label">Settings</div>
+      <div class="setting-row">
+        <span class="setting-label">Subdiv</span>
+        <div class="setting-pills">
+          <span class="setting-pill active">Off</span>
+          <span class="setting-pill">8th</span>
+          <span class="setting-pill">Trip</span>
+          <span class="setting-pill">16th</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Count-in</span>
+        <div class="setting-pills">
+          <span class="setting-pill active">Off</span>
+          <span class="setting-pill">1</span>
+          <span class="setting-pill">2</span>
+          <span class="setting-pill">4</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Nudge</span>
+        <div class="nudge-row">
+          <span class="nudge-btn">&laquo;</span>
+          <span class="nudge-val">+0ms</span>
+          <span class="nudge-btn">&raquo;</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- V2: Android (what got built) -->
+<div>
+  <div class="column-label v2">V2 — Android (Built)</div>
+  <div class="column-sublabel">LiveScreen.kt — what exists now</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div class="hdr" style="background:#111118;padding-top:14px">
+      <span class="hdr-hamburger">&#9776;</span>
+      <span style="font-weight:700;font-size:16px;color:var(--green);text-shadow:0 0 14px rgba(0,230,118,0.45);flex:1">Live Mode</span>
+      <span style="color:var(--teal);font-size:14px">&#9835;</span>
+    </div>
+    <div class="neu-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="color:var(--text6);font-size:14px">&larr;</span>
+        <div style="text-align:center"><div style="font-size:9px;color:var(--text6)">Wedding Set A</div><div class="mono" style="font-size:10px;color:var(--text5)">1 / 12</div></div>
+        <span style="color:var(--green);font-size:14px">&rarr;</span>
+      </div>
+      <div class="neu-song-title">Sultans of Swing</div>
+      <div class="neu-song-artist">Dire Straits</div>
+      <div class="neu-chips">
+        <span class="neu-chip chip-o">157 BPM</span>
+        <span class="neu-chip chip-t">Dm</span>
+        <span class="neu-chip chip-m">4/4</span>
+      </div>
+    </div>
+    <div class="ann same">&#10003; Song card with setlist nav — matches V1 concept</div>
+    <div class="neu-card">
+      <div class="neu-beat-dots">
+        <div class="neu-beat-dot neu-dot-r"></div>
+        <div class="neu-beat-dot neu-dot-g"></div>
+        <div class="neu-beat-dot neu-dot-g"></div>
+        <div class="neu-beat-dot neu-dot-g"></div>
+      </div>
+    </div>
+    <div class="ann diff">&#9651; Beat dots in NeuCard (V1 had them in visual hero area)</div>
+    <div class="neu-play-btn neu-play-green">&#9654;</div>
+    <div class="ann diff">&#9651; Standalone play button (V1 had transport row with prev/next)</div>
+    <div class="neu-card">
+      <div class="neu-bpm-row">
+        <span class="neu-bpm-label">BPM</span>
+        <span class="neu-bpm-val">157</span>
+      </div>
+      <div class="neu-bpm-btns">
+        <button class="neu-bpm-btn neu-bpm-minus">&minus;5</button>
+        <button class="neu-bpm-btn neu-bpm-dim">&minus;1</button>
+        <button class="neu-bpm-btn neu-bpm-reset">RESET</button>
+        <button class="neu-bpm-btn neu-bpm-dim">+1</button>
+        <button class="neu-bpm-btn neu-bpm-plus">+5</button>
+      </div>
+    </div>
+    <div class="ann same">&#10003; BPM control — V1 had this in drawer, V2 has it inline</div>
+    <div class="neu-card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="neu-bpm-label">Count-in</span>
+        <div style="display:flex;gap:4px">
+          <span class="setting-pill">OFF</span>
+          <span class="setting-pill active">1 bar</span>
+          <span class="setting-pill">2 bars</span>
+        </div>
+      </div>
+    </div>
+    <div class="ann same">&#10003; Count-in — V1 had it in drawer, V2 has it inline</div>
+    <div class="ann miss">&#10007; No visual hero (canvas visualiser)</div>
+    <div class="ann miss">&#10007; No text panel (chords/lyrics/notes/drums)</div>
+    <div class="ann miss">&#10007; No display toggles drawer</div>
+    <div class="ann miss">&#10007; No beat nudge</div>
+    <div class="ann miss">&#10007; No subdivision selector</div>
+  </div>
+</div>
+
+<!-- V3: Web (what got built) -->
+<div>
+  <div class="column-label v3">V3 — Web (Built)</div>
+  <div class="column-sublabel">Player.tsx mode=live — what exists now</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div class="web-flat-topbar">
+      <span class="web-flat-back">&#9664; Back</span>
+      <div style="flex:1;text-align:center">
+        <div style="font-weight:700;font-size:14px;color:#fff">Sultans of Swing</div>
+        <div style="font-size:10px;color:var(--text5)">Dire Straits</div>
+      </div>
+      <span class="web-flat-badge" style="color:var(--green);background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.2)">LIVE</span>
+    </div>
+    <div class="ann diff">&#9651; Flat top bar — no BPM display, no setlist position</div>
+    <div class="web-flat-tags">
+      <span class="web-flat-tag">Dm</span>
+      <span class="web-flat-tag">157 BPM</span>
+    </div>
+    <div class="web-flat-beats">
+      <span class="mono" style="font-size:10px;color:var(--text6)">Bar 1</span>
+      <div class="web-flat-dots" style="margin-top:4px">
+        <div class="web-flat-dot a"></div>
+        <div class="web-flat-dot"></div>
+        <div class="web-flat-dot"></div>
+        <div class="web-flat-dot"></div>
+      </div>
+    </div>
+    <div class="ann diff">&#9651; Simple inline dots — no visual hero, no glow animation</div>
+    <div class="web-flat-lyrics" style="min-height:140px">
+      <span class="web-flat-chord">[Dm]</span>
+      You get a shiver in the dark<br>
+      It's raining in the park but meantime<br>
+      <span class="web-flat-chord">[Bb]</span>
+      South of the river you stop and you hold everything<br>
+      <span class="web-flat-chord">[C]</span>
+      A band is blowing Dixie double four time...
+    </div>
+    <div class="ann same">&#10003; Lyrics/chords with ChordPro — V1 had this too</div>
+    <div class="web-flat-controls">
+      <button class="web-flat-btn playing">Pause</button>
+      <button class="web-flat-btn">Stop</button>
+      <button class="web-flat-btn">Click</button>
+    </div>
+    <div class="ann diff">&#9651; Text buttons only — V1 had icon transport with prev/next</div>
+    <div style="display:flex;justify-content:center;gap:8px;padding:6px 14px;border-top:1px solid rgba(255,255,255,0.04)">
+      <span class="web-flat-btn" style="opacity:0.3">Prev</span>
+      <span class="mono" style="font-size:12px;color:var(--text);padding:4px 10px;background:rgba(255,255,255,0.04);border-radius:6px">1 / 12</span>
+      <span class="web-flat-btn">Next</span>
+    </div>
+    <div class="ann miss">&#10007; No visual hero (canvas visualiser)</div>
+    <div class="ann miss">&#10007; No BPM +/- control</div>
+    <div class="ann miss">&#10007; No count-in UI</div>
+    <div class="ann miss">&#10007; No subdivision</div>
+    <div class="ann miss">&#10007; No beat nudge</div>
+    <div class="ann miss">&#10007; No display toggles drawer</div>
+    <div class="ann same">&#10003; Has beat flash glow (on whole player)</div>
+    <div class="ann same">&#10003; Has 7 player prefs from user_settings</div>
+  </div>
+</div>
+
+<!-- V4: Mirror App (what both SHOULD look like) -->
+<div>
+  <div class="column-label v4">V4 — Mirror App (Target)</div>
+  <div class="column-sublabel">What both platforms should match</div>
+  <div class="phone">
+    <div class="hdr">
+      <span class="hdr-back">&larr;</span>
+      <div class="hdr-info">
+        <div class="hdr-song">Cissy Strut</div>
+        <div class="hdr-artist">The Meters</div>
+        <div class="hdr-pos">3 of 12 &mdash; Friday Night Pub Set</div>
+      </div>
+      <div class="hdr-bpm-block">
+        <span class="mode-badge">LIVE</span>
+        <div class="hdr-bpm">91</div>
+        <div class="hdr-bpm-unit">BPM</div>
+      </div>
+    </div>
+    <div class="ann add">V1 header + setlist position restored</div>
+    <div class="vis-area" style="height:160px">
+      <div class="vis-switcher">
+        <span class="vis-btn active">Spectrum</span>
+        <span class="vis-btn">Rings</span>
+        <span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-placeholder">
+        <div class="bars">
+          <div class="bar" style="height:15%"></div><div class="bar" style="height:55%"></div>
+          <div class="bar" style="height:78%"></div><div class="bar" style="height:92%"></div>
+          <div class="bar" style="height:65%"></div><div class="bar" style="height:80%"></div>
+          <div class="bar" style="height:45%"></div><div class="bar" style="height:70%"></div>
+        </div>
+        <span>Canvas visualiser + beat glow</span>
+      </div>
+      <div class="beat-glow-demo"></div>
+    </div>
+    <div class="ann add">V1 visual hero with vis modes + beat glow — BOTH platforms</div>
+    <div class="text-panel" style="max-height:120px">
+      <div class="text-section-label" style="color:var(--orange)">Chords</div>
+      <div class="text-chords">C7  |  C7  |  C7  |  C7
+F7  |  F7  |  C7  |  C7</div>
+      <div style="height:6px"></div>
+      <div class="text-section-label" style="color:var(--cyan)">Notes</div>
+      <div class="text-notes">Hi-hat groove. Break signal bar 16.</div>
+    </div>
+    <div class="ann add">V1 text panel (chords/lyrics/notes/drums) — BOTH platforms</div>
+    <div class="nav-row">
+      <span class="nav-song-btn">&larr; <span class="name">Superstition</span></span>
+      <span class="nav-queue-btn mono">3/12</span>
+      <span class="nav-song-btn"><span class="name">Sultans</span> &rarr;</span>
+    </div>
+    <div class="transport">
+      <button class="t-btn">&#9198;</button>
+      <button class="t-play">&#9654;</button>
+      <button class="t-btn t-stop">&#9632;</button>
+      <button class="t-click">CLICK</button>
+    </div>
+    <div class="ann add">V1 transport row — BOTH platforms</div>
+    <div class="drawer-preview">
+      <div class="drawer-handle"></div>
+      <div class="drawer-section-label">Display</div>
+      <div class="toggle-row">
+        <span class="toggle-pill on-green">Visuals</span>
+        <span class="toggle-pill on-orange">Chords</span>
+        <span class="toggle-pill on-white">Lyrics</span>
+        <span class="toggle-pill on-cyan">Notes</span>
+        <span class="toggle-pill on-pink">Drums</span>
+      </div>
+      <div class="drawer-section-label">Settings</div>
+      <div class="setting-row">
+        <span class="setting-label">Subdiv</span>
+        <div class="setting-pills">
+          <span class="setting-pill active">Off</span><span class="setting-pill">8th</span><span class="setting-pill">Trip</span><span class="setting-pill">16th</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Count-in</span>
+        <div class="setting-pills">
+          <span class="setting-pill active">Off</span><span class="setting-pill">1</span><span class="setting-pill">2</span><span class="setting-pill">4</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Nudge</span>
+        <div class="nudge-row">
+          <span class="nudge-btn">&laquo;</span><span class="nudge-val">+0ms</span><span class="nudge-btn">&raquo;</span>
+        </div>
+      </div>
+    </div>
+    <div class="ann add">V1 drawer with display toggles + settings — BOTH platforms</div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- PRACTICE MODE                                               -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="screen" id="s-practice">
+<div class="comparison">
+
+<!-- V1: S33 Mockup (practice-redesign.html) -->
+<div>
+  <div class="column-label v1">V1 — S33 Mockup</div>
+  <div class="column-sublabel">The approved design (practice-redesign.html)</div>
+  <div class="phone">
+    <div class="hdr">
+      <span class="hdr-hamburger">&#9776;</span>
+      <div class="hdr-info">
+        <div class="hdr-song">Cissy Strut</div>
+        <div class="hdr-artist">The Meters</div>
+      </div>
+      <div class="hdr-bpm-block">
+        <div class="hdr-bpm">91</div>
+        <div class="hdr-bpm-unit">BPM</div>
+      </div>
+    </div>
+    <div class="vis-area h160">
+      <div class="vis-switcher">
+        <span class="vis-btn active">Spectrum</span><span class="vis-btn">Rings</span><span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-placeholder">
+        <div class="bars">
+          <div class="bar" style="height:20%"></div><div class="bar" style="height:50%"></div>
+          <div class="bar" style="height:70%"></div><div class="bar" style="height:90%"></div>
+          <div class="bar" style="height:60%"></div><div class="bar" style="height:80%"></div>
+          <div class="bar" style="height:40%"></div><div class="bar" style="height:65%"></div>
+        </div>
+        <span>Canvas visualiser + beat glow</span>
+      </div>
+      <div class="beat-glow-demo"></div>
+    </div>
+    <div class="waveform">
+      <div class="wf-loop"></div>
+      <div class="wf-bars">
+        <div class="wf-bar p" style="height:20%"></div><div class="wf-bar p" style="height:40%"></div>
+        <div class="wf-bar p" style="height:65%"></div><div class="wf-bar p" style="height:50%"></div>
+        <div class="wf-bar p" style="height:80%"></div><div class="wf-bar p" style="height:55%"></div>
+        <div class="wf-bar p" style="height:70%"></div><div class="wf-bar u" style="height:60%"></div>
+        <div class="wf-bar u" style="height:85%"></div><div class="wf-bar u" style="height:45%"></div>
+        <div class="wf-bar u" style="height:70%"></div><div class="wf-bar u" style="height:55%"></div>
+        <div class="wf-bar u" style="height:35%"></div><div class="wf-bar u" style="height:50%"></div>
+      </div>
+      <div class="wf-playhead"></div>
+      <div class="wf-time"><span class="cur">1:05</span> <span class="tot">/ 3:07</span></div>
+      <div class="wf-speed">x 1.00</div>
+    </div>
+    <div class="transport two-tier">
+      <div class="transport-row">
+        <button class="t-speed-btn">-5</button>
+        <span class="t-speed-val">100%</span>
+        <button class="t-speed-btn">+5</button>
+        <span style="flex:1"></span>
+        <button class="t-loop-btn">A</button>
+        <button class="t-loop-btn">B</button>
+        <button class="t-loop-btn dim">Clear</button>
+      </div>
+      <div class="transport-row">
+        <button class="t-btn">&#9198;</button>
+        <button class="t-play">&#9654;</button>
+        <button class="t-btn t-stop">&#9632;</button>
+        <button class="t-click">CLICK</button>
+      </div>
+    </div>
+    <div class="drawer-preview">
+      <div class="drawer-handle"></div>
+      <div class="drawer-section-label">Mixer</div>
+      <div class="mixer-row">
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--purple)">Click</span><div class="mixer-track"><div class="mixer-fill" style="height:33%;background:linear-gradient(to top,rgba(187,134,252,0.2),var(--purple))"></div></div><span class="mixer-val">33</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--green)">Track</span><div class="mixer-track"><div class="mixer-fill" style="height:70%;background:linear-gradient(to top,rgba(0,230,118,0.2),var(--green))"></div></div><span class="mixer-val">70</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--orange)">Drums</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(243,156,18,0.2),var(--orange))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--cyan)">Bass</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(0,188,212,0.2),var(--cyan))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--pink)">Vox</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(224,64,251,0.2),var(--pink))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--slate)">Other</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(120,144,156,0.2),var(--slate))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+      </div>
+      <div class="drawer-section-label">Settings</div>
+      <div class="setting-row">
+        <span class="setting-label">Subdiv</span>
+        <div class="setting-pills"><span class="setting-pill active">Off</span><span class="setting-pill">8th</span><span class="setting-pill">Trip</span><span class="setting-pill">16th</span></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Count-in</span>
+        <div class="setting-pills"><span class="setting-pill active">Off</span><span class="setting-pill">1</span><span class="setting-pill">2</span><span class="setting-pill">4</span></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Nudge</span>
+        <div class="nudge-row"><span class="nudge-btn">&laquo;</span><span class="nudge-val">+360ms</span><span class="nudge-btn">&raquo;</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- V2: Android Practice -->
+<div>
+  <div class="column-label v2">V2 — Android (Built)</div>
+  <div class="column-sublabel">PracticeScreen.kt — what exists now</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div class="hdr" style="background:#111118;padding-top:14px">
+      <span class="hdr-hamburger">&#9776;</span>
+      <span style="font-weight:700;font-size:16px;color:var(--purple);text-shadow:0 0 14px rgba(187,134,252,0.45);flex:1">Practice</span>
+    </div>
+    <div class="neu-card">
+      <div class="neu-song-title" style="font-size:17px">Sultans of Swing</div>
+      <div class="neu-song-artist">Dire Straits</div>
+      <div class="neu-chips"><span class="neu-chip chip-o">157 BPM</span><span class="neu-chip chip-t">Dm</span><span class="neu-chip chip-m">4/4</span></div>
+    </div>
+    <div class="neu-card">
+      <div class="neu-beat-dots">
+        <div class="neu-beat-dot neu-dot-r"></div><div class="neu-beat-dot neu-dot-p"></div><div class="neu-beat-dot neu-dot-p"></div><div class="neu-beat-dot neu-dot-p"></div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:6px;padding:4px 12px">
+      <button class="t-btn" style="width:34px;height:34px">&#9198;</button>
+      <div class="neu-play-btn neu-play-purple" style="width:44px;height:44px;font-size:18px;margin:0">&#9654;</div>
+      <button class="t-btn t-stop" style="width:34px;height:34px">&#9632;</button>
+      <button class="t-btn" style="width:34px;height:34px;margin-left:8px">&#128266;</button>
+    </div>
+    <div class="ann same">&#10003; Transport: restart/play/stop/click mute</div>
+    <div class="neu-card" style="font-size:11px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span class="neu-bpm-label" style="font-size:11px">Speed</span>
+        <span class="mono" style="font-size:18px;color:var(--purple);text-shadow:0 0 10px rgba(187,134,252,0.45)">80%</span>
+      </div>
+      <div style="height:3px;background:rgba(85,85,94,0.25);border-radius:2px;margin:4px 0">
+        <div style="width:55%;height:100%;background:var(--purple);border-radius:2px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between" class="mono" style="font-size:8px;color:var(--text6)">
+        <span style="font-size:8px;color:var(--text6)">25%</span>
+        <span style="font-size:8px;color:var(--text5)">157 &times; 0.80 = 126 BPM</span>
+        <span style="font-size:8px;color:var(--text6)">150%</span>
+      </div>
+    </div>
+    <div class="ann same">&#10003; Full speed slider with formula — matches V1 concept</div>
+    <div class="neu-card" style="font-size:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span class="neu-bpm-label" style="font-size:11px">Beat Nudge</span>
+        <span class="mono" style="font-size:10px;color:var(--teal)">+20 ms</span>
+      </div>
+      <div style="display:flex;gap:5px">
+        <span style="flex:1;text-align:center;padding:6px;border-radius:8px;background:rgba(243,156,18,0.08);color:var(--orange);font-size:11px;border:0.5px solid rgba(243,156,18,0.25)">&#9664;&#9664; Back</span>
+        <span style="flex:0.7;text-align:center;padding:6px;border-radius:8px;background:rgba(155,155,164,0.08);color:var(--text6);font-size:11px;border:0.5px solid rgba(155,155,164,0.2)">Reset</span>
+        <span style="flex:1;text-align:center;padding:6px;border-radius:8px;background:rgba(26,188,156,0.08);color:var(--teal);font-size:11px;border:0.5px solid rgba(26,188,156,0.25)">Fwd &#9654;&#9654;</span>
+      </div>
+    </div>
+    <div class="ann same">&#10003; Beat nudge — matches V1</div>
+    <div class="neu-card" style="font-size:10px">
+      <span class="neu-bpm-label" style="font-size:11px">Subdivision</span>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <span style="flex:1;text-align:center;padding:5px;border-radius:6px;border:0.5px solid rgba(85,85,94,0.2);color:var(--text6);font-size:10px">Off</span>
+        <span style="flex:1;text-align:center;padding:5px;border-radius:6px;background:rgba(187,134,252,0.15);border:0.5px solid rgba(187,134,252,0.4);color:var(--purple);font-size:10px">8th</span>
+        <span style="flex:1;text-align:center;padding:5px;border-radius:6px;border:0.5px solid rgba(85,85,94,0.2);color:var(--text6);font-size:10px">Triplet</span>
+        <span style="flex:1;text-align:center;padding:5px;border-radius:6px;border:0.5px solid rgba(85,85,94,0.2);color:var(--text6);font-size:10px">16th</span>
+      </div>
+    </div>
+    <div class="ann same">&#10003; Subdivision — matches V1</div>
+    <div class="ann diff">&#9651; NeuCard scroll layout vs V1 media-player layout</div>
+    <div class="ann miss">&#10007; No visual hero (canvas visualiser)</div>
+    <div class="ann miss">&#10007; No vertical fader mixer (V1 had 6-channel faders)</div>
+    <div class="ann diff">&#9651; Has horizontal stem sliders instead of V1 vertical faders</div>
+  </div>
+</div>
+
+<!-- V3: Web Practice -->
+<div>
+  <div class="column-label v3">V3 — Web (Built)</div>
+  <div class="column-sublabel">Player.tsx mode=practice — what exists now</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div class="web-flat-topbar">
+      <span class="web-flat-back">&#9664; Back</span>
+      <div style="flex:1;text-align:center">
+        <div style="font-weight:700;font-size:14px;color:#fff">Sultans of Swing</div>
+        <div style="font-size:10px;color:var(--text5)">Dire Straits</div>
+      </div>
+      <span class="web-flat-badge" style="color:var(--purple);background:rgba(187,134,252,0.1);border:1px solid rgba(187,134,252,0.2)">PRACTICE</span>
+    </div>
+    <div class="web-flat-tags">
+      <span class="web-flat-tag">Dm</span>
+      <span class="web-flat-tag">126 BPM</span>
+      <span class="web-flat-tag" style="color:var(--purple);border-color:rgba(187,134,252,0.2)">80%</span>
+    </div>
+    <div class="web-flat-beats">
+      <span class="mono" style="font-size:10px;color:var(--text6)">Bar 1</span>
+      <div class="web-flat-dots" style="margin-top:4px">
+        <div class="web-flat-dot a"></div><div class="web-flat-dot"></div><div class="web-flat-dot"></div><div class="web-flat-dot"></div>
+      </div>
+    </div>
+    <div class="web-flat-lyrics" style="min-height:60px">
+      <span class="web-flat-chord">[Dm]</span>
+      You get a shiver in the dark...
+    </div>
+    <div style="padding:0 10px">
+      <div class="waveform" style="margin:0 0 4px;height:44px">
+        <div class="wf-bars">
+          <div class="wf-bar p" style="height:30%"></div><div class="wf-bar p" style="height:55%"></div>
+          <div class="wf-bar p" style="height:80%"></div><div class="wf-bar p" style="height:45%"></div>
+          <div class="wf-bar p" style="height:70%"></div><div class="wf-bar u" style="height:60%"></div>
+          <div class="wf-bar u" style="height:75%"></div><div class="wf-bar u" style="height:50%"></div>
+          <div class="wf-bar u" style="height:85%"></div><div class="wf-bar u" style="height:40%"></div>
+        </div>
+        <div class="wf-playhead"></div>
+      </div>
+    </div>
+    <div class="web-flat-controls">
+      <button class="web-flat-btn playing">Pause</button>
+      <button class="web-flat-btn">Stop</button>
+      <button class="web-flat-btn">Click</button>
+    </div>
+    <div class="web-flat-speed">
+      <span class="web-flat-speed-btn">-5%</span>
+      <span class="mono" style="font-size:14px;color:var(--text)">80%</span>
+      <span class="web-flat-speed-btn">+5%</span>
+      <span class="web-flat-speed-btn">Reset</span>
+    </div>
+    <div style="display:flex;justify-content:center;gap:6px;padding:4px 14px">
+      <span class="web-flat-speed-btn" style="color:var(--orange);border-color:rgba(243,156,18,0.2)">Set A-B</span>
+      <span class="web-flat-speed-btn" style="color:var(--orange);border-color:rgba(243,156,18,0.2)">Clear</span>
+    </div>
+    <div class="web-flat-stems">
+      <div style="font-size:10px;font-weight:600;color:var(--text6);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Stems</div>
+      <div class="web-flat-stem-row"><span class="web-flat-stem-icon" style="color:var(--orange)">DR</span><input type="range" class="web-flat-stem-slider" disabled><span class="web-flat-ms-btn">M</span><span class="web-flat-ms-btn">S</span></div>
+      <div class="web-flat-stem-row"><span class="web-flat-stem-icon" style="color:var(--teal)">BA</span><input type="range" class="web-flat-stem-slider" disabled><span class="web-flat-ms-btn">M</span><span class="web-flat-ms-btn">S</span></div>
+      <div class="web-flat-stem-row"><span class="web-flat-stem-icon" style="color:var(--pink)">VO</span><input type="range" class="web-flat-stem-slider" disabled><span class="web-flat-ms-btn">M</span><span class="web-flat-ms-btn">S</span></div>
+      <div class="web-flat-stem-row"><span class="web-flat-stem-icon" style="color:var(--green)">GT</span><input type="range" class="web-flat-stem-slider" disabled><span class="web-flat-ms-btn">M</span><span class="web-flat-ms-btn">S</span></div>
+    </div>
+    <div class="ann diff">&#9651; Has M/S buttons but no click/track separate mix</div>
+    <div class="ann miss">&#10007; No visual hero (canvas visualiser)</div>
+    <div class="ann miss">&#10007; No beat nudge</div>
+    <div class="ann miss">&#10007; No subdivision selector</div>
+    <div class="ann miss">&#10007; No count-in UI</div>
+    <div class="ann miss">&#10007; No speed slider (just +/-5% buttons)</div>
+    <div class="ann miss">&#10007; No vertical fader mixer (V1 design)</div>
+    <div class="ann miss">&#10007; No beat alignment banner</div>
+  </div>
+</div>
+
+<!-- V4: Mirror Practice -->
+<div>
+  <div class="column-label v4">V4 — Mirror App (Target)</div>
+  <div class="column-sublabel">What both platforms should match</div>
+  <div class="phone">
+    <div class="hdr">
+      <span class="hdr-hamburger">&#9776;</span>
+      <div class="hdr-info">
+        <div class="hdr-song">Cissy Strut</div>
+        <div class="hdr-artist">The Meters</div>
+      </div>
+      <div class="hdr-bpm-block">
+        <div class="hdr-bpm">91</div>
+        <div class="hdr-bpm-unit">BPM</div>
+      </div>
+    </div>
+    <div class="vis-area" style="height:130px">
+      <div class="vis-switcher">
+        <span class="vis-btn active">Spectrum</span><span class="vis-btn">Rings</span><span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-placeholder">
+        <div class="bars">
+          <div class="bar" style="height:20%"></div><div class="bar" style="height:55%"></div>
+          <div class="bar" style="height:85%"></div><div class="bar" style="height:60%"></div>
+          <div class="bar" style="height:75%"></div><div class="bar" style="height:45%"></div>
+        </div>
+        <span>Canvas + beat glow</span>
+      </div>
+      <div class="beat-glow-demo"></div>
+    </div>
+    <div class="ann add">V1 visual hero — BOTH platforms</div>
+    <div class="waveform" style="height:48px">
+      <div class="wf-loop"></div>
+      <div class="wf-bars">
+        <div class="wf-bar p" style="height:25%"></div><div class="wf-bar p" style="height:50%"></div>
+        <div class="wf-bar p" style="height:75%"></div><div class="wf-bar p" style="height:55%"></div>
+        <div class="wf-bar p" style="height:85%"></div><div class="wf-bar u" style="height:65%"></div>
+        <div class="wf-bar u" style="height:70%"></div><div class="wf-bar u" style="height:45%"></div>
+        <div class="wf-bar u" style="height:60%"></div><div class="wf-bar u" style="height:35%"></div>
+      </div>
+      <div class="wf-playhead"></div>
+      <div class="wf-time"><span class="cur">1:05</span> <span class="tot">/ 3:07</span></div>
+      <div class="wf-speed">x 0.80</div>
+    </div>
+    <div class="transport two-tier">
+      <div class="transport-row">
+        <button class="t-speed-btn">-5</button>
+        <span class="t-speed-val">80%</span>
+        <button class="t-speed-btn">+5</button>
+        <span style="flex:1"></span>
+        <button class="t-loop-btn">A</button>
+        <button class="t-loop-btn">B</button>
+        <button class="t-loop-btn dim">Clear</button>
+      </div>
+      <div class="transport-row">
+        <button class="t-btn">&#9198;</button>
+        <button class="t-play">&#9654;</button>
+        <button class="t-btn t-stop">&#9632;</button>
+        <button class="t-click">CLICK</button>
+      </div>
+    </div>
+    <div class="ann add">V1 2-tier transport — BOTH platforms</div>
+    <div class="drawer-preview">
+      <div class="drawer-handle"></div>
+      <div class="drawer-section-label">Mixer</div>
+      <div class="mixer-row">
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--purple)">Click</span><div class="mixer-track"><div class="mixer-fill" style="height:33%;background:linear-gradient(to top,rgba(187,134,252,0.2),var(--purple))"></div></div><span class="mixer-val">33</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--green)">Track</span><div class="mixer-track"><div class="mixer-fill" style="height:70%;background:linear-gradient(to top,rgba(0,230,118,0.2),var(--green))"></div></div><span class="mixer-val">70</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--orange)">Drums</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(243,156,18,0.2),var(--orange))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--cyan)">Bass</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(0,188,212,0.2),var(--cyan))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--pink)">Vox</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(224,64,251,0.2),var(--pink))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+        <div class="mixer-ch"><span class="mixer-label" style="color:var(--slate)">Other</span><div class="mixer-track"><div class="mixer-fill" style="height:100%;background:linear-gradient(to top,rgba(120,144,156,0.2),var(--slate))"></div></div><span class="mixer-val">100</span><span class="mixer-mute">M</span></div>
+      </div>
+      <div class="drawer-section-label">Settings</div>
+      <div class="setting-row">
+        <span class="setting-label">Subdiv</span>
+        <div class="setting-pills"><span class="setting-pill active">Off</span><span class="setting-pill">8th</span><span class="setting-pill">Trip</span><span class="setting-pill">16th</span></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Count-in</span>
+        <div class="setting-pills"><span class="setting-pill active">Off</span><span class="setting-pill">1</span><span class="setting-pill">2</span><span class="setting-pill">4</span></div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">Nudge</span>
+        <div class="nudge-row"><span class="nudge-btn">&laquo;</span><span class="nudge-val">+360ms</span><span class="nudge-btn">&raquo;</span></div>
+      </div>
+    </div>
+    <div class="ann add">V1 drawer: vertical fader mixer + settings — BOTH platforms</div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- QUEUE / SET COMPLETE                                        -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="screen" id="s-queue">
+<div class="comparison">
+
+<!-- V1 -->
+<div>
+  <div class="column-label v1">V1 — S33 Mockup</div>
+  <div class="column-sublabel">player-queue.html (3 views)</div>
+  <div class="phone">
+    <div style="padding:16px;text-align:center;opacity:0.15;font-size:11px;color:var(--text6)">[Player dimmed behind]</div>
+    <div style="background:var(--card2);border-top:1px solid var(--border3);border-radius:14px 14px 0 0;padding:10px 12px;flex:1">
+      <div style="width:30px;height:3px;background:var(--green);border-radius:2px;margin:0 auto 8px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div><div style="font-size:14px;font-weight:700;color:#fff">Friday Night Pub Set</div><div style="font-size:10px;color:var(--text6)">12 songs &middot; ~48 min</div></div>
+        <span style="padding:4px 10px;border-radius:8px;border:1px solid var(--border4);background:var(--card);color:var(--text5);font-size:10px" class="mono">Reorder</span>
+      </div>
+      <div style="font-size:10px">
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border2);margin-bottom:3px;opacity:0.4">
+          <span class="mono" style="color:var(--text8);width:16px;font-size:9px">1</span>
+          <span style="flex:1;color:var(--text2);font-size:11px">Come Together</span>
+          <span class="mono" style="color:rgba(0,230,118,0.3);font-size:11px">83</span>
+          <span style="color:var(--text8);font-size:10px">&#10003;</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.3);margin-bottom:3px">
+          <span class="mono" style="color:var(--green);width:16px;font-size:9px">3</span>
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(0,230,118,0.5)"></div>
+          <span style="flex:1;color:#fff;font-weight:700;font-size:11px">Cissy Strut</span>
+          <span class="mono" style="color:var(--green);font-size:11px;text-shadow:0 0 6px rgba(0,230,118,0.2)">91</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border2);margin-bottom:3px">
+          <span class="mono" style="color:var(--text8);width:16px;font-size:9px">4</span>
+          <span style="flex:1;color:var(--text2);font-size:11px">Sultans of Swing</span>
+          <span class="mono" style="color:rgba(0,230,118,0.3);font-size:11px">150</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border2);margin-bottom:3px">
+          <span class="mono" style="color:var(--text8);width:16px;font-size:9px">5</span>
+          <span style="flex:1;color:var(--text2);font-size:11px">War Pigs</span>
+          <span class="mono" style="color:rgba(0,230,118,0.3);font-size:11px">91</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- V2 Android -->
+<div>
+  <div class="column-label v2">V2 — Android (Built)</div>
+  <div class="column-sublabel">QueueOverlay in LiveScreen.kt</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div style="background:rgba(10,10,15,0.92);padding:50px 12px 12px;min-height:500px">
+      <div style="display:flex;align-items:center;margin-bottom:10px">
+        <span style="font-weight:700;font-size:16px;color:var(--teal);text-shadow:0 0 12px rgba(26,188,156,0.4);flex:1">Queue</span>
+        <span style="font-size:11px;color:var(--text6)">Wedding Set A</span>
+        <span style="margin-left:8px;color:var(--text5);font-size:14px;cursor:pointer">&times;</span>
+      </div>
+      <div class="neu-card" style="margin:0 0 4px;padding:8px 10px;border:1px solid rgba(0,230,118,0.4)">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="mono" style="font-size:11px;color:var(--green);width:18px">1</span>
+          <div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">Sultans of Swing</div><div style="font-size:9px;color:var(--text6)">Dire Straits</div></div>
+          <span class="mono" style="font-size:11px;color:var(--orange)">157</span>
+          <div style="display:flex;flex-direction:column"><span style="font-size:10px;color:var(--text5)">&#9650;</span><span style="font-size:10px;color:var(--text5)">&#9660;</span></div>
+        </div>
+        <div class="mono" style="font-size:8px;color:var(--green);letter-spacing:1px;margin-top:3px">NOW PLAYING</div>
+      </div>
+      <div class="neu-card" style="margin:0 0 4px;padding:8px 10px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="mono" style="font-size:11px;color:var(--text5);width:18px">2</span>
+          <div style="flex:1"><div style="font-size:12px;color:var(--text5)">War Pigs</div><div style="font-size:9px;color:var(--text6)">Black Sabbath</div></div>
+          <span class="mono" style="font-size:11px;color:var(--text6)">91</span>
+          <div style="display:flex;flex-direction:column"><span style="font-size:10px;color:var(--text5)">&#9650;</span><span style="font-size:10px;color:var(--text5)">&#9660;</span></div>
+        </div>
+      </div>
+      <div class="ann same">&#10003; NeuCard queue items with reorder arrows — V1 used drag grip but same concept</div>
+      <div class="ann same">&#10003; Has jump-to-song, NOW PLAYING indicator</div>
+      <div class="ann same">&#10003; Has Set Complete celebration screen</div>
+      <div class="ann same">&#10003; Has Between Songs "Next Up" screen</div>
+    </div>
+  </div>
+</div>
+
+<!-- V3 Web -->
+<div>
+  <div class="column-label v3">V3 — Web (Built)</div>
+  <div class="column-sublabel">Queue overlay in Player.tsx</div>
+  <div class="phone" style="background:var(--bg2)">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.8);display:flex;flex-direction:column;padding:50px 12px 12px">
+      <div style="display:flex;align-items:center;margin-bottom:8px">
+        <span style="font-weight:700;font-size:14px;color:var(--teal);flex:1">Friday Night Pub Set</span>
+        <span style="color:var(--text5);font-size:14px;cursor:pointer">X</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.3)">
+          <span class="mono" style="font-size:10px;color:var(--green);width:16px">1</span>
+          <span style="flex:1;font-size:12px;font-weight:700;color:#fff">Cissy Strut</span>
+          <span style="font-size:9px;color:var(--text5)">The Meters</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--border2)">
+          <span class="mono" style="font-size:10px;color:var(--text8);width:16px">2</span>
+          <span style="flex:1;font-size:12px;color:var(--text2)">Sultans of Swing</span>
+          <span style="font-size:9px;color:var(--text5)">Dire Straits</span>
+        </div>
+      </div>
+      <div class="ann diff" style="margin-top:8px">&#9651; Flat list — no reorder, no BPM, no drag grip</div>
+      <div class="ann same">&#10003; Has Set Complete celebration screen</div>
+      <div class="ann same">&#10003; Has Between Songs countdown + auto-advance</div>
+      <div class="ann diff">&#9651; Between Songs has countdown timer (V1 had manual "Go")</div>
+    </div>
+  </div>
+</div>
+
+<!-- V4 Mirror -->
+<div>
+  <div class="column-label v4">V4 — Mirror App (Target)</div>
+  <div class="column-sublabel">Queue matching V1 approved design</div>
+  <div class="phone">
+    <div style="padding:16px;text-align:center;opacity:0.15;font-size:11px;color:var(--text6)">[Player dimmed behind]</div>
+    <div style="background:var(--card2);border-top:1px solid var(--border3);border-radius:14px 14px 0 0;padding:10px 12px;flex:1">
+      <div style="width:30px;height:3px;background:var(--green);border-radius:2px;margin:0 auto 8px"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div><div style="font-size:14px;font-weight:700;color:#fff">Friday Night Pub Set</div><div style="font-size:10px;color:var(--text6)">12 songs &middot; ~48 min</div></div>
+        <span style="padding:4px 10px;border-radius:8px;border:1px solid var(--border4);background:var(--card);color:var(--text5);font-size:10px" class="mono">Reorder</span>
+      </div>
+      <div style="font-size:10px">
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border2);margin-bottom:3px;opacity:0.4">
+          <span class="mono" style="color:var(--text8);width:16px;font-size:9px">1</span>
+          <span style="flex:1;color:var(--text2);font-size:11px">Come Together</span>
+          <span class="mono" style="color:rgba(0,230,118,0.3);font-size:11px">83</span>
+          <span style="color:var(--text8);font-size:10px">&#10003;</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:rgba(0,230,118,0.04);border:1px solid rgba(0,230,118,0.3);margin-bottom:3px">
+          <span class="mono" style="color:var(--green);width:16px;font-size:9px">3</span>
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(0,230,118,0.5)"></div>
+          <span style="flex:1;color:#fff;font-weight:700;font-size:11px">Cissy Strut</span>
+          <span class="mono" style="color:var(--green);font-size:11px">91</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;background:var(--card);border:1px solid var(--border2);margin-bottom:3px">
+          <span class="mono" style="color:var(--text8);width:16px;font-size:9px">4</span>
+          <span style="flex:1;color:var(--text2);font-size:11px">Sultans of Swing</span>
+          <span class="mono" style="color:rgba(0,230,118,0.3);font-size:11px">150</span>
+        </div>
+      </div>
+      <div class="ann add">V1 queue with reorder, BPM, played state — BOTH platforms</div>
+      <div class="ann add">V1 Between Songs with manual "Go" button — BOTH platforms</div>
+      <div class="ann add">V1 Set Complete with restart/library — BOTH platforms</div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('s-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
