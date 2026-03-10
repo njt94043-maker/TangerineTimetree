@@ -8,7 +8,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -236,55 +234,6 @@ private fun LibraryTabBar(activeTab: LibraryTab, onTabChange: (LibraryTab) -> Un
     HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.2f))
 }
 
-// ─── Filter Pills ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun <T> FilterPillRow(
-    filters: List<T>,
-    selected: T,
-    onSelect: (T) -> Unit,
-    label: (T) -> String,
-    accent: Color,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        filters.forEach { filter ->
-            val isSelected = filter == selected
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        if (isSelected) accent.copy(alpha = 0.15f) else Color.Transparent,
-                        RoundedCornerShape(16.dp),
-                    )
-                    .border(
-                        0.5.dp,
-                        if (isSelected) accent.copy(alpha = 0.5f) else GigColors.textMuted.copy(alpha = 0.25f),
-                        RoundedCornerShape(16.dp),
-                    )
-                    .clickable { onSelect(filter) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = label(filter),
-                    fontFamily = Karla,
-                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    fontSize = 12.sp,
-                    style = if (isSelected) TextStyle(
-                        color = accent,
-                        shadow = Shadow(accent.copy(0.4f), Offset.Zero, 6f),
-                    ) else TextStyle(color = GigColors.textDim),
-                )
-            }
-        }
-    }
-}
-
 // ─── Songs Tab ───────────────────────────────────────────────────────────────
 
 @Composable
@@ -489,14 +438,11 @@ private fun SongCard(
 
 @Composable
 private fun CategoryTag(category: String) {
-    val (label, color) = when (category) {
-        "tgt_cover"          -> "TGT Cover" to GigColors.teal
-        "tgt_original"       -> "TGT Original" to GigColors.teal
-        "personal_cover"     -> "Personal Cover" to GigColors.orange
-        "personal_original"  -> "Personal Original" to GigColors.orange
-        else                 -> "Song" to GigColors.textMuted
-    }
-    MetaBadge(label, color)
+    // Split into separate scope + type badges (mirrors web)
+    val isTgt = category.startsWith("tgt")
+    val isCover = category.endsWith("cover")
+    MetaBadge(if (isTgt) "TGT" else "Personal", if (isTgt) GigColors.teal else GigColors.orange)
+    MetaBadge(if (isCover) "Cover" else "Original", GigColors.textDim)
 }
 
 /** Dropdown selector styled as a neumorphic pill. */
@@ -602,13 +548,19 @@ private fun SetlistsTab(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        FilterPillRow(
-            filters = SetlistFilter.entries,
-            selected = filter,
-            onSelect = { filter = it },
-            label = { it.label },
-            accent = GigColors.orange,
-        )
+        // Dropdown filter (D-128: pills → dropdown)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            FilterDropdown(
+                entries = SetlistFilter.entries,
+                selected = filter,
+                onSelect = { filter = it },
+                label = { it.label },
+                accent = GigColors.orange,
+                modifier = Modifier.fillMaxWidth(0.5f),
+            )
+        }
 
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

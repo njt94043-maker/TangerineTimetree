@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -154,68 +153,7 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                 }
             }
 
-            // Player Display Defaults
-            NeuCard {
-                Text("Player Display Defaults", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
-                Spacer(Modifier.height(8.dp))
-                val toggles = listOf(
-                    "Visuals" to GigColors.green,
-                    "Chords" to GigColors.orange,
-                    "Lyrics" to GigColors.text,
-                    "Notes" to GigColors.cyan,
-                    "Drums" to GigColors.pink,
-                )
-                // Local state for toggles (these are defaults for player display)
-                var visEnabled by remember { mutableStateOf(true) }
-                var chordsEnabled by remember { mutableStateOf(true) }
-                var lyricsEnabled by remember { mutableStateOf(true) }
-                var notesEnabled by remember { mutableStateOf(true) }
-                var drumsEnabled by remember { mutableStateOf(true) }
-                val states = listOf(visEnabled, chordsEnabled, lyricsEnabled, notesEnabled, drumsEnabled)
-                val setters = listOf<(Boolean) -> Unit>(
-                    { visEnabled = it }, { chordsEnabled = it }, { lyricsEnabled = it },
-                    { notesEnabled = it }, { drumsEnabled = it },
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    toggles.forEachIndexed { i, (label, color) ->
-                        val on = states[i]
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (on) color.copy(alpha = 0.06f) else GigColors.surfaceInset)
-                                .border(
-                                    0.5.dp,
-                                    if (on) color.copy(alpha = 0.25f) else GigColors.neuBorder,
-                                    RoundedCornerShape(8.dp),
-                                )
-                                .clickable { setters[i](!on) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(if (on) color else GigColors.textMuted, RoundedCornerShape(4.dp)),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                label, fontFamily = Karla, fontSize = 13.sp,
-                                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (on) GigColors.text else GigColors.textDim,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text(
-                                if (on) "ON" else "OFF",
-                                fontFamily = JetBrainsMono, fontSize = 10.sp,
-                                color = if (on) color else GigColors.textMuted,
-                            )
-                        }
-                    }
-                }
-            }
+            // Display toggles live in the player bottom sheet drawer only (D-118)
 
             // About
             NeuCard {
