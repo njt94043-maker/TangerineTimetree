@@ -119,4 +119,20 @@ object SongRepository {
             .decodeList<SongShare>()
         return shares.map { it.songId }.toSet()
     }
+
+    /** Share a personal_original song with another member */
+    suspend fun shareSong(songId: String, sharedWith: String, sharedBy: String): SongShare {
+        return client.from("song_shares").insert(buildJsonObject {
+            put("song_id", songId)
+            put("shared_with", sharedWith)
+            put("shared_by", sharedBy)
+        }) { select() }.decodeSingle()
+    }
+
+    /** Remove a share */
+    suspend fun unshareSong(shareId: String) {
+        client.from("song_shares").delete {
+            filter { eq("id", shareId) }
+        }
+    }
 }

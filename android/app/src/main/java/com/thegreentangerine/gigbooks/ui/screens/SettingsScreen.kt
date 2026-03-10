@@ -3,6 +3,7 @@ package com.thegreentangerine.gigbooks.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,18 +25,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
@@ -106,6 +111,109 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                         fontFamily = Karla, fontSize = 13.sp,
                         color = if (vm.engineAvailable) GigColors.text else GigColors.danger,
                     )
+                }
+            }
+
+            // Click Sound Picker
+            NeuCard {
+                Text("Click Sound", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                Spacer(Modifier.height(8.dp))
+                val clickSounds = listOf("Default" to 0, "High" to 1, "Low" to 2, "Wood" to 3, "Rimshot" to 4)
+                var selectedClick by remember { mutableIntStateOf(0) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    clickSounds.forEach { (label, idx) ->
+                        val isSelected = selectedClick == idx
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) GigColors.purple.copy(alpha = 0.12f) else GigColors.surfaceInset)
+                                .border(
+                                    1.dp,
+                                    if (isSelected) GigColors.purple.copy(alpha = 0.4f) else GigColors.neuBorder,
+                                    RoundedCornerShape(8.dp),
+                                )
+                                .clickable {
+                                    selectedClick = idx
+                                    if (vm.engineAvailable) try { AudioEngineBridge.nativeSetClickSound(idx) } catch (_: Exception) { }
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                label, fontFamily = Karla, fontSize = 10.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) GigColors.purple else GigColors.textDim,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Player Display Defaults
+            NeuCard {
+                Text("Player Display Defaults", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                Spacer(Modifier.height(8.dp))
+                val toggles = listOf(
+                    "Visuals" to GigColors.green,
+                    "Chords" to GigColors.orange,
+                    "Lyrics" to GigColors.text,
+                    "Notes" to GigColors.cyan,
+                    "Drums" to GigColors.pink,
+                )
+                // Local state for toggles (these are defaults for player display)
+                var visEnabled by remember { mutableStateOf(true) }
+                var chordsEnabled by remember { mutableStateOf(true) }
+                var lyricsEnabled by remember { mutableStateOf(true) }
+                var notesEnabled by remember { mutableStateOf(true) }
+                var drumsEnabled by remember { mutableStateOf(true) }
+                val states = listOf(visEnabled, chordsEnabled, lyricsEnabled, notesEnabled, drumsEnabled)
+                val setters = listOf<(Boolean) -> Unit>(
+                    { visEnabled = it }, { chordsEnabled = it }, { lyricsEnabled = it },
+                    { notesEnabled = it }, { drumsEnabled = it },
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    toggles.forEachIndexed { i, (label, color) ->
+                        val on = states[i]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (on) color.copy(alpha = 0.06f) else GigColors.surfaceInset)
+                                .border(
+                                    0.5.dp,
+                                    if (on) color.copy(alpha = 0.25f) else GigColors.neuBorder,
+                                    RoundedCornerShape(8.dp),
+                                )
+                                .clickable { setters[i](!on) }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(if (on) color else GigColors.textMuted, RoundedCornerShape(4.dp)),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                label, fontFamily = Karla, fontSize = 13.sp,
+                                fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (on) GigColors.text else GigColors.textDim,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                if (on) "ON" else "OFF",
+                                fontFamily = JetBrainsMono, fontSize = 10.sp,
+                                color = if (on) color else GigColors.textMuted,
+                            )
+                        }
+                    }
                 }
             }
 
