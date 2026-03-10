@@ -8,6 +8,8 @@ data class Gig(
     val id: String,
     val date: String,                                     // YYYY-MM-DD
     @SerialName("gig_type") val gigType: String = "gig", // "gig" | "practice"
+    @SerialName("gig_subtype") val gigSubtype: String = "pub", // "pub" | "client"
+    val status: String = "confirmed",                     // "enquiry" | "pencilled" | "confirmed" | "cancelled"
     val venue: String = "",
     @SerialName("client_name") val clientName: String = "",
     @SerialName("load_time") val loadTime: String? = null,    // HH:MM
@@ -19,6 +21,10 @@ data class Gig(
 ) {
     val isGig: Boolean      get() = gigType == "gig"
     val isPractice: Boolean get() = gigType == "practice"
+    val isClient: Boolean   get() = isGig && gigSubtype == "client"
+    val isPub: Boolean      get() = isGig && gigSubtype == "pub"
+    val isEnquiry: Boolean  get() = isClient && status != "confirmed"
+    val isCancelled: Boolean get() = status == "cancelled"
 
     /** "19:30" → "7:30 PM" — simple 24h→12h conversion for display. */
     val startTimeFormatted: String? get() = startTime?.let { formatTime(it) }

@@ -1,5 +1,10 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,14 +42,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -383,8 +391,24 @@ private fun SongCard(
 ) {
     val canEdit = song.canEdit(currentUserId)
 
+    // Left color border: teal for TGT songs, orange for personal (mirrors web)
+    val borderColor = when {
+        song.category.startsWith("personal") -> GigColors.orange
+        song.category.startsWith("tgt") -> GigColors.teal
+        else -> GigColors.green
+    }
+
     NeuCard(modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onClick)) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.fillMaxWidth()) {
+            // Left accent border (mirrors web 3px left border)
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(borderColor),
+            )
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(song.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
@@ -621,6 +645,15 @@ private fun SetlistCard(
             modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded },
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Left accent border (tangerine, mirrors web setlist cards)
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(GigColors.orange),
+            )
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(setlist.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
                 Spacer(Modifier.height(4.dp))
@@ -754,8 +787,70 @@ private fun MetaBadge(text: String, color: Color) {
 
 @Composable
 private fun LoadingState() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = GigColors.teal, modifier = Modifier.size(32.dp))
+    // Skeleton shimmer (mirrors web SkeletonLoaders pattern)
+    val shimmerAnim = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        shimmerAnim.animateTo(
+            1f,
+            animationSpec = infiniteRepeatable(
+                tween(1200, easing = LinearEasing),
+                RepeatMode.Restart,
+            ),
+        )
+    }
+    val shimmerBrush = Brush.linearGradient(
+        colors = listOf(
+            GigColors.surface,
+            GigColors.surfaceLight,
+            GigColors.surface,
+        ),
+        start = Offset(shimmerAnim.value * 800f - 200f, 0f),
+        end = Offset(shimmerAnim.value * 800f + 200f, 0f),
+    )
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        repeat(5) {
+            NeuCard {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    // Left accent bar skeleton
+                    Box(
+                        Modifier.width(3.dp).height(56.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(shimmerBrush),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Title bar
+                        Box(
+                            Modifier.fillMaxWidth(0.6f).height(14.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(shimmerBrush),
+                        )
+                        // Artist bar
+                        Box(
+                            Modifier.fillMaxWidth(0.4f).height(10.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(shimmerBrush),
+                        )
+                        // Tags row
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(Modifier.width(60.dp).height(16.dp).clip(RoundedCornerShape(4.dp)).background(shimmerBrush))
+                            Box(Modifier.width(30.dp).height(16.dp).clip(RoundedCornerShape(4.dp)).background(shimmerBrush))
+                            Box(Modifier.width(40.dp).height(16.dp).clip(RoundedCornerShape(4.dp)).background(shimmerBrush))
+                        }
+                    }
+                    // BPM skeleton
+                    Column(horizontalAlignment = Alignment.End) {
+                        Box(Modifier.width(40.dp).height(20.dp).clip(RoundedCornerShape(4.dp)).background(shimmerBrush))
+                        Spacer(Modifier.height(4.dp))
+                        Box(Modifier.width(24.dp).height(8.dp).clip(RoundedCornerShape(2.dp)).background(shimmerBrush))
+                    }
+                }
+            }
+        }
     }
 }
 
