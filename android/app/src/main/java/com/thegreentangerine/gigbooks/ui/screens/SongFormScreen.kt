@@ -44,7 +44,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import com.thegreentangerine.gigbooks.data.supabase.SongRepository
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
+import com.thegreentangerine.gigbooks.data.supabase.models.SongShare
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
@@ -95,6 +99,49 @@ fun SongFormScreen(
     var processingMsg by rememberSaveable { mutableStateOf("") }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    // ── Sharing state (personal_original only) ──
+    val isPersonalOriginal = category == "personal_original"
+    val isOwner = song.ownerId == vm.currentUserId
+    var shares by remember { mutableStateOf<List<SongShare>>(emptyList()) }
+    var sharesLoading by remember { mutableStateOf(false) }
+
+    // Load shares when form opens (for personal_original songs owned by user)
+    LaunchedEffect(song.id) {
+        if (isPersonalOriginal && isOwner) {
+            sharesLoading = true
+            try {
+                shares = SongRepository.getSongShares(song.id)
+            } catch (_: Exception) { }
+            sharesLoading = false
+        }
+    }
+
+    fun pollProcessingStatus(songId: String) {
+        scope.launch(Dispatchers.IO) {
+            repeat(30) { // Poll up to 5 minutes (30 × 10s)
+                kotlinx.coroutines.delay(10_000)
+                try {
+                    val bm = SongRepository.getBeatMap(songId)
+                    val status = bm?.status ?: "unknown"
+                    withContext(Dispatchers.Main) {
+                        processingMsg = when (status) {
+                            "ready" -> "Ready"
+                            "failed" -> "Failed"
+                            "pending" -> "Queued..."
+                            "analysing" -> "Detecting beats..."
+                            "separating" -> "Separating stems..."
+                            else -> status
+                        }
+                    }
+                    if (status == "ready" || status == "failed") return@launch
+                } catch (_: Exception) {
+                    withContext(Dispatchers.Main) { processingMsg = "Poll error" }
+                    return@launch
+                }
+            }
+        }
+    }
+
     fun triggerProcess(reAnalyseOnly: Boolean) {
         val audioUrl = song.audioUrl ?: return
         processingMsg = if (reAnalyseOnly) "Re-analysing..." else "Processing..."
@@ -112,10 +159,13 @@ fun SongFormScreen(
                 conn.doOutput = true
                 conn.outputStream.use { it.write(body.toByteArray()) }
                 val code = conn.responseCode
-                withContext(Dispatchers.Main) {
-                    processingMsg = if (code in 200..299) "Queued" else "Failed ($code)"
-                }
                 conn.disconnect()
+                if (code in 200..299) {
+                    withContext(Dispatchers.Main) { processingMsg = "Queued — polling..." }
+                    pollProcessingStatus(song.id)
+                } else {
+                    withContext(Dispatchers.Main) { processingMsg = "Failed ($code)" }
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     processingMsg = "Error: ${e.message}"
@@ -208,6 +258,84 @@ fun SongFormScreen(
             FormTextField("Name", name, { name = it }, canEdit)
             FormTextField("Artist", artist, { artist = it }, canEdit)
             CategoryDropdown(category, { category = it }, canEdit)
+
+            // ── Sharing (personal_original owned by current user) ──
+            if (isPersonalOriginal && isOwner) {
+                Spacer(Modifier.height(4.dp))
+                SectionLabel("SHARING")
+                NeuCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        if (sharesLoading) {
+                            Text("Loading shares...", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+                        } else if (shares.isEmpty()) {
+                            Text("Not shared with anyone", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
+                        } else {
+                            shares.forEach { share ->
+                                val memberName = vm.profileNames[share.sharedWith] ?: share.sharedWith
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(GigColors.purple.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            memberName.firstOrNull()?.uppercase() ?: "?",
+                                            fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                            color = GigColors.purple,
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(memberName, fontFamily = Karla, fontSize = 13.sp, color = GigColors.text, modifier = Modifier.weight(1f))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(GigColors.danger.copy(alpha = 0.08f))
+                                            .border(0.5.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                            .clickable {
+                                                scope.launch(Dispatchers.IO) {
+                                                    try {
+                                                        SongRepository.unshareSong(share.id)
+                                                        val updated = SongRepository.getSongShares(song.id)
+                                                        withContext(Dispatchers.Main) { shares = updated }
+                                                    } catch (_: Exception) { }
+                                                }
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    ) {
+                                        Text("Remove", fontFamily = Karla, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = GigColors.danger)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Add member dropdown
+                        val currentSharedIds = shares.map { it.sharedWith }.toSet() + setOfNotNull(vm.currentUserId)
+                        val availableMembers = vm.profileNames.filter { it.key !in currentSharedIds }
+                        if (availableMembers.isNotEmpty()) {
+                            Spacer(Modifier.height(2.dp))
+                            ShareMemberDropdown(
+                                members = availableMembers,
+                                onShare = { memberId ->
+                                    val userId = vm.currentUserId ?: return@ShareMemberDropdown
+                                    scope.launch(Dispatchers.IO) {
+                                        try {
+                                            SongRepository.shareSong(song.id, memberId, userId)
+                                            val updated = SongRepository.getSongShares(song.id)
+                                            withContext(Dispatchers.Main) { shares = updated }
+                                        } catch (_: Exception) { }
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+
             FormTextField("Key", key, { key = it }, canEdit)
 
             Spacer(Modifier.height(4.dp))
@@ -406,6 +534,42 @@ private fun CategoryDropdown(selected: String, onSelect: (String) -> Unit, enabl
                         onClick = { onSelect(value); expanded = false },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShareMemberDropdown(
+    members: Map<String, String>,
+    onShare: (String) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(GigColors.purple.copy(alpha = 0.06f))
+                .border(1.dp, GigColors.purple.copy(alpha = 0.2f), shape)
+                .clickable { expanded = true }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("+ Share with member", fontFamily = Karla, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GigColors.purple, modifier = Modifier.weight(1f))
+            Text("\u25BE", fontSize = 14.sp, color = GigColors.purple.copy(alpha = 0.5f))
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = GigColors.surface,
+        ) {
+            members.forEach { (id, name) ->
+                DropdownMenuItem(
+                    text = { Text(name, fontFamily = Karla, fontSize = 13.sp, color = GigColors.text) },
+                    onClick = { onShare(id); expanded = false },
+                )
             }
         }
     }

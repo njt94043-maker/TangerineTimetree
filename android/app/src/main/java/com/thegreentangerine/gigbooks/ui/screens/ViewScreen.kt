@@ -233,8 +233,11 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                     else vm.deleteLocalTake(id, song.id)
                                 }
                             },
-                            onPlay = { /* TODO: playback */ },
+                            onPlay = { id ->
+                                if (vm.playingTakeId == id) vm.stopTakePlayback() else vm.playTake(id)
+                            },
                             isLoading = vm.takesLoading,
+                            playingTakeId = vm.playingTakeId,
                         )
                     }
                 }

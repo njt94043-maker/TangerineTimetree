@@ -274,6 +274,66 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ── Take Playback (S45) ────────────────────────────────────────────────────
+    var playingTakeId by mutableStateOf<String?>(null);    private set
+    private var takePlayer: android.media.MediaPlayer? = null
+
+    /** Play a local take by its ID. Uses MediaPlayer for simple playback. */
+    fun playTake(takeId: String) {
+        // Stop any existing playback
+        stopTakePlayback()
+
+        val userId = currentUserId ?: return
+        val songId = selectedSong?.id ?: return
+
+        // Try local take first
+        val localTake = localTakes.find { it.id == takeId }
+        if (localTake != null) {
+            val takesDir = java.io.File(getApplication<android.app.Application>().filesDir, "takes")
+            val audioFile = java.io.File(takesDir, localTake.audioFileName)
+            if (audioFile.exists()) {
+                try {
+                    takePlayer = android.media.MediaPlayer().apply {
+                        setDataSource(audioFile.absolutePath)
+                        prepare()
+                        start()
+                        setOnCompletionListener { stopTakePlayback() }
+                    }
+                    playingTakeId = takeId
+                } catch (_: Exception) { }
+            }
+            return
+        }
+
+        // Try cloud take (has audio_url)
+        val cloudTake = cloudTakes.find { it.id == takeId }
+        if (cloudTake != null && cloudTake.audioUrl != null) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val mp = android.media.MediaPlayer().apply {
+                        setDataSource(cloudTake.audioUrl)
+                        prepare()
+                    }
+                    withContext(Dispatchers.Main) {
+                        takePlayer = mp
+                        playingTakeId = takeId
+                        mp.start()
+                        mp.setOnCompletionListener { stopTakePlayback() }
+                    }
+                } catch (_: Exception) { }
+            }
+        }
+    }
+
+    fun stopTakePlayback() {
+        try {
+            takePlayer?.stop()
+            takePlayer?.release()
+        } catch (_: Exception) { }
+        takePlayer = null
+        playingTakeId = null
+    }
+
     // ── Waveform ──────────────────────────────────────────────────────────────
     // Amplitude envelope of the main track, normalised to 0..1, ~600 points.
     var waveformEnvelope by mutableStateOf<FloatArray>(floatArrayOf());          private set

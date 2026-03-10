@@ -2,6 +2,7 @@ package com.thegreentangerine.gigbooks.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -41,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -224,33 +228,68 @@ private fun LoginTextField(
     onImeAction: () -> Unit,
 ) {
     val shape = RoundedCornerShape(12.dp)
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    // Neumorphic inset container (mirrors web .neu-inset)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .border(1.dp, GigColors.neuBorder, shape),
-        placeholder = {
-            Text(placeholder, fontFamily = Karla, color = GigColors.textMuted, fontSize = 14.sp)
-        },
-        textStyle = TextStyle(
-            fontFamily = JetBrainsMono,
-            fontSize = 14.sp,
-            color = GigColors.text,
-        ),
-        singleLine = true,
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
-        keyboardActions = KeyboardActions(onAny = { onImeAction() }),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = GigColors.surfaceInset,
-            unfocusedContainerColor = GigColors.surfaceInset,
-            focusedTextColor = GigColors.text,
-            unfocusedTextColor = GigColors.text,
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            cursorColor = GigColors.orange,
-        ),
-    )
+            .background(GigColors.surfaceInset)
+            .border(1.dp, GigColors.neuInsetBorder.copy(alpha = 0.2f), shape)
+            .drawBehind {
+                // Inner shadow top-left (dark) — simulates inset depth
+                drawRoundRect(
+                    color = Color.Black.copy(alpha = 0.35f),
+                    topLeft = Offset(0f, 0f),
+                    size = size.copy(height = 4.dp.toPx()),
+                    cornerRadius = CornerRadius(12.dp.toPx()),
+                )
+            },
+    ) {
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = {
+                Text(placeholder, fontFamily = Karla, color = GigColors.textMuted, fontSize = 14.sp)
+            },
+            textStyle = TextStyle(
+                fontFamily = JetBrainsMono,
+                fontSize = 14.sp,
+                color = GigColors.text,
+            ),
+            singleLine = true,
+            visualTransformation = when {
+                isPassword && !passwordVisible -> PasswordVisualTransformation()
+                else -> VisualTransformation.None
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+            keyboardActions = KeyboardActions(onAny = { onImeAction() }),
+            trailingIcon = if (isPassword) {
+                {
+                    Text(
+                        text = if (passwordVisible) "HIDE" else "SHOW",
+                        fontFamily = Karla,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GigColors.orange.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .clickable { passwordVisible = !passwordVisible }
+                            .padding(8.dp),
+                    )
+                }
+            } else null,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedTextColor = GigColors.text,
+                unfocusedTextColor = GigColors.text,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                cursorColor = GigColors.orange,
+            ),
+        )
+    }
 }

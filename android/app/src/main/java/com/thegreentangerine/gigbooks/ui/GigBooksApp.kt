@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -109,6 +110,7 @@ fun GigBooksApp() {
                 Spacer(Modifier.height(8.dp))
 
                 // Calendar
+                DrawerSectionLabel("CALENDAR")
                 DrawerNavItem(Screen.Calendar, currentRoute == Screen.Calendar.route, GigColors.orange) { navigate(Screen.Calendar.route) }
 
                 Spacer(Modifier.height(4.dp))
@@ -116,7 +118,7 @@ fun GigBooksApp() {
                 Spacer(Modifier.height(4.dp))
 
                 // Library (launchpad for Live/Practice)
-                DrawerSectionLabel("LIBRARY")
+                DrawerSectionLabel("MUSIC")
                 DrawerNavItem(
                     Screen.Library,
                     currentRoute in listOf(Screen.Library.route, Screen.Live.route, Screen.Practice.route, Screen.View.route),
@@ -262,30 +264,42 @@ private fun DrawerSectionLabel(label: String) {
 
 @Composable
 private fun DrawerNavItem(screen: Screen, selected: Boolean, accentColor: Color, onClick: () -> Unit) {
-    NavigationDrawerItem(
-        icon = {
-            Box(modifier = if (selected) Modifier.glowBehind(accentColor, radius = 28.dp, alpha = 0.35f) else Modifier) {
-                Icon(screen.icon, contentDescription = screen.label,
-                    tint = if (selected) accentColor else GigColors.textDim, modifier = Modifier.size(20.dp))
-            }
-        },
-        label = {
-            Text(
-                screen.label, fontFamily = Karla, fontSize = 14.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                style = if (selected) TextStyle(
-                    color  = GigColors.text,
-                    shadow = androidx.compose.ui.graphics.Shadow(accentColor.copy(alpha = 0.3f), Offset.Zero, 8f),
-                ) else TextStyle(color = GigColors.textDim),
+    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 1.dp).height(44.dp)) {
+        // Left accent border (mirrors web's green left border on selected items)
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(36.dp)
+                    .background(accentColor, RoundedCornerShape(1.5.dp))
+                    .align(Alignment.CenterVertically),
             )
-        },
-        selected = selected, onClick = onClick,
-        colors = NavigationDrawerItemDefaults.colors(
-            selectedContainerColor   = accentColor.copy(alpha = 0.08f),
-            unselectedContainerColor = Color.Transparent,
-        ),
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = 1.dp).height(44.dp),
-    )
+        }
+        NavigationDrawerItem(
+            icon = {
+                Box(modifier = if (selected) Modifier.glowBehind(accentColor, radius = 28.dp, alpha = 0.35f) else Modifier) {
+                    Icon(screen.icon, contentDescription = screen.label,
+                        tint = if (selected) accentColor else GigColors.textDim, modifier = Modifier.size(20.dp))
+                }
+            },
+            label = {
+                Text(
+                    screen.label, fontFamily = Karla, fontSize = 14.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    style = if (selected) TextStyle(
+                        color  = GigColors.text,
+                        shadow = androidx.compose.ui.graphics.Shadow(accentColor.copy(alpha = 0.3f), Offset.Zero, 8f),
+                    ) else TextStyle(color = GigColors.textDim),
+                )
+            },
+            selected = selected, onClick = onClick,
+            colors = NavigationDrawerItemDefaults.colors(
+                selectedContainerColor   = accentColor.copy(alpha = 0.08f),
+                unselectedContainerColor = Color.Transparent,
+            ),
+            modifier = Modifier.weight(1f),
+        )
+    }
 }
 
 @Composable

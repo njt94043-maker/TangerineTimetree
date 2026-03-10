@@ -804,6 +804,7 @@ fun TakesSection(
     onDelete: (String) -> Unit,
     onPlay: (String) -> Unit,
     isLoading: Boolean,
+    playingTakeId: String? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -880,16 +881,24 @@ fun TakesSection(
                     )
                 }
 
-                // Play button
+                // Play/Stop button
+                val isPlaying = playingTakeId == take.id
                 Box(
                     modifier = Modifier
                         .size(28.dp)
-                        .background(Color.White.copy(alpha = 0.03f), CircleShape)
-                        .border(1.dp, borderColor, CircleShape)
+                        .background(
+                            if (isPlaying) GigColors.green.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.03f),
+                            CircleShape,
+                        )
+                        .border(1.dp, if (isPlaying) GigColors.green.copy(alpha = 0.4f) else borderColor, CircleShape)
                         .clickable { onPlay(take.id) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("▶", fontSize = 11.sp, color = if (take.isBest) GigColors.green else GigColors.textMuted)
+                    Text(
+                        if (isPlaying) "■" else "▶",
+                        fontSize = if (isPlaying) 9.sp else 11.sp,
+                        color = if (isPlaying) GigColors.green else if (take.isBest) GigColors.green else GigColors.textMuted,
+                    )
                 }
 
                 // Best/Unbest button

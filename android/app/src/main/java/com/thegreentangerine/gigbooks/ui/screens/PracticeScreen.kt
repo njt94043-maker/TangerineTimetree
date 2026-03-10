@@ -230,8 +230,11 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                     else vm.deleteLocalTake(id, song.id)
                                 }
                             },
-                            onPlay = { /* TODO: S41 recording playback */ },
+                            onPlay = { id ->
+                                if (vm.playingTakeId == id) vm.stopTakePlayback() else vm.playTake(id)
+                            },
                             isLoading = vm.takesLoading,
+                            playingTakeId = vm.playingTakeId,
                         )
                     }
                 }
