@@ -61,6 +61,11 @@ export interface AudioEngineState {
   currentBar: number;
   beatFlash: boolean;
 
+  // Click settings (live-adjustable)
+  subdivision: number;
+  countInBars: number;
+  nudgeOffsetMs: number;
+
   // Song completion (track ended naturally, not user stop)
   songComplete: boolean;
 
@@ -87,6 +92,10 @@ export interface AudioEngineActions {
   toggleStemMute: (label: StemLabel) => void;
   toggleStemSolo: (label: StemLabel) => void;
   toggleClick: () => void;
+  setSubdivision: (sub: number) => void;
+  setCountIn: (bars: number) => void;
+  nudge: (direction: -1 | 1) => void;
+  resetNudge: () => void;
 }
 
 export function useAudioEngine(
@@ -117,6 +126,9 @@ export function useAudioEngine(
   const [stemChannels, setStemChannels] = useState<AudioEngineState['stemChannels']>([]);
   const [songComplete, setSongComplete] = useState(false);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const [subdivision, setSubdivisionState] = useState(1);
+  const [countInBars, setCountInBarsState] = useState(0);
+  const [nudgeOffsetMs, setNudgeOffsetMs] = useState(0);
 
   // Load song data
   useEffect(() => {
@@ -177,6 +189,8 @@ export function useAudioEngine(
         }
 
         clickEnabledRef.current = prefsData.player_click_enabled;
+        setSubdivisionState(songData.subdivision ?? 1);
+        setCountInBarsState(songData.count_in_bars ?? 0);
 
         // In practice mode, load track or stems
         if (mode === 'practice' || mode === 'view') {
@@ -390,6 +404,9 @@ export function useAudioEngine(
     songComplete,
     waveformData,
     stemChannels,
+    subdivision,
+    countInBars,
+    nudgeOffsetMs,
   };
 
   const actions: AudioEngineActions = {
@@ -403,6 +420,26 @@ export function useAudioEngine(
     toggleStemMute,
     toggleStemSolo,
     toggleClick,
+    setSubdivision: (sub: number) => {
+      setSubdivisionState(sub);
+      clickRef.current.configure({ subdivision: sub });
+    },
+    setCountIn: (bars: number) => {
+      setCountInBarsState(bars);
+      clickRef.current.configure({ countInBars: bars });
+    },
+    nudge: (direction: -1 | 1) => {
+      const step = direction * 5; // 5ms per nudge
+      setNudgeOffsetMs(prev => {
+        const next = prev + step;
+        clickRef.current.configure({ beatOffsetMs: (song?.beat_offset_ms ?? 0) + next });
+        return next;
+      });
+    },
+    resetNudge: () => {
+      setNudgeOffsetMs(0);
+      clickRef.current.configure({ beatOffsetMs: song?.beat_offset_ms ?? 0 });
+    },
   };
 
   return [state, actions];

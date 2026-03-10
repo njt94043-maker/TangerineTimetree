@@ -305,12 +305,18 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
               <div key={sl.id} className="setlist-card neu-card" onClick={() => onSetlistPress(sl.id)}>
                 <div className="setlist-card-info">
                   <span className="setlist-card-name">{sl.name}</span>
-                  <span className="setlist-card-desc">
-                    {sl.description || `${sl.setlist_type === 'other_band' ? sl.band_name : 'The Green Tangerine'}`}
-                  </span>
+                  <div className="setlist-card-meta">
+                    <span className={`song-meta-tag ${sl.setlist_type === 'tange' ? 'badge-tgt' : 'badge-personal'}`}>
+                      {sl.setlist_type === 'tange' ? 'TGT' : sl.band_name}
+                    </span>
+                    {sl.description && (
+                      <span className="setlist-card-desc">{sl.description}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="setlist-card-actions">
-                  <button className="btn-icon" title="Live" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'live'); }}>&#9654;</button>
+                  <button className="btn-icon" title="Live" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'live'); }} style={{ color: 'var(--color-green)', borderColor: 'rgba(0,230,118,0.3)' }}>&#9654;</button>
+                  <button className="btn-icon" title="Practice" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'practice'); }} style={{ color: 'var(--color-purple)', borderColor: 'rgba(187,134,252,0.3)' }}>&#9835;</button>
                   <button className="btn-icon" title="Edit" onClick={e => { e.stopPropagation(); onSetlistPress(sl.id); }}>&#9998;</button>
                 </div>
               </div>
