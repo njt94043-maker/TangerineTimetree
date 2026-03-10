@@ -26,13 +26,17 @@
 - [ ] Setlists: add song count + duration display
 - [ ] Setlists: add conditional action buttons
 
-### Web — Player (match mockup screens 1-4)
+### Web — Player (match mockups/player-live.html + mockups/practice-redesign.html)
+- [ ] **CRITICAL: Re-read both mockup HTMLs line by line before ANY code changes**
 - [ ] Vis button label "Bars"→"Spectrum"
 - [ ] Text panel max-height 200→120px
-- [ ] Live transport: fix duplicate stop, add restart button
-- [ ] Practice speed: reduce from 4 to 2 buttons
-- [ ] Fix A-B loop button placement
+- [ ] Live transport: nav row (prev song / queue "☰ 3/12" / next song) — NO speed, NO A-B
+- [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
+- [ ] Practice: waveform strip (72px, loop region overlay, playhead)
+- [ ] Bottom inline sheet: display toggles + mixer + settings (NOT on main screen)
+- [ ] Side drawer = song queue list (NOT settings)
 - [ ] Wire up settings pills (currently non-functional)
+- [ ] **Current working tree has WRONG layout changes — must be reverted or redone**
 
 ### Web — Settings (match mockup screen 17)
 - [ ] Add Account section
@@ -44,10 +48,17 @@
 - [ ] Filter pills → dropdowns (D-128)
 - [ ] Queue items: NeuCard → flat rows
 
-### Android — Player (match mockup screens 1-4)
+### Android — Player (match mockups/player-live.html + mockups/practice-redesign.html)
+- [ ] **CRITICAL: Re-read both mockup HTMLs line by line before ANY code changes**
 - [ ] Add "Burst" option to vis switcher
+- [ ] Live transport: nav row (prev song / queue / next song) — NO speed, NO A-B
+- [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
+- [ ] Practice: waveform strip with loop region + playhead
+- [ ] Bottom inline sheet: display toggles + mixer + settings
+- [ ] Side drawer = song queue list
 - [ ] Verify mixer colours/sizes match mockup
 - [ ] Verify between-songs screen completeness
+- [ ] **Current working tree has WRONG layout changes — must be reverted or redone**
 
 ### Android — Settings + Calendar
 - [ ] Verify display prefs not duplicated in Settings (should be drawer-only per D-118)
