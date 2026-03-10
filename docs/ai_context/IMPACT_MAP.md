@@ -16,7 +16,7 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 | Touch | Ripple |
 |-------|--------|
-| `shared/supabase/queries.ts` (createGig, updateGig, deleteGig) | Changelog logic (same file, logGigChange) — depends on fetching current values before update |
+| `shared/supabase/queries.ts` (createGig, updateGig, deleteGig) | Changelog logic (same file, logGigChange) — depends on fetching current values before update  |
 | | `web/src/hooks/useOfflineQueue.ts` — gig mutations must be in type union + replayOne switch |
 | | `web/src/hooks/useCalendarData.ts` — realtime subscription refetches on any gig change |
 | | `web/src/components/Calendar.tsx` — dot rendering uses computeDayStatus() from shared types |
@@ -38,15 +38,19 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 |-------|--------|
 | Supabase `songs` table | Migration file needed, push via `supabase db push` |
 | | `shared/supabase/types.ts` — Song interface + SongCategory type + utility types |
-| | `shared/supabase/queries.ts` — getSongs, createSong, updateSong, searchSongs, all filter queries |
+| | `shared/supabase/queries.ts` — getSongs, createSong, updateSong, searchSongs, filter queries, sharing CRUD (getSongShares, shareSong, unshareSong), best take (setBestTake, clearBestTake) |
 | | `android/.../Song.kt` — Kotlin data class (ALL numeric fields must be Double, not Int) |
 | | `android/.../SongRepository.kt` — getSongs, updateBeatInfo, getBeatMap |
 | | `android/.../AppViewModel.kt` — song selection, engine config, analysis, stem loading |
 | | `android/.../LibraryScreen.kt` — song cards, filter pills, search |
 | | `web/src/components/SongForm.tsx` — category selector, owner picker, drum notation (role-based) |
 | | `web/src/components/SongList.tsx` — song list display |
+| | `web/src/components/Library.tsx` — filter dropdowns use SongCategory values |
+| | Supabase `song_shares` table — sharing for personal_original (S39) |
+| | `can_access_song()` SQL function — used by songs, song_stems, beat_maps RLS (S39) |
 
 **Key gotcha**: Postgres `numeric` serialises as `150.00`. Kotlin models must use `Double`, not `Int`. See gotchas.md.
+**S39 categories**: tgt_cover, tgt_original, personal_cover, personal_original. Old names (tange_cover, tange_original, personal) are gone.
 
 ---
 
@@ -169,7 +173,7 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 | Touch | Ripple |
 |-------|--------|
-| `beat-analysis` Cloud Run service | `main.py` — madmom + Demucs, /process → Cloud Tasks → /process-worker |
+| `beat-analysis` Cloud Run service | `main.py` — madmom + Demucs, /process → Cloud Tasks → /process-worker. skip_stems flag for beats-only mode (S39/D-148) |
 | | Supabase `beat_maps` table — status (pending/processing/ready/failed), beats JSONB |
 | | Supabase `song_stems` table — stem URLs, labels, source (auto/manual) |
 | | `song-stems` storage bucket — MP3 files uploaded by worker |

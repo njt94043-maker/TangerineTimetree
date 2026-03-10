@@ -18,9 +18,10 @@ interface LibraryProps {
 
 const SONG_FILTERS: { value: SongFilter; label: string }[] = [
   { value: 'all', label: 'All' },
-  { value: 'tange_cover', label: 'Covers' },
-  { value: 'tange_original', label: 'Originals' },
-  { value: 'personal', label: 'Personal' },
+  { value: 'tgt_cover', label: 'TGT Covers' },
+  { value: 'tgt_original', label: 'TGT Originals' },
+  { value: 'personal_cover', label: 'Personal Covers' },
+  { value: 'personal_original', label: 'Personal Originals' },
 ];
 
 const SETLIST_FILTERS: { value: SetlistFilter; label: string }[] = [

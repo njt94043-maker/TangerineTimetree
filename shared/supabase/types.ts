@@ -495,7 +495,8 @@ export interface SongStem {
   label: StemLabel;
   audio_url: string;
   storage_path: string;
-  source: 'auto' | 'manual';
+  source: 'auto' | 'manual' | 'recorded';
+  is_best_take: boolean;
   created_by: string;
   created_at: string;
 }

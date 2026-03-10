@@ -2594,3 +2594,96 @@ export async function getPlayerPrefs(): Promise<PlayerPrefs> {
 export async function updatePlayerPrefs(prefs: Partial<PlayerPrefs>): Promise<void> {
   await upsertUserSettings(prefs);
 }
+
+// ─── Song Sharing (D-135) ────────────────────────────────
+
+export async function getSongShares(songId: string): Promise<SongShareWithProfile[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('song_shares')
+    .select('*, profiles!song_shares_shared_with_fkey(name)')
+    .eq('song_id', songId)
+    .order('created_at');
+
+  if (error) { checkAuthError(error); throw error; }
+
+  return (data ?? []).map((row: SongShare & { profiles: { name: string } | null }) => ({
+    id: row.id,
+    song_id: row.song_id,
+    shared_with: row.shared_with,
+    shared_by: row.shared_by,
+    created_at: row.created_at,
+    shared_with_name: row.profiles?.name ?? 'Unknown',
+  }));
+}
+
+export async function shareSong(
+  songId: string,
+  sharedWithUserId: string,
+): Promise<SongShare> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { data, error } = await supabase
+    .from('song_shares')
+    .insert({
+      song_id: songId,
+      shared_with: sharedWithUserId,
+      shared_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data;
+}
+
+export async function unshareSong(
+  songId: string,
+  sharedWithUserId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('song_shares')
+    .delete()
+    .eq('song_id', songId)
+    .eq('shared_with', sharedWithUserId);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Best Take Management (D-130) ───────────────────────
+
+export async function setBestTake(stemId: string, songId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Clear any existing best take for this user on this song
+  const { error: clearError } = await supabase
+    .from('song_stems')
+    .update({ is_best_take: false })
+    .eq('song_id', songId)
+    .eq('created_by', user.id)
+    .eq('is_best_take', true);
+
+  if (clearError) { checkAuthError(clearError); throw clearError; }
+
+  // Set the new best take
+  const { error: setError } = await supabase
+    .from('song_stems')
+    .update({ is_best_take: true })
+    .eq('id', stemId);
+
+  if (setError) { checkAuthError(setError); throw setError; }
+}
+
+export async function clearBestTake(stemId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('song_stems')
+    .update({ is_best_take: false })
+    .eq('id', stemId);
+
+  if (error) { checkAuthError(error); throw error; }
+}

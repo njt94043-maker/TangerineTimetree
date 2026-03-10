@@ -17,7 +17,7 @@
 
 ---
 
-## Tables (25)
+## Tables (26)
 
 ### Calendar & Profiles
 
@@ -363,7 +363,7 @@ Master song library with metronome data for live/practice modes.
 | beat_offset_ms | INT | YES | 0 | Click-to-track alignment offset — S26A |
 | audio_url | TEXT | YES | NULL | Supabase Storage URL (practice MP3) |
 | audio_storage_path | TEXT | YES | NULL | Storage bucket path |
-| category | TEXT | YES | 'tange_cover' | CHECK: tange_cover, tange_original, personal. S34 |
+| category | TEXT | YES | 'tgt_cover' | CHECK: tgt_cover, tgt_original, personal_cover, personal_original. S34→S39 |
 | owner_id | UUID | YES | NULL | FK → profiles(id). For personal songs. S34 |
 | drum_notation | TEXT | YES | '' | Drum-specific notation. S34 |
 | created_by | UUID | NO | — | FK → profiles(id) |
@@ -371,7 +371,8 @@ Master song library with metronome data for live/practice modes.
 | updated_at | TIMESTAMPTZ | YES | NOW() | Auto-updated by trigger |
 
 **Indexes**: `idx_songs_name`, `idx_songs_created_by`.
-**RLS**: SELECT/UPDATE/DELETE all authenticated; INSERT requires created_by = auth.uid().
+**RLS (S39)**: SELECT = TGT + personal_cover visible to all auth, personal_original = owner + song_shares; INSERT = created_by = auth.uid(); UPDATE/DELETE = TGT any auth, personal owner only.
+**Helper**: `can_access_song(song_id)` SECURITY DEFINER — used by songs, song_stems, beat_maps RLS.
 
 #### setlists
 Ordered collections of songs for gigs or practice.
@@ -420,10 +421,10 @@ Server-side beat detection results (madmom via Cloud Run).
 | created_at | TIMESTAMPTZ | YES | NOW() | |
 | updated_at | TIMESTAMPTZ | YES | NOW() | |
 
-**RLS**: SELECT/INSERT/UPDATE all authenticated.
+**RLS (S39)**: SELECT/DELETE = can_access_song(); INSERT/UPDATE = all authenticated (Cloud Run uses service role).
 
 #### song_stems
-Auto-separated or manually uploaded stems per song. Storage bucket: `song-stems`.
+Auto-separated, manually uploaded, or recorded stems per song. Storage bucket: `song-stems`.
 
 | Column | Type | Nullable | Default | Notes |
 |--------|------|----------|---------|-------|
@@ -432,11 +433,27 @@ Auto-separated or manually uploaded stems per song. Storage bucket: `song-stems`
 | label | TEXT | NO | — | drums, bass, guitar, keys, vocals, other |
 | file_url | TEXT | NO | — | Public URL |
 | storage_path | TEXT | NO | — | Bucket path |
-| source | TEXT | YES | 'manual' | auto (Demucs) or manual |
+| source | TEXT | YES | 'manual' | auto (Demucs), manual, or recorded (takes) |
+| is_best_take | BOOLEAN | NO | false | One best take per user per song (D-130, S39) |
 | created_by | UUID | YES | NULL | Nullable — Cloud Run worker has no user context |
 | created_at | TIMESTAMPTZ | YES | NOW() | |
 
-**RLS**: SELECT/INSERT/UPDATE/DELETE all authenticated.
+**RLS (S39)**: SELECT = can_access_song(); INSERT = own stem + can_access_song(); UPDATE = own stems or song owner; DELETE = own stems or song owner.
+
+#### song_shares (S39)
+Selective sharing for personal_original songs (D-135).
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| song_id | UUID | NO | — | FK → songs(id) CASCADE |
+| shared_with | UUID | NO | — | FK → profiles(id) |
+| shared_by | UUID | NO | — | FK → profiles(id) |
+| created_at | TIMESTAMPTZ | NO | NOW() | |
+
+**Constraints**: UNIQUE(song_id, shared_with).
+**Indexes**: `idx_song_shares_song`, `idx_song_shares_shared_with`.
+**RLS**: SELECT = all auth; INSERT = song owner only; DELETE = shared_with user or song owner.
 
 ### Public Website
 
@@ -598,6 +615,8 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | Beat Maps | getBeatMap, upsertBeatMap |
 | Song Stems | getStemsBySongId, createStem, deleteStem |
 | Player Prefs | getPlayerPrefs, updatePlayerPrefs |
+| Song Sharing | getSongShares, shareSong, unshareSong (S39) |
+| Best Takes | setBestTake, clearBestTake (S39) |
 | Processing | triggerProcessing (web — calls Cloud Run) |
 | Dashboard | getDashboardStats |
 
@@ -617,4 +636,5 @@ Utility functions: `isGigIncomplete(gig)`, `computeDayStatus(date, today, gigs, 
 | supabase/migrations/..._s31a_beat_maps.sql | S31A: beat_maps table (song_id FK, beats JSONB, bpm, status CHECK) |
 | supabase/migrations/..._s32a_song_stems.sql | S32A: song_stems table (label, source auto/manual, created_by nullable), song-stems storage bucket, beat_maps status CHECK expanded |
 | supabase/migrations/..._s34_categories_types_prefs.sql | S34: songs.category + owner_id + drum_notation, setlists.setlist_type + band_name, user_settings 7x player_*_enabled |
+| supabase/migrations/20260310000000_s39_song_categories_sharing.sql | S39: Category rename (tgt_*), song_shares table, is_best_take on song_stems, can_access_song() helper, RLS rewrite (songs, stems, beat_maps, shares) |
 | shared/supabase/types.ts | All TypeScript interfaces |
