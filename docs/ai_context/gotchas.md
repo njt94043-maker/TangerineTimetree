@@ -348,6 +348,19 @@
 - **Root cause**: AI making scope decisions disguised as technical decisions. D-106 scope reduction was the pivotal example.
 - **Fix**: Never cut scope without explicit user approval. If something seems "too big", explain the cost and let the user decide.
 
+### Player layout built without reading mockups properly (2026-03-10)
+- **What happened**: Attempted to fix player layout (adaptive flex, inline drawer) across all 3 Android screens + web. Made changes that compiled and installed, but the layout was fundamentally wrong:
+  - A/B loop buttons placed below transport (should be in transport top row on Practice only)
+  - Prev/next song nav missing from Live mode (Live has a nav row: prev song / queue / next song)
+  - Side drawer confused with bottom sheet (side drawer = song queue list, bottom inline sheet = display/mixer/settings)
+  - Applied same layout to all 3 modes instead of respecting mode-specific differences
+- **Root cause**: Relied on summary/memory of mockup structure instead of actually reading `mockups/player-live.html` and `mockups/practice-redesign.html` line by line. Made assumptions about layout from previous context instead of verifying.
+- **The mockup differences are critical**:
+  - **Live**: Nav row (prev/next/queue) in transport, NO speed controls, NO A-B loop, NO waveform
+  - **Practice**: Speed (-5/+5) + A-B loop (A/B/Clear) in transport top row, waveform strip, NO nav row
+  - **View**: Needs its own analysis (no dedicated mockup yet)
+- **Fix**: ALWAYS re-read the actual mockup HTML before implementing layout changes. Never trust summaries.
+
 ### SOT docs buried in shelved app folder
 - **What happened**: All project-wide SOT docs (STATUS.md, todo.md, SESSION_LOG.md, etc.) were in `native/docs/ai_context/` — a folder belonging to the shelved React Native app. CLAUDE.md was in `native/` instead of project root.
 - **Root cause**: Docs were created when native was the primary app. When native was shelved, docs weren't moved.
