@@ -158,8 +158,8 @@
 - [x] Auto-analyse BPM + beatOffsetMs on track load (populate song fields if empty) — S28D complete
 
 ### S28+ — Recording/Video (defer)
-- [ ] Front camera recording while practicing
-- [ ] Spec properly when S27 complete
+- [x] Front camera recording while practicing — Done in S41 (both platforms)
+- [x] Spec properly when S27 complete — Done in S41
 
 ## Backlog — Other
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
@@ -230,3 +230,4 @@
 | S38 | Visual Unification — Android tokens corrected, both players rebuilt to V4 target design | 2026-03-10 |
 | S39 | Foundation — Migration (categories, sharing, is_best_take, RLS), shared types/queries, Cloud Run beats-only | 2026-03-10 |
 | S40 | Library + SongForm (Both) — Dropdowns, categories, sharing UI, ownership, read-only on web + Android | 2026-03-10 |
+| S41 | Recording + Takes (Both) — Recording flow, takes list, post-recording, new song idea on web + Android | 2026-03-10 |

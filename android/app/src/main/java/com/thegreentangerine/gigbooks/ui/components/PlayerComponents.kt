@@ -772,3 +772,144 @@ fun MixerRow(channels: List<MixerChannel>) {
         }
     }
 }
+
+// ── Takes Section (S41) ─────────────────────────────────────────────────────
+
+data class TakeItem(
+    val id: String,
+    val label: String,
+    val isBest: Boolean,
+    val isCloud: Boolean,
+    val date: String,
+    val takeNumber: Int,
+    val durationFormatted: String,
+)
+
+@Composable
+fun TakesSection(
+    takes: List<TakeItem>,
+    onSetBest: (String) -> Unit,
+    onClearBest: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onPlay: (String) -> Unit,
+    isLoading: Boolean,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            "MY TAKES",
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+            fontSize = 9.sp, color = GigColors.textMuted,
+            letterSpacing = 1.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+
+        if (takes.isEmpty()) {
+            Text(
+                "No takes yet. Record in the player to add takes.",
+                fontSize = 12.sp, color = GigColors.textMuted,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+            )
+        }
+
+        takes.forEach { take ->
+            val borderColor = if (take.isBest) GigColors.green.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.07f)
+            val bgColor = if (take.isBest) GigColors.green.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.03f)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp)
+                    .background(bgColor, RoundedCornerShape(8.dp))
+                    .border(0.5.dp, borderColor, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // Take number badge
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(
+                            if (take.isBest) GigColors.green.copy(alpha = 0.15f) else GigColors.background,
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "${take.takeNumber}",
+                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        color = if (take.isBest) GigColors.green else GigColors.textMuted,
+                    )
+                }
+
+                // Take info
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Take #${take.takeNumber}",
+                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            color = if (take.isBest) GigColors.green else GigColors.text,
+                        )
+                        if (take.isBest) {
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "BEST",
+                                fontSize = 9.sp, fontWeight = FontWeight.Bold,
+                                color = GigColors.green,
+                                modifier = Modifier
+                                    .background(GigColors.green.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, GigColors.green.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        "${take.durationFormatted} · ${take.date}${if (take.isCloud) " · cloud" else ""}",
+                        fontSize = 11.sp, color = GigColors.textMuted,
+                    )
+                }
+
+                // Play button
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(Color.White.copy(alpha = 0.03f), CircleShape)
+                        .border(1.dp, borderColor, CircleShape)
+                        .clickable { onPlay(take.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("▶", fontSize = 11.sp, color = if (take.isBest) GigColors.green else GigColors.textMuted)
+                }
+
+                // Best/Unbest button
+                if (take.isCloud) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                            .clickable(enabled = !isLoading) {
+                                if (take.isBest) onClearBest(take.id) else onSetBest(take.id)
+                            }
+                            .padding(horizontal = 10.dp, vertical = 3.dp),
+                    ) {
+                        Text(
+                            if (take.isBest) "Unset" else "Set Best",
+                            fontSize = 11.sp, color = if (take.isBest) GigColors.green else GigColors.textMuted,
+                        )
+                    }
+                }
+
+                // Delete button
+                Box(
+                    modifier = Modifier
+                        .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .border(1.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .clickable { onDelete(take.id) }
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                ) {
+                    Text("Del", fontSize = 11.sp, color = GigColors.danger)
+                }
+            }
+        }
+    }
+}

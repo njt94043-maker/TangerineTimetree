@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S40 (Library + SongForm Both) COMPLETE. Dropdowns, categories, sharing, ownership UI on both platforms. Ready for S41.
-- **What works**: Web (full, V4 player, Library dropdowns + sharing), Android (full, V4 player, Library dropdowns + owner tags), Cloud Run (beats + stems + CORS + beats-only skip_stems), Capture (built but untested end-to-end).
-- **Last session**: S40 Library + SongForm — Web: Library.tsx rebuilt with two dropdowns (Scope: All/TGT/Mine/Shared; Type: All/Covers/Originals) replacing filter pills (D-128). Category badges (teal=TGT, orange=personal), owner name tags, lock icons on non-owned, Edit/Delete hidden for non-owned songs. SongForm.tsx: sharing section for personal_original (add/remove members), read-only mode for shared songs (all inputs disabled, banner). Android: Song.kt updated (tgt_* categories, canEdit(), SongShare model). LibraryScreen.kt rebuilt with FilterDropdown composables (Scope + Type), category badges, owner tags, lock icons. Profile.kt added. SongRepository sharing CRUD. AppViewModel loads profileNames + sharedSongIds. Both builds clean (tsc + vite build, assembleDebug).
-- **Next action**: Sprint S41 — Recording + Takes on both platforms.
+- **Phase**: S41 (Recording + Takes Both) COMPLETE. Recording flow, takes list, post-recording on web + Android. Ready for S42.
+- **What works**: Web (full, V4 player, Library + sharing + recording + takes), Android (full, V4 player, Library + recording + takes), Cloud Run (beats + stems + CORS + beats-only), Capture (built but untested end-to-end).
+- **Last session**: S41 Recording + Takes — Web: IndexedDB local takes storage (takesDb.ts), useRecording hook (getUserMedia, MediaRecorder, device picker, camera toggle, level meter, count-in). SongForm.tsx: "My Takes" section (cloud + local, best star, delete, play). Player.tsx: recording mode (record button in transport, hero visualizer/camera, post-recording modal with 4 options + best take toggle). Library.tsx: "New Idea" button (D-138, quick-create song → practice → record). Android: LocalTakesStore (file-based JSON + audio), AudioRecorder (MediaRecorder AAC), StemRepository (getUserRecordedTakes, setBestTake, clearBestTake, deleteRecordedTake), SongRepository.createSong (D-138). AppViewModel: takes state + recording state (count-in, level meter, post-recording save). PlayerComponents.kt: TakeItem + TakesSection composable. PracticeScreen.kt: TakesSection wired, RecordingBanner, PostRecordingDialog, record button in transport. LibraryScreen.kt: "New Idea" button + NewIdeaDialog. Manifest: RECORD_AUDIO + CAMERA permissions. All builds clean (tsc + vite build + compileReleaseKotlin).
+- **Next action**: Sprint S42 — View Mode on both platforms.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 4 songs (Cissy Strut, Sultans, War Pigs, Big Yellow Taxi).
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -19,8 +19,8 @@
 | S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Done** |
 | S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | **Done** |
 | S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | **Done** |
-| S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | **Next** |
-| S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | Queued |
+| S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | **Done** |
+| S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | **Next** |
 | S43 | **Cloud Run Deploy** — beats-only + re-analyse endpoints deployed + tested | Queued |
 | Audit | Cross-platform surgical audit before user testing | After S43 |
 

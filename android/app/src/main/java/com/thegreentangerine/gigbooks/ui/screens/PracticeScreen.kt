@@ -32,6 +32,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +60,8 @@ import com.thegreentangerine.gigbooks.ui.components.MixerRow
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.components.PlayButton
 import com.thegreentangerine.gigbooks.ui.components.PlayerHeader
+import com.thegreentangerine.gigbooks.ui.components.TakeItem
+import com.thegreentangerine.gigbooks.ui.components.TakesSection
 import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
@@ -79,6 +83,44 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
     var showLyrics by remember { mutableStateOf(true) }
     var showNotes by remember { mutableStateOf(true) }
     var showDrums by remember { mutableStateOf(true) }
+
+    // Load takes when song changes
+    LaunchedEffect(song?.id) {
+        song?.id?.let { vm.loadTakes(it) }
+    }
+
+    // Merge cloud + local takes into TakeItem list
+    val takeItems by remember {
+        derivedStateOf {
+            val cloud = vm.cloudTakes.map { stem ->
+                TakeItem(
+                    id = stem.id,
+                    label = stem.label,
+                    isBest = stem.isBestTake,
+                    isCloud = true,
+                    date = stem.createdAt.take(10),
+                    takeNumber = stem.label.removePrefix("Take ").toIntOrNull() ?: 0,
+                    durationFormatted = stem.durationSeconds?.let {
+                        val s = it.toInt(); "%d:%02d".format(s / 60, s % 60)
+                    } ?: "",
+                )
+            }
+            val local = vm.localTakes.map { take ->
+                TakeItem(
+                    id = take.id,
+                    label = take.label,
+                    isBest = false,
+                    isCloud = false,
+                    date = take.createdAt.take(10),
+                    takeNumber = take.takeNumber,
+                    durationFormatted = take.durationSeconds.let {
+                        val s = it.toInt(); "%d:%02d".format(s / 60, s % 60)
+                    },
+                )
+            }
+            (cloud + local).sortedBy { it.takeNumber }
+        }
+    }
 
     // Bottom sheet
     val sheetState = rememberModalBottomSheetState()
@@ -174,6 +216,26 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     ),
                 )
 
+                // Takes section (S41)
+                if (takeItems.isNotEmpty() || vm.takesLoading) {
+                    Box(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        TakesSection(
+                            takes = takeItems,
+                            onSetBest = { id -> song?.id?.let { vm.setBestTake(id, it) } },
+                            onClearBest = { id -> song?.id?.let { vm.clearBestTake(id, it) } },
+                            onDelete = { id ->
+                                val take = takeItems.firstOrNull { it.id == id }
+                                if (take != null) {
+                                    if (take.isCloud) vm.deleteCloudTake(id, song.id)
+                                    else vm.deleteLocalTake(id, song.id)
+                                }
+                            },
+                            onPlay = { /* TODO: S41 recording playback */ },
+                            isLoading = vm.takesLoading,
+                        )
+                    }
+                }
+
                 // Processing status banner
                 if (vm.loadedStems.isEmpty() && vm.processingStatus != null) {
                     Row(
@@ -212,6 +274,11 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                         onDismiss = { vm.dismissBeatBanner() },
                     )
                 }
+            }
+
+            // Recording status banner (S41)
+            if (vm.recState == AppViewModel.RecState.COUNT_IN || vm.recState == AppViewModel.RecState.RECORDING) {
+                RecordingBanner(vm)
             }
 
             // Transport (stacked — speed row + main controls)
@@ -299,6 +366,11 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
             }
         }
     }
+
+    // Post-recording dialog (D-139)
+    if (vm.recState == AppViewModel.RecState.DONE) {
+        PostRecordingDialog(vm)
+    }
 }
 
 // ─── Practice Transport (stacked layout) ─────────────────────────────────────────
@@ -369,6 +441,39 @@ private fun PracticeTransport(vm: AppViewModel) {
             Spacer(Modifier.width(16.dp))
             // Click toggle
             ClickToggleButton(isClickMuted = vm.isClickMuted, onClick = { vm.toggleClickMute() })
+            Spacer(Modifier.width(8.dp))
+            // Record button (D-150)
+            if (vm.recState == AppViewModel.RecState.RECORDING) {
+                // Stop recording button (red square)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(GigColors.danger)
+                        .clickable { vm.stopRecording() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = "Stop Recording", tint = Color.White, modifier = Modifier.size(18.dp))
+                }
+            } else if (vm.recState == AppViewModel.RecState.IDLE) {
+                // Record button (red circle with dot)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(GigColors.danger.copy(alpha = 0.15f))
+                        .border(1.dp, GigColors.danger.copy(alpha = 0.4f), CircleShape)
+                        .clickable { vm.startRecording() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(GigColors.danger)
+                    )
+                }
+            }
         }
     }
 }
@@ -623,6 +728,154 @@ private fun BeatAlignBanner(
         ) {
             Text("✕", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textMuted)
         }
+    }
+}
+
+// ─── Recording Banner ────────────────────────────────────────────────────────────
+
+@Composable
+private fun RecordingBanner(vm: AppViewModel) {
+    val isCountIn = vm.recState == AppViewModel.RecState.COUNT_IN
+    val mins = vm.recElapsedSec / 60
+    val secs = vm.recElapsedSec % 60
+    val levelWidth = vm.recInputLevel.coerceIn(0f, 1f)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .border(1.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // Red dot
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(GigColors.danger)
+        )
+
+        // State label
+        Text(
+            if (isCountIn) "COUNT IN" else "REC",
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+            fontSize = 11.sp, color = GigColors.danger,
+        )
+
+        // Take number
+        Text(
+            "Take ${vm.recTakeNumber}",
+            fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        // Timer
+        if (!isCountIn) {
+            Text(
+                "%d:%02d".format(mins, secs),
+                fontFamily = JetBrainsMono, fontSize = 13.sp, color = GigColors.danger,
+            )
+        }
+
+        // Level bar
+        if (!isCountIn) {
+            Box(
+                modifier = Modifier
+                    .width(40.dp)
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(GigColors.surfaceLight),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(levelWidth)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(GigColors.green)
+                )
+            }
+        }
+    }
+}
+
+// ─── Post-Recording Dialog (D-139) ───────────────────────────────────────────────
+
+@Composable
+private fun PostRecordingDialog(vm: AppViewModel) {
+    var markAsBest by remember { mutableStateOf(false) }
+    val durationSec = vm.recDuration.toInt()
+    val durationStr = "%d:%02d".format(durationSec / 60, durationSec % 60)
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = { /* can't dismiss without choosing */ },
+        containerColor = GigColors.surface,
+        title = {
+            Text(
+                "Take ${vm.recTakeNumber} · $durationStr",
+                fontFamily = Karla, fontWeight = FontWeight.Bold,
+                fontSize = 16.sp, color = GigColors.text,
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Best take toggle
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (markAsBest) GigColors.orange.copy(alpha = 0.08f) else Color.Transparent,
+                            RoundedCornerShape(8.dp),
+                        )
+                        .border(
+                            1.dp,
+                            if (markAsBest) GigColors.orange.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.06f),
+                            RoundedCornerShape(8.dp),
+                        )
+                        .clickable { markAsBest = !markAsBest }
+                        .padding(12.dp),
+                ) {
+                    Text(
+                        if (markAsBest) "★" else "☆",
+                        fontSize = 16.sp, color = GigColors.orange,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Mark as Best Take",
+                        fontFamily = Karla, fontSize = 13.sp,
+                        color = if (markAsBest) GigColors.orange else GigColors.textMuted,
+                    )
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // 4 action buttons (D-139)
+                PostRecButton("Discard & Re-take", GigColors.danger) { vm.discardRecording(retake = true) }
+                PostRecButton("Save & Re-take", GigColors.purple) { vm.saveRecording(asBest = markAsBest, retake = true) }
+                PostRecButton("Save as Take", GigColors.green) { vm.saveRecording(asBest = markAsBest) }
+                PostRecButton("Save & Preview", GigColors.teal) { vm.saveRecording(asBest = markAsBest, preview = true) }
+            }
+        },
+        confirmButton = {},
+    )
+}
+
+@Composable
+private fun PostRecButton(label: String, color: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .background(color.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = color)
     }
 }
 

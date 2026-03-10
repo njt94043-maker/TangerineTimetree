@@ -92,9 +92,15 @@ fun LibraryScreen(
     onLaunchSetlistPractice: (SetlistWithSongs) -> Unit,
 ) {
     var activeTab by rememberSaveable { mutableStateOf(LibraryTab.Songs) }
+    var showNewIdeaDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(GigColors.background)) {
-        LibraryHeader(activeTab = activeTab, onTabChange = { activeTab = it }, onMenuClick = onMenuClick)
+        LibraryHeader(
+            activeTab = activeTab,
+            onTabChange = { activeTab = it },
+            onMenuClick = onMenuClick,
+            onNewIdea = { showNewIdeaDialog = true },
+        )
 
         when {
             vm.loadError != null -> ErrorState(vm.loadError!!)
@@ -116,6 +122,21 @@ fun LibraryScreen(
             }
         }
     }
+
+    // New Song Idea dialog (D-138)
+    if (showNewIdeaDialog) {
+        NewIdeaDialog(
+            onDismiss = { showNewIdeaDialog = false },
+            onCreate = { name ->
+                showNewIdeaDialog = false
+                vm.createSongIdea(name) { song ->
+                    onLaunchPractice(song)
+                    // Auto-start recording after a brief delay for screen transition
+                    vm.clearNewIdeaFlag()
+                }
+            },
+        )
+    }
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
@@ -125,6 +146,7 @@ private fun LibraryHeader(
     activeTab: LibraryTab,
     onTabChange: (LibraryTab) -> Unit,
     onMenuClick: () -> Unit,
+    onNewIdea: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().background(GigColors.surface)) {
         Row(
@@ -141,6 +163,21 @@ private fun LibraryHeader(
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
                 style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(alpha = 0.4f), Offset.Zero, 14f)),
             )
+            Spacer(Modifier.weight(1f))
+            // New Idea button (D-138)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(GigColors.danger.copy(alpha = 0.1f))
+                    .border(1.dp, GigColors.danger.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                    .clickable(onClick = onNewIdea)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text(
+                    "New Idea",
+                    fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.danger,
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         LibraryTabBar(activeTab = activeTab, onTabChange = onTabChange)
@@ -685,4 +722,68 @@ private fun ErrorState(message: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         Text("Failed to load: $message", fontFamily = Karla, fontSize = 13.sp, color = GigColors.danger)
     }
+}
+
+// ─── New Song Idea Dialog (D-138) ────────────────────────────────────────────
+
+@Composable
+private fun NewIdeaDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = GigColors.surface,
+        title = {
+            Text("New Song Idea", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GigColors.text)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Name your idea, then record immediately.", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+                BasicTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = GigColors.text),
+                    cursorBrush = SolidColor(GigColors.danger),
+                    decorationBox = { inner ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GigColors.surfaceInset)
+                                .border(1.dp, GigColors.neuBorder, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                        ) {
+                            if (name.isEmpty()) {
+                                Text("Song name…", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                            }
+                            inner()
+                        }
+                    },
+                )
+            }
+        },
+        confirmButton = {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (name.isNotBlank()) GigColors.danger.copy(alpha = 0.15f) else Color.Transparent)
+                    .border(1.dp, if (name.isNotBlank()) GigColors.danger.copy(alpha = 0.3f) else GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    .clickable(enabled = name.isNotBlank()) { onCreate(name.trim()) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                Text("Create & Record", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = if (name.isNotBlank()) GigColors.danger else GigColors.textMuted)
+            }
+        },
+        dismissButton = {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onDismiss)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+            ) {
+                Text("Cancel", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+            }
+        },
+    )
 }

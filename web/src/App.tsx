@@ -586,6 +586,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             setlistId={playerSetlistId}
             mode={playerMode}
             onClose={goBack}
+            userId={profile?.id ?? ''}
+            bandRole={profile?.band_role}
           />
         )}
 
