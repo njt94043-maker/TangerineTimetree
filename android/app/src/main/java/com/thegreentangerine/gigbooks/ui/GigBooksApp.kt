@@ -55,12 +55,14 @@ import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SongFormScreen
+import com.thegreentangerine.gigbooks.ui.screens.SplashScreen
 import com.thegreentangerine.gigbooks.ui.screens.ViewScreen
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+    data object Splash   : Screen("splash",   "Splash",           Icons.Default.CalendarMonth)  // Not in drawer
     data object Calendar : Screen("calendar", "Calendar",         Icons.Default.CalendarMonth)
     data object Library  : Screen("library",  "Songs & Setlists", Icons.AutoMirrored.Filled.QueueMusic)
     data object Live     : Screen("live",     "Live Mode",        Icons.Default.CalendarMonth)  // Not in drawer
@@ -95,6 +97,7 @@ fun GigBooksApp() {
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = currentRoute != Screen.Splash.route,
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = GigColors.surface,
@@ -129,9 +132,16 @@ fun GigBooksApp() {
     ) {
         NavHost(
             navController    = navController,
-            startDestination = Screen.Calendar.route,
+            startDestination = Screen.Splash.route,
             modifier = Modifier.fillMaxSize().safeDrawingPadding().background(GigColors.background),
         ) {
+            composable(Screen.Splash.route) {
+                SplashScreen(onFinished = {
+                    navController.navigate(Screen.Calendar.route) {
+                        popUpTo(Screen.Splash.route) { inclusive = true }
+                    }
+                })
+            }
             composable(Screen.Calendar.route) {
                 CalendarScreen(vm = vm, onMenuClick = { openMenu() })
             }

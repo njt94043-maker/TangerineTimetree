@@ -582,7 +582,8 @@ textarea.input-field {
 }
 .badge-bpm { background: rgba(243,156,18,0.15); color: var(--color-tangerine); }
 .badge-key { background: rgba(0,230,118,0.15); color: var(--color-green); }
-.badge-category { background: rgba(26,188,156,0.15); color: var(--color-teal); }
+.badge-tgt { background: rgba(26,188,156,0.15); color: var(--color-teal); }
+.badge-personal { background: rgba(243,156,18,0.15); color: var(--color-tangerine); }
 
 /* ─── Capture panel ─── */
 .capture-controls {

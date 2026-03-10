@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S44 (Import Pipeline + Android SongForm) **DONE**.
-- **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges + filter + teal/purple theme).
-- **Last session**: S44 execution — Web ImportPanel (browse Capture tracks, metadata mapping, upload MP3, trigger Cloud Run, mark imported), Android SongFormScreen (full song editing, category dropdown, processing triggers to Cloud Run), LibraryScreen Edit button, GigBooksApp navigation wiring.
-- **Next action**: Post-S44 Cross-Platform Audit.
+- **Phase**: Post-S44 Audit **DONE**. Ready for user testing.
+- **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session**: Post-S44 audit — tsc + vite build clean, assembleDebug clean, visual parity verified (3 apps), Capture badge fix (personal=orange), schema_map.md corrected (user_settings columns), RLS verified, edge cases reviewed, all features confirmed present.
+- **Next action**: User testing handoff. Nathan tests all 3 apps end-to-end.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -23,7 +23,7 @@
 | S42 | **View Mode (Both)** — 3rd player tab on both platforms | **Done** |
 | S43 | **Capture Alignment + Cloud Run** — Capture category field, Cloud Run deploy (beats-only + re-analyse), web skip_stems/re-analyse | **Done** |
 | S44 | **Import Pipeline + Android SongForm** — Capture→Web import, Android song editing + processing triggers | **Done** |
-| Audit | Cross-platform + cross-app surgical audit (ALL 3 apps) before user testing | After S44 |
+| Audit | Cross-platform + cross-app surgical audit (ALL 3 apps) before user testing | **Done** |
 
 ## Gaps Remaining (post-S44)
 - **Capture diagnostics**: Flakey but functional — needs real-world testing (post-audit)

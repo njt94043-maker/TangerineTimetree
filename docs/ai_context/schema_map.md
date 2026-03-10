@@ -207,9 +207,9 @@ Per-user settings (bank details, contact info). Keyed by user ID.
 | player_flash_enabled | BOOLEAN | YES | TRUE | S34 |
 | player_lyrics_enabled | BOOLEAN | YES | TRUE | S34 |
 | player_chords_enabled | BOOLEAN | YES | TRUE | S34 |
-| player_tracks_enabled | BOOLEAN | YES | TRUE | S34 |
-| player_stems_enabled | BOOLEAN | YES | TRUE | S34 |
-| player_metronome_visual_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_notes_enabled | BOOLEAN | YES | TRUE | S34 |
+| player_drums_enabled | BOOLEAN | YES | FALSE | S34 |
+| player_vis_enabled | BOOLEAN | YES | TRUE | S34 |
 | updated_at | TIMESTAMPTZ | YES | NOW() | |
 
 #### band_settings
