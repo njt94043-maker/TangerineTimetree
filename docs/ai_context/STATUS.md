@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: Visual Alignment (partial). Next session = screen-for-screen lockdown.
+- **Phase**: S45 — Screen-for-screen lockdown. Full audit complete, gaps catalogued. No code changes yet.
 - **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session**: Visual alignment — Android SplashScreen (full animated, mirrors web), Calendar (colored cell backgrounds + venue text + client/enquiry distinction + 6-item legend), Library (left color borders on song/setlist cards + shimmer skeleton loading), Gig model (gig_subtype + status fields), GigColors (calClient + calEnquiry).
-- **Next action**: Screen-for-screen complete alignment + feature-for-feature lockdown across all apps. Swipe calendar nav. Sidebar visual alignment. Full end-to-end tests on every screen and flow.
+- **Last session**: S45 audit — 4 parallel agents audited every screen on both platforms against `mockups/v4-mirror-target.html`. Comprehensive gap list produced (see todo.md). Previous session applied partial CSS fixes (button/input reduction, Library cards, DayDetail invoice link). No code this session — audit + SOT updates only.
+- **Next action**: Fix every gap identified in the audit, screen by screen, both platforms. Search SOT docs (SESSION_LOG, decisions_log, gotchas) for design detail on every element before implementing — do NOT rely on mockup alone.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -25,8 +25,53 @@
 | S44 | **Import Pipeline + Android SongForm** — Capture→Web import, Android song editing + processing triggers | **Done** |
 | Audit | Cross-platform + cross-app surgical audit (ALL 3 apps) before user testing | **Done** |
 
-## Gaps Remaining (post-S44)
-- **Capture diagnostics**: Flakey but functional — needs real-world testing (post-audit)
+## Gaps Remaining (S45 Audit)
+
+### Web — Calendar
+- Cell min-height 48→44px, border-radius 6→4px, font-size 14→11px
+- Day-num 13→11px, day-header 11→10px
+- Today button: 10→12px font, 3px 14px→4px 10px padding, 10→8px radius, add background fill
+- Cell background using wrong token
+
+### Web — Library
+- Missing filter labels above dropdowns
+- Badges wrong structure (combined vs separate scope+type)
+- Missing Cover/Original type badges
+- Owner tag wrong styling
+- Setlists using pills instead of dropdown
+- Setlists missing type badge on cards
+- Setlists missing song count + duration
+- Setlists missing conditional action buttons
+
+### Web — Player
+- Vis button "Bars"→"Spectrum"
+- Text panel 200→120px max-height
+- Live transport: duplicate stop / missing restart
+- Practice speed: 4→2 buttons
+- A-B loop button placement
+- Settings pills non-functional
+
+### Web — Settings
+- Missing Account section, Audio Engine status, About section
+- Wrong form structure classes
+
+### Android — Library
+- Filter pills must become dropdowns (D-128)
+- Queue NeuCard→flat rows
+
+### Android — Player
+- Vis switcher missing "Burst" option
+- Mixer needs colour/size verification
+- Between-songs screen may be incomplete
+
+### Android — Settings
+- Verify display prefs not duplicated (should be drawer-only per D-118)
+
+### Android — Calendar
+- Cell shadows need verification
+
+### Other
+- **Capture diagnostics**: Flakey but functional — needs real-world testing
 - **Bulk import**: Single-track import only. No batch import yet.
 - **Android signing**: Release keystore missing — debug APK only.
 

@@ -5,34 +5,57 @@
 
 ---
 
-## Immediate Actions
-- [x] **Big-picture realignment** — DONE. Port C++ from ClickTrack, single Oboe stream, aubio beat detection, SoundTouch time-stretch. Role-based song forms. Web stage prompter.
-- [x] **S26A: Audio Engine Foundation** — Expo Native Module + C++/Oboe metronome + mixer from ClickTrack. Schema migration (lyrics, chords, beat_offset_ms). Role-based song edit form.
-- [x] Sideload APK to Samsung device (installed 2026-03-07)
-- [x] UI alignment: native calendar matches web — drawer nav, flex grid, styling parity
-- [x] Visual parity audit: 8 fixes (neon glows, Today button, shadows, drawer avatar, card accents, logo)
-- [x] Audio upload UI: practice track upload/replace/remove on song edit forms (both apps)
-- [x] **Compose app full buildout** — Login, Library, Live Mode, Practice Mode, Settings, AppViewModel, C++ wiring
-- [x] On-device test: verify click track fires (confirmed 157 BPM works correctly)
-- [x] On-device test: load a practice track (track loads, click fires at correct BPM)
-- [x] **S30A+B: Beat alignment fix + on-device confirmation** — Catch-up burst was the drift cause (fixed). BTrack per-beat positions work for steady-tempo tracks (Sultans holds 97+ bars). ANALYSIS_SECONDS raised to 900s.
-- [x] **S30C: Beat detection research** — DONE. BTrack limits are architectural (onset-based, 5% tempo cap). madmom (RNN+DBN) chosen. Server-side on Cloud Run, beat maps in Supabase, C++ reads timestamps. D-104/105/106.
-- [x] **S31A: Server-side beat detection (madmom)** — DONE. Cloud Run service (Dockerfile + main.py), beat_maps migration, shared types/queries, web triggers after upload + status UI, Android fetches server beat map (BTrack fallback), C++ nativeApplyExternalBeatMap. Both apps build clean.
-- [x] **S31B: Deploy + end-to-end test** — DONE. Cloud Run deployed (Python 3.10, madmom 0.16.1, numpy 1.23.5). beat_maps migration applied via CLI. Vercel env var set + redeployed. All 3 tracks analysed successfully (Cissy Strut 90.9 BPM/287 beats, Sultans, War Pigs). Fixed: Cython build dep, collections.MutableSequence patch, np.float deprecation.
-- [x] **S32A: Automated stem separation** — DONE. Cloud Run expanded (PyTorch CPU + Demucs htdemucs + torchaudio + soundfile). Cloud Tasks queue (stem-processing, europe-west1). /process enqueues, /process-worker runs full pipeline (madmom beats → Demucs 4 stems → MP3 encode → Supabase upload). Web: triggerProcessing + 3s polling + auto badge. Android: processingStatus + 10s polling + PracticeScreen banner. Migrations: song_stems.source, created_by nullable, beat_maps status CHECK. End-to-end verified: Cissy Strut (90.9 BPM, 4 stems). Fixed: torchaudio missing, soundfile backend, created_by NOT NULL constraint.
-- [x] **S32B/C: Testing + polish** — All 3 songs processed (Cissy Strut 90.9, Sultans 150, War Pigs 90.9 BPM + 4 auto stems each). Re-process verified (old stems replaced). Android APK rebuilt + installed. Booking integration confirmed (BookingWizard + GigHub wired, migration applied).
-- [x] **S33: Songs/Setlists/Live/Practice big-picture redesign** — DONE. Schema design (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs). 3 mockups (library-browser, player-live, player-queue). Architecture: Library-as-launchpad, shared player with mode flag, web gets Live+Practice (Web Audio + SoundTouchJS), stage prompter merges into Live Mode, per-user toggle prefs. Migration SQL drafted. Sprint roadmap S34-S37.
-- [x] **S34: Migration + types + queries** — Applied s33_migration_draft.sql. Updated shared TS types (SongCategory, SetlistType, Song, Setlist, UserSettings player prefs). Shared queries (getSongsByCategory, getSongsByOwner, getSetlistsByType, getPlayerPrefs, updatePlayerPrefs). Kotlin data classes (Song.kt + Setlist.kt). Android repos (SongRepository + SetlistRepository filters). Web SongForm (category selector, owner picker, drum notation). Web SetlistList/SetlistDetail (setlist_type selector, band_name field). Both builds clean.
-- [x] **S35: Android Library + player refactor** — Library as launchpad (Songs/Setlists tabs, filter pills, launch into player). Shared player screen (mode flag: Live vs Practice). Queue overlay with reorder. Set complete screen. Speed safety check.
-- [x] **S36: Web audio engine + Library redesign + Player UI** — AudioEngine singleton, ClickScheduler (5 click sounds, beat map mode, subdivisions, swing), TrackPlayer (SoundTouchJS), StemMixer (per-stem gain/mute/solo), useAudioEngine hook. Library component (Songs/Setlists tabs, category/type filter pills, inline Live/Practice launch). Player component (transport, beat counter, lyrics/chords, speed, A-B loop, stem mixer, setlist queue). Forgot password fix. View routing (library + player views). Drawer updated (single Library item). All CSS. tsc + vite build clean.
-- [x] **S37: Web player polish** — Wake lock API (visibility re-acquire). Waveform visualiser (canvas amplitude peaks). Player prefs settings UI (7 toggles in Settings, auto-save). Set complete celebration + between-songs countdown. Beat glow polish (pulse animation, multi-layer box-shadow). songComplete flag in useAudioEngine.
-- [x] **S38: Visual Unification** — Android GigColors corrected (5 values + 5 new tokens: surfaceLight, greenDark, cyan, pink, slate). NeuCard shadows canonical V4. New PlayerComponents.kt (shared composables: PlayerHeader, VisualHero, TextPanel, Transport, DrawerHandle, DisplayToggleRow, SettingsPills, MixerRow). LiveScreen.kt + PracticeScreen.kt rebuilt to V4 (header→hero→text→transport→drawer via ModalBottomSheet). Web Player.tsx rebuilt (v4-* CSS classes, V4Waveform, TogglePill, drawer overlay). App.css player section rewritten. Both builds clean.
-- [x] **S39: Foundation** — Migration pushed: category rename (tgt_*), song_shares table, is_best_take on song_stems, can_access_song() helper, RLS rewrite. Shared types (SongStem.is_best_take, source='recorded'). Shared queries (getSongShares, shareSong, unshareSong, setBestTake, clearBestTake). Cloud Run skip_stems flag (D-148). Web category references updated. Web tsc + vite build clean.
-- [x] **S40: Library + SongForm (Both)** — Web Library.tsx: two dropdowns (Scope + Type) replacing pills (D-128), category badges (teal=TGT, orange=personal), owner name tags, lock icons, Edit/Delete hidden for non-owned. Web SongForm.tsx: sharing UI for personal_original, read-only mode for shared songs. Android LibraryScreen.kt: FilterDropdown composables, category badges, owner tags, lock icons. Android Song.kt: tgt_* categories, canEdit(), SongShare model. Profile.kt added. AppViewModel loads profileNames + sharedSongIds. Both builds clean.
-- [x] **Post-S44 Audit** — All 13 checklist items verified. Builds clean. Visual parity confirmed. Capture badge fix applied. schema_map.md corrected. RLS verified. Features confirmed. Edge cases crash-safe. Ready for user testing.
+## Immediate Actions — S45 Screen-for-Screen Lockdown
+
+### Web — Calendar (match mockup screens 16-17)
+- [ ] Cell min-height 48→44px
+- [ ] Cell border-radius 6→4px (var(--r-xs))
+- [ ] Cell font-size 14→11px
+- [ ] Day-num font-size 13→11px
+- [ ] Day-header font-size 11→10px
+- [ ] Today button: font 10→12px, padding 3px 14px→4px 10px, radius 10→8px, add background fill rgba(243,156,18,0.08)
+- [ ] Cell background token correction
+
+### Web — Library (match mockup screens 5-6)
+- [ ] Add filter labels above dropdowns
+- [ ] Split badges into separate scope + type badges (not combined)
+- [ ] Add Cover/Original type badges
+- [ ] Fix owner tag styling
+- [ ] Setlists: pills → dropdown (D-128)
+- [ ] Setlists: add type badge on cards (Gig/Practice/Other)
+- [ ] Setlists: add song count + duration display
+- [ ] Setlists: add conditional action buttons
+
+### Web — Player (match mockup screens 1-4)
+- [ ] Vis button label "Bars"→"Spectrum"
+- [ ] Text panel max-height 200→120px
+- [ ] Live transport: fix duplicate stop, add restart button
+- [ ] Practice speed: reduce from 4 to 2 buttons
+- [ ] Fix A-B loop button placement
+- [ ] Wire up settings pills (currently non-functional)
+
+### Web — Settings (match mockup screen 17)
+- [ ] Add Account section
+- [ ] Add Audio Engine status section
+- [ ] Add About section
+- [ ] Fix form structure classes
+
+### Android — Library (match mockup screens 5-6)
+- [ ] Filter pills → dropdowns (D-128)
+- [ ] Queue items: NeuCard → flat rows
+
+### Android — Player (match mockup screens 1-4)
+- [ ] Add "Burst" option to vis switcher
+- [ ] Verify mixer colours/sizes match mockup
+- [ ] Verify between-songs screen completeness
+
+### Android — Settings + Calendar
+- [ ] Verify display prefs not duplicated in Settings (should be drawer-only per D-118)
+- [ ] Verify calendar cell shadows match mockup
+
+### Existing Backlog
 - [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
 - [ ] Add more songs via web app (currently only 3: Sultans, Cissy Strut, War Pigs)
-- [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Capture — Alignment + Pipeline (OVERDUE)
