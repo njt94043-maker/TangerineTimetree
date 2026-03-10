@@ -59,6 +59,23 @@ object SongRepository {
         }
         .decodeSingle()
 
+    /** Full song update via JSON object — keys are DB column names (snake_case). */
+    suspend fun updateSong(songId: String, updates: Map<String, Any?>) {
+        client.from("songs").update(buildJsonObject {
+            for ((key, value) in updates) {
+                when (value) {
+                    is String -> put(key, value)
+                    is Number -> put(key, value.toDouble())
+                    is Boolean -> put(key, value)
+                    null -> put(key, null as String?)
+                    else -> put(key, value.toString())
+                }
+            }
+        }) {
+            filter { eq("id", songId) }
+        }
+    }
+
     suspend fun updateBeatInfo(songId: String, bpm: Double, beatOffsetMs: Int) {
         client.from("songs").update({
             set("bpm", bpm)

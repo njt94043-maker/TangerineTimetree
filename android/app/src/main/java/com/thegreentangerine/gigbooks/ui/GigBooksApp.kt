@@ -54,6 +54,7 @@ import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
+import com.thegreentangerine.gigbooks.ui.screens.SongFormScreen
 import com.thegreentangerine.gigbooks.ui.screens.ViewScreen
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
@@ -66,6 +67,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Practice : Screen("practice", "Practice",         Icons.Default.CalendarMonth)  // Not in drawer
     data object View     : Screen("view",     "View Mode",        Icons.Default.CalendarMonth)  // Not in drawer
     data object Settings : Screen("settings", "Settings",         Icons.Default.Settings)
+    data object SongForm : Screen("songform", "Edit Song",        Icons.Default.Settings)  // Not in drawer
 }
 
 // Only these appear in the drawer
@@ -161,6 +163,10 @@ fun GigBooksApp() {
                         vm.selectSetlist(setlist)
                         navigate(Screen.View.route)
                     },
+                    onEditSong = { song ->
+                        vm.selectSong(song)
+                        navigate(Screen.SongForm.route)
+                    },
                 )
             }
             composable(Screen.Live.route) {
@@ -183,6 +189,16 @@ fun GigBooksApp() {
                     onMenuClick   = { openMenu() },
                     onGoToLibrary = { navigate(Screen.Library.route) },
                 )
+            }
+            composable(Screen.SongForm.route) {
+                val song = vm.selectedSong
+                if (song != null) {
+                    SongFormScreen(
+                        vm = vm,
+                        song = song,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(vm = vm, onMenuClick = { openMenu() })
