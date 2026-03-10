@@ -51,6 +51,8 @@ import type {
   SetlistSong,
   SetlistSongWithDetails,
   SetlistWithSongs,
+  SongShare,
+  SongShareWithProfile,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)

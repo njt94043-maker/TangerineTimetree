@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S39 — Song Categories + Sharing Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --card: #111118;
+    --card-light: #1a1a24;
+    --text: #e8e8e8;
+    --text-dim: #a0a0b0;
+    --text-muted: #606070;
+    --green: #00e676;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --red: #ff5252;
+    --teal: #1abc9c;
+    --blue: #42a5f5;
+    --border: #2a2a3a;
+    --inset: #0a0a10;
+    --glow-green: 0 0 12px rgba(0,230,118,0.3);
+    --glow-orange: 0 0 12px rgba(243,156,18,0.3);
+    --glow-teal: 0 0 12px rgba(26,188,156,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Karla', sans-serif;
+    background: #0e0e16;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===== Screen Switcher ===== */
+  .screen-nav {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .screen-nav button {
+    padding: 6px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .screen-nav button:hover, .screen-nav button.active {
+    background: var(--green);
+    color: var(--bg);
+    border-color: var(--green);
+  }
+
+  /* ===== Screens ===== */
+  .screen { display: none; padding: 24px; max-width: 900px; margin: 0 auto; }
+  .screen.visible { display: block; }
+  .screen h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+  }
+  .note {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  /* ===== Tab pills (Songs / Setlists only) ===== */
+  .tab-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .tab-pill {
+    padding: 6px 20px;
+    border-radius: 16px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .tab-pill:hover { border-color: var(--text-muted); }
+  .tab-pill.active {
+    background: var(--green);
+    color: var(--bg);
+    border-color: var(--green);
+    font-weight: 600;
+  }
+
+  /* ===== Filter Dropdowns ===== */
+  .filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .filter-select {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    min-width: 150px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23606070'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    transition: border-color 0.15s;
+  }
+  .filter-select:hover, .filter-select:focus {
+    border-color: var(--green);
+    outline: none;
+  }
+  .filter-select option {
+    background: var(--card);
+    color: var(--text);
+  }
+
+  /* ===== Song Cards ===== */
+  .song-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .song-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .song-card:hover { border-color: var(--text-muted); }
+  .song-info { flex: 1; min-width: 0; }
+  .song-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .song-artist {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .song-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-tgt {
+    background: rgba(26,188,156,0.15);
+    color: var(--teal);
+    border: 1px solid rgba(26,188,156,0.3);
+  }
+  .badge-personal {
+    background: rgba(243,156,18,0.15);
+    color: var(--orange);
+    border: 1px solid rgba(243,156,18,0.3);
+  }
+  .badge-shared {
+    background: rgba(187,134,252,0.1);
+    color: var(--purple);
+    border: 1px solid rgba(187,134,252,0.25);
+  }
+  .badge-cover {
+    background: rgba(66,165,245,0.1);
+    color: var(--blue);
+    border: 1px solid rgba(66,165,245,0.2);
+    font-size: 9px;
+  }
+  .badge-original {
+    background: rgba(187,134,252,0.1);
+    color: var(--purple);
+    border: 1px solid rgba(187,134,252,0.2);
+    font-size: 9px;
+  }
+  .bpm-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .owner-tag {
+    font-size: 11px;
+    color: var(--orange);
+    opacity: 0.7;
+  }
+  .shared-icon {
+    font-size: 11px;
+    color: var(--purple);
+    opacity: 0.7;
+  }
+  .lock-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+  .song-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--card-light);
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .btn-icon:hover {
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .btn-icon.disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* ===== SongForm sections ===== */
+  .form-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .form-section h4 {
+    font-size: 13px;
+    color: var(--green);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: center;
+  }
+  .form-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    width: 90px;
+    flex-shrink: 0;
+  }
+  .form-select {
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    flex: 1;
+  }
+  .form-input {
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    flex: 1;
+  }
+
+  /* Sharing UI */
+  .share-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .share-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .share-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--card-light);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .share-name {
+    flex: 1;
+    font-size: 13px;
+  }
+  .share-role {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .btn-remove {
+    padding: 3px 10px;
+    font-size: 11px;
+    border: 1px solid rgba(255,82,82,0.3);
+    background: rgba(255,82,82,0.1);
+    color: var(--red);
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .btn-remove:hover { background: rgba(255,82,82,0.25); }
+  .share-add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: center;
+  }
+  .btn-add {
+    padding: 6px 14px;
+    font-size: 12px;
+    border: 1px solid rgba(0,230,118,0.3);
+    background: rgba(0,230,118,0.1);
+    color: var(--green);
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .btn-add:hover { background: rgba(0,230,118,0.25); }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  /* Category selector in SongForm — dropdown style */
+  .cat-select {
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    min-width: 200px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23606070'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    cursor: pointer;
+  }
+  .cat-select:focus {
+    border-color: var(--green);
+    outline: none;
+  }
+  .cat-select option {
+    background: var(--card);
+    color: var(--text);
+  }
+
+  /* Annotations */
+  .annotation {
+    position: relative;
+    margin: 16px 0;
+    padding: 10px 14px;
+    background: rgba(0,230,118,0.05);
+    border-left: 3px solid var(--green);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .annotation strong { color: var(--green); }
+
+  /* Search bar */
+  .search-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    width: 200px;
+    transition: border-color 0.15s;
+  }
+  .search-bar:focus {
+    border-color: var(--green);
+    outline: none;
+  }
+  .search-bar::placeholder { color: var(--text-muted); }
+
+  /* Song count */
+  .song-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Screen Switcher -->
+<nav class="screen-nav">
+  <button class="active" onclick="show('library-all')">Library — All</button>
+  <button onclick="show('library-my')">Library — My Songs</button>
+  <button onclick="show('library-shared')">Library — Shared With Me</button>
+  <button onclick="show('library-tgt-covers')">Library — TGT Covers</button>
+  <button onclick="show('songform-tgt')">SongForm — TGT</button>
+  <button onclick="show('songform-personal-cover')">SongForm — Personal Cover</button>
+  <button onclick="show('songform-personal-original')">SongForm — Personal Original + Sharing</button>
+  <button onclick="show('songform-shared-view')">SongForm — Shared (Read-only)</button>
+  <button onclick="show('takes-owner')">My Takes (Owner)</button>
+  <button onclick="show('takes-other')">Takes (Other Member's View)</button>
+  <button onclick="show('view-mode')">View Mode (Playback)</button>
+  <button onclick="show('recording-active')">Recording — Video OFF</button>
+  <button onclick="show('recording-video')">Recording — Video ON</button>
+  <button onclick="show('post-recording')">Post-Recording Options</button>
+  <button onclick="show('view-mode-record')">View Mode (Recording)</button>
+</nav>
+
+<!-- ============================================================ -->
+<!-- SCREEN 1: Library — All Songs (default) -->
+<!-- ============================================================ -->
+<div id="library-all" class="screen visible">
+  <h2>Library</h2>
+
+  <div class="note">
+    <strong>Dropdown filters replace pills.</strong> Two compact dropdowns: Scope + Type.<br>
+    Scope options: All Songs / TGT / My Songs / Shared With Me<br>
+    Type options: All / Covers / Originals<br>
+    Cleaner than 6+ pills. Scales if more categories are added later.
+  </div>
+
+  <!-- Tab pills — just Songs / Setlists -->
+  <div class="tab-row">
+    <button class="tab-pill active">Songs</button>
+    <button class="tab-pill">Setlists</button>
+  </div>
+
+  <!-- Filter bar: two dropdowns + search -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Scope</span>
+      <select class="filter-select">
+        <option selected>All Songs</option>
+        <option>TGT</option>
+        <option>My Songs</option>
+        <option>Shared With Me</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Type</span>
+      <select class="filter-select" style="min-width: 120px;">
+        <option selected>All</option>
+        <option>Covers</option>
+        <option>Originals</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search songs..." />
+  </div>
+
+  <div class="song-count">6 songs</div>
+
+  <!-- Song list — mixed -->
+  <div class="song-list">
+    <!-- TGT Cover -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Cissy Strut</div>
+        <div class="song-artist">The Meters</div>
+        <div class="song-meta">
+          <span class="badge badge-tgt">TGT</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">104 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- TGT Original -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Midnight Drive</div>
+        <div class="song-artist">The Green Tangerine</div>
+        <div class="song-meta">
+          <span class="badge badge-tgt">TGT</span>
+          <span class="badge badge-original">Original</span>
+          <span class="bpm-tag">128 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- Personal Cover (own) -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Big Yellow Taxi</div>
+        <div class="song-artist">Joni Mitchell</div>
+        <div class="song-meta">
+          <span class="badge badge-personal">My Song</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">167 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- Personal Original (own) -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Warm Signal</div>
+        <div class="song-artist">Nathan Thomas</div>
+        <div class="song-meta">
+          <span class="badge badge-personal">My Song</span>
+          <span class="badge badge-original">Original</span>
+          <span class="bpm-tag">90 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- Personal Cover from Neil — visible to all automatically (covers are shared by default) -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Superstition</div>
+        <div class="song-artist">Stevie Wonder</div>
+        <div class="song-meta">
+          <span class="badge badge-personal">Personal</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">100 bpm</span>
+          <span class="owner-tag">Neil</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon disabled" title="Can't edit — not your song">&#9998;</button>
+        <button class="btn-icon disabled" title="Can't delete — not your song">&#10005;</button>
+      </div>
+    </div>
+
+    <!-- Personal Original from Adam — only visible because Adam shared it with you -->
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Daybreak</div>
+        <div class="song-artist">Adam Clarke</div>
+        <div class="song-meta">
+          <span class="badge badge-shared">Shared</span>
+          <span class="badge badge-original">Original</span>
+          <span class="bpm-tag">112 bpm</span>
+          <span class="owner-tag">from Adam</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon disabled">&#9998;</button>
+        <button class="btn-icon disabled">&#10005;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Badge logic:</strong><br>
+    - TGT songs: teal "TGT" badge, all members can edit/delete<br>
+    - Your own personal songs: orange "My Song" badge, full edit/delete<br>
+    - Other members' personal covers: orange "Personal" badge + owner name — visible to all automatically, play only<br>
+    - Shared personal originals: purple "Shared" badge + "from [owner]" — only visible if explicitly shared, play only<br>
+    - Non-shared personal originals: invisible (RLS hides them)
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 2: Library — My Songs filter -->
+<!-- ============================================================ -->
+<div id="library-my" class="screen">
+  <h2>Library</h2>
+
+  <div class="note">
+    Scope = "My Songs" — shows only songs you personally uploaded (personal_cover + personal_original where created_by = you).
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-pill active">Songs</button>
+    <button class="tab-pill">Setlists</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Scope</span>
+      <select class="filter-select">
+        <option>All Songs</option>
+        <option>TGT</option>
+        <option selected>My Songs</option>
+        <option>Shared With Me</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Type</span>
+      <select class="filter-select" style="min-width: 120px;">
+        <option selected>All</option>
+        <option>Covers</option>
+        <option>Originals</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search songs..." />
+  </div>
+
+  <div class="song-count">2 songs</div>
+
+  <div class="song-list">
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Big Yellow Taxi</div>
+        <div class="song-artist">Joni Mitchell</div>
+        <div class="song-meta">
+          <span class="badge badge-personal">My Song</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">167 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Warm Signal</div>
+        <div class="song-artist">Nathan Thomas</div>
+        <div class="song-meta">
+          <span class="badge badge-personal">My Song</span>
+          <span class="badge badge-original">Original</span>
+          <span class="bpm-tag">90 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>My Songs scope:</strong> Only your own personal uploads. No TGT songs, no shared songs. Full edit/delete on all.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 3: Library — Shared With Me -->
+<!-- ============================================================ -->
+<div id="library-shared" class="screen">
+  <h2>Library</h2>
+
+  <div class="note">
+    Scope = "Shared With Me" — shows personal <strong>originals</strong> that other members have explicitly shared with you.<br>
+    Personal covers don't appear here — they're already visible to everyone under "All Songs".
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-pill active">Songs</button>
+    <button class="tab-pill">Setlists</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Scope</span>
+      <select class="filter-select">
+        <option>All Songs</option>
+        <option>TGT</option>
+        <option>My Songs</option>
+        <option selected>Shared With Me</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Type</span>
+      <select class="filter-select" style="min-width: 120px;">
+        <option selected>All</option>
+        <option>Covers</option>
+        <option>Originals</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search songs..." />
+  </div>
+
+  <div class="song-count">1 song</div>
+
+  <div class="song-list">
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Daybreak</div>
+        <div class="song-artist">Adam Clarke</div>
+        <div class="song-meta">
+          <span class="badge badge-shared">Shared</span>
+          <span class="badge badge-original">Original</span>
+          <span class="bpm-tag">112 bpm</span>
+          <span class="owner-tag">from Adam</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon disabled">&#9998;</button>
+        <button class="btn-icon disabled">&#10005;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Shared With Me scope:</strong> Only personal originals that others explicitly shared with you. Play-only.<br>
+    Personal covers are NOT here — they're visible to everyone automatically (no sharing needed).
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 4: Library — TGT + Covers combo -->
+<!-- ============================================================ -->
+<div id="library-tgt-covers" class="screen">
+  <h2>Library</h2>
+
+  <div class="note">
+    Example of combining both dropdowns: Scope = "TGT" + Type = "Covers" → shows only TGT covers.
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-pill active">Songs</button>
+    <button class="tab-pill">Setlists</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Scope</span>
+      <select class="filter-select">
+        <option>All Songs</option>
+        <option selected>TGT</option>
+        <option>My Songs</option>
+        <option>Shared With Me</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Type</span>
+      <select class="filter-select" style="min-width: 120px;">
+        <option>All</option>
+        <option selected>Covers</option>
+        <option>Originals</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search songs..." />
+  </div>
+
+  <div class="song-count">2 songs</div>
+
+  <div class="song-list">
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Cissy Strut</div>
+        <div class="song-artist">The Meters</div>
+        <div class="song-meta">
+          <span class="badge badge-tgt">TGT</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">104 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="song-info">
+        <div class="song-title">Sultans of Swing</div>
+        <div class="song-artist">Dire Straits</div>
+        <div class="song-meta">
+          <span class="badge badge-tgt">TGT</span>
+          <span class="badge badge-cover">Cover</span>
+          <span class="bpm-tag">148 bpm</span>
+        </div>
+      </div>
+      <div class="song-actions">
+        <button class="btn-icon" title="Practice">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+        <button class="btn-icon" title="Delete">&#10005;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Dropdown combos:</strong> Scope and Type work independently. Every combination is valid:<br>
+    TGT + Covers, TGT + Originals, My Songs + Covers, My Songs + Originals, Shared + Covers, etc.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 5: SongForm — TGT Song -->
+<!-- ============================================================ -->
+<div id="songform-tgt" class="screen">
+  <h2>Edit Song — TGT</h2>
+
+  <div class="note">
+    TGT songs have no sharing section. Category is a single dropdown with 4 options.
+  </div>
+
+  <div class="form-section">
+    <h4>Song Details</h4>
+    <div class="form-row">
+      <span class="form-label">Name</span>
+      <input class="form-input" value="Cissy Strut" readonly>
+    </div>
+    <div class="form-row">
+      <span class="form-label">Artist</span>
+      <input class="form-input" value="The Meters" readonly>
+    </div>
+    <div class="form-row">
+      <span class="form-label">Category</span>
+      <select class="cat-select">
+        <option selected>TGT Cover</option>
+        <option>TGT Original</option>
+        <option>Personal Cover</option>
+        <option>Personal Original</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>TGT songs:</strong> No owner selector, no sharing section. Every member can edit. If you change category to "Personal", it becomes yours and the sharing section appears.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 6: SongForm — Personal Cover (no sharing needed) -->
+<!-- ============================================================ -->
+<div id="songform-personal-cover" class="screen">
+  <h2>Edit Song — Personal Cover</h2>
+
+  <div class="note">
+    Personal covers are visible to <strong>all band members</strong> automatically — good to know what everyone already knows.<br>
+    No sharing section needed. Owner still has full edit/delete; others can play + add their own stems.
+  </div>
+
+  <div class="form-section">
+    <h4>Song Details</h4>
+    <div class="form-row">
+      <span class="form-label">Name</span>
+      <input class="form-input" value="Big Yellow Taxi">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Artist</span>
+      <input class="form-input" value="Joni Mitchell">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Category</span>
+      <select class="cat-select">
+        <option>TGT Cover</option>
+        <option>TGT Original</option>
+        <option selected>Personal Cover</option>
+        <option>Personal Original</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Personal covers:</strong><br>
+    - Visible to all members automatically (no sharing UI)<br>
+    - Owner has full edit/delete<br>
+    - Other members can play + add their own stems, but can't edit/delete the song or owner's stems<br>
+    - If you change to "Personal Original", the sharing section appears (originals need explicit sharing)
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 7: SongForm — Personal Original + Sharing -->
+<!-- ============================================================ -->
+<div id="songform-personal-original" class="screen">
+  <h2>Edit Song — Personal Original (Owner View)</h2>
+
+  <div class="note">
+    Personal originals need <strong>explicit sharing</strong> — your own compositions/WIPs that you choose to share selectively.
+  </div>
+
+  <div class="form-section">
+    <h4>Song Details</h4>
+    <div class="form-row">
+      <span class="form-label">Name</span>
+      <input class="form-input" value="Warm Signal">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Artist</span>
+      <input class="form-input" value="Nathan Thomas">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Category</span>
+      <select class="cat-select">
+        <option>TGT Cover</option>
+        <option>TGT Original</option>
+        <option>Personal Cover</option>
+        <option selected>Personal Original</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Sharing section — only for personal originals -->
+  <div class="form-section">
+    <h4>Sharing</h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">
+      Choose which band members can see and practice this original. Shared members can add their own stems but can't edit or delete yours.
+    </p>
+
+    <div class="share-list">
+      <div class="share-row">
+        <div class="share-avatar">N</div>
+        <span class="share-name">Neil</span>
+        <span class="share-role">Bass</span>
+        <button class="btn-remove">Remove</button>
+      </div>
+    </div>
+
+    <div class="share-add-row">
+      <select class="form-select" style="max-width: 200px;">
+        <option value="">Add member...</option>
+        <option value="adam">Adam — Guitar & Backing Vocals</option>
+        <option value="james">James — Lead Vocals</option>
+      </select>
+      <button class="btn-add">+ Share</button>
+    </div>
+
+    <p class="hint">
+      Only members you share with will see this song. You always have full access as the owner.
+    </p>
+  </div>
+
+  <div class="annotation">
+    <strong>Sharing rules (originals only):</strong><br>
+    - Sharing section ONLY appears for Personal Original (not Personal Cover)<br>
+    - Personal covers = visible to all automatically<br>
+    - Personal originals = private by default, opt-in sharing<br>
+    - Shared users can: play, view stems, add their own stems<br>
+    - Shared users cannot: edit song, delete song, touch other members' stems
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 7: SongForm — Shared Song (Non-owner) -->
+<!-- ============================================================ -->
+<div id="songform-shared-view" class="screen">
+  <h2>View Song — Shared (Non-owner)</h2>
+
+  <div class="note">
+    When viewing a personal song shared with you that you don't own, everything is read-only except your own stems.
+  </div>
+
+  <div class="form-section" style="opacity: 0.7;">
+    <h4>Song Details <span style="font-size: 11px; color: var(--orange); font-weight: normal; text-transform: none;">(read-only — owned by Neil)</span></h4>
+    <div class="form-row">
+      <span class="form-label">Name</span>
+      <input class="form-input" value="Superstition" disabled style="opacity: 0.5;">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Artist</span>
+      <input class="form-input" value="Stevie Wonder" disabled style="opacity: 0.5;">
+    </div>
+    <div class="form-row">
+      <span class="form-label">Category</span>
+      <select class="cat-select" disabled style="opacity: 0.5;">
+        <option>TGT Cover</option>
+        <option>TGT Original</option>
+        <option selected>Personal Cover</option>
+        <option>Personal Original</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Stems — can see all, manage own -->
+  <div class="form-section">
+    <h4>Stems</h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 10px;">
+      You can add your own stems. Other members' stems are visible but locked.
+    </p>
+
+    <div class="share-list">
+      <!-- Neil's stem — locked -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal);">B</div>
+        <span class="share-name">Bass stem</span>
+        <span class="share-role" style="color: var(--teal);">Neil's</span>
+        <span class="lock-icon" title="Can't delete — not your stem">&#128274;</span>
+      </div>
+      <!-- Your stem — deletable -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green);">D</div>
+        <span class="share-name">Drums take #1</span>
+        <span class="share-role" style="color: var(--green);">Yours</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+
+    <div class="share-add-row">
+      <button class="btn-add">+ Upload Your Stem</button>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Non-owner view:</strong><br>
+    - Song details greyed out + disabled (can't change name, artist, category)<br>
+    - No sharing section (only the owner manages who sees it)<br>
+    - All stems visible, but only your own stems have delete buttons<br>
+    - You can upload new stems (tagged with your created_by)<br>
+    - If Neil un-shares this song, it vanishes from your Library
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 9: My Takes (Owner View) -->
+<!-- ============================================================ -->
+<div id="takes-owner" class="screen">
+  <h2>My Takes — Cissy Strut</h2>
+
+  <div class="note">
+    <strong>Takes = recorded performances.</strong> When you record yourself playing along (via EAD-10 USB on native, or mic/line-in on web),
+    each recording is saved as a "take". You can have multiple takes per song. Mark your best one — it gets promoted
+    to the stem list so other members can hear it during practice.<br><br>
+    Takes are stored as stems with <code>source = 'recorded'</code> and your <code>created_by</code>.
+  </div>
+
+  <div class="form-section">
+    <h4>My Drum Takes</h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+      Your recorded takes for this song. Mark one as "best" to add it to the track's stems for everyone.
+    </p>
+
+    <div class="share-list">
+      <!-- Take 1 — not best -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: var(--inset); color: var(--text-muted); font-size: 10px;">1</div>
+        <div style="flex: 1;">
+          <span class="share-name">Take #1</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">2:43 &middot; 9 Mar</span>
+        </div>
+        <button class="btn-icon" title="Play" style="width: 28px; height: 28px; font-size: 11px;">&#9654;</button>
+        <button style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--border); background: var(--card-light); color: var(--text-muted); border-radius: 12px; cursor: pointer; font-family: inherit;">Set Best</button>
+        <button class="btn-remove">Delete</button>
+      </div>
+
+      <!-- Take 2 — BEST (promoted to stems) -->
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.03);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">2</div>
+        <div style="flex: 1;">
+          <span class="share-name" style="color: var(--green);">Take #2</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">3:01 &middot; 9 Mar</span>
+          <span class="badge" style="background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); margin-left: 6px; font-size: 9px;">BEST</span>
+        </div>
+        <button class="btn-icon" title="Play" style="width: 28px; height: 28px; font-size: 11px; border-color: rgba(0,230,118,0.3); color: var(--green);">&#9654;</button>
+        <span style="font-size: 10px; color: var(--green); opacity: 0.7; padding: 0 6px;">In stems</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+
+      <!-- Take 3 — not best -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: var(--inset); color: var(--text-muted); font-size: 10px;">3</div>
+        <div style="flex: 1;">
+          <span class="share-name">Take #3</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">2:58 &middot; 9 Mar</span>
+        </div>
+        <button class="btn-icon" title="Play" style="width: 28px; height: 28px; font-size: 11px;">&#9654;</button>
+        <button style="padding: 3px 10px; font-size: 11px; border: 1px solid var(--border); background: var(--card-light); color: var(--text-muted); border-radius: 12px; cursor: pointer; font-family: inherit;">Set Best</button>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- What the stems section looks like with a promoted take -->
+  <div class="form-section">
+    <h4>Stems (what everyone sees in practice)</h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+      The "best" take appears here alongside auto-generated Demucs stems and uploaded stems.
+    </p>
+
+    <div class="share-list">
+      <!-- Auto stems from Demucs -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">D</div>
+        <span class="share-name">Drums</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">B</div>
+        <span class="share-name">Bass</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">V</div>
+        <span class="share-name">Vocals</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">O</div>
+        <span class="share-name">Other</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <!-- Nathan's best take — promoted into stems -->
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+        <span class="share-name" style="color: var(--green);">Nathan's Drums (best take)</span>
+        <span class="share-role" style="color: var(--green);">recorded</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>How takes work:</strong><br>
+    - Record via EAD-10 USB (native practice mode) or selfie-record (future web feature)<br>
+    - Each recording saved as a take (stem with <code>source='recorded'</code>)<br>
+    - Only visible to the owner by default (your practice history)<br>
+    - Click "Set Best" → that take gets <code>is_best_take=true</code> and appears in the stems list for everyone<br>
+    - Changing best take swaps which one is promoted — old best goes back to takes-only<br>
+    - Other members see it as a regular stem in practice mode (mute/solo/gain controls)<br>
+    - Only one best take per user per song
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 10: Takes — Other Member's View -->
+<!-- ============================================================ -->
+<div id="takes-other" class="screen">
+  <h2>Stems — Cissy Strut (Neil's View)</h2>
+
+  <div class="note">
+    What other members see in the stems section. Nathan's "best take" appears as a normal stem they can listen to during practice.
+    They don't see Nathan's other takes (those are private to Nathan).
+  </div>
+
+  <div class="form-section">
+    <h4>Stems</h4>
+
+    <div class="share-list">
+      <!-- Auto stems -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">D</div>
+        <span class="share-name">Drums</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">B</div>
+        <span class="share-name">Bass</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">V</div>
+        <span class="share-name">Vocals</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">O</div>
+        <span class="share-name">Other</span>
+        <span class="share-role" style="color: var(--teal);">auto</span>
+      </div>
+      <!-- Nathan's promoted take — Neil sees it as a stem -->
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+        <span class="share-name">Nathan's Drums (recorded)</span>
+        <span class="share-role" style="color: var(--green);">Nathan</span>
+        <span class="lock-icon" title="Can't delete — Nathan's stem">&#128274;</span>
+      </div>
+    </div>
+
+    <!-- Neil can upload his own -->
+    <div class="share-add-row">
+      <button class="btn-add">+ Upload Your Stem</button>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h4>My Bass Takes</h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+      Neil's own takes — same workflow. Record, review, mark best.
+    </p>
+
+    <div class="share-list">
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.03);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">1</div>
+        <div style="flex: 1;">
+          <span class="share-name" style="color: var(--green);">Take #1</span>
+          <span style="font-size: 11px; color: var(--text-muted); margin-left: 8px;">3:12 &middot; 9 Mar</span>
+          <span class="badge" style="background: rgba(0,230,118,0.15); color: var(--green); border: 1px solid rgba(0,230,118,0.3); margin-left: 6px; font-size: 9px;">BEST</span>
+        </div>
+        <button class="btn-icon" title="Play" style="width: 28px; height: 28px; font-size: 11px; border-color: rgba(0,230,118,0.3); color: var(--green);">&#9654;</button>
+        <span style="font-size: 10px; color: var(--green); opacity: 0.7; padding: 0 6px;">In stems</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Key points:</strong><br>
+    - Each member only sees their own takes section (private practice history)<br>
+    - Best takes from OTHER members appear as normal stems (play/mute/solo in practice mode)<br>
+    - Neil can't delete Nathan's promoted take (lock icon)<br>
+    - Neil can promote his own best bass take — it would appear for everyone too<br>
+    - Multiple members can each have a best take for the same song (Nathan's drums + Neil's bass + etc.)
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SCREEN 11: View Mode (Playback) -->
+<!-- ============================================================ -->
+<div id="view-mode" class="screen">
+  <h2>View Mode — Cissy Strut</h2>
+
+  <div class="note">
+    <strong>View mode = watch back your performance.</strong> Same player chrome as Live/Practice.
+    Your local best-take video plays in the hero area. All members' best-take audio stems play together from Supabase.
+    Stem mixer lives in the drawer (same as other modes).<br><br>
+    <strong>Video is local</strong> (D-132) — you only see your own camera angle here.
+    Multi-cam editing = collect everyone's local video files onto one machine + sync in DaVinci/CapCut by audio waveform.
+  </div>
+
+  <!-- Player shell — matches Live/Practice layout -->
+  <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;">
+
+    <!-- Mode tabs at top -->
+    <div style="display: flex; border-bottom: 1px solid var(--border); padding: 0;">
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Live</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Practice</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--green); cursor: pointer; border-bottom: 2px solid var(--green); font-weight: 600;">View</div>
+    </div>
+
+    <!-- Visual hero — video player area -->
+    <div style="background: var(--bg); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--border);">
+      <!-- Video placeholder -->
+      <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #0a0a14 0%, #141420 50%, #0a0a14 100%); display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="font-size: 48px; opacity: 0.3; margin-bottom: 8px;">&#9654;</div>
+        <div style="font-size: 13px; color: var(--text-dim);">Your best take video</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Nathan's Drums — Take #2</div>
+      </div>
+      <!-- Song info overlay (top-left) -->
+      <div style="position: absolute; top: 10px; left: 12px;">
+        <div style="font-size: 14px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">Cissy Strut</div>
+        <div style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">The Meters &middot; 104 bpm</div>
+      </div>
+      <!-- Playback time overlay (bottom-right) -->
+      <div style="position: absolute; bottom: 10px; right: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">
+        1:24 / 2:43
+      </div>
+    </div>
+
+    <!-- Waveform / seek bar -->
+    <div style="height: 32px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; position: relative;">
+      <div style="flex: 1; height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative;">
+        <!-- Progress -->
+        <div style="width: 52%; height: 100%; background: linear-gradient(90deg, rgba(0,230,118,0.15), rgba(0,230,118,0.25)); border-right: 2px solid var(--green);"></div>
+      </div>
+    </div>
+
+    <!-- Transport controls -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px;">
+      <button class="btn-icon" title="Previous" style="width: 36px; height: 36px;">&#9198;</button>
+      <button class="btn-icon" title="Rewind 5s" style="width: 36px; height: 36px; font-size: 11px;">-5</button>
+      <button class="btn-icon" title="Play/Pause" style="width: 44px; height: 44px; font-size: 18px; background: var(--green); color: var(--bg); border-color: var(--green);">&#9654;</button>
+      <button class="btn-icon" title="Forward 5s" style="width: 36px; height: 36px; font-size: 11px;">+5</button>
+      <button class="btn-icon" title="Next" style="width: 36px; height: 36px;">&#9197;</button>
+    </div>
+  </div>
+
+  <!-- Drawer preview — stem mixer (normally in bottom sheet) -->
+  <div class="form-section">
+    <h4>Stem Mixer <span style="font-size: 10px; color: var(--text-muted); font-weight: normal; text-transform: none;">(in drawer)</span></h4>
+    <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">
+      Same mixer as Practice mode. Mute/solo/gain on all stems including best takes.
+    </p>
+
+    <div class="share-list">
+      <!-- Practice track (original mix) -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(66,165,245,0.15); color: var(--blue); font-size: 9px;">MIX</div>
+        <span class="share-name">Original Mix</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 70%; height: 100%; background: var(--blue); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;" title="Mute">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;" title="Solo">S</button>
+      </div>
+
+      <!-- Auto stems -->
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">D</div>
+        <span class="share-name">Drums</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 80%; height: 100%; background: var(--teal); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">B</div>
+        <span class="share-name">Bass</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 75%; height: 100%; background: var(--teal); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">V</div>
+        <span class="share-name">Vocals</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 65%; height: 100%; background: var(--teal); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+      </div>
+
+      <!-- Best takes from members -->
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+        <span class="share-name" style="color: var(--green);">Nathan's Drums</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 85%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px; background: var(--green); color: var(--bg); border-color: var(--green);">S</button>
+      </div>
+      <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+        <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+        <span class="share-name" style="color: var(--green);">Neil's Bass</span>
+        <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+          <div style="width: 75%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+        </div>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+        <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>View mode:</strong><br>
+    - Same player chrome as Live/Practice — 3rd tab in the mode switcher<br>
+    - Hero area plays YOUR local best-take video (the file saved to your device during recording)<br>
+    - All audio stems play together: original mix + Demucs auto stems + everyone's best takes<br>
+    - Mixer in drawer: mute/solo/gain per stem — solo Nathan's drums to review, mute original to hear just the takes, etc.<br>
+    - No click track, no speed controls — pure playback<br>
+    - Video stays local (D-132) — you only see your own angle<br>
+    - <strong>Multi-cam</strong>: Collect all members' video files → sync by audio waveform → edit in DaVinci Resolve / CapCut. Separate offline workflow, not in-app.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Screen 12a: Recording — Video OFF (Audio Visualiser)         -->
+<!-- ============================================================ -->
+<div id="recording-active" class="screen">
+  <h2>Recording — Video OFF</h2>
+  <div class="note">
+    Same player chrome as Live/Practice/View. Hero area becomes a live input level visualiser in neumorphic style.
+    Input device, camera toggle, click, count-in — all in the drawer.
+  </div>
+
+  <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;">
+    <!-- Mode tabs -->
+    <div style="display: flex; border-bottom: 1px solid var(--border);">
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Live</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Practice</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--red); cursor: pointer; border-bottom: 2px solid var(--red); font-weight: 600;">Record</div>
+    </div>
+
+    <!-- Visual hero — live input visualiser fills the area -->
+    <div style="background: var(--bg); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--border); overflow: hidden;">
+      <!-- Neumorphic inset well -->
+      <div style="position: absolute; inset: 8px; background: var(--inset); border-radius: var(--radius); box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), inset 0 -1px 4px rgba(255,255,255,0.03); display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 16px 20px;">
+        <!-- Live input bars — gradient green→yellow→orange at peaks -->
+        <div style="width: 6px; flex: 0 0 6px; height: 15%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 35%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 55%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 78%; background: linear-gradient(to top, var(--green), #ffeb3b); border-radius: 3px; box-shadow: 0 0 10px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 92%; background: linear-gradient(to top, var(--green), #ffeb3b, var(--orange)); border-radius: 3px; box-shadow: 0 0 12px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 65%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 80%; background: linear-gradient(to top, var(--green), #ffeb3b); border-radius: 3px; box-shadow: 0 0 10px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 45%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 70%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 88%; background: linear-gradient(to top, var(--green), #ffeb3b, var(--orange)); border-radius: 3px; box-shadow: 0 0 12px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 52%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 73%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 40%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 60%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 85%; background: linear-gradient(to top, var(--green), #ffeb3b); border-radius: 3px; box-shadow: 0 0 10px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 48%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 30%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 62%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.5)); border-radius: 3px; box-shadow: 0 0 8px rgba(0,230,118,0.3);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 75%; background: linear-gradient(to top, var(--green), #ffeb3b); border-radius: 3px; box-shadow: 0 0 10px rgba(0,230,118,0.4);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 42%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+        <div style="width: 6px; flex: 0 0 6px; height: 20%; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.4)); border-radius: 3px; box-shadow: 0 0 6px rgba(0,230,118,0.2);"></div>
+      </div>
+
+      <!-- Song info overlay (top-left) -->
+      <div style="position: absolute; top: 14px; left: 16px; z-index: 1;">
+        <div style="font-size: 14px; font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,0.9);">Cissy Strut</div>
+        <div style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 6px rgba(0,0,0,0.9);">The Meters &middot; 104 bpm</div>
+      </div>
+
+      <!-- REC badge (top-right) -->
+      <div style="position: absolute; top: 12px; right: 14px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255,82,82,0.15); border: 1px solid rgba(255,82,82,0.4); border-radius: 16px; backdrop-filter: blur(4px);">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 8px rgba(255,82,82,0.6);"></div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--red); font-weight: 500;">REC 0:42</span>
+      </div>
+
+      <!-- Take + time (bottom) -->
+      <div style="position: absolute; bottom: 12px; left: 0; right: 0; z-index: 1; display: flex; justify-content: space-between; padding: 0 16px;">
+        <span style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">Take #3</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">0:42 / 2:43</span>
+      </div>
+    </div>
+
+    <!-- Waveform / seek bar -->
+    <div style="height: 32px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px;">
+      <div style="flex: 1; height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative;">
+        <div style="width: 26%; height: 100%; background: linear-gradient(90deg, rgba(0,230,118,0.15), rgba(0,230,118,0.25)); border-right: 2px solid var(--green);"></div>
+      </div>
+    </div>
+
+    <!-- Transport — stop button centre -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px;">
+      <button class="btn-icon" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9198;</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>-5</button>
+      <button class="btn-icon" title="Stop Recording" style="width: 48px; height: 48px; font-size: 20px; background: var(--red); color: white; border-color: var(--red); box-shadow: 0 0 16px rgba(255,82,82,0.3);">&#9632;</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>+5</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9197;</button>
+    </div>
+  </div>
+
+  <!-- Drawer -->
+  <div class="form-section">
+    <h4>Recording Drawer <span style="font-size: 10px; color: var(--text-muted); font-weight: normal; text-transform: none;">(all settings live here)</span></h4>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Input Device</span>
+      <select class="filter-select" style="min-width: 160px; padding: 4px 8px; font-size: 12px;">
+        <option>Focusrite Scarlett 2i2</option>
+        <option>Built-in Microphone</option>
+        <option>EAD-10 USB Audio</option>
+      </select>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <div>
+        <span style="font-size: 13px;">Camera (Selfie)</span>
+        <div style="font-size: 10px; color: var(--text-muted);">Video stays local (D-132)</div>
+      </div>
+      <div style="width: 40px; height: 22px; background: var(--inset); border: 1px solid var(--border); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: var(--text-muted); border-radius: 50%; position: absolute; top: 2px; left: 2px;"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Click Track</span>
+      <div style="width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Count-in</span>
+      <select class="filter-select" style="min-width: 80px; padding: 4px 8px; font-size: 12px;">
+        <option>Off</option>
+        <option selected>1 bar</option>
+        <option>2 bars</option>
+        <option>4 bars</option>
+      </select>
+    </div>
+
+    <div style="margin-top: 10px;">
+      <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Overdub Mix (what you hear)</div>
+      <div class="share-list">
+        <div class="share-row">
+          <div class="share-avatar" style="background: rgba(66,165,245,0.15); color: var(--blue); font-size: 9px;">MIX</div>
+          <span class="share-name">Original Mix</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 70%; height: 100%; background: var(--blue); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+        <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+          <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+          <span class="share-name" style="color: var(--green);">Neil's Bass (best)</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 75%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Recording — Video OFF:</strong><br>
+    - Same player chrome as Live/Practice/View — unified styling. "Record" tab highlighted red.<br>
+    - Hero = neumorphic inset well filled with live input level bars. Gradient green→yellow→orange at peaks. Glowing bar shadows. Fills the full 16:9 hero.<br>
+    - REC badge top-right, song info top-left, take # + elapsed bottom. Same overlay style as other modes.<br>
+    - ALL settings in drawer: input device picker, camera toggle (OFF here), click on/off, count-in, overdub stem mixer.<br>
+    - Toggling camera ON in drawer switches hero from visualiser → camera feed (see Screen 12b).<br>
+    - Transport: red glowing stop button centre. Seek/skip disabled during recording.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- Screen 12b: Recording — Video ON (Camera + Input Bar)         -->
+<!-- ============================================================ -->
+<div id="recording-video" class="screen">
+  <h2>Recording — Video ON</h2>
+  <div class="note">
+    Camera enabled via drawer toggle. Camera feed fills the hero (same as View Mode recording — Screen 14).
+    Input level bar sits directly under the video. Same player chrome, same drawer.
+  </div>
+
+  <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px;">
+    <!-- Mode tabs -->
+    <div style="display: flex; border-bottom: 1px solid var(--border);">
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Live</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Practice</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--red); cursor: pointer; border-bottom: 2px solid var(--red); font-weight: 600;">Record</div>
+    </div>
+
+    <!-- Visual hero — camera feed -->
+    <div style="background: var(--bg); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--border); overflow: hidden;">
+      <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #12121a 0%, #1a1a28 40%, #14141e 100%); display: flex; align-items: center; justify-content: center;">
+        <div style="font-size: 36px; opacity: 0.15;">&#127909;</div>
+      </div>
+
+      <!-- Song info (top-left) -->
+      <div style="position: absolute; top: 12px; left: 14px; z-index: 1;">
+        <div style="font-size: 14px; font-weight: 600; text-shadow: 0 1px 6px rgba(0,0,0,0.9);">Cissy Strut</div>
+        <div style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 6px rgba(0,0,0,0.9);">The Meters &middot; 104 bpm</div>
+      </div>
+
+      <!-- REC badge (top-right) -->
+      <div style="position: absolute; top: 12px; right: 14px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(255,82,82,0.2); border: 1px solid rgba(255,82,82,0.5); border-radius: 16px; backdrop-filter: blur(6px);">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px rgba(255,82,82,0.7);"></div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--red); font-weight: 500;">REC 1:18</span>
+      </div>
+
+      <!-- Take + time (bottom) -->
+      <div style="position: absolute; bottom: 10px; left: 0; right: 0; z-index: 1; display: flex; justify-content: space-between; padding: 0 14px;">
+        <span style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">Take #4</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">1:18 / 2:43</span>
+      </div>
+    </div>
+
+    <!-- Input level bar (under video) -->
+    <div style="height: 24px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 8px;">
+      <span style="font-size: 9px; color: var(--text-muted); min-width: 30px;">INPUT</span>
+      <div style="flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;">
+        <div style="width: 65%; height: 100%; background: linear-gradient(90deg, var(--green), #ffeb3b); border-radius: 3px;"></div>
+      </div>
+      <span style="font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; min-width: 28px;">-6dB</span>
+    </div>
+
+    <!-- Waveform / seek bar -->
+    <div style="height: 32px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px;">
+      <div style="flex: 1; height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative;">
+        <div style="width: 48%; height: 100%; background: linear-gradient(90deg, rgba(0,230,118,0.15), rgba(0,230,118,0.25)); border-right: 2px solid var(--green);"></div>
+      </div>
+    </div>
+
+    <!-- Transport — stop button -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px;">
+      <button class="btn-icon" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9198;</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>-5</button>
+      <button class="btn-icon" title="Stop Recording" style="width: 48px; height: 48px; font-size: 20px; background: var(--red); color: white; border-color: var(--red); box-shadow: 0 0 16px rgba(255,82,82,0.3);">&#9632;</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>+5</button>
+      <button class="btn-icon" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9197;</button>
+    </div>
+  </div>
+
+  <!-- Drawer (camera ON state) -->
+  <div class="form-section">
+    <h4>Recording Drawer <span style="font-size: 10px; color: var(--text-muted); font-weight: normal; text-transform: none;">(camera enabled)</span></h4>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Input Device</span>
+      <select class="filter-select" style="min-width: 160px; padding: 4px 8px; font-size: 12px;">
+        <option selected>Focusrite Scarlett 2i2</option>
+        <option>Built-in Microphone</option>
+      </select>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <div>
+        <span style="font-size: 13px;">Camera (Selfie)</span>
+        <div style="font-size: 10px; color: var(--text-muted);">Video stays local (D-132)</div>
+      </div>
+      <div style="width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Click Track</span>
+      <div style="width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Count-in</span>
+      <select class="filter-select" style="min-width: 80px; padding: 4px 8px; font-size: 12px;">
+        <option>Off</option>
+        <option selected>1 bar</option>
+        <option>2 bars</option>
+        <option>4 bars</option>
+      </select>
+    </div>
+
+    <div style="margin-top: 10px;">
+      <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Overdub Mix</div>
+      <div class="share-list">
+        <div class="share-row">
+          <div class="share-avatar" style="background: rgba(66,165,245,0.15); color: var(--blue); font-size: 9px;">MIX</div>
+          <span class="share-name">Original Mix</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 70%; height: 100%; background: var(--blue); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+        <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+          <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+          <span class="share-name" style="color: var(--green);">Neil's Bass (best)</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 75%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Recording — Video ON:</strong><br>
+    - Same player chrome. Camera feed fills hero (same layout as View Mode recording — Screen 14).<br>
+    - Input level bar directly under video — green→yellow gradient, dB readout.<br>
+    - Toggling camera OFF in drawer switches hero back to full-screen input visualiser (Screen 12a).<br>
+    - Video saved locally (File System Access API / download). Audio extracted → stem upload.<br>
+    - Same drawer, same transport, same overdub mix — only the hero visual changes between camera and visualiser.
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- Screen 13: Post-Recording Options                            -->
+<!-- ============================================================ -->
+<div id="post-recording" class="screen">
+  <h2>Post-Recording — Take Options</h2>
+  <div class="note">
+    Appears when recording stops. 4 clear options (D-139). User decides immediately what to do with the take.
+    Non-best takes stay local (IndexedDB). Only best take uploads to Supabase (D-145).
+  </div>
+
+  <div class="form-card">
+    <div style="text-align: center; margin-bottom: 16px;">
+      <div style="font-size: 16px; font-weight: 600;">Cissy Strut</div>
+      <div style="font-size: 12px; color: var(--text-dim); margin-top: 2px;">The Meters &middot; 104 BPM</div>
+    </div>
+
+    <!-- Take info -->
+    <div style="text-align: center; padding: 16px; background: var(--inset); border-radius: var(--radius); margin-bottom: 20px;">
+      <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Recording Complete</div>
+      <div style="font-size: 20px; font-weight: 700; color: var(--green);">Take #3</div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-dim); margin-top: 4px;">Duration: 2:43</div>
+      <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Focusrite Scarlett 2i2 USB &middot; Video captured</div>
+    </div>
+
+    <!-- Mini waveform of recorded audio -->
+    <div style="height: 40px; background: var(--inset); border-radius: var(--radius-sm); display: flex; align-items: flex-end; justify-content: center; gap: 1px; padding: 4px 12px; margin-bottom: 20px;">
+      <div style="width: 2px; height: 30%; background: var(--green); border-radius: 1px; opacity: 0.6;"></div>
+      <div style="width: 2px; height: 45%; background: var(--green); border-radius: 1px; opacity: 0.7;"></div>
+      <div style="width: 2px; height: 60%; background: var(--green); border-radius: 1px; opacity: 0.8;"></div>
+      <div style="width: 2px; height: 80%; background: var(--green); border-radius: 1px;"></div>
+      <div style="width: 2px; height: 55%; background: var(--green); border-radius: 1px; opacity: 0.7;"></div>
+      <div style="width: 2px; height: 70%; background: var(--green); border-radius: 1px;"></div>
+      <div style="width: 2px; height: 40%; background: var(--green); border-radius: 1px; opacity: 0.6;"></div>
+      <div style="width: 2px; height: 90%; background: var(--green); border-radius: 1px;"></div>
+      <div style="width: 2px; height: 50%; background: var(--green); border-radius: 1px; opacity: 0.7;"></div>
+      <div style="width: 2px; height: 75%; background: var(--green); border-radius: 1px;"></div>
+      <div style="width: 2px; height: 35%; background: var(--green); border-radius: 1px; opacity: 0.6;"></div>
+      <div style="width: 2px; height: 65%; background: var(--green); border-radius: 1px; opacity: 0.8;"></div>
+      <div style="width: 2px; height: 85%; background: var(--green); border-radius: 1px;"></div>
+      <div style="width: 2px; height: 45%; background: var(--green); border-radius: 1px; opacity: 0.7;"></div>
+      <div style="width: 2px; height: 55%; background: var(--green); border-radius: 1px; opacity: 0.7;"></div>
+      <div style="width: 2px; height: 70%; background: var(--green); border-radius: 1px;"></div>
+    </div>
+
+    <!-- 4 Action buttons -->
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      <!-- Option 1: Discard & Re-take -->
+      <button style="width: 100%; padding: 14px 16px; background: rgba(255,82,82,0.08); border: 1px solid rgba(255,82,82,0.3); border-radius: var(--radius); color: var(--red); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; text-align: left; transition: all 0.15s;">
+        <span style="font-size: 18px;">&#128465;</span>
+        <div>
+          <div>Discard &amp; Re-take</div>
+          <div style="font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px;">Delete this take, start recording again immediately</div>
+        </div>
+      </button>
+
+      <!-- Option 2: Save & Re-take -->
+      <button style="width: 100%; padding: 14px 16px; background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.3); border-radius: var(--radius); color: var(--green); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; text-align: left; transition: all 0.15s;">
+        <span style="font-size: 18px;">&#128260;</span>
+        <div>
+          <div>Save &amp; Re-take</div>
+          <div style="font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px;">Keep this take, immediately start a fresh recording</div>
+        </div>
+      </button>
+
+      <!-- Option 3: Save as Take -->
+      <button style="width: 100%; padding: 14px 16px; background: rgba(66,165,245,0.06); border: 1px solid rgba(66,165,245,0.3); border-radius: var(--radius); color: var(--blue); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; text-align: left; transition: all 0.15s;">
+        <span style="font-size: 18px;">&#128190;</span>
+        <div>
+          <div>Save as Take</div>
+          <div style="font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px;">Keep in takes list, back to takes view</div>
+        </div>
+      </button>
+
+      <!-- Option 4: Save & Preview -->
+      <button style="width: 100%; padding: 14px 16px; background: rgba(187,134,252,0.06); border: 1px solid rgba(187,134,252,0.3); border-radius: var(--radius); color: var(--purple); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; text-align: left; transition: all 0.15s;">
+        <span style="font-size: 18px;">&#9654;</span>
+        <div>
+          <div>Save &amp; Preview</div>
+          <div style="font-size: 11px; font-weight: 400; color: var(--text-muted); margin-top: 2px;">Keep it, play back immediately to review</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Mark as best toggle -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 0; margin-top: 12px; border-top: 1px solid var(--border);">
+      <div>
+        <div style="font-size: 13px; font-weight: 600;">Mark as Best Take</div>
+        <div style="font-size: 11px; color: var(--text-muted);">Uploads to cloud &middot; visible to all members (D-145)</div>
+      </div>
+      <div style="width: 40px; height: 22px; background: var(--inset); border: 1px solid var(--border); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: var(--text-muted); border-radius: 50%; position: absolute; top: 2px; left: 2px;"></div>
+      </div>
+    </div>
+    <div style="font-size: 10px; color: var(--text-muted); padding-bottom: 4px;">
+      Toggling this ON will upload the audio to Supabase and replace your current best take. Video stays local.
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>Post-recording flow (D-139, D-145):</strong><br>
+    - 4 options presented immediately when recording stops — no extra navigation<br>
+    - <strong>Discard &amp; Re-take</strong>: deletes audio + video, jumps straight back to recording. For bad takes.<br>
+    - <strong>Save &amp; Re-take</strong>: keeps this take locally, immediately starts a new recording. Most common workflow — iterate fast.<br>
+    - <strong>Save as Take</strong>: keeps locally, returns to takes list. For reviewing later.<br>
+    - <strong>Save &amp; Preview</strong>: keeps locally, plays it back immediately so you can hear yourself.<br>
+    - <strong>Mark as Best</strong> toggle: OFF by default. When ON, the audio uploads to Supabase storage and becomes the promoted stem visible to all members. Replaces previous best take in cloud. Video is never uploaded.<br>
+    - Non-best takes stay in IndexedDB — available for local playback/review but don't consume cloud storage.
+  </div>
+</div>
+
+
+<!-- ============================================================ -->
+<!-- Screen 14: View Mode — Recording (Layering)                  -->
+<!-- ============================================================ -->
+<div id="view-mode-record" class="screen">
+  <h2>View Mode — Recording (Layering)</h2>
+  <div class="note">
+    Record button in View Mode (D-144). User is already hearing all stems — tap record to layer a new take on top.
+    Same recording flow: count-in → record → post-recording options.
+  </div>
+
+  <div class="form-card" style="padding: 0; overflow: hidden;">
+    <!-- Player chrome — mode tabs -->
+    <div style="display: flex; border-bottom: 1px solid var(--border);">
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Live</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent;">Practice</div>
+      <div style="flex: 1; text-align: center; padding: 8px; font-size: 12px; color: var(--green); cursor: pointer; border-bottom: 2px solid var(--green); font-weight: 600;">View</div>
+    </div>
+
+    <!-- Visual hero — video + recording overlay -->
+    <div style="background: var(--bg); aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid var(--border);">
+      <!-- Video background (dimmed during recording) -->
+      <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #0a0a14 0%, #141420 50%, #0a0a14 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0.5;">
+        <div style="font-size: 48px; opacity: 0.3; margin-bottom: 8px;">&#9654;</div>
+        <div style="font-size: 13px; color: var(--text-dim);">Your best take video</div>
+      </div>
+      <!-- Recording overlay -->
+      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <!-- REC badge -->
+        <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; background: rgba(255,82,82,0.15); border: 1px solid rgba(255,82,82,0.4); border-radius: 24px; backdrop-filter: blur(4px);">
+          <div style="width: 12px; height: 12px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px rgba(255,82,82,0.6);"></div>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; color: var(--red); font-weight: 500;">REC 1:18</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-dim); margin-top: 8px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">Take #4 &middot; Layering on Cissy Strut</div>
+      </div>
+      <!-- Camera pip (small self-view in corner) -->
+      <div style="position: absolute; bottom: 10px; right: 10px; width: 80px; height: 60px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+        <div style="font-size: 8px; color: var(--text-muted);">Camera</div>
+      </div>
+      <!-- Song info overlay (top-left) -->
+      <div style="position: absolute; top: 10px; left: 12px;">
+        <div style="font-size: 14px; font-weight: 600; text-shadow: 0 1px 4px rgba(0,0,0,0.8);">Cissy Strut</div>
+        <div style="font-size: 11px; color: var(--text-dim); text-shadow: 0 1px 4px rgba(0,0,0,0.8);">The Meters &middot; 104 bpm</div>
+      </div>
+    </div>
+
+    <!-- Input level meter -->
+    <div style="height: 24px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 8px;">
+      <span style="font-size: 9px; color: var(--text-muted);">INPUT</span>
+      <div style="flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden;">
+        <div style="width: 65%; height: 100%; background: linear-gradient(90deg, var(--green), #ffeb3b); border-radius: 3px;"></div>
+      </div>
+      <span style="font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">-6dB</span>
+    </div>
+
+    <!-- Waveform / seek bar -->
+    <div style="height: 32px; background: var(--inset); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; position: relative;">
+      <div style="flex: 1; height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; position: relative;">
+        <div style="width: 45%; height: 100%; background: linear-gradient(90deg, rgba(0,230,118,0.15), rgba(0,230,118,0.25)); border-right: 2px solid var(--green);"></div>
+      </div>
+    </div>
+
+    <!-- Transport controls with STOP instead of play -->
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px;">
+      <button class="btn-icon" title="Previous" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9198;</button>
+      <button class="btn-icon" title="Rewind 5s" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>-5</button>
+      <button class="btn-icon" title="Stop Recording" style="width: 44px; height: 44px; font-size: 18px; background: var(--red); color: white; border-color: var(--red);">&#9632;</button>
+      <button class="btn-icon" title="Forward 5s" style="width: 36px; height: 36px; font-size: 11px; opacity: 0.3;" disabled>+5</button>
+      <button class="btn-icon" title="Next" style="width: 36px; height: 36px; opacity: 0.3;" disabled>&#9197;</button>
+    </div>
+  </div>
+
+  <!-- Drawer stem mixer -->
+  <div class="form-section">
+    <h4>Mixer Drawer <span style="font-size: 10px; color: var(--text-muted); font-weight: normal; text-transform: none;">(active during recording — controls what you hear)</span></h4>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Click Track</span>
+      <div style="width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer;">
+        <div style="width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 13px;">Count-in</span>
+      <span style="font-size: 12px; color: var(--text-dim);">1 bar</span>
+    </div>
+
+    <div style="margin-top: 10px;">
+      <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Overdub Mix</div>
+      <div class="share-list">
+        <div class="share-row">
+          <div class="share-avatar" style="background: rgba(66,165,245,0.15); color: var(--blue); font-size: 9px;">MIX</div>
+          <span class="share-name">Original Mix</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 70%; height: 100%; background: var(--blue); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+        <div class="share-row">
+          <div class="share-avatar" style="background: rgba(26,188,156,0.15); color: var(--teal); font-size: 10px;">D</div>
+          <span class="share-name">Drums (auto)</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 0%; height: 100%; background: var(--teal); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px; background: rgba(255,82,82,0.15); color: var(--red); border-color: rgba(255,82,82,0.3);">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+        <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+          <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+          <span class="share-name" style="color: var(--green);">Nathan's Drums (best)</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 0%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px; background: rgba(255,82,82,0.15); color: var(--red); border-color: rgba(255,82,82,0.3);">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+        <div class="share-row" style="border-color: rgba(0,230,118,0.3);">
+          <div class="share-avatar" style="background: rgba(0,230,118,0.15); color: var(--green); font-size: 10px;">&#9733;</div>
+          <span class="share-name" style="color: var(--green);">Neil's Bass (best)</span>
+          <div style="flex: 1; max-width: 100px; height: 4px; background: var(--inset); border-radius: 2px; margin: 0 8px;">
+            <div style="width: 75%; height: 100%; background: var(--green); border-radius: 2px;"></div>
+          </div>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">M</button>
+          <button class="btn-icon" style="width: 24px; height: 24px; font-size: 9px;">S</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="annotation">
+    <strong>View Mode recording / layering (D-144):</strong><br>
+    - Record button replaces play button in transport controls during recording<br>
+    - Video hero dims and shows REC overlay with timer + take number<br>
+    - Camera PIP (picture-in-picture) in bottom-right corner shows your camera feed<br>
+    - Input level meter appears below video — shows live audio input (green/yellow gradient)<br>
+    - Navigation locked during recording (prev/next/seek disabled) — stop to regain control<br>
+    - Same mixer drawer as playback — mute drums auto stem to play your own part on top<br>
+    - When recording stops → same 4 post-recording options (Screen 13)<br>
+    - <strong>Layering workflow</strong>: Listen in View Mode → hear something you want to play along with → hit record → count-in → play → stop → save &amp; re-take for another pass
+  </div>
+</div>
+
+
+<script>
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+  document.getElementById(id).classList.add('visible');
+  document.querySelectorAll('.screen-nav button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
