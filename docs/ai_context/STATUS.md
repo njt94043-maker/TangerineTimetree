@@ -8,8 +8,14 @@
 ## Current State
 - **Phase**: S45 — Screen-for-screen lockdown. Full audit complete, gaps catalogued. No code changes yet.
 - **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session**: Attempted S45 player layout fixes (adaptive flex, inline drawer replacing ModalBottomSheet) on Android (all 3 screens) and web Player.tsx. Changes compiled and installed but layout is WRONG — transport layout broken (A/B below transport, prev/next missing from Live, side drawer was supposed to be for song list not settings). Session aborted by user. Code changes are in working tree but NOT correct. Must re-read mockups carefully before next attempt.
-- **Next action**: STOP. Re-read mockups/player-live.html and mockups/practice-redesign.html line by line. Understand the exact layout: Live has prev/next nav row + no A-B/speed, Practice has speed + A-B in transport top row + waveform strip. Side drawer = song queue list. Bottom inline sheet = display/mixer/settings. Then fix all 3 Android screens + web Player.tsx to match EXACTLY.
+- **Last session**: Two attempts at S45 player layout fixes, both wrong. Working tree has broken layout code (NOT committed). User clarified key requirements:
+  1. **Transport bottom = ONLY Restart | Play | Stop** (all modes)
+  2. **CLICK toggle + RECORD button → move to bottom drawer** (not transport)
+  3. **Live mode nav row**: ◀ Prev | ☰ Queue | Next ▶ (above transport, setlist only) — this exists in code but user couldn't see it
+  4. **Practice/View transport top row**: Speed controls (left) + A-B loop (right) — already there
+  5. **Mode switching from player** (Live↔Practice↔View + song/setlist picking from side drawer) was PLANNED in mockups but NEVER BUILT. This is NOT a regression — it's missing functionality.
+  6. **Drawer content**: Display toggles, Click toggle + volume, Record button, Mixer (practice/view), Settings
+- **Next action**: DISCARD working tree player changes (git checkout the 4 Android files + 2 web files). Start fresh from mockups. Build EXACTLY what mockups show with user's overrides (click/record → drawer). Do NOT half-finish — complete all 3 Android screens + web Player.tsx in one pass, verify build, install APK.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
