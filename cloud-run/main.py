@@ -1,8 +1,9 @@
 """
-S32A: Audio processing Cloud Run service.
+S32A/S43: Audio processing Cloud Run service.
 - /analyse        — beat detection only (legacy, backward compat)
-- /process        — enqueue full pipeline (beats + stem separation) via Cloud Tasks
+- /process        — enqueue full pipeline (beats + stems) via Cloud Tasks
 - /process-worker — the actual worker (called by Cloud Tasks only)
+- /re-analyse     — re-run beat detection only (D-151), clears old beats first
 - /health         — health check
 """
 # madmom 0.16.1 uses collections.MutableSequence (removed in 3.10+)
@@ -449,6 +450,40 @@ def process_worker():
                 os.unlink(p)
         for d in globmod.glob(os.path.join(tempfile.gettempdir(), "demucs_*")):
             shutil.rmtree(d, ignore_errors=True)
+
+
+@app.route("/re-analyse", methods=["POST"])
+def re_analyse():
+    """
+    POST /re-analyse — re-run beat detection only (D-151).
+    Body: { "song_id": "uuid", "audio_url": "https://..." }
+    Enqueues a Cloud Task with skip_stems=True, clears old beat_map first.
+    Returns: 202 Accepted
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "JSON body required"}), 400
+
+    song_id = data.get("song_id")
+    audio_url = data.get("audio_url")
+
+    if not song_id or not audio_url:
+        return jsonify({"error": "song_id and audio_url required"}), 400
+
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        return jsonify({"error": "Server not configured (missing Supabase credentials)"}), 500
+
+    if not GCP_PROJECT or not CLOUD_RUN_SERVICE_URL:
+        return jsonify({"error": "Server not configured (missing GCP config)"}), 500
+
+    try:
+        # Reset beat_map to pending (clears old beats/bpm)
+        update_beat_map_status(song_id, "pending", error=None, beats=None, bpm=None)
+        enqueue_process_task(song_id, audio_url, skip_stems=True)
+        return jsonify({"status": "queued"}), 202
+    except Exception as e:
+        update_beat_map_status(song_id, "failed", error=str(e))
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/health", methods=["GET"])

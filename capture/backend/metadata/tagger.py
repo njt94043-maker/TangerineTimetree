@@ -16,6 +16,7 @@ def write_tags(
     key: str = "",
     capture_date: str = "",
     source_url: str = "",
+    category: str = "",
     instrument_focus: str = "",
     practice_category: str = "",
     difficulty: str = "",
@@ -42,9 +43,10 @@ def write_tags(
     if capture_date:
         tags.add(TDRC(encoding=3, text=capture_date[:10]))
 
-    # Custom frames for practice metadata
+    # Custom frames for metadata
     custom_fields = {
         "SOURCE_URL": source_url,
+        "CATEGORY": category,
         "INSTRUMENT_FOCUS": instrument_focus,
         "PRACTICE_CATEGORY": practice_category,
         "DIFFICULTY": difficulty,
@@ -86,6 +88,7 @@ def read_tags(file_path: Path) -> dict:
         "bpm": bpm,
         "key": get_text("TKEY"),
         "source_url": get_txxx("SOURCE_URL"),
+        "category": get_txxx("CATEGORY"),
         "instrument_focus": get_txxx("INSTRUMENT_FOCUS"),
         "practice_category": get_txxx("PRACTICE_CATEGORY"),
         "difficulty": get_txxx("DIFFICULTY"),

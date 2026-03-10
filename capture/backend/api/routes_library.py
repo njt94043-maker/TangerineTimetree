@@ -23,6 +23,7 @@ class TrackUpdate(BaseModel):
     genre: str | None = None
     bpm: float | None = None
     key: str | None = None
+    category: str | None = None
     instrument_focus: str | None = None
     difficulty: str | None = None
     practice_category: str | None = None
@@ -48,6 +49,7 @@ def list_tracks(
     search: str = "",
     artist: str = "",
     genre: str = "",
+    category: str = "",
     practice_category: str = "",
     instrument_focus: str = "",
     tag: str = "",
@@ -59,6 +61,7 @@ def list_tracks(
 ):
     return db.list_tracks(
         search=search, artist=artist, genre=genre,
+        category=category,
         practice_category=practice_category,
         instrument_focus=instrument_focus,
         tag=tag, favorite=favorite,
@@ -99,6 +102,7 @@ def update_track(track_id: str, body: TrackUpdate):
             genre=merged.get("genre", ""),
             bpm=merged.get("bpm"),
             key=merged.get("key", ""),
+            category=merged.get("category", ""),
             instrument_focus=merged.get("instrument_focus", ""),
             practice_category=merged.get("practice_category", ""),
             difficulty=merged.get("difficulty", ""),

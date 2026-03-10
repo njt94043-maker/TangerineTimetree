@@ -4,6 +4,7 @@ export interface Track {
   artist: string;
   album: string;
   genre: string;
+  category: string;
   source_url: string;
   source_type: 'tab' | 'wasapi' | 'file_import';
   capture_date: string;

@@ -34,18 +34,24 @@
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
-## Capture Tool — Diagnostics & Planning
+## Capture — Alignment + Pipeline (OVERDUE)
 
-### Immediate Diagnostics (next session)
-- [ ] **Real-world audio quality test** — Play a full song through speakers/headphones while recording via capture tool. Listen to playback for micro-pauses/glitches. Compare WAV waveform in Audacity for dropouts. This validates the writer thread + priority boost fix.
-- [ ] **Armed mode end-to-end test** — Start armed, play audio, verify auto-trigger, check pre-roll captures first ~200ms of audio cleanly. Verify stop-while-armed cancels cleanly (no leftover WAV).
-- [ ] **FFmpeg encoding audit** — Check FFmpeg MP3 encoding quality settings (bitrate, sample rate). Verify encoded MP3 matches WAV quality. Check for encoding errors in logs.
-- [ ] **Concurrent load test** — Record while Chrome plays YouTube + other apps active. Verify no glitches with HIGH_PRIORITY_CLASS + 40ms buffer + writer thread.
+### Capture Category Alignment (S43 — DONE)
+- [x] **Add `category` column** to tracks SQLite schema + migration
+- [x] **Backend**: TrackUpdate model, list_tracks filter, ID3 tagger (TXXX:CATEGORY)
+- [x] **UI**: Category dropdown in TrackDetail, badge on TrackCard, filter in TrackList
+- [x] **Theme**: Teal (#1abc9c) + purple (#bb86fc) in theme.css
 
-### Capture → Library Pipeline (S38 target)
-- [ ] **Song import workflow** — Design flow: capture WAV → FFmpeg encode MP3 → upload to Supabase `practice-tracks` bucket → create Song record → trigger Cloud Run processing (beats + stems). This is the key bridge between capture tool and web/android practice modes.
-- [ ] **Bulk import UX** — Multiple recordings → batch import with metadata entry (song name, artist, BPM if known). Queue processing for each.
-- [ ] **Capture history view** — Show previous recordings in sidepanel with play/review/import/delete actions. Currently only shows current session.
+### Import Pipeline (was S38 target — OVERDUE, D-158)
+- [ ] **Song import workflow** — Web pulls tracks from Capture server (localhost:9123), maps metadata to Supabase Song, uploads MP3 to `practice-tracks` bucket, triggers Cloud Run processing. Key bridge between Capture and web/Android.
+- [ ] **Bulk import UX** — Multiple recordings → batch import with metadata entry. Queue processing for each.
+- [ ] **Capture history view** — Show previous recordings in sidepanel with play/review/import/delete actions.
+
+### Capture Diagnostics (flakey but functional)
+- [ ] **Real-world audio quality test** — Play a full song while recording. Listen for micro-pauses/glitches. Validates writer thread + priority boost.
+- [ ] **Armed mode end-to-end test** — Start armed, play audio, verify auto-trigger + pre-roll.
+- [ ] **FFmpeg encoding audit** — Check quality settings (bitrate, sample rate).
+- [ ] **Concurrent load test** — Record while Chrome plays YouTube + other apps active.
 
 ### Extension UX Improvements
 - [ ] **Level meter visualization** — Current peak_level is a number. Add visual meter bar (green→yellow→red) in sidepanel during armed/recording states.
@@ -57,6 +63,22 @@
 - [ ] **Graceful shutdown** — Handle uvicorn reload while recording is active (currently crashes the session). Save partial WAV, clean up state.
 - [ ] **Session recovery** — If backend restarts mid-recording, detect orphaned WAV files and offer recovery in the sidepanel.
 - [ ] **Logging** — Add structured logging to wasapi_capture.py (writer thread stats: frames written, queue depth, dropped frames count). Surface in /api/admin/logs.
+
+## Cloud Run + Processing (S43 — DONE except Android)
+- [x] **Deploy beats-only + re-analyse** — revision beat-analysis-00009-th7
+- [x] **Web: skip_stems param** — triggerProcessing() now passes skip_stems flag
+- [x] **Re-analyse endpoint** (D-151) — POST /re-analyse, clears beat_map, enqueues beats-only task
+- [x] **Web: Re-analyse button** — SongForm now has "Re-analyse Beats" + "Full Re-process" buttons
+- [ ] **Android: SongForm** — No song edit form. No processing trigger. No re-analyse. (S44)
+- [ ] **Android: triggerProcessing** — No Cloud Run trigger from Android at all (S44)
+- [ ] **Android: Re-analyse** — Can't trigger from Android (S44)
+
+## SOT Doc Gaps (found S43)
+- [x] **IMPACT_MAP**: Added Capture, Import Pipeline, ClickTrack sections
+- [x] **CLAUDE.md**: Added ClickTrack to app list, updated App Scope Split with ClickTrack column + category fields, added cross-app rules
+- [x] **decisions_log.md**: Added D-154 through D-158
+- [x] **gotchas.md**: Added Capture dismissal + big picture loss entries
+- [x] **Memory**: Rewritten MEMORY.md + new ecosystem-rules.md
 
 ## Backlog — Performance & Practice Epic
 
@@ -232,3 +254,4 @@
 | S40 | Library + SongForm (Both) — Dropdowns, categories, sharing UI, ownership, read-only on web + Android | 2026-03-10 |
 | S41 | Recording + Takes (Both) — Recording flow, takes list, post-recording, new song idea on web + Android | 2026-03-10 |
 | S42 | View Mode (Both) — 3rd player tab (Live/Practice/View), local video hero + visualiser fallback, record from View | 2026-03-10 |
+| S43 | Capture Alignment + Cloud Run — category field (schema+backend+UI+theme), /re-analyse endpoint, Cloud Run deploy (rev 00009), web skip_stems + re-analyse buttons | 2026-03-10 |

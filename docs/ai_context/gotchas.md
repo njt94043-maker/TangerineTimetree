@@ -356,3 +356,13 @@
 ### Practice mode missing text panel
 - **What happened**: S33 practice-redesign.html didn't include chords/lyrics/notes/drums display toggles. User confirmed practice mode absolutely should have them — you want to see chords while practicing.
 - **Fix**: V4 target includes display toggles (Visuals/Chords/Lyrics/Notes/Drums) in BOTH Live and Practice mode drawers. Practice just has additional mixer + speed/loop sections.
+
+### Capture dismissed as "doesn't need alignment" (S43, 2026-03-10)
+- **What happened**: At S43 start, AI cited D-152 ("Capture unchanged for S39") to dismiss Capture needing the Song `category` field. User had to explain forcefully that D-152 was S39-scoped, Capture is the 3rd app in the family, and all apps need consistent metadata.
+- **Root cause**: Same pattern as feature dismissal — AI treating one app in isolation, citing stale sprint-scoped decisions to avoid work. Not thinking about the full pipeline (Capture → Web → Android) or future consumers (ClickTrack).
+- **Fix**: D-154 (Capture is metadata superset), D-156 (all apps are one family), D-157 (sprint-scoped decisions expire). Memory updated with ecosystem rules. EVERY field change must be evaluated against ALL apps.
+
+### AI loses big picture every session (recurring, logged S43)
+- **What happened**: User reports explaining the same things every session — how apps connect, why certain fields exist, how decisions affect other apps. AI focuses on one app at a time, forgets the others exist, and keeps cutting scope without permission.
+- **Root cause**: AI optimises for completing the immediate task in the immediate app, not maintaining ecosystem awareness. Half-mentioned ideas get lost. Cross-app impact not evaluated.
+- **Fix**: Memory file `ecosystem-rules.md` created. MEMORY.md rewritten with "How Nathan Works With AI" section at top. Every change must trigger "what else does this affect?" check across all apps. Half-ideas must be logged immediately and chased up.
