@@ -14,8 +14,8 @@ interface LibraryProps {
   onNewSong: () => void;
   onEditSong: (id: string) => void;
   onSetlistPress: (id: string) => void;
-  onPlaySong: (songId: string, mode: 'live' | 'practice') => void;
-  onPlaySetlist: (setlistId: string, mode: 'live' | 'practice') => void;
+  onPlaySong: (songId: string, mode: 'live' | 'practice' | 'view') => void;
+  onPlaySetlist: (setlistId: string, mode: 'live' | 'practice' | 'view') => void;
   userId: string;
   profiles: Profile[];
 }
@@ -277,6 +277,9 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                         <button className="btn btn-small btn-tangerine" onClick={() => onPlaySong(song.id, 'practice')}>
                           Practice
                         </button>
+                        <button className="btn btn-small btn-teal" onClick={() => onPlaySong(song.id, 'view')}>
+                          View
+                        </button>
                       </div>
                       {editable && (
                         <div className="song-card-actions">
@@ -331,6 +334,7 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                 <div className="setlist-card-actions">
                   <button className="btn btn-small btn-green" onClick={() => onPlaySetlist(sl.id, 'live')}>Live</button>
                   <button className="btn btn-small btn-tangerine" onClick={() => onPlaySetlist(sl.id, 'practice')}>Practice</button>
+                  <button className="btn btn-small btn-teal" onClick={() => onPlaySetlist(sl.id, 'view')}>View</button>
                   <button className="btn btn-small btn-outline" onClick={() => onSetlistPress(sl.id)}>Open</button>
                   <button className="btn btn-small btn-danger" onClick={() => setDeleteSetlistTarget(sl)}>Del</button>
                 </div>

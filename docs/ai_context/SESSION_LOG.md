@@ -1621,3 +1621,57 @@
 ### Next Session: S23A
 - Supabase migration SQL, updated types, updated queries, TypeScript clean
 - See SPRINT_PROMPTS.md for pickup prompt
+
+---
+
+## Session — 2026-03-10 (S42: View Mode Both Platforms)
+
+### What Was Done
+1. **Web View Mode** — full implementation
+   - `useAudioEngine.ts`: PlayerMode expanded to `'live' | 'practice' | 'view'`. View mode treated like practice (loads stems + track).
+   - `useViewContext.tsx`: goToPlayer accepts 'view' mode. HistoryEntry, ViewState, useState all updated.
+   - `Library.tsx`: Teal "View" launch button on song cards + setlist cards.
+   - `takesDb.ts`: `getBestTakeWithVideo()` — retrieves most recent take with video blob from IndexedDB.
+   - `Player.tsx`: Major changes — `activeMode` local state for tab switching (3 tabs always visible: Live/Practice/View). View hero section with `<video>` element or teal visualiser fallback (D-146). Video sync to audio engine. Record from View mode (D-144). Mode tabs replace single badge in header.
+   - `App.css`: ~90 lines for `.v4-mode-tabs`, `.v4-mode-tab`, `.v4-hero-view`, `.v4-view-visualizer`, `.v4-view-bar`, overlay text positions.
+
+2. **Android View Mode** — full implementation
+   - `ViewScreen.kt` (NEW, ~370 lines): Complete View Mode screen — ViewHero (teal visualiser bars), ViewTransport (speed+play+stop+click+record), ViewMixer, drawer with display toggles/mixer/settings. Teal accent. Reuses PracticeScreen internals.
+   - `GigBooksApp.kt`: Screen.View added to sealed class. ViewScreen composable route. onLaunchView + onLaunchSetlistView callbacks wired.
+   - `LibraryScreen.kt`: onLaunchView + onLaunchSetlistView params on LibraryScreen, SongsTab, SetlistsTab, SongCard, SetlistCard. Teal Videocam "View" launch button alongside Live/Practice.
+   - `PlayerComponents.kt`: PlayerHeader extended with optional modeBadgeLabel/modeBadgeColor. ModeBadge overload.
+   - `PracticeScreen.kt`: 5 functions changed from private → internal (PracticeWaveform, RecordingBanner, PostRecordingDialog, PostRecButton, formatFrames) for ViewScreen reuse.
+
+3. **Builds verified**: `npx tsc -b` + `npx vite build` clean (web). `compileReleaseKotlin` clean (Android).
+
+### Bugs Fixed
+- TypeScript: `isPlaying` used before declaration in Player.tsx video sync effect → fixed to use `state.engineState === 'playing'`
+- TypeScript: `"view"` not assignable to `"practice" | "live"` in two App.tsx locations → fixed ViewContextValue.goToPlayer type
+
+### Files Changed
+- `web/src/hooks/useAudioEngine.ts` — PlayerMode type + mode checks
+- `web/src/hooks/useViewContext.tsx` — 4 type locations updated for 'view'
+- `web/src/components/Library.tsx` — View button + type update
+- `web/src/components/Player.tsx` — activeMode, mode tabs, view hero, video sync, record from view
+- `web/src/storage/takesDb.ts` — getBestTakeWithVideo
+- `web/src/App.css` — mode tabs + view hero CSS
+- `android/.../GigBooksApp.kt` — Screen.View + route + callbacks
+- `android/.../screens/ViewScreen.kt` — NEW
+- `android/.../screens/LibraryScreen.kt` — View launch buttons + params
+- `android/.../screens/PracticeScreen.kt` — 5 functions private → internal
+- `android/.../components/PlayerComponents.kt` — PlayerHeader extended
+- `docs/ai_context/STATUS.md` — S42 complete
+- `docs/ai_context/todo.md` — S42 in completed sprints
+- `docs/ai_context/SESSION_LOG.md` — this entry
+- `docs/ai_context/IMPACT_MAP.md` — View Mode section added
+
+### Decisions Made
+- None new (all View Mode decisions were locked in earlier sprints: D-137, D-144, D-146, D-150, D-153)
+
+### What's Blocked
+- Nothing
+
+### Next Session: S43 — Cloud Run Deploy
+- Deploy beats-only endpoint (D-148): skip_stems=true → madmom only
+- Re-analyse from mixed master (D-151): server mixes best takes → madmom → replaces beat_map
+- See SPRINT_PROMPTS.md for pickup prompt

@@ -60,8 +60,10 @@ fun PlayerHeader(
     setlistName: String? = null,
     setlistPosition: String? = null,
     onBackClick: () -> Unit,
+    modeBadgeLabel: String? = null,
+    modeBadgeColor: Color? = null,
 ) {
-    val accent = if (isLiveMode) GigColors.green else GigColors.purple
+    val accent = modeBadgeColor ?: if (isLiveMode) GigColors.green else GigColors.purple
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -107,7 +109,11 @@ fun PlayerHeader(
 
         // Mode badge + BPM block
         Column(horizontalAlignment = Alignment.End) {
-            ModeBadge(isLive = isLiveMode)
+            if (modeBadgeLabel != null && modeBadgeColor != null) {
+                ModeBadge(label = modeBadgeLabel, color = modeBadgeColor)
+            } else {
+                ModeBadge(isLive = isLiveMode)
+            }
             Text(
                 text = "$bpm",
                 fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 24.sp,
@@ -128,6 +134,11 @@ fun PlayerHeader(
 fun ModeBadge(isLive: Boolean) {
     val color = if (isLive) GigColors.green else GigColors.purple
     val label = if (isLive) "LIVE" else "PRACTICE"
+    ModeBadge(label = label, color = color)
+}
+
+@Composable
+fun ModeBadge(label: String, color: Color) {
     Box(
         modifier = Modifier
             .background(color.copy(alpha = 0.05f), RoundedCornerShape(5.dp))

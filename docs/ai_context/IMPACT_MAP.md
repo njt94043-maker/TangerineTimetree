@@ -234,6 +234,24 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 ---
 
+## 14. View Mode (S42)
+
+| Touch | Ripple |
+|-------|--------|
+| `web/src/hooks/useAudioEngine.ts` — PlayerMode type | `web/src/hooks/useViewContext.tsx` — goToPlayer signature must include 'view' |
+| | `web/src/components/Library.tsx` — mode param on onPlaySong/onPlaySetlist |
+| | `web/src/components/Player.tsx` — activeMode state, mode tabs, view hero, video sync |
+| | `web/src/App.css` — v4-mode-tabs, v4-hero-view, v4-view-visualizer styles |
+| | `web/src/storage/takesDb.ts` — getBestTakeWithVideo for video playback |
+| `android/.../screens/ViewScreen.kt` | Reuses PracticeScreen internal functions (PracticeWaveform, RecordingBanner, PostRecordingDialog, PostRecButton, formatFrames) |
+| | `android/.../components/PlayerComponents.kt` — PlayerHeader modeBadgeLabel/modeBadgeColor |
+| | `android/.../GigBooksApp.kt` — Screen.View route + onLaunchView callbacks |
+| | `android/.../screens/LibraryScreen.kt` — onLaunchView params on all composables |
+
+**Key coupling**: ViewScreen depends on PracticeScreen `internal` functions. If PracticeScreen changes those composables, ViewScreen must be checked. Web View Mode reuses Practice audio engine behaviour (`!isLive` checks cover both practice and view).
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Adding a new Supabase table

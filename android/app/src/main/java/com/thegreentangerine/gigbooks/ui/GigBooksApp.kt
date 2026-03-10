@@ -54,6 +54,7 @@ import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
+import com.thegreentangerine.gigbooks.ui.screens.ViewScreen
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
@@ -63,6 +64,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Library  : Screen("library",  "Songs & Setlists", Icons.AutoMirrored.Filled.QueueMusic)
     data object Live     : Screen("live",     "Live Mode",        Icons.Default.CalendarMonth)  // Not in drawer
     data object Practice : Screen("practice", "Practice",         Icons.Default.CalendarMonth)  // Not in drawer
+    data object View     : Screen("view",     "View Mode",        Icons.Default.CalendarMonth)  // Not in drawer
     data object Settings : Screen("settings", "Settings",         Icons.Default.Settings)
 }
 
@@ -112,7 +114,7 @@ fun GigBooksApp() {
                 DrawerSectionLabel("LIBRARY")
                 DrawerNavItem(
                     Screen.Library,
-                    currentRoute in listOf(Screen.Library.route, Screen.Live.route, Screen.Practice.route),
+                    currentRoute in listOf(Screen.Library.route, Screen.Live.route, Screen.Practice.route, Screen.View.route),
                     GigColors.teal,
                 ) { navigate(Screen.Library.route) }
 
@@ -151,6 +153,14 @@ fun GigBooksApp() {
                         vm.selectSetlist(setlist)
                         navigate(Screen.Practice.route)
                     },
+                    onLaunchView = { song ->
+                        vm.selectSong(song)
+                        navigate(Screen.View.route)
+                    },
+                    onLaunchSetlistView = { setlist ->
+                        vm.selectSetlist(setlist)
+                        navigate(Screen.View.route)
+                    },
                 )
             }
             composable(Screen.Live.route) {
@@ -162,6 +172,13 @@ fun GigBooksApp() {
             }
             composable(Screen.Practice.route) {
                 PracticeScreen(
+                    vm            = vm,
+                    onMenuClick   = { openMenu() },
+                    onGoToLibrary = { navigate(Screen.Library.route) },
+                )
+            }
+            composable(Screen.View.route) {
+                ViewScreen(
                     vm            = vm,
                     onMenuClick   = { openMenu() },
                     onGoToLibrary = { navigate(Screen.Library.route) },

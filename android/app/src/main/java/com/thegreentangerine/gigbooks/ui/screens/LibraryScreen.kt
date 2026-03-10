@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MusicNote
@@ -90,6 +91,8 @@ fun LibraryScreen(
     onLaunchPractice: (Song) -> Unit,
     onLaunchSetlistLive: (SetlistWithSongs) -> Unit,
     onLaunchSetlistPractice: (SetlistWithSongs) -> Unit,
+    onLaunchView: (Song) -> Unit = {},
+    onLaunchSetlistView: (SetlistWithSongs) -> Unit = {},
 ) {
     var activeTab by rememberSaveable { mutableStateOf(LibraryTab.Songs) }
     var showNewIdeaDialog by rememberSaveable { mutableStateOf(false) }
@@ -113,11 +116,13 @@ fun LibraryScreen(
                     sharedSongIds = vm.sharedSongIds,
                     onLaunchLive = onLaunchLive,
                     onLaunchPractice = onLaunchPractice,
+                    onLaunchView = onLaunchView,
                 )
                 LibraryTab.Setlists -> SetlistsTab(
                     setlists = vm.setlists,
                     onLaunchLive = onLaunchSetlistLive,
                     onLaunchPractice = onLaunchSetlistPractice,
+                    onLaunchView = onLaunchSetlistView,
                 )
             }
         }
@@ -279,6 +284,7 @@ private fun SongsTab(
     sharedSongIds: Set<String>,
     onLaunchLive: (Song) -> Unit,
     onLaunchPractice: (Song) -> Unit,
+    onLaunchView: (Song) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var scopeFilter by rememberSaveable { mutableStateOf(ScopeFilter.All) }
@@ -345,6 +351,7 @@ private fun SongsTab(
                         onClick = { expandedSongId = if (expandedSongId == song.id) null else song.id },
                         onLive = { onLaunchLive(song) },
                         onPractice = { onLaunchPractice(song) },
+                        onView = { onLaunchView(song) },
                         currentUserId = currentUserId,
                         ownerName = if (song.isPersonalSong && song.ownerId != null) profileNames[song.ownerId] else null,
                         isShared = sharedSongIds.contains(song.id),
@@ -363,6 +370,7 @@ private fun SongCard(
     onClick: () -> Unit,
     onLive: () -> Unit,
     onPractice: () -> Unit,
+    onView: () -> Unit,
     currentUserId: String?,
     ownerName: String?,
     isShared: Boolean,
@@ -425,6 +433,13 @@ private fun SongCard(
                     color = GigColors.purple,
                     modifier = Modifier.weight(1f),
                     onClick = onPractice,
+                )
+                LaunchButton(
+                    icon = Icons.Default.Videocam,
+                    label = "View",
+                    color = GigColors.teal,
+                    modifier = Modifier.weight(1f),
+                    onClick = onView,
                 )
             }
         }
@@ -533,6 +548,7 @@ private fun SetlistsTab(
     setlists: List<SetlistWithSongs>,
     onLaunchLive: (SetlistWithSongs) -> Unit,
     onLaunchPractice: (SetlistWithSongs) -> Unit,
+    onLaunchView: (SetlistWithSongs) -> Unit,
 ) {
     var filter by rememberSaveable { mutableStateOf(SetlistFilter.All) }
 
@@ -564,6 +580,7 @@ private fun SetlistsTab(
                         setlistWithSongs = s,
                         onLaunchLive = { onLaunchLive(s) },
                         onLaunchPractice = { onLaunchPractice(s) },
+                        onLaunchView = { onLaunchView(s) },
                     )
                 }
                 item { Spacer(Modifier.height(16.dp)) }
@@ -577,6 +594,7 @@ private fun SetlistCard(
     setlistWithSongs: SetlistWithSongs,
     onLaunchLive: () -> Unit,
     onLaunchPractice: () -> Unit,
+    onLaunchView: () -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val setlist = setlistWithSongs.setlist
@@ -662,6 +680,13 @@ private fun SetlistCard(
                     color = GigColors.purple,
                     modifier = Modifier.weight(1f),
                     onClick = onLaunchPractice,
+                )
+                LaunchButton(
+                    icon = Icons.Default.Videocam,
+                    label = "View",
+                    color = GigColors.teal,
+                    modifier = Modifier.weight(1f),
+                    onClick = onLaunchView,
                 )
             }
         }

@@ -28,7 +28,7 @@ interface HistoryEntry {
   gigHubGigId?: string | null;
   playerSongId?: string | null;
   playerSetlistId?: string | null;
-  playerMode?: 'live' | 'practice';
+  playerMode?: 'live' | 'practice' | 'view';
 }
 
 interface ViewState {
@@ -46,7 +46,7 @@ interface ViewState {
   gigHubGigId: string | null;
   playerSongId: string | null;
   playerSetlistId: string | null;
-  playerMode: 'live' | 'practice';
+  playerMode: 'live' | 'practice' | 'view';
 }
 
 interface ViewContextValue extends ViewState {
@@ -84,7 +84,7 @@ interface ViewContextValue extends ViewState {
   goToSetlistDetail: (id: string) => void;
   // Library + Player navigation
   goToLibrary: () => void;
-  goToPlayer: (songId: string, mode: 'live' | 'practice', setlistId?: string) => void;
+  goToPlayer: (songId: string, mode: 'live' | 'practice' | 'view', setlistId?: string) => void;
   // Booking wizard / Gig Hub navigation
   goToBookingWizard: (date: string) => void;
   goToEditBooking: (gigId: string) => void;
@@ -135,7 +135,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [gigHubGigId, setGigHubGigId] = useState<string | null>(null);
   const [playerSongId, setPlayerSongId] = useState<string | null>(null);
   const [playerSetlistId, setPlayerSetlistId] = useState<string | null>(null);
-  const [playerMode, setPlayerMode] = useState<'live' | 'practice'>('live');
+  const [playerMode, setPlayerMode] = useState<'live' | 'practice' | 'view'>('live');
 
   // View history stack — each entry stores the view + its state snapshot
   const historyRef = useRef<HistoryEntry[]>([{ view: 'calendar' }]);
@@ -324,7 +324,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Player drill-down (from library)
-  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice', slId?: string) => {
+  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice' | 'view', slId?: string) => {
     setPlayerSongId(songId);
     setPlayerMode(mode);
     setPlayerSetlistId(slId ?? null);
