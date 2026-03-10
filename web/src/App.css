@@ -389,8 +389,7 @@ html, body, #root {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-raised);
   border: 1px solid rgba(255,255,255,0.04);
-  padding: 14px 20px;
-  min-height: 48px;
+  padding: 8px 16px;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: 13px;
@@ -421,7 +420,7 @@ html, body, #root {
   color: var(--color-danger);
   border-color: rgba(255,82,82,0.12);
 }
-.btn-small { padding: 10px 16px; font-size: 12px; min-height: 44px; }
+.btn-small { padding: 5px 12px; font-size: 12px; }
 .btn-primary {
   background: linear-gradient(135deg, var(--color-green), var(--color-green-dark));
   color: #000;
@@ -436,21 +435,19 @@ html, body, #root {
 /* ─── Inputs ─── */
 .input-field {
   width: 100%;
-  padding: 12px 14px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-text);
-  min-height: 44px;
 }
 .input-field::placeholder { color: var(--color-text-dim); }
 .input-field[type="date"],
 .input-field[type="time"] {
   color-scheme: dark;
   cursor: pointer;
-  min-height: 44px;
 }
 .input-field[type="date"]::-webkit-calendar-picker-indicator,
 .input-field[type="time"]::-webkit-calendar-picker-indicator {
@@ -540,19 +537,19 @@ html, body, #root {
   margin-bottom: 6px;
 }
 .today-btn {
-  background: none;
+  background: rgba(243,156,18,0.08);
   border: 1px solid var(--color-tangerine);
   color: var(--color-tangerine);
   font-family: var(--font-body);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 3px 14px;
-  border-radius: 10px;
+  padding: 4px 10px;
+  border-radius: 8px;
   cursor: pointer;
   letter-spacing: 0.3px;
   transition: background 0.15s;
 }
-.today-btn:hover { background: rgba(243,156,18,0.12); }
+.today-btn:hover { background: rgba(243,156,18,0.15); }
 /* 2.2: calendar arrows bumped to 14px pad + 44×44 min */
 .calendar-arrow {
   background: none;
@@ -588,11 +585,11 @@ html, body, #root {
   gap: 3px;
   flex: 1;
 }
-/* 2.3: day headers bumped from 10px to 11px */
+/* day headers */
 .calendar-day-header {
   text-align: center;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-dim);
   text-transform: uppercase;
   padding: 4px 0;
@@ -606,10 +603,10 @@ html, body, #root {
   align-items: stretch;
   justify-content: flex-start;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 4px;
   position: relative;
-  font-size: 14px;
-  min-height: 48px;
+  font-size: 11px;
+  min-height: 44px;
   padding: 2px 3px;
   overflow: hidden;
   background: rgba(0,0,0,0.25);
@@ -627,7 +624,7 @@ html, body, #root {
   box-shadow: inset 0 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(243,156,18,0.3);
 }
 .day-num {
-  font-size: 13px;
+  font-size: 11px;
   line-height: 1;
   text-align: left;
 }
@@ -925,18 +922,16 @@ html, body, #root {
 .away-delete:active { text-shadow: var(--glow-danger); }
 
 /* ─── Changelog ─── */
-/* 2.2: changelog toggle gets 44px min-height tap area */
 .changelog-toggle {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 11px;
   color: var(--color-tangerine);
   cursor: pointer;
   background: none;
   border: none;
   font-family: var(--font-body);
-  min-height: 44px;
-  padding: 10px 0;
-  opacity: 0.8;
+  padding: 4px 0;
+  opacity: 0.7;
   transition: opacity 0.15s;
 }
 .changelog-toggle:active { opacity: 1; }
@@ -983,9 +978,11 @@ html, body, #root {
   margin-bottom: 8px;
   box-shadow: 0 0 6px rgba(0,230,118,0.15);
 }
-.gig-create-invoice-btn {
-  margin-top: 8px;
+.gig-invoice-link {
+  color: var(--color-tangerine) !important;
+  opacity: 0.7;
 }
+.gig-invoice-link:hover { opacity: 1; }
 
 /* ─── Detail rows ─── */
 .detail-grid { margin: 8px 0; }
@@ -2698,22 +2695,22 @@ select.ps-form-input {
 .gig-card-body { padding: 14px 14px 14px 18px; }
 .gig-badges-row { display: flex; gap: 5px; margin-bottom: 6px; flex-wrap: wrap; }
 
-/* Add Booking button (dashed card) */
+/* Add Booking button */
 .btn-add-booking {
   display: block;
   width: 100%;
-  padding: 16px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(0,230,118,0.08), rgba(0,200,83,0.03));
-  border: 1px dashed rgba(0,230,118,0.25);
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0,230,118,0.08);
+  border: 1px solid rgba(0,230,118,0.3);
   text-align: center;
   cursor: pointer;
   transition: 0.15s;
   font-family: 'Karla', sans-serif;
 }
 .btn-add-booking:active { transform: scale(0.98); background: rgba(0,230,118,0.12); }
-.btn-add-booking-label { display: block; font-size: 14px; font-weight: 700; color: var(--color-gig); }
-.btn-add-booking-hint { display: block; font-size: 11px; color: var(--color-text-dim); margin-top: 2px; }
+.btn-add-booking-label { display: block; font-size: 13px; font-weight: 600; color: var(--color-gig); }
+.btn-add-booking-hint { display: block; font-size: 10px; color: var(--color-text-dim); margin-top: 1px; }
 .gig-venue-name {
   font-size: 16px;
   font-weight: 700;
@@ -4725,48 +4722,81 @@ select.ps-form-input {
 }
 .song-card {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-left: 3px solid var(--color-green);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: transform 0.1s;
 }
-.song-card:active { transform: scale(0.98); }
+.song-card:hover { border-color: var(--color-text-muted); }
 .song-card-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .song-card-name {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .song-card-artist {
   font-size: 12px;
   color: var(--color-text-dim);
+  margin-top: 2px;
 }
 .song-card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+  align-items: center;
   margin-top: 4px;
 }
 .song-meta-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--color-text-muted);
+}
+.bpm-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
   color: var(--color-text-muted);
-  background: rgba(255,255,255,0.04);
-  padding: 2px 6px;
-  border-radius: 3px;
+  text-transform: none;
+  border: none;
+  background: none;
+  padding: 0;
 }
 .song-card-actions {
   display: flex;
   gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.04);
 }
+/* Icon buttons matching mockup: 32x32 rounded squares */
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: var(--bg-card-light, #16161f);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: 0.15s;
+  padding: 0;
+}
+.btn-icon:hover { border-color: var(--color-green); color: var(--color-green); }
+.btn-icon.disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
 
 /* Setlist list */
 .setlist-list-items {
@@ -4776,22 +4806,23 @@ select.ps-form-input {
 }
 .setlist-card {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-left: 3px solid var(--color-tangerine);
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: transform 0.1s;
 }
-.setlist-card:active { transform: scale(0.98); }
+.setlist-card:hover { border-color: var(--color-text-muted); }
 .setlist-card-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 .setlist-card-name {
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text);
 }
 .setlist-card-desc {
@@ -4801,8 +4832,6 @@ select.ps-form-input {
 .setlist-card-actions {
   display: flex;
   gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.04);
 }
 
 /* Setlist detail - song rows with drag */
@@ -5625,14 +5654,14 @@ select.ps-form-input {
   flex-wrap: wrap;
 }
 .filter-pill {
-  padding: 5px 12px;
-  border-radius: 16px;
+  padding: 4px 10px;
+  border-radius: 12px;
   font-family: 'Karla', sans-serif;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-dim);
   background: var(--color-well);
-  border: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
   cursor: pointer;
   transition: 0.15s;
 }
@@ -5642,6 +5671,8 @@ select.ps-form-input {
   background: rgba(0,230,118,0.08);
   border-color: rgba(0,230,118,0.3);
 }
+
+.song-count { font-size: 12px; color: var(--color-text-muted); }
 
 /* Library filter bar (search + 2 dropdowns) */
 .library-filter-bar {
@@ -5653,33 +5684,47 @@ select.ps-form-input {
 .library-dropdown { min-width: 110px; flex-shrink: 0; }
 .library-dropdown .input-field { font-size: 12px; padding: 6px 8px; }
 
-/* Category badges */
+/* Filter group with label */
+.library-filter-group { display: flex; flex-direction: column; gap: 2px; }
+.library-filter-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Category badges — separate scope + type */
 .badge-tgt { background: rgba(26,188,156,0.12); color: var(--color-teal); border-color: rgba(26,188,156,0.3); }
 .badge-personal { background: rgba(243,156,18,0.12); color: var(--color-tangerine); border-color: rgba(243,156,18,0.3); }
 .badge-shared { background: rgba(187,134,252,0.12); color: var(--color-practice); border-color: rgba(187,134,252,0.3); }
+.badge-cover { background: rgba(0,230,118,0.08); color: var(--color-gig); border-color: rgba(0,230,118,0.2); }
+.badge-original { background: rgba(255,82,82,0.08); color: var(--color-danger); border-color: rgba(255,82,82,0.2); }
 
 /* Owner name tag */
 .song-owner-tag {
-  font-family: 'Karla', sans-serif;
-  font-size: 10px;
+  font-family: var(--font-mono);
+  font-size: 9px;
   font-weight: 600;
   color: var(--color-text-dim);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 4px;
   padding: 1px 6px;
+  letter-spacing: 0.3px;
 }
 
 /* Lock icon */
 .song-card-title-row { display: flex; align-items: center; gap: 6px; }
 .song-lock-icon { font-size: 12px; opacity: 0.5; }
 
-/* Song card expanded section */
+/* Song card expanded section (fallback — primary actions now use btn-icon) */
 .song-card-expanded {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 8px;
+  gap: 6px;
+  padding-top: 6px;
   border-top: 1px solid rgba(255,255,255,0.04);
 }
 .song-card-launch {
@@ -5859,7 +5904,7 @@ select.ps-form-input {
   border: 1px solid rgba(255,255,255,0.03);
   padding: 10px 12px;
   overflow-y: auto;
-  max-height: 200px;
+  max-height: 120px;
   font-size: 11px;
   line-height: 1.7;
 }

@@ -27,12 +27,6 @@ const SETLIST_FILTERS: { value: SetlistFilter; label: string }[] = [
   { value: 'other_band', label: 'Other' },
 ];
 
-function formatDuration(seconds: number | null) {
-  if (!seconds) return null;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
 
 export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onPlaySetlist, userId, profiles }: LibraryProps) {
   const [tab, setTab] = useState<Tab>('songs');
@@ -45,7 +39,6 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>('all');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [search, setSearch] = useState('');
-  const [expandedSong, setExpandedSong] = useState<string | null>(null);
   const [deleteSongTarget, setDeleteSongTarget] = useState<Song | null>(null);
 
   // Setlists state
@@ -191,7 +184,7 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
       {/* ─── Songs Tab ─── */}
       {tab === 'songs' && (
         <>
-          {/* Search + filter dropdowns */}
+          {/* Search + filter dropdowns with labels */}
           <div className="library-filter-bar">
             <div className="neu-inset" style={{ flex: 1 }}>
               <input
@@ -201,30 +194,37 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                 placeholder="Search songs..."
               />
             </div>
-            <div className="neu-inset library-dropdown">
-              <select className="input-field" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as ScopeFilter)}>
-                <option value="all">All Songs</option>
-                <option value="tgt">TGT</option>
-                <option value="mine">My Songs</option>
-                <option value="shared">Shared With Me</option>
-              </select>
+            <div className="library-filter-group">
+              <label className="library-filter-label">Scope</label>
+              <div className="neu-inset library-dropdown">
+                <select className="input-field" value={scopeFilter} onChange={e => setScopeFilter(e.target.value as ScopeFilter)}>
+                  <option value="all">All Songs</option>
+                  <option value="tgt">TGT</option>
+                  <option value="mine">My Songs</option>
+                  <option value="shared">Shared With Me</option>
+                </select>
+              </div>
             </div>
-            <div className="neu-inset library-dropdown">
-              <select className="input-field" value={typeFilter} onChange={e => setTypeFilter(e.target.value as TypeFilter)}>
-                <option value="all">All Types</option>
-                <option value="covers">Covers</option>
-                <option value="originals">Originals</option>
-              </select>
+            <div className="library-filter-group">
+              <label className="library-filter-label">Type</label>
+              <div className="neu-inset library-dropdown">
+                <select className="input-field" value={typeFilter} onChange={e => setTypeFilter(e.target.value as TypeFilter)}>
+                  <option value="all">All Types</option>
+                  <option value="covers">Covers</option>
+                  <option value="originals">Originals</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button className="btn btn-primary btn-small btn-full" onClick={onNewSong} style={{ flex: 1 }}>
-              + Add Song
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span className="song-count">{songs.length} song{songs.length !== 1 ? 's' : ''}</span>
+            <span style={{ flex: 1 }} />
+            <button className="btn-icon" title="Add Song" onClick={onNewSong} style={{ color: 'var(--color-green)', borderColor: 'rgba(0,230,118,0.3)' }}>+</button>
             <button
-              className="btn btn-small"
-              style={{ flex: 0, whiteSpace: 'nowrap', background: 'rgba(255,70,70,0.1)', border: '1px solid rgba(255,70,70,0.25)', color: '#ff4646' }}
+              className="btn-icon"
+              title="New Idea"
+              style={{ color: '#ff4646', borderColor: 'rgba(255,70,70,0.25)' }}
               onClick={async () => {
                 const name = prompt('Name your song idea:');
                 if (!name?.trim()) return;
@@ -235,16 +235,8 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                   setError(e instanceof Error ? e.message : 'Failed to create song');
                 }
               }}
-            >
-              New Idea
-            </button>
-            <button
-              className="btn btn-small btn-teal"
-              style={{ flex: 0, whiteSpace: 'nowrap', fontSize: 11 }}
-              onClick={() => setShowImport(true)}
-            >
-              Import
-            </button>
+            >&#128161;</button>
+            <button className="btn-icon" title="Import" onClick={() => setShowImport(true)} style={{ color: 'var(--color-teal)', borderColor: 'rgba(26,188,156,0.3)' }}>&#8595;</button>
           </div>
 
           <div className="song-list-items">
@@ -255,11 +247,7 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
 
               return (
                 <div key={song.id} className="song-card neu-card">
-                  <div
-                    className="song-card-info"
-                    onClick={() => setExpandedSong(expandedSong === song.id ? null : song.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
+                  <div className="song-card-info">
                     <div className="song-card-title-row">
                       <span className="song-card-name">{song.name}</span>
                       {!editable && <span className="song-lock-icon" title="Read-only">{'\uD83D\uDD12'}</span>}
@@ -269,35 +257,14 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                       <SongCategoryBadge category={song.category} />
                       {ownerName && <span className="song-owner-tag">{ownerName}</span>}
                       {isShared && <span className="song-meta-tag badge-shared">Shared</span>}
-                      <span className="song-meta-tag">{song.bpm} BPM</span>
-                      <span className="song-meta-tag">{song.time_signature_top}/{song.time_signature_bottom}</span>
-                      {song.key && <span className="song-meta-tag">Key: {song.key}</span>}
-                      {song.duration_seconds && <span className="song-meta-tag">{formatDuration(song.duration_seconds)}</span>}
+                      <span className="bpm-tag">{song.bpm} bpm</span>
                     </div>
                   </div>
-
-                  {/* Expanded actions */}
-                  {expandedSong === song.id && (
-                    <div className="song-card-expanded">
-                      <div className="song-card-launch">
-                        <button className="btn btn-small btn-green" onClick={() => onPlaySong(song.id, 'live')}>
-                          Live
-                        </button>
-                        <button className="btn btn-small btn-tangerine" onClick={() => onPlaySong(song.id, 'practice')}>
-                          Practice
-                        </button>
-                        <button className="btn btn-small btn-teal" onClick={() => onPlaySong(song.id, 'view')}>
-                          View
-                        </button>
-                      </div>
-                      {editable && (
-                        <div className="song-card-actions">
-                          <button className="btn btn-small btn-outline" onClick={() => onEditSong(song.id)}>Edit</button>
-                          <button className="btn btn-small btn-danger" onClick={() => setDeleteSongTarget(song)}>Del</button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="song-card-actions">
+                    <button className="btn-icon" title="Live" onClick={() => onPlaySong(song.id, 'live')}>&#9654;</button>
+                    <button className="btn-icon" title="Practice" onClick={() => onPlaySong(song.id, 'practice')}>&#9881;</button>
+                    <button className={`btn-icon${!editable ? ' disabled' : ''}`} title="Edit" onClick={() => editable && onEditSong(song.id)}>&#9998;</button>
+                  </div>
                 </div>
               );
             })}
@@ -311,41 +278,40 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
       {/* ─── Setlists Tab ─── */}
       {tab === 'setlists' && (
         <>
-          {/* Filter pills */}
-          <div className="filter-pills">
-            {SETLIST_FILTERS.map(f => (
-              <button
-                key={f.value}
-                className={`filter-pill ${setlistFilter === f.value ? 'active' : ''}`}
-                onClick={() => setSetlistFilter(f.value)}
-              >
-                {f.label}
-              </button>
-            ))}
+          {/* Filter dropdown (D-128) */}
+          <div className="library-filter-bar">
+            <div className="neu-inset library-dropdown">
+              <select className="input-field" value={setlistFilter} onChange={e => setSetlistFilter(e.target.value as SetlistFilter)}>
+                {SETLIST_FILTERS.map(f => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <button
-            className="btn btn-primary btn-small btn-full"
-            onClick={() => { setNewName(''); setNewDesc(''); setNewType('tange'); setNewBandName('The Green Tangerine'); setShowNewSetlist(true); }}
-            style={{ marginBottom: 12 }}
-          >
-            + New Setlist
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span className="song-count">{setlists.length} setlist{setlists.length !== 1 ? 's' : ''}</span>
+            <span style={{ flex: 1 }} />
+            <button
+              className="btn-icon"
+              title="New Setlist"
+              onClick={() => { setNewName(''); setNewDesc(''); setNewType('tange'); setNewBandName('The Green Tangerine'); setShowNewSetlist(true); }}
+              style={{ color: 'var(--color-green)', borderColor: 'rgba(0,230,118,0.3)' }}
+            >+</button>
+          </div>
 
           <div className="setlist-list-items">
             {setlists.map(sl => (
-              <div key={sl.id} className="setlist-card neu-card">
-                <div className="setlist-card-info" onClick={() => onSetlistPress(sl.id)} style={{ cursor: 'pointer' }}>
+              <div key={sl.id} className="setlist-card neu-card" onClick={() => onSetlistPress(sl.id)}>
+                <div className="setlist-card-info">
                   <span className="setlist-card-name">{sl.name}</span>
-                  {sl.setlist_type === 'other_band' && <span className="setlist-card-desc" style={{ color: 'var(--color-tangerine)', fontSize: 11 }}>{sl.band_name}</span>}
-                  {sl.description && <span className="setlist-card-desc">{sl.description}</span>}
+                  <span className="setlist-card-desc">
+                    {sl.description || `${sl.setlist_type === 'other_band' ? sl.band_name : 'The Green Tangerine'}`}
+                  </span>
                 </div>
                 <div className="setlist-card-actions">
-                  <button className="btn btn-small btn-green" onClick={() => onPlaySetlist(sl.id, 'live')}>Live</button>
-                  <button className="btn btn-small btn-tangerine" onClick={() => onPlaySetlist(sl.id, 'practice')}>Practice</button>
-                  <button className="btn btn-small btn-teal" onClick={() => onPlaySetlist(sl.id, 'view')}>View</button>
-                  <button className="btn btn-small btn-outline" onClick={() => onSetlistPress(sl.id)}>Open</button>
-                  <button className="btn btn-small btn-danger" onClick={() => setDeleteSetlistTarget(sl)}>Del</button>
+                  <button className="btn-icon" title="Live" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'live'); }}>&#9654;</button>
+                  <button className="btn-icon" title="Edit" onClick={e => { e.stopPropagation(); onSetlistPress(sl.id); }}>&#9998;</button>
                 </div>
               </div>
             ))}
@@ -430,14 +396,18 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
   );
 }
 
-/** Category badge with colour coding: teal=TGT, orange=personal, purple=shared */
+/** Separate scope + type badges */
 function SongCategoryBadge({ category }: { category: SongCategory }) {
-  const config: Record<SongCategory, { label: string; cls: string }> = {
-    tgt_cover:          { label: 'TGT Cover',     cls: 'badge-tgt' },
-    tgt_original:       { label: 'TGT Original',  cls: 'badge-tgt' },
-    personal_cover:     { label: 'Personal Cover', cls: 'badge-personal' },
-    personal_original:  { label: 'Personal Original', cls: 'badge-personal' },
-  };
-  const { label, cls } = config[category] ?? { label: category, cls: '' };
-  return <span className={`song-meta-tag ${cls}`}>{label}</span>;
+  const isTgt = category === 'tgt_cover' || category === 'tgt_original';
+  const isCover = category === 'tgt_cover' || category === 'personal_cover';
+  return (
+    <>
+      <span className={`song-meta-tag ${isTgt ? 'badge-tgt' : 'badge-personal'}`}>
+        {isTgt ? 'TGT' : 'Personal'}
+      </span>
+      <span className={`song-meta-tag ${isCover ? 'badge-cover' : 'badge-original'}`}>
+        {isCover ? 'Cover' : 'Original'}
+      </span>
+    </>
+  );
 }
