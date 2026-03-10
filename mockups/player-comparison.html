@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TGT — Player Comparison: Android vs Web (Actual Code)</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --surface: #111118;
+    --card: #16161e;
+    --text: #e8e8ea;
+    --text-dim: #9b9ba4;
+    --text-muted: #55555e;
+    --green: #00e676;
+    --teal: #1abc9c;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --danger: #ff5252;
+    --fuchsia: #e879f9;
+    --rose: #fc8181;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #050508;
+    color: var(--text);
+    font-family: 'Karla', sans-serif;
+    padding: 20px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 20px;
+    color: var(--orange);
+    text-shadow: 0 0 20px rgba(243,156,18,0.4);
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+  }
+
+  /* ─── Navigation ─── */
+  .nav-bar {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .nav-btn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-dim);
+    font-family: 'Karla', sans-serif;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { border-color: rgba(255,255,255,0.15); color: var(--text); }
+  .nav-btn.active {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: rgba(26,188,156,0.08);
+    text-shadow: 0 0 8px rgba(26,188,156,0.4);
+  }
+
+  /* ─── Side by side layout ─── */
+  .comparison {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .phone-frame {
+    width: 375px;
+    min-height: 700px;
+    background: var(--bg);
+    border-radius: 24px;
+    border: 2px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .phone-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 8px;
+    margin-bottom: 4px;
+  }
+  .phone-label.android { color: var(--green); text-shadow: 0 0 12px rgba(0,230,118,0.3); }
+  .phone-label.web { color: var(--teal); text-shadow: 0 0 12px rgba(26,188,156,0.3); }
+
+  /* ─── Shared styles ─── */
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── NeuCard (Android style) ─── */
+  .neu-card {
+    background: var(--card);
+    border-radius: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    border-left: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(0,0,0,0.3);
+    border-right: 1px solid rgba(0,0,0,0.2);
+    padding: 14px;
+    margin: 0 16px 12px;
+  }
+
+  .neu-well {
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px;
+    border-top: 1px solid rgba(0,0,0,0.3);
+    border-left: 1px solid rgba(0,0,0,0.2);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-right: 1px solid rgba(255,255,255,0.03);
+    padding: 14px;
+  }
+
+  /* ─── Android header ─── */
+  .android-header {
+    background: var(--surface);
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .android-header .menu-icon {
+    color: var(--text-dim);
+    font-size: 18px;
+  }
+  .android-header .mode-title {
+    font-weight: 700;
+    font-size: 18px;
+  }
+  .android-header .mode-title.live {
+    color: var(--green);
+    text-shadow: 0 0 14px rgba(0,230,118,0.45);
+  }
+  .android-header .mode-title.practice {
+    color: var(--purple);
+    text-shadow: 0 0 14px rgba(187,134,252,0.45);
+  }
+  .android-header .queue-icon {
+    margin-left: auto;
+    color: var(--teal);
+    font-size: 16px;
+  }
+
+  /* ─── Song card ─── */
+  .song-title { font-weight: 700; font-size: 20px; color: var(--text); }
+  .song-artist { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .song-chips { display: flex; gap: 6px; margin-top: 8px; }
+  .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 4px;
+  }
+  .chip-orange { color: var(--orange); background: rgba(243,156,18,0.1); border: 0.5px solid rgba(243,156,18,0.3); }
+  .chip-teal { color: var(--teal); background: rgba(26,188,156,0.1); border: 0.5px solid rgba(26,188,156,0.3); }
+  .chip-muted { color: var(--text-muted); background: rgba(85,85,94,0.1); border: 0.5px solid rgba(85,85,94,0.3); }
+
+  /* ─── Setlist nav row ─── */
+  .setlist-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+  .setlist-arrow { color: var(--green); font-size: 16px; cursor: pointer; padding: 4px; }
+  .setlist-arrow.disabled { color: var(--text-muted); }
+  .setlist-info { text-align: center; }
+  .setlist-name { font-size: 10px; color: var(--text-muted); letter-spacing: 0.5px; }
+  .setlist-pos { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+
+  /* ─── Beat display ─── */
+  .beat-dots {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 0;
+  }
+  .beat-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    transition: all 0.1s;
+  }
+  .beat-dot.green { background: rgba(0,230,118,0.12); border: 1px solid rgba(0,230,118,0.25); }
+  .beat-dot.green.active { background: var(--green); box-shadow: 0 0 16px rgba(0,230,118,0.6); }
+  .beat-dot.green.downbeat.active { background: #ff5252; box-shadow: 0 0 16px rgba(255,82,82,0.6); }
+  .beat-dot.purple { background: rgba(187,134,252,0.12); border: 1px solid rgba(187,134,252,0.25); }
+  .beat-dot.purple.active { background: var(--purple); box-shadow: 0 0 16px rgba(187,134,252,0.6); }
+  .beat-dot.purple.downbeat.active { background: #ff5252; box-shadow: 0 0 16px rgba(255,82,82,0.6); }
+
+  /* ─── Play/Stop button ─── */
+  .play-btn {
+    display: flex;
+    justify-content: center;
+    margin: 0 16px 12px;
+  }
+  .play-btn button {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    font-family: 'Karla', sans-serif;
+    font-weight: 700;
+  }
+  .play-btn button.green { background: rgba(0,230,118,0.12); color: var(--green); border: 2px solid rgba(0,230,118,0.3); }
+  .play-btn button.purple { background: rgba(187,134,252,0.12); color: var(--purple); border: 2px solid rgba(187,134,252,0.3); }
+
+  /* ─── BPM card ─── */
+  .bpm-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .bpm-label { font-weight: 600; font-size: 13px; color: var(--text-dim); }
+  .bpm-value { font-family: 'JetBrains Mono', monospace; font-size: 28px; color: var(--text); }
+  .bpm-buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .bpm-btn {
+    flex: 1;
+    height: 36px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .bpm-btn.minus { background: rgba(255,82,82,0.08); color: rgba(255,82,82,0.7); border: 0.5px solid rgba(255,82,82,0.25); }
+  .bpm-btn.dim { background: rgba(155,155,164,0.08); color: var(--text-dim); border: 0.5px solid rgba(155,155,164,0.25); }
+  .bpm-btn.reset { background: rgba(243,156,18,0.08); color: var(--orange); border: 0.5px solid rgba(243,156,18,0.25); flex: 1.5; }
+  .bpm-btn.plus { background: rgba(0,230,118,0.08); color: rgba(0,230,118,0.7); border: 0.5px solid rgba(0,230,118,0.25); }
+
+  /* ─── Count-in card ─── */
+  .countin-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .countin-options { display: flex; gap: 6px; }
+  .countin-opt {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border: 0.5px solid rgba(85,85,94,0.2);
+    color: var(--text-muted);
+    background: transparent;
+  }
+  .countin-opt.selected {
+    background: rgba(0,230,118,0.15);
+    border-color: rgba(0,230,118,0.4);
+    color: var(--green);
+    text-shadow: 0 0 6px rgba(0,230,118,0.4);
+  }
+
+  /* ─── Unified transport ─── */
+  .transport-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin: 0 16px 12px;
+  }
+  .transport-btn {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── Speed card ─── */
+  .speed-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .speed-label { font-weight: 600; font-size: 13px; color: var(--text-dim); }
+  .speed-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    color: var(--purple);
+    text-shadow: 0 0 10px rgba(187,134,252,0.45);
+  }
+  .speed-slider {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(85,85,94,0.25);
+    border-radius: 2px;
+    margin: 8px 0;
+    accent-color: var(--purple);
+  }
+  .speed-range {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .speed-formula { color: var(--text-dim); }
+
+  /* ─── Nudge card ─── */
+  .nudge-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .nudge-label { font-weight: 600; font-size: 13px; color: var(--text-dim); }
+  .nudge-value { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--teal); }
+  .nudge-buttons { display: flex; gap: 8px; }
+  .nudge-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nudge-btn.back { background: rgba(243,156,18,0.08); color: var(--orange); border: 0.5px solid rgba(243,156,18,0.25); }
+  .nudge-btn.fwd { background: rgba(26,188,156,0.08); color: var(--teal); border: 0.5px solid rgba(26,188,156,0.25); }
+  .nudge-btn.rst { background: rgba(155,155,164,0.08); color: var(--text-muted); border: 0.5px solid rgba(155,155,164,0.2); flex: 0.8; }
+
+  /* ─── Subdivision card ─── */
+  .subdiv-buttons { display: flex; gap: 6px; margin-top: 8px; }
+  .subdiv-btn {
+    flex: 1;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid rgba(85,85,94,0.2);
+    color: var(--text-muted);
+    background: transparent;
+  }
+  .subdiv-btn.selected {
+    background: rgba(187,134,252,0.15);
+    border-color: rgba(187,134,252,0.4);
+    color: var(--purple);
+    text-shadow: 0 0 6px rgba(187,134,252,0.4);
+  }
+
+  /* ─── Waveform ─── */
+  .waveform-bar {
+    height: 64px;
+    border-radius: 8px;
+    background: rgba(17,17,24,0.4);
+    border: 0.5px solid rgba(85,85,94,0.15);
+    position: relative;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .waveform-bars {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 6px 4px;
+    gap: 1px;
+  }
+  .wform-bar {
+    flex: 1;
+    background: rgba(0,230,118,0.28);
+    border-radius: 1px;
+    min-height: 2px;
+  }
+  .wform-bar.played { background: rgba(0,230,118,0.6); }
+  .waveform-playhead {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: var(--green);
+    left: 35%;
+  }
+
+  /* ─── Track section ─── */
+  .track-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .track-icon { color: var(--green); font-size: 16px; }
+  .track-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--green);
+    text-shadow: 0 0 8px rgba(0,230,118,0.35);
+    flex: 1;
+  }
+  .track-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin: 8px 0 4px;
+  }
+
+  /* ─── Mix row ─── */
+  .mix-row {
+    display: flex;
+    align-items: center;
+    padding: 1px 0;
+    gap: 4px;
+  }
+  .mix-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    width: 44px;
+    flex-shrink: 0;
+  }
+  .mix-slider {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    background: rgba(85,85,94,0.2);
+    border-radius: 2px;
+  }
+  .mix-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 36px;
+    text-align: right;
+  }
+
+  /* ─── Loop buttons ─── */
+  .loop-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .loop-btn {
+    flex: 1;
+    height: 34px;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+  }
+  .loop-btn.a { background: rgba(243,156,18,0.08); color: var(--orange); border: 0.5px solid rgba(243,156,18,0.25); }
+  .loop-btn.b { background: rgba(243,156,18,0.08); color: var(--orange); border: 0.5px solid rgba(243,156,18,0.25); }
+  .loop-btn.clr { background: rgba(255,82,82,0.08); color: var(--danger); border: 0.5px solid rgba(255,82,82,0.25); }
+
+  /* ─── Stems card ─── */
+  .stems-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .stem-row {
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    gap: 4px;
+  }
+  .stem-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    width: 56px;
+    flex-shrink: 0;
+  }
+  .stem-slider {
+    flex: 1;
+    height: 3px;
+    -webkit-appearance: none;
+    background: rgba(85,85,94,0.2);
+    border-radius: 2px;
+  }
+  .stem-pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 36px;
+    text-align: right;
+  }
+
+  /* ─── WEB PLAYER STYLE (flat, no NeuCards) ─── */
+  .web-topbar {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .web-back-btn {
+    background: rgba(0,230,118,0.1);
+    border: 1px solid rgba(0,230,118,0.2);
+    color: var(--green);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Karla', sans-serif;
+    font-weight: 600;
+  }
+  .web-topbar-info { flex: 1; text-align: center; }
+  .web-topbar .song-name { font-weight: 700; font-size: 16px; color: var(--text); }
+  .web-topbar .song-artist { font-size: 12px; color: var(--text-dim); }
+  .web-mode-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .web-mode-badge.live { color: var(--green); background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.2); }
+  .web-mode-badge.practice { color: var(--purple); background: rgba(187,134,252,0.1); border: 1px solid rgba(187,134,252,0.2); }
+
+  .web-info-tags {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+  }
+  .web-info-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-dim);
+  }
+
+  .web-beat-counter {
+    text-align: center;
+    padding: 8px;
+  }
+  .web-bar-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .web-beat-dots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+  .web-beat-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .web-beat-dot.active { background: var(--green); box-shadow: 0 0 12px rgba(0,230,118,0.5); }
+  .web-beat-dot.downbeat.active { background: var(--danger); box-shadow: 0 0 12px rgba(255,82,82,0.5); }
+
+  .web-lyrics-area {
+    flex: 1;
+    padding: 12px 16px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-dim);
+    border-top: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    min-height: 100px;
+  }
+  .web-chord { color: var(--teal); font-weight: 700; font-size: 13px; display: block; margin-bottom: -4px; }
+
+  .web-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+  .web-ctrl-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-dim);
+    font-family: 'Karla', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .web-ctrl-btn.playing {
+    background: rgba(0,230,118,0.08);
+    border-color: rgba(0,230,118,0.2);
+    color: var(--green);
+  }
+
+  .web-speed-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+  }
+  .web-speed-btn {
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .web-speed-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--text);
+    min-width: 48px;
+    text-align: center;
+  }
+
+  .web-loop-controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 16px;
+  }
+  .web-loop-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(243,156,18,0.2);
+    background: rgba(243,156,18,0.05);
+    color: var(--orange);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .web-stems {
+    padding: 8px 16px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .web-stems-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .web-stem-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+  }
+  .web-stem-icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    width: 28px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .web-stem-ms {
+    display: flex;
+    gap: 3px;
+  }
+  .web-stem-ms button {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+  }
+  .web-stem-ms button.active { background: rgba(0,230,118,0.1); color: var(--green); border-color: rgba(0,230,118,0.3); }
+
+  .web-queue-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 16px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .web-queue-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(26,188,156,0.2);
+    background: rgba(26,188,156,0.05);
+    color: var(--teal);
+    font-family: 'Karla', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .web-queue-toggle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    cursor: pointer;
+  }
+
+  /* ─── Annotations ─── */
+  .annotation {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin: 4px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .annotation.has { background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.15); color: var(--green); }
+  .annotation.missing { background: rgba(255,82,82,0.06); border: 1px solid rgba(255,82,82,0.15); color: var(--danger); }
+  .annotation.different { background: rgba(243,156,18,0.06); border: 1px solid rgba(243,156,18,0.15); color: var(--orange); }
+
+  .section-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+    margin: 6px 16px;
+  }
+
+  .screen { display: none; }
+  .screen.active { display: flex; }
+
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+  .legend-dot.has { background: rgba(0,230,118,0.3); border: 1px solid rgba(0,230,118,0.5); }
+  .legend-dot.missing { background: rgba(255,82,82,0.3); border: 1px solid rgba(255,82,82,0.5); }
+  .legend-dot.different { background: rgba(243,156,18,0.3); border: 1px solid rgba(243,156,18,0.5); }
+</style>
+</head>
+<body>
+
+<h1>Player Comparison — What Actually Exists in Code</h1>
+<p class="subtitle">Every element below is pulled from real code. Nothing simulated. Green = has it. Red = missing. Orange = different approach.</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot has"></div><span style="color:var(--green)">Feature present</span></div>
+  <div class="legend-item"><div class="legend-dot missing"></div><span style="color:var(--danger)">Feature missing</span></div>
+  <div class="legend-item"><div class="legend-dot different"></div><span style="color:var(--orange)">Different implementation</span></div>
+</div>
+
+<div class="nav-bar">
+  <button class="nav-btn active" onclick="showScreen('live')">1. Live Mode</button>
+  <button class="nav-btn" onclick="showScreen('practice')">2. Practice Mode</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 1: LIVE MODE                                                        -->
+<!-- ════════════════════════════════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-live">
+  <div class="comparison">
+
+    <!-- ─── ANDROID LIVE ─── -->
+    <div>
+      <div class="phone-label android">Android — LiveScreen.kt</div>
+      <div class="phone-frame">
+        <!-- Header -->
+        <div class="android-header">
+          <span class="menu-icon">&#9776;</span>
+          <span class="mode-title live">Live Mode</span>
+          <span class="queue-icon">&#9835;</span>
+        </div>
+
+        <!-- Song card with setlist nav -->
+        <div class="neu-card">
+          <div class="setlist-nav">
+            <span class="setlist-arrow disabled">&larr;</span>
+            <div class="setlist-info">
+              <div class="setlist-name">Wedding Set A</div>
+              <div class="setlist-pos mono">1 / 12</div>
+            </div>
+            <span class="setlist-arrow">&rarr;</span>
+          </div>
+          <div class="song-title">Sultans of Swing</div>
+          <div class="song-artist">Dire Straits</div>
+          <div class="song-chips">
+            <span class="chip chip-orange mono">157 BPM</span>
+            <span class="chip chip-teal mono">Dm</span>
+            <span class="chip chip-muted mono">4/4</span>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; NeuCard with setlist prev/next arrows + position</div>
+
+        <!-- Beat display -->
+        <div class="neu-card">
+          <div class="beat-dots">
+            <div class="beat-dot green downbeat active"></div>
+            <div class="beat-dot green"></div>
+            <div class="beat-dot green"></div>
+            <div class="beat-dot green"></div>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; BeatDisplay in NeuCard — animated dots with glow</div>
+
+        <!-- Play/Stop -->
+        <div class="play-btn">
+          <button class="green">&#9654;</button>
+        </div>
+        <div class="annotation has">&#10003; Big circular Play/Stop button (icon, green accent)</div>
+
+        <!-- BPM control -->
+        <div class="neu-card">
+          <div class="bpm-row">
+            <span class="bpm-label">BPM</span>
+            <span class="bpm-value mono">157</span>
+          </div>
+          <div class="bpm-buttons">
+            <button class="bpm-btn minus">&minus;5</button>
+            <button class="bpm-btn dim">&minus;1</button>
+            <button class="bpm-btn reset">RESET</button>
+            <button class="bpm-btn dim">+1</button>
+            <button class="bpm-btn plus">+5</button>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; BPM +/- control with speed safety modal</div>
+
+        <!-- Count-in -->
+        <div class="neu-card">
+          <div class="countin-row">
+            <span class="bpm-label">Count-in</span>
+            <div class="countin-options">
+              <span class="countin-opt">OFF</span>
+              <span class="countin-opt selected">1 bar</span>
+              <span class="countin-opt">2 bars</span>
+            </div>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Count-in selector (OFF / 1 bar / 2 bars)</div>
+
+        <div class="section-divider"></div>
+        <div class="annotation missing">&#10007; No lyrics/chords display</div>
+        <div class="annotation missing">&#10007; No player prefs toggles (7 toggles — web has them)</div>
+      </div>
+    </div>
+
+    <!-- ─── WEB LIVE ─── -->
+    <div>
+      <div class="phone-label web">Web — Player.tsx (mode=live)</div>
+      <div class="phone-frame">
+        <!-- Top bar -->
+        <div class="web-topbar">
+          <button class="web-back-btn">&#9664; Back</button>
+          <div class="web-topbar-info">
+            <div class="song-name">Sultans of Swing</div>
+            <div class="song-artist">Dire Straits</div>
+          </div>
+          <span class="web-mode-badge live">LIVE</span>
+        </div>
+        <div class="annotation different">&#9651; Flat top bar — no NeuCard, no setlist arrows inline</div>
+
+        <!-- Info tags -->
+        <div class="web-info-tags">
+          <span class="web-info-tag">Dm</span>
+          <span class="web-info-tag">157 BPM</span>
+        </div>
+        <div class="annotation different">&#9651; Info tags row — compact, no time sig</div>
+
+        <!-- Beat counter -->
+        <div class="web-beat-counter">
+          <span class="web-bar-num mono">Bar 1</span>
+          <div class="web-beat-dots">
+            <div class="web-beat-dot downbeat active"></div>
+            <div class="web-beat-dot"></div>
+            <div class="web-beat-dot"></div>
+            <div class="web-beat-dot"></div>
+          </div>
+        </div>
+        <div class="annotation different">&#9651; Simpler dots — no NeuCard wrapper, less glow</div>
+
+        <!-- Lyrics area -->
+        <div class="web-lyrics-area">
+          <span class="web-chord">[Dm]</span>
+          You get a shiver in the dark<br>
+          It's raining in the park but meantime<br>
+          <span class="web-chord">[Bb]</span>
+          South of the river you stop and you hold everything<br>
+          <span class="web-chord">[C]</span>
+          A band is blowing Dixie double four time<br>
+          <span class="web-chord">[Bb]</span>
+          You feel alright when you hear that music ring...
+        </div>
+        <div class="annotation has">&#10003; ChordPro lyrics/chords display (scrollable)</div>
+
+        <!-- Controls -->
+        <div class="web-controls">
+          <button class="web-ctrl-btn playing">Pause</button>
+          <button class="web-ctrl-btn">Stop</button>
+          <button class="web-ctrl-btn">Click</button>
+        </div>
+        <div class="annotation different">&#9651; Text buttons — no big Play icon, no circular button</div>
+
+        <!-- Queue nav -->
+        <div class="web-queue-nav">
+          <button class="web-queue-btn" style="opacity:0.3">Prev</button>
+          <button class="web-queue-toggle mono">1 / 12</button>
+          <button class="web-queue-btn">Next</button>
+        </div>
+        <div class="annotation different">&#9651; Queue nav at bottom — separate row, not in song card</div>
+
+        <div class="section-divider"></div>
+        <div class="annotation missing">&#10007; No BPM +/- control</div>
+        <div class="annotation missing">&#10007; No count-in UI</div>
+        <div class="annotation missing">&#10007; No speed safety modal</div>
+        <div class="annotation has">&#10003; Has player prefs from user_settings (7 toggles)</div>
+        <div class="annotation has">&#10003; Has beat flash (full-card glow on beat)</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 2: PRACTICE MODE                                                    -->
+<!-- ════════════════════════════════════════════════════════════════════════════ -->
+<div class="screen" id="screen-practice">
+  <div class="comparison">
+
+    <!-- ─── ANDROID PRACTICE ─── -->
+    <div>
+      <div class="phone-label android">Android — PracticeScreen.kt</div>
+      <div class="phone-frame">
+        <!-- Header -->
+        <div class="android-header">
+          <span class="menu-icon">&#9776;</span>
+          <span class="mode-title practice">Practice</span>
+        </div>
+
+        <!-- Song card -->
+        <div class="neu-card">
+          <div class="song-title" style="font-size:20px;">Sultans of Swing</div>
+          <div class="song-artist">Dire Straits</div>
+          <div class="song-chips">
+            <span class="chip chip-orange mono">157 BPM</span>
+            <span class="chip chip-teal mono">Dm</span>
+            <span class="chip chip-muted mono">4/4</span>
+          </div>
+        </div>
+
+        <!-- Beat display -->
+        <div class="neu-card">
+          <div class="beat-dots">
+            <div class="beat-dot purple downbeat active"></div>
+            <div class="beat-dot purple"></div>
+            <div class="beat-dot purple"></div>
+            <div class="beat-dot purple"></div>
+          </div>
+        </div>
+
+        <!-- Unified transport -->
+        <div class="transport-row">
+          <button class="transport-btn">&#9198;</button>
+          <div class="play-btn" style="margin:0">
+            <button class="purple" style="width:50px;height:50px;font-size:20px">&#9654;</button>
+          </div>
+          <button class="transport-btn">&#9632;</button>
+          <button class="transport-btn" style="margin-left:8px">&#128266;</button>
+        </div>
+        <div class="annotation has">&#10003; Unified transport: restart / play-pause / stop / click mute</div>
+
+        <!-- Speed -->
+        <div class="neu-card">
+          <div class="speed-row">
+            <span class="speed-label">Speed</span>
+            <span class="speed-value">80%</span>
+          </div>
+          <input type="range" class="speed-slider" min="25" max="150" value="80" disabled>
+          <div class="speed-range">
+            <span>25%</span>
+            <span class="speed-formula">157 &times; 0.80 = 126 BPM</span>
+            <span>150%</span>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Full speed slider 25-150% with formula display</div>
+
+        <!-- Nudge -->
+        <div class="neu-card">
+          <div class="nudge-row">
+            <span class="nudge-label">Beat Nudge</span>
+            <span class="nudge-value mono">+20 ms</span>
+          </div>
+          <div class="nudge-buttons">
+            <button class="nudge-btn back">&#9664;&#9664; Back</button>
+            <button class="nudge-btn rst">Reset</button>
+            <button class="nudge-btn fwd">Fwd &#9654;&#9654;</button>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Beat nudge: back/fwd/reset with ms display</div>
+
+        <!-- Subdivision -->
+        <div class="neu-card">
+          <span class="bpm-label">Subdivision</span>
+          <div class="subdiv-buttons">
+            <button class="subdiv-btn">Off</button>
+            <button class="subdiv-btn selected">8th</button>
+            <button class="subdiv-btn">Triplet</button>
+            <button class="subdiv-btn">16th</button>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Subdivision selector (Off/8th/Triplet/16th)</div>
+
+        <!-- Track section -->
+        <div class="neu-card">
+          <div class="track-header">
+            <span class="track-icon">&#127925;</span>
+            <span class="track-title">Backing Track</span>
+            <span class="mono" style="font-size:10px;color:var(--teal);text-shadow:0 0 6px rgba(26,188,156,0.3)">+20ms</span>
+          </div>
+          <div class="track-time">1:24 / 5:47</div>
+          <div class="mix-row">
+            <span class="mix-label" style="color:var(--purple)">Click</span>
+            <input type="range" class="mix-slider" min="0" max="100" value="80" disabled style="accent-color:var(--purple)">
+            <span class="mix-pct">80%</span>
+          </div>
+          <div class="mix-row">
+            <span class="mix-label" style="color:var(--green)">Track</span>
+            <input type="range" class="mix-slider" min="0" max="100" value="70" disabled style="accent-color:var(--green)">
+            <span class="mix-pct">70%</span>
+          </div>
+          <div class="waveform-bar">
+            <div class="waveform-bars">
+              <div class="wform-bar played" style="height:30%"></div>
+              <div class="wform-bar played" style="height:55%"></div>
+              <div class="wform-bar played" style="height:80%"></div>
+              <div class="wform-bar played" style="height:45%"></div>
+              <div class="wform-bar played" style="height:70%"></div>
+              <div class="wform-bar played" style="height:90%"></div>
+              <div class="wform-bar played" style="height:60%"></div>
+              <div class="wform-bar" style="height:75%"></div>
+              <div class="wform-bar" style="height:50%"></div>
+              <div class="wform-bar" style="height:85%"></div>
+              <div class="wform-bar" style="height:40%"></div>
+              <div class="wform-bar" style="height:65%"></div>
+              <div class="wform-bar" style="height:55%"></div>
+              <div class="wform-bar" style="height:70%"></div>
+              <div class="wform-bar" style="height:45%"></div>
+            </div>
+            <div class="waveform-playhead"></div>
+          </div>
+          <div class="loop-row">
+            <button class="loop-btn a">A</button>
+            <button class="loop-btn b">B</button>
+            <button class="loop-btn clr">Clear</button>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Click/Track mix sliders + waveform + A-B loop + beat align</div>
+
+        <!-- Stems -->
+        <div class="neu-card">
+          <div class="stems-title">Stems</div>
+          <div class="stem-row">
+            <span class="stem-label" style="color:var(--orange)">DRUMS</span>
+            <input type="range" class="stem-slider" value="100" disabled style="accent-color:var(--orange)">
+            <span class="stem-pct">100%</span>
+          </div>
+          <div class="stem-row">
+            <span class="stem-label" style="color:var(--teal)">BASS</span>
+            <input type="range" class="stem-slider" value="80" disabled style="accent-color:var(--teal)">
+            <span class="stem-pct">80%</span>
+          </div>
+          <div class="stem-row">
+            <span class="stem-label" style="color:var(--fuchsia)">VOCALS</span>
+            <input type="range" class="stem-slider" value="60" disabled style="accent-color:var(--fuchsia)">
+            <span class="stem-pct">60%</span>
+          </div>
+          <div class="stem-row">
+            <span class="stem-label" style="color:var(--green)">GUITAR</span>
+            <input type="range" class="stem-slider" value="90" disabled style="accent-color:var(--green)">
+            <span class="stem-pct">90%</span>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Colour-coded stem sliders with % display</div>
+
+        <div class="section-divider"></div>
+        <div class="annotation missing">&#10007; No lyrics/chords display</div>
+        <div class="annotation missing">&#10007; No player prefs toggles</div>
+      </div>
+    </div>
+
+    <!-- ─── WEB PRACTICE ─── -->
+    <div>
+      <div class="phone-label web">Web — Player.tsx (mode=practice)</div>
+      <div class="phone-frame">
+        <!-- Top bar -->
+        <div class="web-topbar">
+          <button class="web-back-btn">&#9664; Back</button>
+          <div class="web-topbar-info">
+            <div class="song-name">Sultans of Swing</div>
+            <div class="song-artist">Dire Straits</div>
+          </div>
+          <span class="web-mode-badge practice">PRACTICE</span>
+        </div>
+
+        <!-- Info tags -->
+        <div class="web-info-tags">
+          <span class="web-info-tag">Dm</span>
+          <span class="web-info-tag">126 BPM</span>
+          <span class="web-info-tag" style="color:var(--purple);border-color:rgba(187,134,252,0.2)">80%</span>
+        </div>
+
+        <!-- Beat counter -->
+        <div class="web-beat-counter">
+          <span class="web-bar-num mono">Bar 1</span>
+          <div class="web-beat-dots">
+            <div class="web-beat-dot downbeat active"></div>
+            <div class="web-beat-dot"></div>
+            <div class="web-beat-dot"></div>
+            <div class="web-beat-dot"></div>
+          </div>
+        </div>
+
+        <!-- Lyrics -->
+        <div class="web-lyrics-area" style="min-height:80px;">
+          <span class="web-chord">[Dm]</span>
+          You get a shiver in the dark<br>
+          It's raining in the park but meantime...
+        </div>
+        <div class="annotation has">&#10003; Lyrics/chords with ChordPro support</div>
+
+        <!-- Waveform + transport -->
+        <div style="padding:0 16px;">
+          <div class="waveform-bar">
+            <div class="waveform-bars">
+              <div class="wform-bar played" style="height:30%"></div>
+              <div class="wform-bar played" style="height:55%"></div>
+              <div class="wform-bar played" style="height:80%"></div>
+              <div class="wform-bar played" style="height:45%"></div>
+              <div class="wform-bar played" style="height:70%"></div>
+              <div class="wform-bar played" style="height:90%"></div>
+              <div class="wform-bar played" style="height:60%"></div>
+              <div class="wform-bar" style="height:75%"></div>
+              <div class="wform-bar" style="height:50%"></div>
+              <div class="wform-bar" style="height:85%"></div>
+              <div class="wform-bar" style="height:40%"></div>
+              <div class="wform-bar" style="height:65%"></div>
+            </div>
+            <div class="waveform-playhead"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span class="mono" style="font-size:11px;color:var(--text-dim)">1:24</span>
+            <input type="range" style="flex:1;margin:0 8px;accent-color:var(--green)" disabled>
+            <span class="mono" style="font-size:11px;color:var(--text-dim)">5:47</span>
+          </div>
+        </div>
+        <div class="annotation has">&#10003; Waveform + seek bar (similar to Android)</div>
+
+        <!-- Controls -->
+        <div class="web-controls">
+          <button class="web-ctrl-btn playing">Pause</button>
+          <button class="web-ctrl-btn">Stop</button>
+          <button class="web-ctrl-btn">Click</button>
+        </div>
+        <div class="annotation different">&#9651; Text buttons only — no restart, no click mute icon</div>
+
+        <!-- Speed controls -->
+        <div class="web-speed-controls">
+          <button class="web-speed-btn">-5%</button>
+          <span class="web-speed-display mono">80%</span>
+          <button class="web-speed-btn">+5%</button>
+          <button class="web-speed-btn">Reset</button>
+        </div>
+        <div class="annotation different">&#9651; Buttons only — no slider, no formula, no 25-150% range</div>
+
+        <!-- A-B Loop -->
+        <div class="web-loop-controls">
+          <button class="web-loop-btn">Set A-B</button>
+          <button class="web-loop-btn">Clear Loop</button>
+        </div>
+        <div class="annotation has">&#10003; A-B loop — same concept, different UI</div>
+
+        <!-- Stems -->
+        <div class="web-stems">
+          <div class="web-stems-label">Stems</div>
+          <div class="web-stem-row">
+            <span class="web-stem-icon" style="color:var(--orange)">DR</span>
+            <input type="range" class="stem-slider" value="100" disabled style="accent-color:var(--orange);flex:1">
+            <div class="web-stem-ms">
+              <button>M</button>
+              <button>S</button>
+            </div>
+          </div>
+          <div class="web-stem-row">
+            <span class="web-stem-icon" style="color:var(--teal)">BA</span>
+            <input type="range" class="stem-slider" value="80" disabled style="accent-color:var(--teal);flex:1">
+            <div class="web-stem-ms">
+              <button class="active">M</button>
+              <button>S</button>
+            </div>
+          </div>
+          <div class="web-stem-row">
+            <span class="web-stem-icon" style="color:var(--fuchsia)">VO</span>
+            <input type="range" class="stem-slider" value="60" disabled style="accent-color:var(--fuchsia);flex:1">
+            <div class="web-stem-ms">
+              <button>M</button>
+              <button>S</button>
+            </div>
+          </div>
+          <div class="web-stem-row">
+            <span class="web-stem-icon" style="color:var(--green)">GT</span>
+            <input type="range" class="stem-slider" value="90" disabled style="accent-color:var(--green);flex:1">
+            <div class="web-stem-ms">
+              <button>M</button>
+              <button class="active">S</button>
+            </div>
+          </div>
+        </div>
+        <div class="annotation different">&#9651; Has M/S buttons (mute/solo) — Android has gain only</div>
+
+        <div class="section-divider"></div>
+        <div class="annotation missing">&#10007; No beat nudge (back/fwd/reset)</div>
+        <div class="annotation missing">&#10007; No subdivision selector</div>
+        <div class="annotation missing">&#10007; No count-in UI</div>
+        <div class="annotation missing">&#10007; No click/track mix sliders</div>
+        <div class="annotation missing">&#10007; No beat alignment banner</div>
+        <div class="annotation has">&#10003; Has beat flash glow on beat</div>
+        <div class="annotation has">&#10003; Has player prefs (7 toggles from user_settings)</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
