@@ -213,6 +213,27 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 ---
 
+## 13. Recording + Takes (S41)
+
+| Touch | Ripple |
+|-------|--------|
+| `shared/supabase/queries.ts` (uploadRecordedTake, getUserRecordedTakes, deleteRecordedTake, setBestTake, clearBestTake) | `web/src/components/SongForm.tsx` — "My Takes" section (cloud + local) |
+| | `web/src/components/Player.tsx` — recording mode (record button, post-recording save) |
+| | `web/src/hooks/useRecording.ts` — getUserMedia, MediaRecorder, camera, level meter |
+| | `web/src/storage/takesDb.ts` — IndexedDB local takes (non-best stays local) |
+| | `android/.../StemRepository.kt` — getUserRecordedTakes, setBestTake, clearBestTake, deleteRecordedTake |
+| | `android/.../data/audio/LocalTakesStore.kt` — file-based local takes |
+| | `android/.../data/audio/AudioRecorder.kt` — MediaRecorder AAC capture |
+| | `android/.../AppViewModel.kt` — takes state + recording state |
+| | `android/.../ui/components/PlayerComponents.kt` — TakeItem + TakesSection |
+| | `android/.../ui/screens/PracticeScreen.kt` — TakesSection, RecordingBanner, PostRecordingDialog |
+| `song_stems` table (`is_best_take`, `source='recorded'`) | Best take logic: only one per user per song in cloud |
+| `song-stems` storage bucket | Uploaded audio files for best takes |
+
+**Key coupling**: Best take upload (web) goes through `shared/queries.ts uploadRecordedTake`. Android best take upload is TODO (currently saves locally only). Non-best takes are platform-local (IndexedDB on web, file storage on Android).
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Adding a new Supabase table

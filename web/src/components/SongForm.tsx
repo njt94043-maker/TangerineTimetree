@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles, getSongShares, shareSong, unshareSong } from '@shared/supabase/queries';
+import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles, getSongShares, shareSong, unshareSong, getUserRecordedTakes, deleteRecordedTake, setBestTake, clearBestTake } from '@shared/supabase/queries';
 import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, Profile, SongShareWithProfile } from '@shared/supabase/types';
 import { isPersonalSong } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
+import { getUserTakesLocal, deleteTakeLocally, type LocalTake } from '../storage/takesDb';
 
 const BEAT_ANALYSIS_URL = import.meta.env.VITE_BEAT_ANALYSIS_URL as string | undefined;
 
@@ -86,6 +87,14 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
   const [sharingWith, setSharingWith] = useState<string>('');
   const [sharingLoading, setSharingLoading] = useState(false);
 
+  // Takes (S41 — D-130, D-143, D-145)
+  const [localTakes, setLocalTakes] = useState<LocalTake[]>([]);
+  const [cloudTakes, setCloudTakes] = useState<SongStem[]>([]);
+  const [takesLoading, setTakesLoading] = useState(false);
+  const [takeError, setTakeError] = useState('');
+  const [playingTakeId, setPlayingTakeId] = useState<string | null>(null);
+  const takeAudioRef = useRef<HTMLAudioElement | null>(null);
+
   useEffect(() => {
     getProfiles().then(setProfiles).catch(() => {});
     if (!songId) return;
@@ -118,6 +127,11 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
       // Load shares for personal_original songs owned by current user
       if (song.category === 'personal_original' && song.owner_id === userId) {
         getSongShares(songId).then(setShares).catch(() => {});
+      }
+      // Load takes: local (IndexedDB) + cloud (Supabase recorded stems)
+      if (userId) {
+        getUserTakesLocal(songId, userId).then(setLocalTakes).catch(() => {});
+        getUserRecordedTakes(songId, userId).then(setCloudTakes).catch(() => {});
       }
       // Load beat map status
       getBeatMap(songId).then(bm => {
@@ -159,6 +173,83 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
     } finally {
       setSharingLoading(false);
     }
+  }
+
+  // Takes handlers (S41)
+  function refreshTakes() {
+    if (!songId || !userId) return;
+    getUserTakesLocal(songId, userId).then(setLocalTakes).catch(() => {});
+    getUserRecordedTakes(songId, userId).then(setCloudTakes).catch(() => {});
+  }
+
+  async function handleDeleteLocalTake(takeId: string) {
+    if (!confirm('Delete this take?')) return;
+    try {
+      await deleteTakeLocally(takeId);
+      setLocalTakes(prev => prev.filter(t => t.id !== takeId));
+    } catch (err) {
+      setTakeError(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  }
+
+  async function handleDeleteCloudTake(stemId: string) {
+    if (!confirm('Delete this take from cloud storage?')) return;
+    try {
+      await deleteRecordedTake(stemId);
+      setCloudTakes(prev => prev.filter(t => t.id !== stemId));
+      // Refresh stems too since best take was in stems list
+      if (songId) getSongStems(songId).then(setStems).catch(() => {});
+    } catch (err) {
+      setTakeError(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  }
+
+  async function handleSetBestTake(stemId: string) {
+    if (!songId) return;
+    setTakesLoading(true);
+    try {
+      await setBestTake(stemId, songId);
+      refreshTakes();
+      // Refresh stems since best take appears there
+      getSongStems(songId).then(setStems).catch(() => {});
+    } catch (err) {
+      setTakeError(err instanceof Error ? err.message : 'Failed to set best');
+    } finally {
+      setTakesLoading(false);
+    }
+  }
+
+  async function handleClearBestTake(stemId: string) {
+    if (!songId) return;
+    setTakesLoading(true);
+    try {
+      await clearBestTake(stemId);
+      refreshTakes();
+      if (songId) getSongStems(songId).then(setStems).catch(() => {});
+    } catch (err) {
+      setTakeError(err instanceof Error ? err.message : 'Failed to clear best');
+    } finally {
+      setTakesLoading(false);
+    }
+  }
+
+  function handlePlayTake(url: string, takeId: string) {
+    if (playingTakeId === takeId) {
+      takeAudioRef.current?.pause();
+      setPlayingTakeId(null);
+      return;
+    }
+    if (takeAudioRef.current) takeAudioRef.current.pause();
+    const audio = new Audio(url);
+    audio.onended = () => setPlayingTakeId(null);
+    audio.play();
+    takeAudioRef.current = audio;
+    setPlayingTakeId(takeId);
+  }
+
+  function handlePlayLocalTake(take: LocalTake) {
+    const url = URL.createObjectURL(take.audio_blob);
+    handlePlayTake(url, take.id);
   }
 
   async function handleSave() {
@@ -649,6 +740,142 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
           </div>
 
           {stemError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginTop: 6 }}>{stemError}</p>}
+        </div>
+      )}
+
+      {/* Takes section (S41 — D-130, D-143, D-145) */}
+      {isEdit && userId && (
+        <div className="neu-card" style={{ marginBottom: 12 }}>
+          <h3 className="form-section-title">My Takes</h3>
+          <p style={{ color: 'var(--color-text-dim)', fontSize: 12, marginBottom: 12 }}>
+            Your recorded takes for this song. Mark one as "best" to add it to the stems for everyone.
+          </p>
+
+          {takeError && <p style={{ color: 'var(--color-danger)', fontSize: 12, marginBottom: 8 }}>{takeError}</p>}
+
+          {/* Cloud takes (best takes stored in Supabase) */}
+          {cloudTakes.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: localTakes.length > 0 ? 12 : 0 }}>
+              {cloudTakes.map((take, idx) => (
+                <div
+                  key={take.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                    background: take.is_best_take ? 'rgba(0,230,118,0.03)' : 'var(--color-surface-raised, rgba(255,255,255,0.03))',
+                    borderRadius: 8,
+                    border: take.is_best_take ? '1px solid rgba(0,230,118,0.3)' : '0.5px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700,
+                    background: take.is_best_take ? 'rgba(0,230,118,0.15)' : 'var(--color-bg)',
+                    color: take.is_best_take ? 'var(--color-green)' : 'var(--color-text-dim)',
+                  }}>
+                    {idx + 1}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: take.is_best_take ? 'var(--color-green)' : 'var(--color-text)' }}>
+                      Take (cloud)
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-dim)', marginLeft: 8 }}>
+                      {new Date(take.created_at).toLocaleDateString()}
+                    </span>
+                    {take.is_best_take && (
+                      <span style={{
+                        display: 'inline-block', marginLeft: 6, fontSize: 9, fontWeight: 700, padding: '1px 6px',
+                        background: 'rgba(0,230,118,0.15)', color: 'var(--color-green)', borderRadius: 12,
+                        border: '1px solid rgba(0,230,118,0.3)',
+                      }}>
+                        BEST
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="btn btn-small"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => handlePlayTake(take.audio_url, take.id)}
+                  >
+                    {playingTakeId === take.id ? '\u23F8' : '\u25B6'}
+                  </button>
+                  {take.is_best_take ? (
+                    <button
+                      className="btn btn-small"
+                      style={{ fontSize: 11, padding: '2px 8px', color: 'var(--color-green)' }}
+                      onClick={() => handleClearBestTake(take.id)}
+                      disabled={takesLoading}
+                    >
+                      Unset Best
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-small"
+                      style={{ fontSize: 11, padding: '2px 8px' }}
+                      onClick={() => handleSetBestTake(take.id)}
+                      disabled={takesLoading}
+                    >
+                      Set Best
+                    </button>
+                  )}
+                  <button className="btn btn-small btn-danger" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => handleDeleteCloudTake(take.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Local takes (IndexedDB, non-best) */}
+          {localTakes.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {cloudTakes.length > 0 && localTakes.length > 0 && (
+                <div style={{ fontSize: 11, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>
+                  Local takes (not uploaded)
+                </div>
+              )}
+              {localTakes.map(take => (
+                <div
+                  key={take.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                    background: 'var(--color-surface-raised, rgba(255,255,255,0.03))',
+                    borderRadius: 8, border: '0.5px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700, background: 'var(--color-bg)', color: 'var(--color-text-dim)',
+                  }}>
+                    {take.take_number}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Take #{take.take_number}</span>
+                    <span style={{ fontSize: 11, color: 'var(--color-text-dim)', marginLeft: 8 }}>
+                      {Math.floor(take.duration_seconds / 60)}:{String(Math.floor(take.duration_seconds % 60)).padStart(2, '0')}
+                      {' \u00B7 '}
+                      {new Date(take.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <button
+                    className="btn btn-small"
+                    style={{ fontSize: 11, padding: '2px 8px' }}
+                    onClick={() => handlePlayLocalTake(take)}
+                  >
+                    {playingTakeId === take.id ? '\u23F8' : '\u25B6'}
+                  </button>
+                  <button className="btn btn-small btn-danger" style={{ fontSize: 11, padding: '2px 8px' }} onClick={() => handleDeleteLocalTake(take.id)}>
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cloudTakes.length === 0 && localTakes.length === 0 && (
+            <p style={{ color: 'var(--color-text-dim)', fontSize: 13, fontStyle: 'italic' }}>
+              No takes yet. Record in the player to add takes.
+            </p>
+          )}
         </div>
       )}
     </div>

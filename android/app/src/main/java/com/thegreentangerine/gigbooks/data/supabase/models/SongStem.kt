@@ -36,7 +36,9 @@ data class SongStem(
     @SerialName("duration_seconds") val durationSeconds: Double? = null,
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
-    val source: String = "manual", // "auto" (Demucs) or "manual" (user-uploaded)
+    val source: String = "manual", // "auto" | "manual" | "recorded"
+    @SerialName("is_best_take") val isBestTake: Boolean = false,
+    @SerialName("created_by") val createdBy: String? = null,
 ) {
     val stemLabel: StemLabel get() = StemLabel.fromString(label)
     val stemIndex: Int get() = stemLabel.stemIndex

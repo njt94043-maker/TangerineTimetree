@@ -2687,3 +2687,100 @@ export async function clearBestTake(stemId: string): Promise<void> {
 
   if (error) { checkAuthError(error); throw error; }
 }
+
+// ─── Recorded Takes (S41) ────────────────────────────────
+
+/** Get all recorded takes for a song by a specific user */
+export async function getUserRecordedTakes(
+  songId: string,
+  userId: string,
+): Promise<SongStem[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('song_stems')
+    .select('*')
+    .eq('song_id', songId)
+    .eq('created_by', userId)
+    .eq('source', 'recorded')
+    .order('created_at', { ascending: true });
+
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as unknown as SongStem[];
+}
+
+/** Upload a recorded take to Supabase storage + create stem row (D-145: best takes only) */
+export async function uploadRecordedTake(
+  songId: string,
+  label: string,
+  takeNumber: number,
+  audioBlob: Blob,
+): Promise<SongStem> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const timestamp = Date.now();
+  const ext = 'webm';
+  const storagePath = `${songId}/take-${label}-${user.id.slice(0, 8)}-${takeNumber}-${timestamp}.${ext}`;
+
+  // Upload to song-stems bucket
+  const { error: uploadError } = await supabase.storage
+    .from('song-stems')
+    .upload(storagePath, audioBlob, { contentType: 'audio/webm', upsert: false });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from('song-stems')
+    .getPublicUrl(storagePath);
+
+  // Create stem row
+  const { data, error: insertError } = await supabase
+    .from('song_stems')
+    .insert({
+      song_id: songId,
+      label,
+      audio_url: urlData.publicUrl,
+      storage_path: storagePath,
+      source: 'recorded',
+      is_best_take: true,
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    // Rollback storage on DB failure
+    await supabase.storage.from('song-stems').remove([storagePath]);
+    throw insertError;
+  }
+
+  return data as unknown as SongStem;
+}
+
+/** Delete a recorded take stem (removes storage + DB row) */
+export async function deleteRecordedTake(stemId: string): Promise<void> {
+  const supabase = getSupabase();
+
+  // Get storage path first
+  const { data: stem, error: fetchError } = await supabase
+    .from('song_stems')
+    .select('storage_path')
+    .eq('id', stemId)
+    .single();
+
+  if (fetchError) { checkAuthError(fetchError); throw fetchError; }
+
+  // Delete from storage
+  if (stem?.storage_path) {
+    await supabase.storage.from('song-stems').remove([stem.storage_path]);
+  }
+
+  // Delete DB row
+  const { error: deleteError } = await supabase
+    .from('song_stems')
+    .delete()
+    .eq('id', stemId);
+
+  if (deleteError) { checkAuthError(deleteError); throw deleteError; }
+}

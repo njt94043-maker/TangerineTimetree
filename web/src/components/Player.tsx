@@ -1,16 +1,20 @@
 /**
- * Player — V4 unified player screen (Live / Practice).
+ * Player — V4 unified player screen (Live / Practice / Record).
  *
  * Layout: Header → Visual Hero → Text Panel → Waveform (practice) →
  *         Transport → Nav Row → Drawer pull-up.
  *
  * Live mode:  Click + lyrics/chords only (no track playback).
  * Practice mode: Click + track/stems + speed + A-B loop.
+ * Record mode (S41): Record button in transport (D-150), overdub (D-140),
+ *   click during recording (D-141), count-in (D-142), post-recording (D-139).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
-import { getSetlistWithSongs, getSong } from '@shared/supabase/queries';
+import { useRecording, type RecordingResult } from '../hooks/useRecording';
+import { getSetlistWithSongs, getSong, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
+import { saveTakeLocally, getNextTakeNumber, makeTakeId } from '../storage/takesDb';
 import type { Song, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
 import type { StemLabel } from '../audio/StemMixer';
 
@@ -220,9 +224,11 @@ interface PlayerProps {
   setlistId: string | null;
   mode: PlayerMode;
   onClose: () => void;
+  userId?: string;
+  bandRole?: string;
 }
 
-export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
+export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: PlayerProps) {
   // Setlist state
   const [setlist, setSetlist] = useState<SetlistWithSongs | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -249,6 +255,15 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
 
   // Drawer open
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Recording state (S41)
+  const recording = useRecording();
+  const [isRecordMode, setIsRecordMode] = useState(false);
+  const [postRecResult, setPostRecResult] = useState<RecordingResult | null>(null);
+  const [takeNumber, setTakeNumber] = useState(1);
+  const [markAsBest, setMarkAsBest] = useState(false);
+  const [savingTake, setSavingTake] = useState(false);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
 
   // Audio engine
   const [state, actions] = useAudioEngine(activeSongId, mode);
@@ -377,6 +392,137 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     setLoopMarkA(null);
   }
 
+  // ── Recording handlers (S41) ──
+
+  // Get stem label based on band role
+  const recordingLabel = bandRole === 'Drums' ? 'drums'
+    : bandRole === 'Bass' ? 'bass'
+    : bandRole === 'Lead Vocals' ? 'vocals'
+    : bandRole === 'Guitar & Backing Vocals' ? 'guitar'
+    : 'other';
+
+  async function handleStartRecording() {
+    if (!activeSongId || !userId) return;
+    // Get next take number
+    const nextNum = await getNextTakeNumber(activeSongId, userId);
+    setTakeNumber(nextNum);
+    setIsRecordMode(true);
+    setPostRecResult(null);
+
+    // Enumerate devices if not done yet
+    if (recording.audioDevices.length === 0) {
+      await recording.enumerateDevices();
+    }
+
+    // Compute count-in duration from song BPM
+    const bpmVal = displaySong?.bpm ?? 120;
+    const countInBarsVal = displaySong?.count_in_bars ?? 1;
+    const countInMs = countInBarsVal > 0
+      ? (60000 / bpmVal) * (displaySong?.time_signature_top ?? 4) * countInBarsVal
+      : 0;
+
+    // Start overdub playback (D-140) if in practice mode
+    if (mode === 'practice' && state.engineState !== 'playing') {
+      actions.play();
+    }
+
+    await recording.startRecording(countInMs);
+  }
+
+  function handleStopRecording() {
+    recording.stopRecording();
+    // Pause overdub playback
+    if (state.engineState === 'playing') {
+      actions.pause();
+    }
+  }
+
+  // When recording finishes, show post-recording modal
+  useEffect(() => {
+    if (recording.state === 'done' && recording.lastResult) {
+      setPostRecResult(recording.lastResult);
+    }
+  }, [recording.state, recording.lastResult]);
+
+  // Connect camera stream to video element
+  useEffect(() => {
+    if (cameraVideoRef.current && recording.cameraStream) {
+      cameraVideoRef.current.srcObject = recording.cameraStream;
+    }
+  }, [recording.cameraStream]);
+
+  async function handlePostRecOption(option: 'discard' | 'save-retake' | 'save' | 'save-preview') {
+    if (!postRecResult || !activeSongId || !userId) return;
+
+    if (option === 'discard') {
+      // Discard & Re-take — delete, start again
+      recording.discardResult();
+      setPostRecResult(null);
+      handleStartRecording();
+      return;
+    }
+
+    // Save the take
+    setSavingTake(true);
+    try {
+      if (markAsBest) {
+        // Upload to Supabase (D-145)
+        const stem = await uploadRecordedTake(
+          activeSongId,
+          recordingLabel,
+          takeNumber,
+          postRecResult.audioBlob,
+        );
+        await setBestTake(stem.id, activeSongId);
+      } else {
+        // Save locally to IndexedDB
+        await saveTakeLocally({
+          id: makeTakeId(activeSongId, userId, takeNumber),
+          song_id: activeSongId,
+          user_id: userId,
+          take_number: takeNumber,
+          audio_blob: postRecResult.audioBlob,
+          duration_seconds: postRecResult.durationSeconds,
+          label: recordingLabel,
+          created_at: new Date().toISOString(),
+          video_blob: postRecResult.videoBlob,
+        });
+      }
+
+      // Save video locally (D-132) if present
+      if (postRecResult.videoBlob) {
+        try {
+          const url = URL.createObjectURL(postRecResult.videoBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `take-${takeNumber}-${songName.replace(/\s+/g, '-')}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch { /* download fallback, non-critical */ }
+      }
+    } catch (err) {
+      console.error('Failed to save take:', err);
+    } finally {
+      setSavingTake(false);
+    }
+
+    recording.discardResult();
+    setPostRecResult(null);
+    setMarkAsBest(false);
+
+    if (option === 'save-retake') {
+      handleStartRecording();
+    } else if (option === 'save-preview') {
+      // Play back the take
+      const url = URL.createObjectURL(postRecResult.audioBlob);
+      const audio = new Audio(url);
+      audio.play();
+    } else {
+      // 'save' — return to normal mode
+      setIsRecordMode(false);
+    }
+  }
+
   // Loading / error
   if (state.loading) {
     return <div className="v4-player"><div className="v4-loading">Loading...</div></div>;
@@ -407,8 +553,8 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
           )}
         </div>
         <div className="v4-hdr-right">
-          <span className={`v4-mode-badge ${isLive ? 'live' : 'practice'}`}>
-            {isLive ? 'LIVE' : 'PRACTICE'}
+          <span className={`v4-mode-badge ${isRecordMode ? 'record' : isLive ? 'live' : 'practice'}`}>
+            {isRecordMode ? 'REC' : isLive ? 'LIVE' : 'PRACTICE'}
           </span>
           <span className="v4-bpm-val">{Math.round(songBpm * state.speed)}</span>
           <span className="v4-bpm-unit">BPM</span>
@@ -417,8 +563,8 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
 
       {/* ── Scrollable content ── */}
       <div className="v4-content">
-        {/* Visual Hero */}
-        {showVisuals && (
+        {/* Visual Hero — normal or recording mode */}
+        {showVisuals && !isRecordMode && (
           <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
             <div className="v4-hero-vis">
               <div className="v4-vis-bars">
@@ -427,13 +573,75 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
                 ))}
               </div>
             </div>
-            {/* Beat glow overlay */}
             {state.beatFlash && <div className="v4-beat-glow" />}
-            {/* Vis switcher */}
             <div className="v4-vis-switcher">
               <button className="v4-vis-btn on">Bars</button>
               <button className="v4-vis-btn">Rings</button>
             </div>
+          </div>
+        )}
+
+        {/* Recording Hero (S41) — input visualizer or camera feed */}
+        {isRecordMode && (
+          <div className="v4-hero v4-hero-rec">
+            {recording.cameraEnabled && recording.cameraStream ? (
+              <video
+                ref={cameraVideoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+              />
+            ) : (
+              <div className="v4-rec-visualizer">
+                {Array.from({ length: 21 }, (_, i) => {
+                  const base = recording.inputLevel;
+                  const h = Math.max(4, base * (40 + Math.sin(i * 0.7 + Date.now() / 200) * 20));
+                  return (
+                    <div
+                      key={i}
+                      className="v4-rec-bar"
+                      style={{ height: `${h}%` }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Song info overlay (top-left) */}
+            <div className="v4-rec-info-tl">
+              <div className="v4-rec-song">{songName}</div>
+              <div className="v4-rec-artist">{songArtist} {'\u00B7'} {Math.round(songBpm)} bpm</div>
+            </div>
+
+            {/* REC badge (top-right) */}
+            {recording.state === 'recording' && (
+              <div className="v4-rec-badge">
+                <div className="v4-rec-dot" />
+                <span className="v4-rec-time">REC {formatTime(recording.elapsedSeconds)}</span>
+              </div>
+            )}
+            {recording.state === 'count-in' && (
+              <div className="v4-rec-badge" style={{ borderColor: 'rgba(243,156,18,0.5)', background: 'rgba(243,156,18,0.15)' }}>
+                <span className="v4-rec-time" style={{ color: 'var(--color-tangerine)' }}>COUNT-IN</span>
+              </div>
+            )}
+
+            {/* Take + time (bottom) */}
+            <div className="v4-rec-info-bl">
+              <span>Take #{takeNumber}</span>
+              <span>{formatTime(recording.elapsedSeconds)} / {state.duration > 0 ? formatTime(state.duration) : '--:--'}</span>
+            </div>
+
+            {/* Input level bar (when camera is on) */}
+            {recording.cameraEnabled && (
+              <div className="v4-rec-level-bar">
+                <span className="v4-rec-level-label">INPUT</span>
+                <div className="v4-rec-level-track">
+                  <div className="v4-rec-level-fill" style={{ width: `${recording.inputLevel * 100}%` }} />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -495,7 +703,16 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
       </div>
 
       {/* ── Transport ── */}
-      {isLive ? (
+      {isRecordMode && recording.state === 'recording' ? (
+        /* Recording transport — stop button only (D-150) */
+        <div className="v4-transport">
+          <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>⏮</button>
+          <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>-5</button>
+          <button className="v4-t-rec-stop" onClick={handleStopRecording}>■</button>
+          <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>+5</button>
+          <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>⏭</button>
+        </div>
+      ) : isLive ? (
         <div className="v4-transport">
           <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
           <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
@@ -515,7 +732,7 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
             <button className="v4-t-spd" onClick={() => handleSpeedChange(0.01)}>+1</button>
             <button className="v4-t-spd" onClick={() => handleSpeedChange(0.05)}>+5</button>
           </div>
-          {/* Main row */}
+          {/* Main row — with record button (D-150) */}
           <div className="v4-t-row">
             <button className="v4-t-btn" onClick={actions.stop}>
               <span style={{ fontSize: '18px' }}>⏮</span>
@@ -527,6 +744,11 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
             <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
               CLICK
             </button>
+            {userId && (
+              <button className="v4-t-rec" onClick={handleStartRecording} title="Record take">
+                ●
+              </button>
+            )}
           </div>
           {/* A-B Loop row */}
           {state.duration > 0 && (
@@ -613,6 +835,37 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
               </>
             )}
 
+            {/* Recording settings (S41 — visible when in record mode) */}
+            {isRecordMode && (
+              <>
+                <div className="v4-drawer-label" style={{ marginTop: 12 }}>RECORDING</div>
+                <div className="v4-set-section">
+                  <div className="v4-set-row">
+                    <span className="v4-set-label">Input</span>
+                    <select
+                      className="v4-rec-select"
+                      value={recording.selectedDeviceId}
+                      onChange={e => recording.selectDevice(e.target.value)}
+                    >
+                      {recording.audioDevices.map(d => (
+                        <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="v4-set-row">
+                    <span className="v4-set-label">Camera</span>
+                    <button
+                      className={`v4-tog ${recording.cameraEnabled ? 'on' : ''}`}
+                      style={recording.cameraEnabled ? { borderColor: 'var(--color-green)', color: 'var(--color-green)' } : undefined}
+                      onClick={() => recording.toggleCamera(!recording.cameraEnabled)}
+                    >
+                      {recording.cameraEnabled ? 'ON' : 'OFF'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="v4-drawer-label" style={{ marginTop: 12 }}>SETTINGS</div>
             <div className="v4-set-section">
               <div className="v4-set-row">
@@ -677,6 +930,85 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
             <div className="player-transition-actions">
               <button className="btn btn-green" onClick={() => { setSetComplete(false); onClose(); }}>Done</button>
               <button className="btn btn-outline btn-small" onClick={() => { setSetComplete(false); goToSetlistSong(0); }}>Replay Set</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Post-recording modal (D-139) ── */}
+      {postRecResult && (
+        <div className="player-transition-overlay">
+          <div className="v4-post-rec">
+            <div className="v4-post-rec-header">
+              <div className="v4-post-rec-song">{songName}</div>
+              <div className="v4-post-rec-artist">{songArtist} {'\u00B7'} {Math.round(songBpm)} BPM</div>
+            </div>
+
+            <div className="v4-post-rec-info">
+              <div className="v4-post-rec-label">Recording Complete</div>
+              <div className="v4-post-rec-take">Take #{takeNumber}</div>
+              <div className="v4-post-rec-dur">Duration: {formatTime(postRecResult.durationSeconds)}</div>
+            </div>
+
+            <div className="v4-post-rec-actions">
+              <button
+                className="v4-post-rec-btn discard"
+                onClick={() => handlePostRecOption('discard')}
+                disabled={savingTake}
+              >
+                <span className="v4-post-rec-icon">{'\uD83D\uDDD1'}</span>
+                <div>
+                  <div className="v4-post-rec-btn-title">Discard & Re-take</div>
+                  <div className="v4-post-rec-btn-sub">Delete this take, record again</div>
+                </div>
+              </button>
+              <button
+                className="v4-post-rec-btn save-retake"
+                onClick={() => handlePostRecOption('save-retake')}
+                disabled={savingTake}
+              >
+                <span className="v4-post-rec-icon">{'\uD83D\uDD04'}</span>
+                <div>
+                  <div className="v4-post-rec-btn-title">Save & Re-take</div>
+                  <div className="v4-post-rec-btn-sub">Keep this take, record again</div>
+                </div>
+              </button>
+              <button
+                className="v4-post-rec-btn save"
+                onClick={() => handlePostRecOption('save')}
+                disabled={savingTake}
+              >
+                <span className="v4-post-rec-icon">{'\uD83D\uDCBE'}</span>
+                <div>
+                  <div className="v4-post-rec-btn-title">{savingTake ? 'Saving...' : 'Save as Take'}</div>
+                  <div className="v4-post-rec-btn-sub">Keep in takes list</div>
+                </div>
+              </button>
+              <button
+                className="v4-post-rec-btn preview"
+                onClick={() => handlePostRecOption('save-preview')}
+                disabled={savingTake}
+              >
+                <span className="v4-post-rec-icon">{'\u25B6'}</span>
+                <div>
+                  <div className="v4-post-rec-btn-title">Save & Preview</div>
+                  <div className="v4-post-rec-btn-sub">Keep it, play back to review</div>
+                </div>
+              </button>
+            </div>
+
+            <div className="v4-post-rec-best">
+              <div>
+                <div className="v4-post-rec-best-title">Mark as Best Take</div>
+                <div className="v4-post-rec-best-sub">Uploads to cloud {'\u00B7'} visible to all members</div>
+              </div>
+              <button
+                className={`v4-tog ${markAsBest ? 'on' : ''}`}
+                style={markAsBest ? { borderColor: 'var(--color-green)', color: 'var(--color-green)', background: 'rgba(0,230,118,0.1)' } : undefined}
+                onClick={() => setMarkAsBest(v => !v)}
+              >
+                {markAsBest ? 'ON' : 'OFF'}
+              </button>
             </div>
           </div>
         </div>

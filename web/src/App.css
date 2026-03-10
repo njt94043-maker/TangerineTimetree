@@ -6426,3 +6426,306 @@ select.ps-form-input {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ===== Recording Mode (S41) ===== */
+
+/* Mode badge — record */
+.v4-mode-badge.record {
+  background: rgba(255,82,82,0.15);
+  border: 1px solid rgba(255,82,82,0.35);
+  color: var(--color-danger);
+}
+
+/* Recording hero */
+.v4-hero-rec {
+  position: relative;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+}
+
+/* Input level visualizer (video OFF) */
+.v4-rec-visualizer {
+  position: absolute;
+  inset: 8px;
+  background: rgba(6,6,10,0.7);
+  border-radius: 12px;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.5), inset 0 -1px 4px rgba(255,255,255,0.03);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  padding: 16px 20px;
+}
+.v4-rec-bar {
+  width: 6px;
+  flex: 0 0 6px;
+  min-height: 4%;
+  background: linear-gradient(to top, var(--color-green), rgba(0,230,118,0.4));
+  border-radius: 3px;
+  box-shadow: 0 0 6px rgba(0,230,118,0.2);
+  transition: height 0.08s ease-out;
+}
+
+/* Song info overlay (top-left) */
+.v4-rec-info-tl {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  z-index: 1;
+}
+.v4-rec-song {
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+}
+.v4-rec-artist {
+  font-size: 11px;
+  color: var(--color-text-dim);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+}
+
+/* REC badge (top-right) */
+.v4-rec-badge {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(255,82,82,0.15);
+  border: 1px solid rgba(255,82,82,0.4);
+  border-radius: 16px;
+  backdrop-filter: blur(4px);
+}
+.v4-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  box-shadow: 0 0 8px rgba(255,82,82,0.6);
+  animation: recPulse 1s ease-in-out infinite;
+}
+@keyframes recPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.v4-rec-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+/* Take + time (bottom) */
+.v4-rec-info-bl {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 11px;
+  color: var(--color-text-dim);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  font-family: var(--font-mono);
+}
+
+/* Input level bar (camera ON) */
+.v4-rec-level-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  background: rgba(6,6,10,0.7);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+}
+.v4-rec-level-label {
+  font-size: 9px;
+  color: var(--color-text-muted);
+  min-width: 30px;
+}
+.v4-rec-level-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.v4-rec-level-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-green), #ffeb3b);
+  border-radius: 3px;
+  transition: width 0.05s;
+}
+
+/* Record button in transport (D-150) */
+.v4-t-rec {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,82,82,0.15);
+  border: 2px solid rgba(255,82,82,0.5);
+  color: var(--color-danger);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.v4-t-rec:hover {
+  background: rgba(255,82,82,0.25);
+  box-shadow: 0 0 12px rgba(255,82,82,0.3);
+}
+
+/* Stop recording button */
+.v4-t-rec-stop {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  border: none;
+  color: white;
+  font-size: 20px;
+  box-shadow: 0 0 16px rgba(255,82,82,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Recording device select */
+.v4-rec-select {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: var(--bg-card-light);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  color: var(--color-text);
+  min-width: 140px;
+}
+
+/* Post-recording modal (D-139) */
+.v4-post-rec {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.v4-post-rec-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.v4-post-rec-song {
+  font-size: 16px;
+  font-weight: 600;
+}
+.v4-post-rec-artist {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  margin-top: 2px;
+}
+.v4-post-rec-info {
+  text-align: center;
+  padding: 16px;
+  background: rgba(6,6,10,0.5);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+.v4-post-rec-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.v4-post-rec-take {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-green);
+}
+.v4-post-rec-dur {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-text-dim);
+  margin-top: 4px;
+}
+.v4-post-rec-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.v4-post-rec-btn {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  transition: all 0.15s;
+}
+.v4-post-rec-btn:disabled { opacity: 0.5; cursor: default; }
+.v4-post-rec-btn.discard {
+  background: rgba(255,82,82,0.08);
+  border: 1px solid rgba(255,82,82,0.3);
+  color: var(--color-danger);
+}
+.v4-post-rec-btn.save-retake {
+  background: rgba(0,230,118,0.06);
+  border: 1px solid rgba(0,230,118,0.3);
+  color: var(--color-green);
+}
+.v4-post-rec-btn.save {
+  background: rgba(66,165,245,0.06);
+  border: 1px solid rgba(66,165,245,0.3);
+  color: #42a5f5;
+}
+.v4-post-rec-btn.preview {
+  background: rgba(187,134,252,0.06);
+  border: 1px solid rgba(187,134,252,0.3);
+  color: var(--color-practice);
+}
+.v4-post-rec-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.v4-post-rec-btn-title {
+  font-weight: 600;
+}
+.v4-post-rec-btn-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+.v4-post-rec-best {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  margin-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.v4-post-rec-best-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.v4-post-rec-best-sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

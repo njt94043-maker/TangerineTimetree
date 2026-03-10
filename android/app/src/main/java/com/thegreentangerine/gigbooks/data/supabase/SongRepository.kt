@@ -1,14 +1,33 @@
 package com.thegreentangerine.gigbooks.data.supabase
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import com.thegreentangerine.gigbooks.data.supabase.models.BeatMap
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import com.thegreentangerine.gigbooks.data.supabase.models.SongShare
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 
 object SongRepository {
 
     private val client get() = SupabaseProvider.client
+
+    /** Quick-create a song with minimal fields (D-138 new song idea) */
+    suspend fun createSong(
+        name: String,
+        category: String = "personal_original",
+        bpm: Double = 120.0,
+    ): Song {
+        val userId = client.auth.currentUserOrNull()?.id ?: error("Not authenticated")
+        return client.from("songs").insert(buildJsonObject {
+            put("name", name)
+            put("category", category)
+            put("bpm", bpm)
+            put("created_by", userId)
+            if (category.startsWith("personal")) put("owner_id", userId)
+        }) { select() }.decodeSingle()
+    }
 
     suspend fun getSongs(): List<Song> = client
         .from("songs")

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSongs, searchSongs, deleteSong, getSetlists, createSetlist, deleteSetlist } from '@shared/supabase/queries';
+import { getSongs, searchSongs, deleteSong, getSetlists, createSetlist, deleteSetlist, createSong } from '@shared/supabase/queries';
 import type { Song, Setlist, SongCategory, SetlistType, Profile } from '@shared/supabase/types';
 import { isPersonalSong, isTgtSong } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
@@ -216,9 +216,27 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
             </div>
           </div>
 
-          <button className="btn btn-primary btn-small btn-full" onClick={onNewSong} style={{ marginBottom: 12 }}>
-            + Add Song
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button className="btn btn-primary btn-small btn-full" onClick={onNewSong} style={{ flex: 1 }}>
+              + Add Song
+            </button>
+            <button
+              className="btn btn-small"
+              style={{ flex: 0, whiteSpace: 'nowrap', background: 'rgba(255,70,70,0.1)', border: '1px solid rgba(255,70,70,0.25)', color: '#ff4646' }}
+              onClick={async () => {
+                const name = prompt('Name your song idea:');
+                if (!name?.trim()) return;
+                try {
+                  const song = await createSong({ name: name.trim(), category: 'personal_original' });
+                  onPlaySong(song.id, 'practice');
+                } catch (e: unknown) {
+                  setError(e instanceof Error ? e.message : 'Failed to create song');
+                }
+              }}
+            >
+              New Idea
+            </button>
+          </div>
 
           <div className="song-list-items">
             {songs.map(song => {

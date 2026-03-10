@@ -107,6 +107,173 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // processingStatus: non-null while server is processing stems (pending/analysing/separating)
     var processingStatus by mutableStateOf<String?>(null);                       private set
 
+    // ── Takes (S41) ─────────────────────────────────────────────────────────
+    var cloudTakes by mutableStateOf<List<SongStem>>(emptyList());              private set
+    var localTakes by mutableStateOf<List<com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.LocalTake>>(emptyList()); private set
+    var takesLoading by mutableStateOf(false);                                  private set
+
+    fun loadTakes(songId: String) {
+        val userId = currentUserId ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val cloud = StemRepository.getUserRecordedTakes(songId)
+                val local = com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.getUserTakes(
+                    getApplication(), songId, userId
+                )
+                withContext(Dispatchers.Main) {
+                    cloudTakes = cloud
+                    localTakes = local
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun setBestTake(stemId: String, songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            takesLoading = true
+            try {
+                StemRepository.setBestTake(stemId, songId)
+                loadTakes(songId)
+            } catch (_: Exception) { }
+            takesLoading = false
+        }
+    }
+
+    fun clearBestTake(stemId: String, songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            takesLoading = true
+            try {
+                StemRepository.clearBestTake(stemId)
+                loadTakes(songId)
+            } catch (_: Exception) { }
+            takesLoading = false
+        }
+    }
+
+    fun deleteCloudTake(stemId: String, songId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                StemRepository.deleteRecordedTake(stemId)
+                loadTakes(songId)
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun deleteLocalTake(takeId: String, songId: String) {
+        com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.deleteTake(getApplication(), takeId)
+        val userId = currentUserId ?: return
+        localTakes = com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.getUserTakes(
+            getApplication(), songId, userId
+        )
+    }
+
+    // ── Recording (S41) ──────────────────────────────────────────────────────
+    enum class RecState { IDLE, COUNT_IN, RECORDING, DONE }
+
+    var recState      by mutableStateOf(RecState.IDLE);          private set
+    var recElapsedSec by mutableStateOf(0);                      private set
+    var recInputLevel by mutableStateOf(0f);                     private set  // 0-1 normalised
+    var recTakeNumber by mutableStateOf(1);                      private set
+    var recDuration   by mutableStateOf(0.0);                    private set
+    var recFile       by mutableStateOf<java.io.File?>(null);    private set
+
+    private val audioRecorder by lazy { com.thegreentangerine.gigbooks.data.audio.AudioRecorder(getApplication()) }
+    private var recTimerJob: Job? = null
+    private var recLevelJob: Job? = null
+
+    fun startRecording() {
+        val song = selectedSong ?: return
+        val userId = currentUserId ?: return
+
+        // Get next take number
+        recTakeNumber = com.thegreentangerine.gigbooks.data.audio.LocalTakesStore
+            .getNextTakeNumber(getApplication(), song.id, userId)
+
+        viewModelScope.launch {
+            // Count-in (D-142)
+            if (countInBars > 0 && effectiveBpm > 0) {
+                recState = RecState.COUNT_IN
+                val beatsPerBar = (selectedSong?.timeSignatureTop?.toInt() ?: 4)
+                val countInBeats = countInBars * beatsPerBar
+                val beatMs = (60_000.0 / effectiveBpm).toLong()
+                // Start click for count-in
+                if (!isClickPlaying && engineAvailable) play()
+                delay(countInBeats * beatMs)
+            }
+
+            // Start recording
+            recState = RecState.RECORDING
+            recElapsedSec = 0
+            recFile = audioRecorder.start()
+
+            // Timer
+            recTimerJob = viewModelScope.launch {
+                while (isActive) {
+                    delay(250)
+                    recElapsedSec = (audioRecorder.elapsedMs / 1000).toInt()
+                }
+            }
+
+            // Level metering
+            recLevelJob = viewModelScope.launch {
+                while (isActive) {
+                    delay(100)
+                    val amp = audioRecorder.getMaxAmplitude()
+                    recInputLevel = (amp / 32767f).coerceIn(0f, 1f)
+                }
+            }
+        }
+    }
+
+    fun stopRecording() {
+        recTimerJob?.cancel()
+        recLevelJob?.cancel()
+        recDuration = audioRecorder.stop()
+        recInputLevel = 0f
+        recState = RecState.DONE
+    }
+
+    /** Post-recording: discard and optionally re-take */
+    fun discardRecording(retake: Boolean = false) {
+        audioRecorder.discard()
+        recFile = null
+        recState = RecState.IDLE
+        if (retake) startRecording()
+    }
+
+    /** Post-recording: save take locally, optionally as best, optionally re-take */
+    fun saveRecording(asBest: Boolean, retake: Boolean = false, preview: Boolean = false) {
+        val song = selectedSong ?: return
+        val userId = currentUserId ?: return
+        val file = recFile ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val audioData = file.readBytes()
+            val take = com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.LocalTake(
+                id = com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.makeTakeId(song.id, userId, recTakeNumber),
+                songId = song.id,
+                userId = userId,
+                takeNumber = recTakeNumber,
+                audioFileName = file.name,
+                durationSeconds = recDuration,
+                label = "Take $recTakeNumber",
+                createdAt = java.time.Instant.now().toString(),
+            )
+            com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.saveTake(getApplication(), take, audioData)
+
+            if (asBest) {
+                // TODO: Upload to Supabase as best take (needs storage upload API on Android)
+            }
+
+            withContext(Dispatchers.Main) {
+                loadTakes(song.id)
+                recFile = null
+                recState = RecState.IDLE
+                if (retake) startRecording()
+            }
+        }
+    }
+
     // ── Waveform ──────────────────────────────────────────────────────────────
     // Amplitude envelope of the main track, normalised to 0..1, ~600 points.
     var waveformEnvelope by mutableStateOf<FloatArray>(floatArrayOf());          private set
@@ -134,6 +301,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             AudioEngineBridge.nativeSetChannelGain(1, trackGain)
         } catch (_: Exception) { }
     }
+
+    // ── New Song Idea (D-138) ──────────────────────────────────────────────────
+    var newIdeaSong by mutableStateOf<Song?>(null); private set
+
+    /** Create a minimal song and flag it for immediate recording */
+    fun createSongIdea(name: String, onCreated: (Song) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val song = SongRepository.createSong(name = name, category = "personal_original")
+                withContext(Dispatchers.Main) {
+                    newIdeaSong = song
+                    songs = songs + song  // Add to library list
+                    onCreated(song)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    loadError = "Failed to create song: ${e.message}"
+                }
+            }
+        }
+    }
+
+    /** Clear the new idea flag (after recording starts) */
+    fun clearNewIdeaFlag() { newIdeaSong = null }
 
     // ── Library loading ───────────────────────────────────────────────────────
     fun loadLibrary() {
