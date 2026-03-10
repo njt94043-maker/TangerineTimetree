@@ -330,8 +330,8 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
     }
   }, [beatStatus]);
 
-  /** Trigger full processing pipeline: beats + stem separation via Cloud Tasks. */
-  async function triggerProcessing(trackUrl: string) {
+  /** Trigger processing pipeline via Cloud Tasks. skip_stems=true → beats only. */
+  async function triggerProcessing(trackUrl: string, skipStems = false) {
     if (!songId || !BEAT_ANALYSIS_URL) return;
 
     setBeatStatus('pending');
@@ -340,7 +340,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
       const resp = await fetch(`${BEAT_ANALYSIS_URL}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ song_id: songId, audio_url: trackUrl }),
+        body: JSON.stringify({ song_id: songId, audio_url: trackUrl, skip_stems: skipStems }),
       });
 
       if (!resp.ok) {
@@ -352,6 +352,33 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
       startPolling();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to start processing';
+      setBeatStatus('failed');
+      setBeatError(msg);
+      await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
+    }
+  }
+
+  /** Re-analyse beats only (D-151) — clears old beat map, re-runs madmom. */
+  async function reAnalyse() {
+    if (!songId || !audioUrl || !BEAT_ANALYSIS_URL) return;
+
+    setBeatStatus('pending');
+    setBeatError('');
+    try {
+      const resp = await fetch(`${BEAT_ANALYSIS_URL}/re-analyse`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ song_id: songId, audio_url: audioUrl }),
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
+        throw new Error(errBody.error || `HTTP ${resp.status}`);
+      }
+
+      startPolling();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to start re-analysis';
       setBeatStatus('failed');
       setBeatError(msg);
       await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
@@ -673,13 +700,24 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
                 )}
               </div>
               {(beatStatus === 'failed' || beatStatus === 'ready' || !beatStatus) && BEAT_ANALYSIS_URL && (
-                <button
-                  className="btn btn-small btn-teal"
-                  style={{ marginTop: 6, fontSize: 11 }}
-                  onClick={() => audioUrl && triggerProcessing(audioUrl)}
-                >
-                  {beatStatus === 'ready' ? 'Re-process' : beatStatus === 'failed' ? 'Retry' : 'Process Track'}
-                </button>
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  {beatStatus === 'ready' && (
+                    <button
+                      className="btn btn-small btn-teal"
+                      style={{ fontSize: 11 }}
+                      onClick={reAnalyse}
+                    >
+                      Re-analyse Beats
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-small btn-teal"
+                    style={{ fontSize: 11 }}
+                    onClick={() => audioUrl && triggerProcessing(audioUrl)}
+                  >
+                    {beatStatus === 'ready' ? 'Full Re-process' : beatStatus === 'failed' ? 'Retry' : 'Process Track'}
+                  </button>
+                </div>
               )}
             </div>
           )}

@@ -252,6 +252,58 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 
 ---
 
+## 15. Capture Schema Changes
+
+| Touch | Ripple |
+|-------|--------|
+| `capture/backend/db/models.py` (tracks table) | `capture/backend/db/database.py` — queries, filters, migration for existing DBs |
+| | `capture/backend/api/routes_library.py` — TrackUpdate model, list_tracks params, ID3 write |
+| | `capture/backend/metadata/tagger.py` — ID3 custom fields (write + read) |
+| | `capture/ui/src/types.ts` — Track interface |
+| | `capture/ui/src/components/TrackDetail.tsx` — edit form fields + dropdowns |
+| | `capture/ui/src/components/TrackCard.tsx` — badges, metadata display |
+| | `capture/ui/src/components/TrackList.tsx` — filter dropdowns |
+| | `capture/ui/src/theme.css` — accent colours for category badges |
+| | Future: Import pipeline (web pulling from Capture) must match Capture's field names |
+| | Future: ClickTrack import must match practice_category/instrument_focus/difficulty values |
+
+**Key rule (D-154)**: Capture is the metadata superset — carries Song `category` (for TGT apps) AND `practice_category` (for ClickTrack). When adding fields to Song or ClickTrack, check if Capture needs them too.
+
+---
+
+## 16. Import Pipeline (Capture → Web → Cloud Run)
+
+| Touch | Ripple |
+|-------|--------|
+| Capture tracks (SQLite) | Must carry all fields that consumers need (Song category, practice metadata) |
+| Web import UI (NOT YET BUILT) | Must connect to `localhost:9123/api/library/tracks` |
+| | Must map: track.title→song.name, track.category→song.category, track.bpm→song.bpm, etc |
+| | Must upload MP3 from Capture local storage → Supabase `practice-tracks` bucket |
+| | Must set Song defaults for click config (4/4, 8ths, straight, 1 bar count-in) |
+| | Must set `created_by` to importing user's profile ID |
+| | Must trigger Cloud Run processing (beats + optional stems) |
+| Cloud Run `/process` endpoint | `skip_stems` flag determines beats-only vs full pipeline |
+| Cloud Run `/re-analyse` endpoint (NOT YET BUILT) | D-151: mix best takes → madmom → replace beat_map |
+| `shared/supabase/queries.ts` | createSong, uploadPracticeTrack, triggerProcessing |
+
+**Status**: Completely unbuilt. Was S38 target. Zero web code references Capture's localhost:9123.
+
+---
+
+## 17. ClickTrack Integration (Future)
+
+| Touch | Ripple |
+|-------|--------|
+| Capture `practice_category` values | Must align with what ClickTrack will expect |
+| Capture `instrument_focus` values | drums, bass, guitar, vocals, keys, full_band — ClickTrack will filter by these |
+| Capture `difficulty` values | easy, medium, hard, expert — ClickTrack training progression |
+| C++ audio engine (android/app/src/main/cpp/) | ClickTrack will refactor from this — same Oboe/SoundTouch base |
+| Import pipeline design | Separate from TGT import — personal practice tracks only |
+
+**Status**: Not built. But Capture fields are designed to feed it. Consider ClickTrack's needs when changing Capture's practice metadata fields.
+
+---
+
 ## Cross-Cutting Concerns
 
 ### Adding a new Supabase table

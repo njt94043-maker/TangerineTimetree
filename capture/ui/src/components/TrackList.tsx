@@ -10,12 +10,14 @@ interface Props {
 export function TrackList({ onSelect }: Props) {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
       const params: Record<string, string> = {};
       if (search) params.search = search;
+      if (category) params.category = category;
       const data = await getTracks(params);
       setTracks(data);
     } catch {
@@ -23,7 +25,7 @@ export function TrackList({ onSelect }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, category]);
 
   useEffect(() => {
     setLoading(true);
@@ -44,13 +46,27 @@ export function TrackList({ onSelect }: Props) {
         <div className="page-header-spacer" />
       </div>
 
-      <div className="neu-inset" style={{ marginBottom: 8 }}>
-        <input
-          className="input-field"
-          placeholder="Search tracks..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <div className="neu-inset" style={{ flex: 1 }}>
+          <input
+            className="input-field"
+            placeholder="Search tracks..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="neu-inset" style={{ minWidth: 140 }}>
+          <select
+            className="input-field"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+          >
+            <option value="">All categories</option>
+            {['tgt_cover', 'tgt_original', 'personal_cover', 'personal_original'].map(o =>
+              <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>
+            )}
+          </select>
+        </div>
       </div>
 
       {loading ? (

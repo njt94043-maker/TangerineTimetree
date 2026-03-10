@@ -11,9 +11,19 @@ from db.models import SCHEMA_SQL
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist, then run migrations."""
     with get_conn() as conn:
         conn.executescript(SCHEMA_SQL)
+        _migrate(conn)
+
+
+def _migrate(conn):
+    """Run schema migrations for existing databases."""
+    # S43: Add category column (Song category for TGT import — D-154)
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(tracks)").fetchall()}
+    if "category" not in cols:
+        conn.execute("ALTER TABLE tracks ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_tracks_category ON tracks(category)")
 
 
 @contextmanager
@@ -108,6 +118,7 @@ def list_tracks(
     search: str = "",
     artist: str = "",
     genre: str = "",
+    category: str = "",
     practice_category: str = "",
     instrument_focus: str = "",
     tag: str = "",
@@ -130,6 +141,9 @@ def list_tracks(
     if genre:
         conditions.append("genre = ?")
         params.append(genre)
+    if category:
+        conditions.append("category = ?")
+        params.append(category)
     if practice_category:
         conditions.append("practice_category = ?")
         params.append(practice_category)

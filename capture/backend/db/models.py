@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS tracks (
     bitrate           INTEGER NOT NULL DEFAULT 320,
     encoding          TEXT NOT NULL DEFAULT 'mp3',
 
-    -- Practice metadata
+    -- Song category (for TGT import: tgt_cover, tgt_original, personal_cover, personal_original)
+    category          TEXT NOT NULL DEFAULT '',
+
+    -- Practice metadata (for future ClickTrack import)
     instrument_focus  TEXT NOT NULL DEFAULT '',
     difficulty        TEXT NOT NULL DEFAULT '',
     practice_category TEXT NOT NULL DEFAULT '',
@@ -77,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_tracks_title ON tracks(title);
 CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
 CREATE INDEX IF NOT EXISTS idx_tracks_capture_date ON tracks(capture_date);
 CREATE INDEX IF NOT EXISTS idx_tracks_bpm ON tracks(bpm);
+CREATE INDEX IF NOT EXISTS idx_tracks_category ON tracks(category);
 CREATE INDEX IF NOT EXISTS idx_tracks_practice_category ON tracks(practice_category);
 CREATE INDEX IF NOT EXISTS idx_tracks_favorite ON tracks(favorite);
 CREATE INDEX IF NOT EXISTS idx_tracks_song_id ON tracks(song_id);

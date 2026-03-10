@@ -29,6 +29,7 @@ export function TrackDetail({ trackId, onBack }: Props) {
       setTrack(t);
       setForm({
         title: t.title, artist: t.artist, album: t.album, genre: t.genre,
+        category: t.category,
         instrument_focus: t.instrument_focus, difficulty: t.difficulty,
         practice_category: t.practice_category, personal_notes: t.personal_notes,
       });
@@ -191,6 +192,26 @@ export function TrackDetail({ trackId, onBack }: Props) {
           <div className="field">
             <label className="label">Key</label>
             <span className="badge badge-key">{track.key || '\u2014'}</span>
+          </div>
+
+          <div className="field">
+            <label className="label">category</label>
+            {editing ? (
+              <div className="neu-inset">
+                <select
+                  className="input-field"
+                  value={form.category || ''}
+                  onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                >
+                  <option value="">{'\u2014'}</option>
+                  {['tgt_cover', 'tgt_original', 'personal_cover', 'personal_original'].map(o =>
+                    <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>
+                  )}
+                </select>
+              </div>
+            ) : (
+              <span>{track.category ? <span className="badge badge-category">{track.category.replace(/_/g, ' ')}</span> : '\u2014'}</span>
+            )}
           </div>
 
           {(['instrument_focus', 'difficulty', 'practice_category'] as const).map(field => (

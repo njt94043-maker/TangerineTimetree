@@ -1,10 +1,11 @@
 # TGT — Project Constitution
 
 ## What Is This?
-Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps + one shelved, sharing one Supabase backend:
+Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps + one future + one shelved, sharing one Supabase backend. **All apps are one family** — same dark neumorphic theme, same fonts, same visual language. Different features but shared metadata must be consistent (D-156).
 - **GigBooks** (android/) — Jetpack Compose + C++/Oboe native app for calendar, songs, setlists, live mode, practice mode
 - **Tangerine Timetree** (web/) — React/Vite PWA for full band management (invoicing, quotes, calendar, stage prompter, public site)
-- **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. Feeds songs into web app.
+- **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. **Entry point for the whole ecosystem** — feeds songs into web app via import pipeline, practice tracks into future ClickTrack. Capture is the metadata superset (D-154).
+- **ClickTrack** (future, not yet in repo) — Personal practice tool for Nathan. Techniques, sticking patterns, fills, polyrhythms, limb independence. Will consume Capture's practice_category, instrument_focus, difficulty fields. **Not built yet but integration points must be considered now** (D-155).
 - **Native** (native/) — **SHELVED**. Former React Native/Expo app. Archived at `D:/tgt/gigbooks-react-native-backup-2026-03-08.7z`. Still in git history.
 
 ## Tech Stack (Locked)
@@ -75,28 +76,38 @@ All in `docs/ai_context/` (project root level):
 6. Commit and push all changes
 
 ## App Scope Split
-| Feature | Android (GigBooks) | Web (Tangerine Timetree) | Capture (TGT Capture) |
-|---------|-------------------|-------------------------|----------------------|
-| Calendar | Yes | Yes | No |
-| Songs / Setlists | Yes | Yes | No (tracks only) |
-| Live Mode | Yes | Yes (S36) | No |
-| Practice Mode | Yes | Yes (S36) | No |
-| Invoicing / Quotes | No | Yes | No |
-| PDF generation | No | Yes | No |
-| Clients / Venues | No | Yes | No |
-| Dashboard | No | Yes | No |
-| Public site | No | Yes | No |
-| Stage Prompter | No | Yes | No |
-| Settings | Yes (player only) | Yes (full) | No |
-| Audio capture (WASAPI/Chrome) | No | No | Yes |
-| BPM/key analysis (librosa) | No | No | Yes |
-| Waveform generation | No | No | Yes |
-| Import to web (planned) | No | Pulls from capture | Serves tracks |
+| Feature | Android (GigBooks) | Web (Tangerine Timetree) | Capture (TGT Capture) | ClickTrack (future) |
+|---------|-------------------|-------------------------|----------------------|-------------------|
+| Calendar | Yes | Yes | No | No |
+| Songs / Setlists | Yes | Yes | Tracks (pre-import) | No |
+| Song `category` (tgt_cover etc) | Yes | Yes | **Yes** (D-154) | No |
+| `practice_category` | No | No | **Yes** (D-154) | **Yes** |
+| `instrument_focus` / `difficulty` | No | No | **Yes** (D-154) | **Yes** |
+| Live Mode | Yes | Yes (S36) | No | No |
+| Practice Mode | Yes | Yes (S36) | No | Yes (different UX) |
+| Invoicing / Quotes | No | Yes | No | No |
+| PDF generation | No | Yes | No | No |
+| Clients / Venues | No | Yes | No | No |
+| Dashboard | No | Yes | No | No |
+| Public site | No | Yes | No | No |
+| Stage Prompter | No | Yes | No | No |
+| Settings | Yes (player only) | Yes (full) | No | Yes (practice) |
+| Audio capture (WASAPI/Chrome) | No | No | Yes | No |
+| BPM/key analysis (librosa) | No | No | Yes | No |
+| Waveform generation | No | No | Yes | No |
+| Import to web | No | Pulls from Capture | Serves tracks | No |
+| Import to ClickTrack | No | No | Serves practice tracks | Pulls from Capture |
 
 ### How the apps connect
-- **Capture → Web**: Capture records audio, analyses BPM/key, encodes MP3. Planned import feature (S38) will let web pull tracks from capture server at localhost:9123, map metadata to Supabase Song fields, upload MP3 to `practice-tracks` bucket, and trigger Cloud Run processing (madmom beats + Demucs stems).
+- **Capture → Web**: Capture records audio, analyses BPM/key, encodes MP3, tags with Song `category`. Import pipeline lets web pull tracks from Capture server (localhost:9123), map metadata to Supabase Song fields, upload MP3 to `practice-tracks` bucket, trigger Cloud Run processing (madmom beats + Demucs stems).
+- **Capture → ClickTrack** (future): ClickTrack imports Capture's practice-specific tracks using `practice_category`, `instrument_focus`, `difficulty` fields. Different import flow from TGT — personal practice only.
 - **Web → Android**: Both read/write same Supabase tables. Songs created via web import appear in Android automatically.
-- **Capture is standalone**: SQLite DB, local files. No Supabase dependency. Has `song_id` + `setlist_id` FK fields ready for linking post-import.
+- **Capture is the metadata superset** (D-154): Carries ALL categories for ALL consuming apps. Each consumer takes what it needs, ignores the rest. Song `category` for TGT apps, `practice_category` for ClickTrack.
+
+### Cross-app rules (D-156, D-157)
+- **Every field/schema change must be evaluated against ALL apps** — web, Android, Capture, and future ClickTrack.
+- **Sprint-scoped decisions expire** after that sprint. Don't cite old scoping to avoid work.
+- **Never cut scope without explicit user approval** (gotchas.md: "Feature dismissal pattern").
 
 ## Business Context
 - Nathan Thomas, sole trader, trading as The Green Tangerine

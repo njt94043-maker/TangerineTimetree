@@ -189,44 +189,106 @@ GOALS:
 
 ---
 
-## Sprint S43 — Cloud Run: Deploy + Re-analyse
+## Sprint S43 — Capture Alignment + Cloud Run Deploy
 
 ```
-Read docs/ai_context/STATUS.md and docs/ai_context/decisions_log.md (D-148, D-151). This is Sprint S43.
+Read docs/ai_context/STATUS.md, IMPACT_MAP.md, and decisions_log.md (D-148, D-151, D-154–D-158). This is Sprint S43.
 
 CONTEXT:
-- S38-S42 ALL COMPLETE. Both platforms fully built with unified visuals, categories, sharing, recording, takes, View Mode.
+- S38-S42 ALL COMPLETE. Web + Android have unified visuals, categories, sharing, recording, takes, View Mode.
 - Cloud Run beats-only code written in S39 but NOT deployed.
+- Capture is MISSING Song `category` field — must be added (D-154).
+- Import pipeline is OVERDUE (was S38 target, D-158). NOT built in this sprint but Capture fields must be ready for it.
+- ClickTrack is future but considered now (D-155) — Capture already has practice_category/instrument_focus/difficulty for it.
 
 GOALS:
-1. **Deploy beats-only endpoint** (D-148): skip_stems=true → madmom only
-2. **Re-analyse from mixed master** (D-151): server mixes best takes → madmom → replaces beat_map. Web + Android: "Re-analyse" button on SongForm.
-3. **Deploy**: gcloud run deploy
-4. Verify both endpoints end-to-end.
-5. Update SOT docs, provide audit prompt.
+1. **Capture category alignment** (D-154):
+   - SQLite: Add `category TEXT NOT NULL DEFAULT ''` to tracks table + migration for existing DBs
+   - Backend: Add `category` to TrackUpdate, list_tracks filter, ID3 tagger (write + read)
+   - UI types: Add `category` to Track interface
+   - TrackDetail: Add category dropdown (4 Song values)
+   - TrackCard: Add category badge (teal=TGT, orange=personal)
+   - TrackList: Add category filter dropdown
+   - theme.css: Add --color-teal (#1abc9c) + --color-purple (#bb86fc) accent vars
+
+2. **Cloud Run deploy** (D-148):
+   - skip_stems=true code already in main.py — deploy it
+   - gcloud run deploy from cloud-run/
+
+3. **Cloud Run re-analyse endpoint** (D-151):
+   - New `/re-analyse` route: accepts song_id, fetches best takes audio URLs, downloads + mixes to temp master, runs madmom, replaces beat_map
+   - Deploy with the beats-only deploy
+
+4. **Web: skip_stems + re-analyse** (D-148, D-151):
+   - SongForm triggerProcessing: pass skip_stems=true for first takes
+   - SongForm: separate "Re-analyse" button that calls /re-analyse endpoint
+
+5. Verify all endpoints end-to-end.
+6. Update SOT docs, provide S44 prompt.
+
+DO NOT build the import pipeline in this sprint — that's S44. But Capture MUST have the category field ready for it.
 ```
 
 ---
 
-## Post-S43 — Cross-Platform Surgical Audit
+## Sprint S44 — Import Pipeline + Android SongForm
 
 ```
-Read docs/ai_context/STATUS.md and all SOT docs. This is the cross-platform audit before user testing.
+Read docs/ai_context/STATUS.md, IMPACT_MAP.md, and decisions_log.md (D-154, D-158). This is Sprint S44.
 
 CONTEXT:
-- S38-S43 ALL COMPLETE. Both web + Android have: unified V4 visuals, categories, sharing, takes, recording, View Mode, overdub, selfie video, USB interfaces.
-- Cloud Run has beats-only + re-analyse endpoints deployed.
-- NO user testing has happened yet. This audit catches everything before Nathan and the boys test.
+- S43 done: Capture has category field, Cloud Run deployed (beats-only + re-analyse), web has skip_stems + re-analyse UI.
+- Import pipeline is OVERDUE (was S38 target, D-158). This sprint builds it.
+- Android has NO SongForm — can't edit songs, trigger processing, or re-analyse.
+
+GOALS:
+1. **Import pipeline** (Capture → Web):
+   - Web: import UI that connects to localhost:9123/api/library/tracks
+   - Browse Capture tracks, preview, select for import
+   - Map metadata: track.title→song.name, track.artist→song.artist, track.category→song.category, track.bpm→song.bpm, track.key→song.key
+   - Set Song defaults for unmapped fields (4/4, 8ths, straight, 1 bar count-in, default click)
+   - Upload MP3 from Capture → Supabase practice-tracks bucket
+   - Set created_by to importing user
+   - Trigger Cloud Run processing (full pipeline for imports)
+   - Mark track as imported in Capture (update song_id FK)
+
+2. **Android SongForm**:
+   - Song edit form (category, sharing, notes, lyrics, chords, drum notation)
+   - Trigger processing button (calls Cloud Run /process)
+   - Re-analyse button (calls Cloud Run /re-analyse)
+   - Mirror web SongForm field set
+
+3. Verify: tsc -b + vite build clean. gradlew assembleRelease clean.
+4. Update SOT docs, provide audit prompt.
+```
+
+---
+
+## Post-S44 — Cross-Platform + Cross-App Surgical Audit
+
+```
+Read docs/ai_context/STATUS.md and ALL SOT docs. This is the full audit before user testing.
+
+CONTEXT:
+- S38-S44 ALL COMPLETE. All 3 apps aligned:
+  - Web + Android: unified V4 visuals, categories, sharing, takes, recording, View Mode, SongForm, processing, re-analyse
+  - Capture: category field, badges, filters, theme alignment
+  - Cloud Run: beats-only, re-analyse, full pipeline — all deployed
+  - Import pipeline: Capture → Web → Cloud Run → both apps
+- NO user testing has happened yet. This audit catches everything.
 
 AUDIT CHECKLIST:
-1. **Visual parity** — compare both apps side-by-side against V4 mockup (17 screens). Tokens, shadows, spacing, layouts match.
-2. **Schema verification** — Supabase tables match schema_map.md. All RLS policies correct. can_access_song() works.
+1. **Visual parity (3 apps)** — Web, Android, Capture all use same tokens (colours, fonts, shadows). Category badges match across apps.
+2. **Schema verification** — Supabase tables match schema_map.md. Capture SQLite tracks table has category field. All RLS policies correct.
 3. **Web build** — tsc -b + vite build clean.
 4. **Android build** — gradlew assembleRelease clean. Install APK on device.
-5. **Feature parity** — verify every feature in D-124–D-153 works on BOTH platforms.
-6. **RLS testing** — TGT visible to all, personal covers visible to all (owner edits only), personal originals = owner + shared only, stem ownership.
-7. **Recording flow** — test on both: overdub, click, count-in, post-recording, best take upload.
-8. **Cloud Run** — beats-only + re-analyse endpoints.
-9. **Edge cases** — no beat map, no stems, take deletion, best take swap.
-10. Update all SOT docs. Provide user testing handoff.
+5. **Feature parity (web ↔ Android)** — verify every feature in D-124–D-158 works on BOTH platforms.
+6. **Capture alignment** — category dropdown works, badges display, filters work, ID3 tags written.
+7. **Import pipeline** — capture track → web import → Supabase song → Cloud Run → appears on both apps.
+8. **Cloud Run** — beats-only, re-analyse, full pipeline — all endpoints verified.
+9. **RLS testing** — TGT visible to all, personal covers visible (owner edits only), personal originals = owner + shared only.
+10. **Recording flow** — test on web + Android: overdub, click, count-in, post-recording, best take upload.
+11. **Edge cases** — no beat map, no stems, take deletion, best take swap, re-analyse with 0 takes.
+12. **ClickTrack readiness** — Capture's practice_category/instrument_focus/difficulty fields present and functional.
+13. Update all SOT docs. Provide user testing handoff.
 ```
