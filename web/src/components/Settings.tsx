@@ -433,6 +433,22 @@ export function Settings({ onClose }: SettingsProps) {
       </div>
 
       <div className="settings-section">
+        <h3 className="settings-section-title">Account</h3>
+        <div className="neu-inset" style={{ padding: '12px 14px' }}>
+          <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--color-green)' }}>{yourName || 'Member'}</div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{email || '\u2014'}</div>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Audio Engine</h3>
+        <div className="neu-inset" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, background: 'var(--color-green)', flexShrink: 0 }} />
+          <span style={{ fontSize: 13 }}>Web Audio API + SoundTouchJS</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
         <h3 className="settings-section-title">Preferences</h3>
 
         <label className="label" htmlFor="s-map-app">MAP APP</label>
@@ -987,6 +1003,17 @@ export function Settings({ onClose }: SettingsProps) {
             + Add Review
           </button>
         )}
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">About</h3>
+        <div className="neu-inset" style={{ padding: '12px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-tangerine)' }}>Tangerine Timetree</span>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>v1.0.0</span>
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>The Green Tangerine</div>
+        </div>
       </div>
 
       {error && <ErrorAlert message={error} compact />}

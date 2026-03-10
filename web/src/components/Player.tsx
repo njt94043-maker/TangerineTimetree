@@ -957,25 +957,25 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
               <div className="v4-set-row">
                 <span className="v4-set-label">Subdiv</span>
                 <div className="v4-set-pills">
-                  {['Off', '8th', 'Trip', '16th'].map(l => (
-                    <span key={l} className={`v4-set-pill ${l === 'Off' ? 'on' : ''}`}>{l}</span>
+                  {([['Off', 1], ['8th', 2], ['Trip', 3], ['16th', 4]] as const).map(([l, v]) => (
+                    <span key={l} className={`v4-set-pill ${state.subdivision === v ? 'on' : ''}`} onClick={() => actions.setSubdivision(v)}>{l}</span>
                   ))}
                 </div>
               </div>
               <div className="v4-set-row">
                 <span className="v4-set-label">Count-in</span>
                 <div className="v4-set-pills">
-                  {['Off', '1', '2', '4'].map(l => (
-                    <span key={l} className={`v4-set-pill ${l === 'Off' ? 'on' : ''}`}>{l}</span>
+                  {([['Off', 0], ['1', 1], ['2', 2], ['4', 4]] as const).map(([l, v]) => (
+                    <span key={l} className={`v4-set-pill ${state.countInBars === v ? 'on' : ''}`} onClick={() => actions.setCountIn(v)}>{l}</span>
                   ))}
                 </div>
               </div>
               <div className="v4-set-row">
                 <span className="v4-set-label">Nudge</span>
                 <div className="v4-set-pills">
-                  <span className="v4-set-pill">&lt;&lt;</span>
-                  <span className="v4-nudge-val">+0ms</span>
-                  <span className="v4-set-pill">&gt;&gt;</span>
+                  <span className="v4-set-pill" onClick={() => actions.nudge(-1)}>&lt;&lt;</span>
+                  <span className="v4-nudge-val" onClick={() => actions.resetNudge()}>{state.nudgeOffsetMs >= 0 ? '+' : ''}{state.nudgeOffsetMs}ms</span>
+                  <span className="v4-set-pill" onClick={() => actions.nudge(1)}>&gt;&gt;</span>
                 </div>
               </div>
             </div>
