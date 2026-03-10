@@ -333,14 +333,18 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                     val isPlayed = idx < currentIdx
                     val song = row.songs
 
-                    NeuCard(
+                    // Flat row (no NeuCard — matches web queue style)
+                    Column(
                         modifier = Modifier
-                            .padding(vertical = 3.dp)
+                            .fillMaxWidth()
                             .then(
-                                if (isCurrent) Modifier.border(1.dp, GigColors.green.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                if (isCurrent) Modifier
+                                    .background(GigColors.green.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                                    .border(0.5.dp, GigColors.green.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                                 else Modifier
                             )
-                            .clickable { vm.jumpToSong(idx); onDismiss() },
+                            .clickable { vm.jumpToSong(idx); onDismiss() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -421,6 +425,13 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                                 modifier = Modifier.padding(top = 4.dp),
                             )
                         }
+                    }
+                    // Divider between items (flat row style)
+                    if (!isCurrent && idx < setlist.songs.size - 1) {
+                        androidx.compose.material3.HorizontalDivider(
+                            color = GigColors.textMuted.copy(alpha = 0.1f),
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
                     }
                 }
             }

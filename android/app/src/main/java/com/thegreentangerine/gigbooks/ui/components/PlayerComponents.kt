@@ -210,8 +210,9 @@ fun VisualHero(
                 .padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            VisSwitcherButton("Bars", selected = true, accent = accent)
+            VisSwitcherButton("Spectrum", selected = true, accent = accent)
             VisSwitcherButton("Rings", selected = false, accent = accent)
+            VisSwitcherButton("Burst", selected = false, accent = accent)
         }
 
         // Beat glow overlay
