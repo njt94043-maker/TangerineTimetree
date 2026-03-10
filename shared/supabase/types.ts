@@ -464,7 +464,15 @@ export interface FormalReceiptWithMember extends FormalReceipt {
 
 // ─── Songs & Setlists ────────────────────────────────────
 
-export type SongCategory = 'tange_cover' | 'tange_original' | 'personal';
+export type SongCategory = 'tgt_cover' | 'tgt_original' | 'personal_cover' | 'personal_original';
+
+export function isPersonalSong(cat: SongCategory): boolean {
+  return cat === 'personal_cover' || cat === 'personal_original';
+}
+
+export function isTgtSong(cat: SongCategory): boolean {
+  return cat === 'tgt_cover' || cat === 'tgt_original';
+}
 export type SetlistType = 'tange' | 'other_band';
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
@@ -492,12 +500,24 @@ export interface SongStem {
   created_at: string;
 }
 
+export interface SongShare {
+  id: string;
+  song_id: string;
+  shared_with: string;
+  shared_by: string;
+  created_at: string;
+}
+
+export interface SongShareWithProfile extends SongShare {
+  shared_with_name: string;
+}
+
 export interface Song {
   id: string;
   name: string;
   artist: string;
-  category: SongCategory;       // tange_cover | tange_original | personal
-  owner_id: string | null;      // profile id for personal songs (null for band songs)
+  category: SongCategory;       // tgt_cover | tgt_original | personal_cover | personal_original
+  owner_id: string | null;      // profile id for personal songs (null for TGT songs)
   bpm: number;
   time_signature_top: number;
   time_signature_bottom: number;

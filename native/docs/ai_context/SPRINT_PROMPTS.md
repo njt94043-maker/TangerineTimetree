@@ -2,1020 +2,293 @@
 
 > Copy-paste the next sprint's prompt to start a fresh session.
 > Each prompt gives the AI full context to pick up where we left off.
+> At session end, AI provides the prompt for the next sprint.
 
 ---
 
-## Sprint S36 — Web Audio Engine + Library Redesign (NEXT)
+## Sprint S39 — Foundation: Migration + Shared + Cloud Run (NEXT)
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S36.
+Read native/docs/ai_context/STATUS.md, native/docs/ai_context/SPRINT_PROMPTS.md, and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S39.
 
 CONTEXT:
-- S34 (migration) and S35 (Android Library + Player refactor) are complete.
-- Android has: LibraryScreen (category pills, setlist type pills, inline Live/Practice launch), LiveScreen (queue overlay, set complete, speed safety), PracticeScreen (stems, speed, A-B loop).
-- Web has: stage prompter, invoicing, quotes, calendar, songs/setlists CRUD — but NO audio at all.
-- Supabase has: songs (category, owner_id, drum_notation), setlists (setlist_type, band_name), user_settings (7x player_*_enabled prefs), song_stems, beat_maps, practice-tracks bucket.
-- Key decisions: D-110 (Library as launchpad), D-111 (shared player with mode flag), D-112 (Web Audio + SoundTouchJS), D-113 (stage prompter merges into Live Mode), D-119 (card-level beat glow).
-- Mockups: mockups/library-browser.html, mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html
+- S39–S45 design is COMPLETE. 15-screen mockup approved at mockups/s39-categories-sharing-mockup.html. 30 decisions locked (D-124–D-153).
+- This is a 7-sprint build sequence (S39–S45). No user testing until ALL sprints complete + cross-platform audit passes.
+- Web + Android are mirror apps (D-153). Web = iOS users (Neil/James/Adam). Android = Nathan. Full feature parity required.
+- Migration SQL partially written at supabase/migrations/20260310000000_s39_song_categories_sharing.sql (NEEDS UPDATE — see below).
+- shared/supabase/types.ts partially updated (SongCategory changed, SongShare added, helpers added).
+- shared/supabase/queries.ts has imports added but sharing CRUD functions NOT yet written.
+
+GOALS (S39 — foundation layer, both platforms depend on this):
+1. **Update migration SQL**:
+   - Category rename: tange_cover→tgt_cover, tange_original→tgt_original, personal→personal_cover (D-124)
+   - New CHECK constraint: ('tgt_cover','tgt_original','personal_cover','personal_original')
+   - song_shares table (D-135): id, song_id FK→songs CASCADE, shared_with FK→profiles, shared_by FK→profiles, created_at, UNIQUE(song_id, shared_with)
+   - is_best_take BOOLEAN DEFAULT false on song_stems (D-130)
+   - can_access_song() SECURITY DEFINER helper (D-129): TGT = all auth, personal_cover = all auth, personal_original = owner OR song_shares
+   - RLS rewrite: songs (SELECT/INSERT/UPDATE/DELETE per D-125/D-126), song_stems (SELECT/INSERT/UPDATE/DELETE per D-136), beat_maps, song_shares
+   - Personal covers visible to ALL (D-125). Personal originals = owner + song_shares only (D-126).
+
+2. **Complete shared/supabase/types.ts**:
+   - Verify SongCategory = 'tgt_cover' | 'tgt_original' | 'personal_cover' | 'personal_original'
+   - SongShare interface, SongShareWithProfile
+   - isPersonalSong(), isTgtSong() helpers
+   - StemSource type if needed ('uploaded' | 'auto' | 'recorded')
+
+3. **Complete shared/supabase/queries.ts**:
+   - getSongSharesWithProfiles(songId) — shares with profile names
+   - shareSong(songId, sharedWithId) — creates share
+   - unshareSong(songId, sharedWithId) — deletes share
+   - setBestTake(stemId) — set is_best_take, clear previous best for same user+song
+   - clearBestTake(stemId) — unset is_best_take
+
+4. **Cloud Run beats-only endpoint** (D-148):
+   - Add skip_stems parameter or /beats-only route to main.py
+   - When skip_stems=true: run madmom only, skip Demucs. For solo instrument takes.
+   - Don't redeploy yet — just update the code. Deployment in S45.
+
+5. **Push migration**: npx supabase db push
+6. **Verify**: cd web && npx tsc -b && npx vite build (must pass clean)
+7. **Update SOT docs** and provide S40 sprint prompt.
+
+KEY DECISIONS TO FOLLOW:
+- D-124: 4 categories. D-125: personal covers visible to all. D-126: personal originals opt-in.
+- D-129: can_access_song() helper. D-130: is_best_take on song_stems.
+- D-135: song_shares table. D-136: stem ownership via created_by.
+- D-148: Cloud Run beats-only for takes (no Demucs on solo instruments).
+- D-149: Take deletion is manual, no auto-promote.
+
+DO NOT touch web UI or Android code in this sprint. Foundation only.
+```
+
+---
+
+## Sprint S40 — Web: Library + SongForm Categories + Sharing
+
+```
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S40.
+
+CONTEXT:
+- S39 complete: migration pushed, shared types/queries done, Cloud Run beats-only code written.
+- Mockup: mockups/s39-categories-sharing-mockup.html — screens 1-8 are relevant (Library views + SongForm views).
 
 GOALS:
-1. **Web Audio engine module** (`web/src/audio/` or similar):
-   - AudioContext setup + resume on user gesture
-   - Click scheduler: frame-accurate metronome using Web Audio API scheduling (lookahead pattern — schedule clicks ahead of time using audioContext.currentTime)
-   - Track player: fetch practice track from Supabase Storage → AudioContext.decodeAudioData() → AudioBufferSourceNode
-   - Stem mixer: load 4 auto stems (drums/bass/other/vocals) as separate AudioBufferSourceNodes, each with GainNode for volume
-   - Master gain, click gain, track gain controls
-   - Speed control: SoundTouchJS (npm: soundtouchjs) for pitch-preserved time-stretch on track + stems. Click BPM adjusts proportionally.
-   - A-B loop: set start/end times, loop region playback
-   - Beat map integration: fetch beat_maps from Supabase, schedule clicks at actual beat positions (not uniform grid)
-   - Position reporting: current time, total duration
-   - Split stereo option (click L, track R) using ChannelMergerNode
+1. **Library.tsx** — replace filter pills with two dropdowns (D-128):
+   - Scope: All Songs / TGT / My Songs / Shared With Me
+   - Type: All / Covers / Originals
+   - Category badges (teal TGT, orange personal, purple shared)
+   - Owner name tag for personal songs
+   - Lock icon for songs user can't edit
+   - Hide Edit/Delete for non-owned personal songs
 
-2. **Web Library redesign** (`web/src/views/songs.tsx` + `web/src/views/setlists.tsx` or new Library view):
-   - Songs tab + Setlists tab (like Android LibraryScreen)
-   - Category filter pills: All / Covers / Originals / Personal
-   - Setlist type filter pills: All / TGT / Other
-   - Song cards: name, artist, BPM, category tag, TRACK badge if has audio_url
-   - Inline Live/Practice launch buttons on each song/setlist card
-   - Search/filter existing functionality preserved
+2. **SongForm.tsx** — 4 categories + sharing UI:
+   - Category dropdown: TGT Cover, TGT Original, Personal Cover, Personal Original
+   - owner_id set when personal (isPersonalSong helper)
+   - Sharing section (personal originals only): list shared members, add/remove sharing
+   - Read-only mode for shared songs user doesn't own
 
-3. **Player prefs loading**:
-   - Fetch player_*_enabled from user_settings on auth
-   - Store in React context or hook
-   - Pass to audio engine (e.g. click enabled/disabled, etc.)
+3. Verify: tsc -b + vite build clean
+4. Update SOT docs, provide S41 prompt.
 
-KEY FILES to study:
-- android/app/src/main/java/.../ui/screens/LibraryScreen.kt (reference for filter pills + layout)
-- android/app/src/main/java/.../audio/AudioEngineBridge.kt (reference for engine API surface)
-- android/app/src/main/java/.../AppViewModel.kt (reference for state management)
-- shared/supabase/queries.ts (getSongsByCategory, getPlayerPrefs, getBeatMap, etc.)
-- shared/supabase/types.ts (Song, SongStem, BeatMap, UserSettings)
-- web/src/views/stage-prompter.tsx (existing setlist/song display — will merge into Live Mode in S37)
-
-AUDIO ARCHITECTURE NOTES:
-- Web Audio API lookahead pattern: use setInterval(~25ms) to schedule clicks 100ms ahead via audioContext.currentTime. This gives sample-accurate timing despite JS timer jitter.
-- SoundTouchJS: `npm install soundtouchjs`. Creates a ScriptProcessorNode (or AudioWorkletNode) that reads from source buffer and outputs time-stretched audio. Set tempo without changing pitch.
-- For stems: each stem is a separate AudioBufferSourceNode → GainNode → destination. All start at same time. Speed change must apply to all simultaneously.
-- Beat maps: array of float seconds. Schedule click at each beat position (adjusted for speed). Don't use uniform grid.
-
-CONSTRAINTS:
-- Do NOT touch Android code
-- Web tsc must pass clean
-- Vite build must pass clean
-- Keep existing web functionality working (invoicing, calendar, etc.)
-- Dark neumorphic styling consistent with existing web app
+KEY DECISIONS: D-124 (4 categories), D-125 (personal covers visible to all), D-126 (originals opt-in), D-128 (dropdowns not pills).
 ```
 
 ---
 
-## Sprint S37 — Web Player UI (AFTER S36)
+## Sprint S41 — Web: Recording + Takes + Post-Recording
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S37.
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-130 onwards). This is Sprint S41.
 
 CONTEXT:
-- S36 complete — Web audio engine exists (Web Audio API + SoundTouchJS). Library redesigned with filter pills + launch buttons.
-- Audio engine can: schedule clicks, play tracks, mix stems, control speed, A-B loop, load beat maps.
-- Need to build the React UI that drives the audio engine.
-- Reference mockups: mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html
-- Reference Android: LiveScreen.kt, PracticeScreen.kt (Compose implementations)
+- S39 (foundation) + S40 (web Library/SongForm) complete.
+- Mockup screens: 9-10 (takes views), 12a-12b (recording video off/on), 13 (post-recording options).
 
 GOALS:
-1. **Player component** (`web/src/views/player.tsx` or similar):
-   - Single component with mode prop: 'live' | 'practice'
-   - Visual hero area (song name, artist, BPM large, key, time sig)
-   - Beat visualization (LED dots: beat 1 = red accent, others = teal, scale + glow on active beat) — card-level glow (D-119)
-   - Transport controls: play/stop (large), prev/next song
-   - Song position ("3 of 12") + progress bar with playhead
-   - Queue overlay (slide-up song list, reorder via drag, tap to jump)
-   - Between-songs waiting screen ("Next Up: Song Name" + Go button)
-   - Set Complete celebration screen (confetti or similar + restart/home)
-   - Speed safety modal (warn if speed != 100% when entering Live mode)
+1. **Takes UI** in SongForm — takes list per user per song:
+   - Auto-numbered (D-143). Show take # + date + duration.
+   - Star icon for best take. Tap to set/clear best (D-130/D-131).
+   - Delete takes (D-149) — manual, no auto-promote.
+   - Best-only uploads to Supabase storage (D-145). Non-best in IndexedDB.
 
-2. **Live Mode features**:
-   - Click engine active (per user prefs — Neil/James/Adam may disable)
-   - Lyrics display (scrollable, from song.lyrics field)
-   - Chords display (ChordPro inline, from song.chords field)
-   - Display toggles in bottom sheet/drawer: Vis, Chords, Lyrics, Notes, Drums (D-118)
-   - Stage prompter functionality merged in (D-113) — existing stage-prompter.tsx code can be reused/absorbed
-   - Wake lock (Navigator.wakeLock API)
+2. **Recording flow** — getUserMedia + MediaRecorder:
+   - Input device picker via enumerateDevices() (D-133) — in drawer
+   - Camera toggle for selfie (D-132) — in drawer. Video saved locally (File System Access API / download fallback).
+   - Record button in transport bar replaces play (D-150). Tab switches to "Record" (red).
+   - Overdub: StemMixer plays existing stems while recording mic input (D-140). User controls via drawer.
+   - Click track active during recording (D-141). Toggle in drawer.
+   - Count-in: user-defined 0/1/2/4 bars in drawer (D-142). Uses song BPM from beat map or manual field.
+   - Recording UI: video OFF = neumorphic visualiser fills hero (D-147). Video ON = camera in hero + input bar underneath.
 
-3. **Practice Mode features**:
-   - Everything from Live Mode PLUS:
-   - Track waveform visualiser (Canvas, amplitude envelope)
-   - Speed slider (50%-150%) with +/-5% buttons and reset
-   - A-B loop markers on waveform (set A, set B, clear)
-   - Per-stem volume sliders (drums/bass/other/vocals)
-   - Click volume + track volume + master volume
-   - Split stereo toggle
-   - Count-in selector (off, 1, 2, 4 bars)
-   - Beat nudge (earlier/later) — shift click phase
-   - BPM display (effective + original)
+3. **Post-recording options** (D-139) — 4 buttons:
+   - Discard & Re-take, Save & Re-take, Save as Take, Save & Preview
+   - Mark as Best toggle (D-145) — OFF by default, ON uploads to cloud
 
-4. **Player prefs UI**:
-   - Settings screen section: 7 toggles (click, flash, lyrics, chords, notes, drums, vis)
-   - Save to user_settings via updatePlayerPrefs()
-   - Load on auth, apply to player
+4. **New song idea flow** (D-138):
+   - Create song with minimal metadata (title + personal_original) → immediate record
+   - First take triggers Cloud Run madmom-only (D-148) — no Demucs on solo instrument
 
-5. **Navigation integration**:
-   - Library song/setlist cards → launch player with mode + queue
-   - ViewContext integration (drawer nav)
-   - Back button returns to Library
+5. **IndexedDB** for local take storage — key structure userId:songId:takeNumber
 
-CONSTRAINTS:
-- Do NOT touch Android code
-- Web tsc + vite build must pass clean
-- Existing web features must keep working
-- Dark neumorphic styling
-- Responsive (phone, tablet, desktop)
+6. Verify: tsc -b + vite build clean. Update SOT docs, provide S42 prompt.
 ```
 
 ---
 
-## Sprint S34 — Migration + Types + Queries (DONE)
+## Sprint S42 — Web: View Mode + Record from View Mode
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S34.
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-137 onwards). This is Sprint S42.
 
 CONTEXT:
-- S33 planning complete. Schema designed, mockups approved, architecture locked.
-- Migration SQL draft at: native/docs/ai_context/s33_migration_draft.sql
-- Mockups at: mockups/library-browser.html, mockups/player-live.html, mockups/player-queue.html, mockups/practice-redesign.html (v5)
-- Key decisions: D-107 to D-119 (see decisions_log.md)
+- S39-S41 complete. Categories, sharing, recording, takes all working on web.
+- Mockup screens: 11 (View Mode playback), 14 (View Mode recording).
 
 GOALS:
-1. Apply Supabase migration (songs.category, songs.owner_id, setlists.setlist_type, setlists.band_name, user_settings player prefs)
-2. Update shared/supabase/types.ts — SongCategory type, Song interface (+ category, owner_id), Setlist interface (+ setlist_type, band_name), UserSettings (+ player prefs)
-3. Update shared/supabase/queries.ts — song filtering by category/owner, setlist filtering by type/band, player prefs CRUD, update existing song/setlist queries for new columns
-4. Update android/ Kotlin data classes — Song.kt (category, owner_id), Setlist.kt (setlist_type, band_name)
-5. Update android/ repositories — SongRepository category/owner filters, SetlistRepository type/band filters
-6. Update web song form — category selector dropdown, owner picker (shown when category=personal)
-7. Update web setlist form — setlist_type selector, band_name field (shown when type=other_band)
-8. Both apps build clean (tsc + gradle)
+1. **View Mode** — 3rd player tab (D-137):
+   - Tab: Live / Practice / View
+   - Hero: local best-take video if available, neumorphic visualiser fallback if not (D-146)
+   - All audio stems play from Supabase (original mix + auto stems + best takes)
+   - Stem mixer in drawer (same as Practice)
+   - Transport: play/pause, seek, prev/next
 
-Key files:
-- shared/supabase/types.ts
-- shared/supabase/queries.ts
-- android/app/src/main/java/.../Song.kt
-- android/app/src/main/java/.../Setlist.kt
-- android/app/src/main/java/.../SongRepository.kt
-- android/app/src/main/java/.../SetlistRepository.kt
-- web/src/ song and setlist form components
+2. **Record from View Mode** (D-144):
+   - Record button in transport (replaces play, D-150)
+   - Same recording flow as S41 — overdub, click, count-in, camera, post-recording options
+   - Video hero dims during recording, REC overlay + camera PIP (screen 14)
+   - Natural layering workflow: listen → hear something → hit record → play along
 
-Commit and push all work before session end. Update SOT docs.
+3. Verify: tsc -b + vite build clean. Update SOT docs, provide S43 prompt.
 ```
 
 ---
 
-## Sprint S33 — Songs/Setlists/Live/Practice Big-Picture Redesign (DONE)
+## Sprint S43 — Android: Categories + Sharing + Takes UI
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S33 — a PLANNING session.
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S43.
 
 CONTEXT:
-- S32B/C complete: full processing pipeline works (madmom beats + Demucs stems), all 3 songs processed, APK installed.
-- Practice/Live UI mockup approved: `mockups/practice-redesign.html` (v5) — visual hero area with canvas visualisations, compact waveform seekbar, 2-tier transport (speed+A/B/Clear top, play/stop/restart/click bottom), bottom sheet drawer (mixer + settings), uniform beat edge glow.
-- C++ TrackPlayer::stop() fixed: loop-aware reset (seeks to A point when loop active, frame 0 otherwise).
-- Current Song schema has NO concept of categories, band ownership, or personal songs.
-- Current Setlist schema has NO concept of "band" vs "other band" setlists.
+- S39-S42 complete. Web has full categories, sharing, recording, takes, View Mode.
+- Android needs to mirror web features (D-153). Same Supabase backend, same RLS.
+- Android currently has old category values (tange_cover, tange_original, personal).
 
-BIG-PICTURE REQUIREMENTS (from user):
+GOALS:
+1. **Kotlin data classes** — update Song.kt:
+   - SongCategory enum: TGT_COVER, TGT_ORIGINAL, PERSONAL_COVER, PERSONAL_ORIGINAL
+   - Add SongShare data class
+   - Add is_best_take to SongStem
 
-### Song Categories
-Songs should be categorised:
-- **Tange Covers** — covers The Green Tangerine plays live
-- **Tange Originals** — original songs by the band
-- **Personal Songs** — songs each member knows individually (for dep/standing-in gigs with other bands)
+2. **SongRepository** — update queries:
+   - Category filter with new values
+   - Sharing CRUD (getSongShares, shareSong, unshareSong)
+   - setBestTake, clearBestTake
 
-### Setlist Types
-- **Tange Setlists** — setlists for TGT gigs
-- **Other Band Setlists** — setlists for bands any member stands in for (linked to personal songs)
+3. **LibraryScreen** — mirror web Library:
+   - Two dropdowns (Scope + Type) replacing filter pills (D-128)
+   - Category badges, owner tags, lock icons
+   - Same filter logic as web
 
-### Live Mode (click + visuals, NO backing tracks)
-Three playback modes:
-1. Play entire song library start-to-finish (prev/next buttons + swipe to browse full list and select)
-2. Play filtered library (Tange covers / Tange originals / personal songs by member or all)
-3. Play a full setlist start-to-finish (choose from available setlists)
+4. **SongForm** (if exists, or create) — mirror web SongForm:
+   - 4 categories dropdown
+   - Sharing section for personal originals
+   - Read-only mode for shared songs
 
-Features:
-- Click track + flash visuals synced to song BPM (from server analysis + user-preferred speed)
-- **Speed safety check**: If user's preferred playback speed differs from the analysis BPM, prompt before live mode: "Your speed is set to X% — did you forget to reset after practice? Play at analysis BPM / Play at current speed"
-- NO backing tracks in live mode — click and visuals only
+5. **Takes list** — mirror web takes view:
+   - Auto-numbered takes per user per song
+   - Best take star, delete, local storage for non-best
 
-### Practice Mode (backing tracks + click + visuals)
-Same three playback modes as live:
-1. Full library start-to-finish
-2. Filtered library
-3. Full setlist
-
-Features:
-- Backing tracks (main track + stems) — the full mixer from mockup v5
-- Click track + flash visuals
-- Speed control, A-B loop, beat nudge, subdivision, count-in — all from approved mockup
-- Same song navigation (prev/next + swipe full list)
-
-### UI Treatment
-- Both modes share the approved mockup layout (visual hero + waveform + 2-tier transport + bottom sheet)
-- Practice Mode: full mixer (click + track + stems) in bottom sheet
-- Live Mode: simplified bottom sheet (click volume only, subdivision, count-in, beat nudge)
-- Same visualisations in both modes
-
-TASKS FOR THIS SESSION:
-1. **Schema design** — What changes to `songs` and `setlists` tables? New columns: song category (enum/text), band_name on setlists, personal song ownership. Migration SQL draft.
-2. **Type updates** — Updated Song + Setlist TypeScript interfaces. SongCategory enum. Kotlin data classes.
-3. **Song browser/picker UX** — How does the user browse songs? Filter pills? Tabs? Search? Mockup the song selection flow for both live and practice entry points.
-4. **Setlist picker UX** — How does the user choose a setlist? Filter by band? Mockup.
-5. **Live mode entry flow** — Choose source (library/filtered/setlist) → speed safety check → enter visual player. Mockup.
-6. **Practice mode entry flow** — Choose source → enter visual player with tracks. Mockup.
-7. **Navigation between songs** — Prev/next + swipe-to-browse in both modes. How does the song list overlay work?
-8. **Shared screen architecture** — Should Live and Practice share one Compose screen with a mode flag, or be separate screens? Pros/cons.
-9. **Web implications** — Does the web song form need category field? Web stage prompter changes?
-10. **Mockups** — Create HTML mockups for: song browser, setlist picker, live entry, practice entry, in-player song list overlay.
-
-DO NOT write implementation code this session. This is planning + mockups only.
-Create mockups in mockups/ directory.
-Update SOT docs (STATUS.md, todo.md, SESSION_LOG.md, decisions_log.md) at end.
+6. Verify: gradlew assembleRelease clean. Update SOT docs, provide S44 prompt.
 ```
 
 ---
 
-## Sprint S31A — Server-Side Beat Detection (madmom)
+## Sprint S44 — Android: Recording + View Mode
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S31A.
-
-Context: S30C confirmed BTrack (on-device C++ beat detector) has architectural limits — can't handle syncopation (Cissy Strut) or tempo changes (War Pigs). Decision D-104/105/106: replace with server-side madmom (Python RNN+DBN), store beat maps in Supabase, C++ engine reads timestamps.
-
-Goals:
-1. Build a Python Cloud Run service that accepts an audio file and returns beat timestamps using madmom (RNNBeatProcessor + DBNBeatTrackingProcessor). Dockerfile + requirements.txt + main.py. Endpoint: POST /analyse → JSON { beats: [0.45, 0.92, 1.38, ...], bpm: 104.2 }
-2. Supabase: create beat_maps table (song_id FK, beats JSONB array of float seconds, bpm FLOAT, status TEXT 'pending'|'ready'|'failed', created_at). Migration SQL.
-3. Web app: after practice track upload completes, call the Cloud Run service. Show analysis status on song edit form (pending spinner → ready checkmark → failed error). Store result in beat_maps table.
-4. Android app: when loading a song for practice, fetch beat map from Supabase instead of running BTrack. Pass timestamp array to C++ engine via JNI.
-5. C++ engine: adapt loadBeatMap to accept an array of beat timestamps (seconds) instead of BTrack-generated frames. Convert seconds → frames using sample rate. Keep BTrack as offline fallback for now.
-6. Test on device: Sultans of Swing (should match current quality), Cissy Strut (should now lock), War Pigs (should handle tempo changes).
-
-Key files:
-- New: cloud-run/ directory (Python service)
-- New: supabase/migrations/beat_maps.sql
-- Modify: web song upload flow (trigger analysis)
-- Modify: android/app/src/main/java/.../SongRepository.kt (fetch beat map)
-- Modify: android/app/src/main/java/.../AppViewModel.kt (load beat map instead of BTrack)
-- Modify: android/app/src/main/cpp/beat_detector.cpp (accept external timestamps)
-
-Supabase project: jlufqgslgjowfaqmqlds
-Practice tracks bucket: practice-tracks
-Existing beat detection: android/app/src/main/cpp/beat_detector.cpp + BTrack.cpp
-
-Do NOT remove BTrack code yet — keep as fallback. Wire the new path first, test, then remove later.
-Commit and push all work before session end. Update SOT docs.
-```
-
----
-
-## Sprint S2 — APK Build Fix + HIGH Code Issues
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S2.
-
-Goals:
-1. Fix the APK build failure — the cmake error from @react-native-community/datetimepicker JNI codegen. Try `npx expo prebuild --clean` first, then `cd android && ./gradlew assembleRelease`. If that doesn't work, debug the cmake output or try installing newer cmake via sdkmanager.
-2. Fix HIGH code issues in shared/supabase/queries.ts — replace `any` casts in row mappings with typed interfaces, add error handling to changelog inserts.
-3. Fix shared/supabase/clientRef.ts — improve SupabaseClientLike interface with proper return types instead of `any`.
-4. Fix native/src/db/queries.ts — make getSettings() return `GigBooksSettings | null` and handle null in callers.
-5. Fix web/src/hooks/useOfflineQueue.ts — add conflict detection (check if entity still exists before replaying).
-6. Add offline mutation support to web/src/components/DayDetail.tsx.
-
-Run `npx tsc --noEmit` (native) and `npx tsc -b` (web) after all changes. Update SOT docs at session end.
-```
-
----
-
-## Sprint S3 — Documentation + CI/CD
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S3.
-
-Goals:
-1. Document all Supabase tables in native/docs/ai_context/schema_map.md — add profiles, gigs, away_dates, gig_changelog, away_date_changelog tables with full column definitions and RLS policies.
-2. Create web/docs/blueprint.md — web app architecture document covering: routing, components, hooks, PWA config, styling approach, data flow, offline strategy.
-3. Set up GitHub Actions CI/CD — create .github/workflows/check.yml that runs `npx tsc --noEmit` (native) and `npx tsc -b` (web) on pull requests.
-4. Create web/.env.example with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY placeholders.
-5. Update native/docs/ai_context/blueprint.md — fix "4 invoice styles" to "7 styles", fix "5 tables" to "6 tables", clarify Supabase exception to D-015.
-
-Update SOT docs at session end.
-```
-
----
-
-## Sprint S4 — Public Website Sprint 1
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S4 (Public Website Sprint 1).
-
-Reference: C:\Apps\TGT\PLAN_PUBLIC_SITE.md has the full implementation plan.
-
-Goals:
-1. Supabase schema migration — add `is_public` boolean (default false) to gigs table, add `band_role` text to profiles table, create `public_media` table. Add RLS policies for anonymous read access on public data.
-2. Update shared/supabase/types.ts — add is_public to Gig type, band_role to Profile type, add PublicMedia type.
-3. Update shared/supabase/queries.ts — add getPublicGigs() query (anonymous, is_public=true only), add updateProfile() for band_role.
-4. Add "Show on Website" toggle to web gig form (GigForm.tsx) — checkbox that sets is_public.
-5. Add "Show on Website" toggle to native gig form (app/gig/new.tsx) — Switch component.
-6. Create web profile page — editable name + band_role fields.
-
-Run tsc checks on both apps. Test web changes in browser. Update SOT docs at session end.
-```
-
----
-
-## Sprint S5 — Public Website Sprint 2
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S5 (Public Website Sprint 2).
-
-Reference: C:\Apps\TGT\PLAN_PUBLIC_SITE.md for design specs.
-
-Goals:
-1. Build PublicSite component (web/src/components/PublicSite.tsx) — unauthenticated landing page with 7 sections: hero, upcoming gigs, about the band, for venues, pricing, gallery placeholder, contact.
-2. Update web/src/App.tsx routing — show PublicSite for unauthenticated users instead of LoginPage. Add "Band Login" button that opens login modal.
-3. Create LoginModal component — overlay modal replacing the full-page LoginPage.
-4. Add SEO meta tags — OpenGraph, Twitter cards, structured data for band/events.
-5. Fetch and display public gigs on the landing page using getPublicGigs().
-6. Display band member profiles (names, roles, photos) from Supabase.
-
-Run tsc checks. Test responsive layout (mobile + desktop). Update SOT docs at session end.
-```
-
----
-
-## Sprint S6 — Public Website Sprint 3
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S6 (Public Website Sprint 3).
-
-Reference: C:\Apps\TGT\PLAN_PUBLIC_SITE.md for design specs.
-
-Goals:
-1. Build media gallery section — fetch from public_media table, display photos/videos in responsive grid.
-2. Add media upload UI for authenticated band members — upload to Supabase Storage, insert into public_media table.
-3. Build contact form — email submission for booking enquiries (consider Formspree or similar service).
-4. Set up IONOS domain → Vercel — A record (76.76.21.21) + CNAME (cname.vercel-dns.com). Add custom domain in Vercel project settings.
-5. Final polish — test all public pages, verify SEO tags, check mobile responsiveness, test PWA install from custom domain.
-
-Run tsc checks. Test on multiple devices. Update SOT docs at session end.
-```
-
----
-
-## Sprint S7 — MEDIUM Code Issues Batch
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S7.
-
-Goals — fix MEDIUM code issues identified in the audit:
-1. Extract date formatting utilities — consolidate duplicated formatGroupDate/daysUntil/formatDisplayDate from web components into web/src/utils/format.ts.
-2. Create useMutationWithQueue hook — extract duplicated form submit + offline queue pattern from GigForm.tsx and AwayManager.tsx.
-3. Create shared ErrorAlert and LoadingSpinner components (web) — replace inline error/loading patterns.
-4. Add loading states/skeleton loaders — replace "Loading..." text in GigList, DayDetail, Calendar.
-5. Add input validation — bank sort code format, payment terms clamping, invoice amount rounding to 2 decimal places.
-6. Replace browser confirm() dialogs with themed modals (web GigForm + AwayManager delete confirmations).
-
-Run tsc checks on both apps. Update SOT docs at session end.
-```
-
----
-
-## Sprint S8 — Polish Pass
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S8.
-
-Goals — final polish:
-1. Extract inline styles to CSS classes (web) — move style={{}} objects to App.css or component-scoped CSS.
-2. Replace prop drilling with Context API (web) — create ViewContext for navigation state, reduce callback threading through MainView.
-3. Add React error boundaries (web + native) — catch rendering errors gracefully.
-4. Add prefers-color-scheme support (web CSS) — light theme variant.
-5. Configure explicit code splitting (web vite.config.ts) — route-based chunks for Calendar, GigForm, GigList.
-6. Test themed templates on device (7 invoice + 7 receipt styles).
-7. Final pass: run both tsc checks, test web PWA, test native on device if APK working.
-
-Update SOT docs at session end. Review STATUS.md — mark remaining items as complete or move to future backlog.
-```
-
----
-
-## Sprint S13 — Web Invoicing + Settings + Client Management
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S13.
-
-Goals — Web invoicing + settings + client management:
-1. Add format utilities to web/src/utils/format.ts — formatDateLong, formatGBP, todayISO, addDaysISO.
-2. Create useInvoiceData hook (web) — calls getInvoices(), realtime subscription on invoices table.
-3. Create useSettings hook (web) — calls getUserSettings() + getBandSettings(), merges into flat CombinedSettings.
-4. Extend ViewContext — add views: invoices, invoice-form, invoice-detail, invoice-preview, settings, clients. Add nav helpers: goToInvoices, goToNewInvoice, goToEditInvoice, goToInvoiceDetail, goToInvoicePreview, goToSettings, goToClients.
-5. Create Settings component — two sections: Your Details (bank info via upsertUserSettings) + Band Settings (trading name, payment terms via updateBandSettings). Follow ProfilePage pattern.
-6. Create ClientList component — list clients, add/edit/delete, venue management. Uses getClients, createClient, updateClient, deleteClient, searchClients from shared queries.
-7. Create InvoiceList — status filter tabs (All/Draft/Sent/Paid), stats bar (total invoiced/outstanding/paid via getDashboardStats), card list with invoice number, client, amount, status badge, dates.
-8. Create InvoiceForm — 3-step wizard mirroring native/app/invoice/new.tsx: Step 1 client selection/creation, Step 2 gig details (venue, date, amount, description), Step 3 style carousel preview. Uses getInvoiceHtml() from @shared/templates in iframe srcdoc. Approve saves via createInvoice().
-9. Create InvoiceDetail — invoice info card, status controls (draft/sent/paid), receipts list, actions (preview, print, duplicate, delete). Uses getInvoice, updateInvoiceStatus, markInvoicePaid, deleteInvoice.
-10. Create InvoicePreview — multi-page iframe (invoice + receipts). Print via iframe.contentWindow.print(). Uses getInvoiceHtml/getReceiptHtml from @shared/templates.
-11. Wire all into App.tsx — imports, conditional renders, nav buttons (Invoices, Clients, Settings in main-actions).
-12. Add ~250 lines invoice/settings/client CSS to App.css. Add invoicing chunk to vite.config.ts code splitting.
-
-Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
-```
-
----
-
-## Sprint S14 — Dashboard + Export + Invoice Polish
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S14.
-
-Goals — Dashboard + export + invoice polish:
-1. Create Dashboard component (web) — stats cards (total invoiced, outstanding, paid from getDashboardStats), recent invoices list, monthly breakdown. Make dashboard the default authenticated view.
-2. Create web/src/utils/export.ts — CSV export of invoices (filterable by tax year Apr-Mar), batch PDF download.
-3. Add dashboard view to ViewContext, wire into App.tsx, add dashboard CSS.
-4. Polish S13 work — fix any bugs, improve responsive layout, test edge cases (empty states, long client names, etc.).
-5. Extend InvoiceList with sort options (date, amount, status) and search.
-
-Run `npx tsc -b` (web). Update SOT docs at session end.
-```
-
----
-
-## Sprint S15 — Quote System Backend
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S15. Read native/FEATURE_SPEC_PACKAGE_BUILDER.md for the full quoting system spec.
-
-Goals — Quote system backend (no UI — schema + types + queries + templates):
-1. Write Supabase migration SQL: service_catalogue, quotes, quote_line_items, formal_invoices, formal_invoice_line_items, formal_receipts. Add PLI + T&C + quote fields to band_settings. Add RLS policies. Add next_quote_number() RPC.
-2. Push migration to live Supabase.
-3. Add shared types to shared/supabase/types.ts: Quote, QuoteWithClient, QuoteLineItem, ServiceCatalogueItem, FormalInvoice, FormalInvoiceWithClient, FormalInvoiceLineItem, FormalReceipt, FormalReceiptWithMember, QuoteStatus, EventType, PLIOption.
-4. Add shared queries to shared/supabase/queries.ts: full CRUD for service catalogue, quotes, quote line items. Lifecycle: sendQuote, acceptQuote (auto-creates formal invoice with line items), declineQuote, expireQuote. Formal invoices: getFormalInvoice, sendFormalInvoice, markFormalInvoicePaid (generate receipts). Formal receipts: getFormalReceipts.
-5. Create quote PDF templates in shared/templates/: quoteTemplate.ts (classic) + 6 themed variants + getQuoteHtml.ts router. Create formalInvoiceTemplate.ts (classic) + 6 themed variants + getFormalInvoiceHtml.ts router. Update index.ts barrel.
-
-Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
-```
-
----
-
-## Sprint S16 — Web Quote Wizard + Service Catalogue UI
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S16.
-
-Goals — Web quote wizard + service catalogue UI:
-1. Extend Settings component — add Service Catalogue section (add/edit/reorder/delete services), PLI section (insurer, policy number, cover, expiry), T&Cs section (default text editor), Quote Defaults (validity period).
-2. Create useQuoteData hook — calls getQuotes(), realtime subscription.
-3. Create QuoteList component — quote list with status filter (draft/sent/accepted/declined/expired), shows client, event type, date, total, status badge.
-4. Create QuoteForm — 4-step wizard: Step 1 client & event (select/create client, event type, date, venue), Step 2 build package (select from service catalogue, adjust prices, custom items, quantity, discount, running total), Step 3 extras (PLI toggle, T&Cs, validity, notes), Step 4 preview (style carousel in iframe, "Create Quote" button).
-5. Add quote views to ViewContext (quotes, quote-form, quote-detail, quote-preview). Wire into App.tsx. Add quote CSS to App.css.
-
-Run `npx tsc -b` (web). Update SOT docs at session end.
-```
-
----
-
-## Sprint S17 — Web Quote Lifecycle + Formal Invoicing
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S17.
-
-Goals — Web quote lifecycle + formal invoicing:
-1. Create QuoteDetail component — transaction detail screen with progressive stage buttons: Draft → Sent → Accepted → Invoice Sent → Paid → Complete. Also Declined/Expired. Shows client/event summary, total, current stage, linked documents, stage history.
-2. Implement "Accept" flow — acceptQuote() auto-generates formal invoice with line items copied from quote. Show formal invoice for review/edit before sending.
-3. Create QuotePreview component — multi-page iframe: quote page, formal invoice page (if exists), receipt pages (if paid). Same pattern as InvoicePreview.
-4. Calendar integration — when quote is accepted, prompt to add gig to calendar. Pre-fill date, venue, fee from quote. Uses createGig().
-5. Wire QuoteDetail and QuotePreview into App.tsx.
-
-Run `npx tsc -b` (web). Update SOT docs at session end.
-```
-
----
-
-## Sprint S18 — Native Quote UI Parity
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S18.
-
-Goals — Native quote UI parity (mirror web S16+S17):
-1. Create native/app/(tabs)/quotes.tsx — quote list tab with status filter.
-2. Create native/app/quote/new.tsx — 4-step quote wizard (same flow as web QuoteForm).
-3. Create native/app/quote/[id].tsx — transaction detail + lifecycle screen (same as web QuoteDetail).
-4. Create native/app/quote/preview.tsx — quote PDF preview carousel (WebView, same pattern as invoice/preview.tsx).
-5. Update native/app/(tabs)/settings.tsx — add service catalogue, PLI, T&Cs sections.
-6. Update native/app/(tabs)/_layout.tsx — add Quotes tab.
-7. Add quote adapter functions to native/src/db/queries.ts (wrapping shared queries, same pattern as invoice adapters).
-
-Run `npx tsc --noEmit` (native). Update SOT docs at session end.
-```
-
----
-
-## Sprint S19 — Navigation + Design Unification
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S19.
-
-Reference: mockups/responsive-mockup.html for the target drawer nav design.
-
-Goals — Navigation + design unification:
-1. Web: Replace button-based main-actions with collapsible sidebar/drawer. Items: Dashboard, Calendar, Gig List, Invoices, Quotes, Clients, Away Dates, Media, Enquiries, Website, Settings, Profile. Hamburger on mobile, collapsible sidebar on desktop.
-2. Native: Replace (tabs)/_layout.tsx tab navigation with drawer navigation. Same nav items as web. Neumorphic drawer styling.
-3. Unified theme: verify COLORS, FONTS, spacing match across web + native. Consistent Tangerine Timetree branding (logo, header, accents).
-4. Responsive polish: web drawer collapses correctly on mobile, invoice forms are usable on small screens.
-5. Final visual QA pass on both apps.
-
-Run `npx tsc -b` (web) + `npx tsc --noEmit` (native). Update SOT docs at session end.
-```
-
----
-
-## Sprint S20 — APK Build Fix + Full Device Testing
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/todo.md. This is Sprint S20 — final sprint.
-
-Goals — APK build fix + full device testing:
-1. Fix APK build — cmake error from @react-native-community/datetimepicker. Try: npx expo prebuild --clean → cd android && ./gradlew assembleRelease. If stuck, try updating datetimepicker or cmake version.
-2. Build APK, install on Samsung device (RFCW113WZRM).
-3. Run SQLite migration script (native/scripts/migrate-sqlite-to-supabase.ts) — needs SUPABASE_SERVICE_ROLE_KEY + NATHAN_USER_ID env vars.
-4. Seed calendar data — import 116 gigs + 62 away dates from C:\Apps\timetree-scrape\timetree_gigs.xlsx.
-5. End-to-end testing on device: calendar CRUD, simple invoicing, quote lifecycle, client management, settings, PDF generation/sharing, dashboard, export, drawer nav.
-6. Web PWA testing: install from thegreentangerine.com, offline mode, sync.
-7. Final tsc checks: npx tsc -b (web) + npx tsc --noEmit (native).
-8. Fix any bugs found during testing.
-
-Update SOT docs — mark all sprints complete. Archive backlog items or move to future roadmap.
-```
-
----
-
-## Sprint S23A — Venue/Client Restructure: Database + Types + Queries
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S23A section).
-
-This is Session 1 of a 4-session venue/client restructure epic (S23A-D).
-
-CONTEXT: We've redesigned venues and clients as two separate, independent lists:
-- Venues = physical places (with ratings, notes, photos, addresses for navigation)
-- Clients = people/companies who pay (with billing address, contact info)
-- Gigs, quotes, and invoices link to BOTH via optional FKs (venue_id + client_id)
-- No forced venue→client relationship
-- Text fields (venue name, client_name) kept alongside IDs for denormalised display/PDF rendering
-- No production data exists — clean restructure approved (snapshot first, then alter tables)
-
-BLAST RADIUS (24 files total across S23A-D):
-- shared/supabase/types.ts
-- shared/supabase/queries.ts
-- native/src/db/queries.ts
-- 14 native app screens
-- 10 web components
-THIS SESSION only touches the first 3 (+ Supabase migration SQL).
-
-TASKS FOR THIS SESSION (S23A):
-1. Snapshot current data — dump clients, venues, gigs, quotes, invoices to a local JSON backup file
-2. Write + push Supabase migration SQL:
-   - ALTER venues: drop client_id FK + constraint, add postcode TEXT, rating_atmosphere SMALLINT (1-5), rating_crowd SMALLINT, rating_stage SMALLINT, rating_parking SMALLINT, notes TEXT
-   - CREATE venue_photos (id UUID PK, venue_id UUID FK→venues ON DELETE CASCADE, file_url TEXT, storage_path TEXT, caption TEXT, created_by UUID FK→profiles, created_at TIMESTAMPTZ)
-   - CREATE Supabase Storage bucket "venue-photos" (or reuse public-media if appropriate)
-   - ALTER gigs: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL, add client_id UUID REFERENCES clients(id) ON DELETE SET NULL
-   - ALTER quotes: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
-   - ALTER invoices: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
-   - ALTER formal_invoices: add venue_id UUID REFERENCES venues(id) ON DELETE SET NULL
-   - RLS policies for venue_photos (same pattern as existing tables — auth read, creator write)
-   - Update venue RLS if needed (remove client_id dependency)
-3. Update shared/supabase/types.ts:
-   - Venue: remove client_id, add postcode, rating_atmosphere, rating_crowd, rating_stage, rating_parking, notes
-   - New: VenuePhoto interface
-   - Gig: add venue_id (string | null), client_id (string | null)
-   - Quote: add venue_id (string | null)
-   - Invoice: add venue_id (string | null)
-   - FormalInvoice: add venue_id (string | null)
-4. Update shared/supabase/queries.ts:
-   - Venue queries: decouple from clients (getVenues not getVenuesForClient), add searchVenues, updateVenue (with ratings), getVenue by ID
-   - New: venue photo CRUD (getVenuePhotos, uploadVenuePhoto, deleteVenuePhoto)
-   - Update createGig/updateGig to accept venue_id + client_id
-   - Update createQuote to accept venue_id
-   - Update createInvoice to accept venue_id
-   - Keep all existing text-field params working (backwards compat for UI code not yet updated)
-5. Update native/src/db/queries.ts wrapper — add/update venue functions, pass through new params
-6. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
-
-DO NOT touch any UI files this session. Only: migration SQL, types, queries, native wrapper.
-Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md).
-```
-
-## Sprint S23B — Venue Management UI
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S23B section).
-
-This is Session 2 of the venue/client restructure epic. S23A (DB + types + queries) is complete.
-
-TASKS:
-1. Native: Add "Venues" to drawer nav (between Gigs and Clients)
-2. Native: Create venues drawer screen — list with search, venue cards showing name + address + star ratings
-3. Native: Create venue detail screen — edit name/address/postcode, star rating pickers (atmosphere/crowd/stage/parking), notes field, photo gallery with camera/gallery upload
-4. Web: Create VenueList component — same features as native (search, cards, detail view)
-5. Web: Add Venues to drawer nav + ViewContext
-6. Remove venue sub-section from client edit screens (native client/[id].tsx + web ClientList.tsx) — venues are now independent
-7. Photo upload: Supabase Storage "venue-photos" bucket, thumbnail display
-8. TypeScript clean + build both apps
-
-Update SOT docs when done.
-```
-
-## Sprint S23C — Gig Booking Flow
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S23C section).
-
-This is Session 3 of the venue/client restructure epic. S23A + S23B complete.
-
-TASKS:
-1. Gig form (BOTH native + web): Replace free-text venue input with searchable venue picker
-   - Dropdown/autocomplete searching venues table
-   - "Add New Venue" option that opens inline venue creation (name + address minimum)
-   - On select: sets venue_id + writes venue name to text field
-2. Gig form (BOTH): Replace free-text client_name with searchable client picker
-   - Same pattern: dropdown, "Add New Client" inline
-   - On select: sets client_id + writes client_name to text field
-3. Day view (BOTH): Add "Navigate" button on gig cards
-   - Reads venue address from venue_id lookup (or text field fallback)
-   - Opens Google Maps / Waze / Apple Maps with address pre-filled
-   - User preference for nav app stored in settings (default: Google Maps)
-4. Settings: Add "Preferred Navigation App" picker
-5. Practice sessions: venue picker works, client picker hidden/optional
-6. TypeScript clean + build both apps
-
-Update SOT docs when done.
-```
-
-## Sprint S23D — Quote + Invoice Chain
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S23D section).
-
-This is Session 4 (final) of the venue/client restructure epic. S23A-C complete.
-
-TASKS:
-1. Quote form (BOTH): Replace free-text venue_name/venue_address with venue picker
-   - Same searchable dropdown as gig form
-   - "Add New Venue" inline
-   - On select: sets venue_id + writes venue_name + venue_address to text fields
-2. Invoice form (BOTH): Replace free-text venue with venue picker (same pattern)
-3. Quote → Gig conversion: carry venue_id + client_id from quote to new gig
-4. Gig → Invoice creation: carry venue_id + client_id
-5. Update detail views: show venue info from venue_id (with fallback to text)
-6. Update list views: search still works on text fields
-7. Update preview/PDF views: venue info renders from text fields (no change needed if denormalised)
-8. Full chain smoke test: create venue → create client → create quote → accept → gig created → invoice → all linked correctly
-9. TypeScript clean + build both apps + vite build
-
-Final SOT docs update — mark S23 complete, update sprint roadmap.
-```
-
----
-
-## Sprint S24A — Bill-To Flexibility: Schema + Types + Queries
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S24A section).
-
-This is Session 1 of 2 for the bill-to flexibility epic (S24A-B).
-
-CONTEXT: We're changing invoices/quotes so they can target a VENUE or a CLIENT (at least one required).
-Currently client_id is NOT NULL on invoices/quotes/formal_invoices. We're making it nullable.
-Venues need contact fields (email, phone, contact_name) so they can be invoiced directly.
-We're also adding gig_id FK on invoices to link gigs to their invoices.
-
-Key decisions: D-078 (venue OR client billing), D-079 (venue contact fields), D-081 (resolveBillTo), D-082 (gig_id FK).
-
-Real-world cases driving this:
-- Pub books you directly → invoice the venue (no client needed)
-- Agency books you into a pub → invoice the client, venue is reference
-- Same venue played 3 times via 3 different clients → venue_id same, client_id different
-- Wedding at a venue → invoice the bride (client), venue is location context
-
-TASKS FOR THIS SESSION (S24A):
-1. Write + push Supabase migration SQL:
-   - ALTER venues: add email TEXT DEFAULT '', phone TEXT DEFAULT '', contact_name TEXT DEFAULT ''
-   - ALTER invoices: ALTER client_id DROP NOT NULL, ADD gig_id UUID REFERENCES gigs(id) ON DELETE SET NULL
-   - ALTER quotes: ALTER client_id DROP NOT NULL
-   - ALTER formal_invoices: ALTER client_id DROP NOT NULL
-   - ADD CHECK constraints: (client_id IS NOT NULL OR venue_id IS NOT NULL) on invoices, quotes, formal_invoices
-   - CREATE INDEX idx_invoices_gig_id ON invoices(gig_id)
-
-2. Update shared/supabase/types.ts:
-   - Venue: add email?, phone?, contact_name?
-   - Invoice/Quote/FormalInvoice: client_id becomes string | null
-   - Invoice: add gig_id (string | null)
-   - Add BillTo type: { name: string; contact_name: string; address: string; email: string; phone: string }
-   - Update InvoiceWithClient → make client fields optional (LEFT JOIN)
-   - Same for QuoteWithClient, FormalInvoiceWithClient
-
-3. Update shared/supabase/queries.ts:
-   - createInvoice: client_id optional, accept gig_id
-   - createQuote: client_id optional
-   - createFormalInvoice: client_id optional
-   - All getInvoice/getQuote/getFormalInvoice queries: LEFT JOIN clients (was INNER)
-   - Add resolveBillTo(invoice/quote) helper — returns BillTo from client or venue
-   - Add getInvoiceByGigId(gigId) — check if gig already has an invoice
-   - Update getDashboardStats if needed
-
-4. Update shared/templates/ utilities:
-   - Update billTo rendering in PDF templates to use resolveBillTo()
-   - All 28 templates use shared utility functions, so change propagates
-
-5. Update native/src/db/queries.ts wrapper if needed
-
-6. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
-
-DO NOT touch any UI files this session. Only: migration SQL, types, queries, templates, native wrapper.
-Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md, schema_map.md).
-```
-
----
-
-## Sprint S26A — Audio Engine Foundation (Expo Native Module + Schema)
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S26A section).
-
-This is Sprint S26A — the foundation for Live Mode and Practice Mode.
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-132 onwards). This is Sprint S44.
 
 CONTEXT:
-- GigBooks is becoming a band manager + live performance + practice tool
-- The C++ audio engine comes from ClickTrack at C:\Apps\Click\app\src\main\cpp\
-- We port metronome.h/cpp, mixer.h/cpp, wav_loader.h/cpp (strip samples/loops/poly/midi)
-- Write a fresh audio_engine.h/cpp (metronome + mixer only, single Oboe stream)
-- Wrap it in an Expo Native Module (Kotlin + JNI bridge)
-- Also: schema migration (lyrics, chords, beat_offset_ms on songs) + role-based song form
-- Nathan = drummer, sees full metronome settings. Other members see simplified song form.
+- S39-S43 complete. Web fully built. Android has categories + sharing + takes UI.
+- Android needs recording + View Mode to match web (D-153).
+- C++ Oboe engine already supports audio output streams. Input stream needed for recording.
 
-PRE-FLIGHT (verified):
-- NDK 27.1.12297006 installed
-- CMake 3.22.1 installed
-- expo-modules-core installed
-- ndkVersion configured in build.gradle
-- Both apps tsc clean
-- 36GB free on C:
+GOALS:
+1. **Recording** — Oboe input stream or Android MediaRecorder:
+   - USB audio interface support via Android audio routing
+   - CameraX for selfie video (D-132) — video saved to local storage
+   - Overdub: C++ engine plays stems while recording input (D-140)
+   - Click during recording (D-141) — C++ metronome stays active
+   - Count-in (D-142) — same logic as web, uses BPM from beat map
+   - Record button in transport (D-150)
 
-TASKS — PHASE 1: Prove the integration
-1. Create native/modules/click-engine/ with Expo Module scaffolding
-2. Add a minimal C++ file that generates a 440Hz sine beep via Oboe
-3. Write minimal JNI bridge + Kotlin Expo Module exposing startBeep()/stopBeep()
-4. Add Oboe dependency to build.gradle (com.google.oboe:oboe)
-5. Add CMakeLists.txt, verify it builds (npx expo prebuild --clean, then gradlew assembleDebug)
-6. Call startBeep() from a test button in JS — if audio comes out, the integration works
+2. **Post-recording** (D-139) — 4 options: Discard & Re-take, Save & Re-take, Save as Take, Save & Preview
+   - Mark as Best toggle (D-145)
+   - Upload best to Supabase, non-best stays local (Room DB or files)
 
-TASKS — PHASE 2: Port the engine
-7. Copy metronome.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is (proven code)
-8. Copy mixer.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is
-9. Copy wav_loader.h/cpp from C:\Apps\Click\app\src\main\cpp\ — keep as-is
-10. Write audio_engine.h/cpp — stripped version (only metronome + mixer, no sample/loop/poly/midi)
-11. Write jni_bridge.cpp — Expo Module JNI naming convention, metronome + mixer functions
-12. Update Kotlin Expo Module with full API surface:
-    - startEngine(sampleRate, framesPerBuffer), stopEngine()
-    - setBpm(bpm), setTimeSignature(top, bottom)
-    - setSubdivision(divisor), setSwing(percent)
-    - setAccentPattern(pattern[]), setClickSound(type)
-    - setCountIn(bars, clickType)
-    - startClick(), stopClick()
-    - getCurrentBeat(), getCurrentBar(), isPlaying()
-    - setChannelGain(channel, gain), setMasterGain(gain), setSplitStereo(enabled)
-13. JS/TS wrapper module: native/src/audio/ClickEngine.ts — typed API matching the native module
-14. loadSong(song: Song) helper — reads Song fields, calls setBpm/setTimeSignature/setSubdivision/setSwing/setAccentPattern/setClickSound/setCountIn
+3. **View Mode** — 3rd player tab (D-137):
+   - ExoPlayer or SurfaceView for local video playback
+   - Visualiser fallback when no video (D-146)
+   - Record from View Mode (D-144)
 
-TASKS — PHASE 3: Schema + Song form updates
-15. Write Supabase migration SQL:
-    - ALTER songs ADD COLUMN lyrics TEXT DEFAULT ''
-    - ALTER songs ADD COLUMN chords TEXT DEFAULT ''
-    - ALTER songs ADD COLUMN beat_offset_ms INTEGER DEFAULT 0
-    Push to live Supabase.
-16. Update shared/supabase/types.ts: Song gets lyrics, chords, beat_offset_ms
-17. Update shared/supabase/queries.ts: song CRUD includes new fields
-18. Update SetlistSongWithDetails to include song_lyrics, song_chords
-19. Update native song form: Nathan (profile.band_role === 'Drums') sees full metronome section (subdivision, swing, accent, click sound, count-in). Others see simplified form (name, artist, BPM, time sig, key, chords, lyrics, notes, practice track).
-20. Update web song form: same role-based visibility
-21. TypeScript clean: npx tsc -b (web) + npx tsc --noEmit (native) — MUST pass
+4. **New song idea flow** (D-138) — create + record immediately
+   - First take triggers Cloud Run madmom-only (D-148)
 
-IMPORTANT NOTES:
-- ClickTrack's namespace is `clicktrack` — rename to `gigbooks` in the ported C++ files
-- ClickTrack's JNI uses `Java_com_clicktrack_audio_AudioBridge_*` — our bridge uses Expo Module naming
-- The metronome.cpp render() function is the audio callback heart — do NOT modify its logic, only strip out references to removed components
-- Swing slider snap-to-middle is a UI concern (S26B), not engine — the engine just takes setSwing(float percent)
-
-Update SOT docs when done (STATUS.md, todo.md, SESSION_LOG.md, decisions_log.md, schema_map.md).
+5. Verify: gradlew assembleRelease clean. Update SOT docs, provide S45 prompt.
 ```
 
 ---
 
-## Sprint S26B — Live Mode UI
+## Sprint S45 — Cloud Run: Re-analyse + Beats-only Deploy
 
 ```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S26B section).
-
-This is Sprint S26B — Live Mode user interface for native app.
+Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-148, D-151). This is Sprint S45.
 
 CONTEXT:
-- S26A complete: C++ audio engine working via Expo Native Module
-- ClickEngine.ts provides typed JS API (setBpm, startClick, loadSong, etc.)
-- Songs have all metronome fields + lyrics + chords
-- Setlists have ordered songs with all details (SetlistWithSongs)
+- S39-S44 complete. Web + Android fully built with categories, sharing, recording, takes, View Mode.
+- Cloud Run beats-only code written in S39 but NOT deployed.
 
-TASKS:
-1. Create native Live Mode screen (app/(drawer)/live.tsx or stack route)
-2. Add Live Mode to drawer navigation
-3. Screen layout: full-screen, dark (#000000 bg), high-contrast, stage-readable
-4. Setlist selector: pick a setlist to load
-5. Song display: current song name, BPM (large, monospace), key, time sig, notes
-6. Song position: "3 of 12" indicator
-7. Beat visualization: LED dots (beat 1 = red/accent, others = teal/green), scale + glow on active beat
-8. Transport: play/stop button (large, thumb-friendly)
-9. Prev/next song: swipe or buttons, auto-calls loadSong() on the engine
-10. Swing slider: range 50-75%, snap-to-middle at 50% (straight), visual indicator
-11. Wake lock: keep screen on (expo-keep-awake)
-12. Poll getCurrentBeat()/getCurrentBar() on requestAnimationFrame for beat viz updates
-13. Count-in visual: show count-in beats before song starts
-14. No manual BPM controls — everything song-driven, read-only on stage
+GOALS:
+1. **Deploy beats-only endpoint** to Cloud Run (D-148):
+   - skip_stems=true → madmom only, no Demucs
+   - Test with a solo instrument audio file
 
-Design reference: ClickTrack's Live Mode layout (compact metadata bar, viz-dominant).
-Follow GigBooks neumorphic theme (COLORS, neuRaisedStyle, etc.) but adapt for stage readability.
+2. **Re-analyse from mixed master** (D-151):
+   - Server endpoint that: fetches all best-take audio files for a song → mixes into single WAV → runs madmom → replaces beat_map
+   - Web UI: "Re-analyse" button on SongForm (triggers Cloud Tasks job)
+   - Android: same button, same endpoint
 
-TypeScript clean. Update SOT docs.
+3. **Deploy**: gcloud run deploy with updated main.py
+4. **Also deploy**: error field clearing fix from main.py (pending since S38)
+5. Verify both endpoints work end-to-end.
+6. Update SOT docs, provide audit prompt.
 ```
 
 ---
 
-## Sprint S26C — Track Player + Beat Detection + Time-Stretch
+## Post-S45 — Cross-Platform Surgical Audit
 
 ```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S26C section).
-
-This is Sprint S26C — the audio file playback engine for Practice Mode.
+Read native/docs/ai_context/STATUS.md and all SOT docs. This is the cross-platform audit before user testing.
 
 CONTEXT:
-- S26A-B complete: C++ metronome engine working, Live Mode UI working
-- Songs can have MP3 practice tracks attached (audio_url in Supabase Storage)
-- Need: MP3 playback through same Oboe stream as metronome (zero drift)
-- Need: beat detection (auto-detect BPM + downbeat from MP3)
-- Need: time-stretch (slow down/speed up, preserve pitch)
-- Need: A-B section looping
+- S39-S45 ALL COMPLETE. Both web + Android have: categories, sharing, takes, recording, View Mode, overdub, selfie video, USB interfaces.
+- Cloud Run has beats-only + re-analyse endpoints deployed.
+- NO user testing has happened yet. This audit catches everything before Nathan and the boys test.
 
-TASKS — Track Player (C++):
-1. Write track_player.h/cpp — holds decoded PCM buffer, plays through Oboe callback
-   - load(float* pcmData, int32_t numFrames, int32_t sampleRate, int32_t channels)
-   - play(), pause(), stop(), seek(int64_t frame)
-   - setLoopRegion(int64_t startFrame, int64_t endFrame), clearLoopRegion()
-   - getPosition(), getTotalFrames()
-   - Renders into the same output buffer as metronome in audio_engine's onAudioReady()
-2. MP3 decode pipeline in Kotlin:
-   - Download MP3 from Supabase Storage URL to local cache
-   - Use Android MediaCodec/MediaExtractor to decode MP3 to PCM float array
-   - Pass PCM to C++ via JNI (loadTrack function)
-
-TASKS — SoundTouch Time-Stretch:
-3. Add SoundTouch C++ library to the native module (source or prebuilt)
-4. Integrate into track_player: setSpeed(float ratio) — 0.5 = half speed, 2.0 = double
-5. SoundTouch processes PCM in the render callback (pitch preserved)
-6. Speed control adjusts BOTH SoundTouch rate AND metronome BPM proportionally
-7. JNI + JS API: setTrackSpeed(ratio)
-
-TASKS — aubio Beat Detection:
-8. Add aubio C library to the native module
-9. Write beat_detector.h/cpp — analyse PCM buffer, return detected BPM + beat positions (frame numbers)
-10. JNI function: analyseTrack(pcmData) -> { bpm: float, beatOffsetMs: int }
-11. On track load: run analysis, auto-populate Song.bpm and Song.beat_offset_ms
-12. JS API: analyseTrack() -> { bpm, beatOffsetMs }
-
-TASKS — Beat Step/Nudge:
-13. nudgeClick(int32_t direction) — shifts metronome phase forward/backward by one beat
-    Implementation: adjust metronome's framePosition_ relative to track_player position
-14. JNI + JS API: nudgeClick(direction)
-
-TASKS — Integration:
-15. Update audio_engine onAudioReady() to render track_player alongside metronome
-16. Mixer: track on channel 1 (click already on channel 0)
-17. Update CMakeLists.txt with new source files + SoundTouch + aubio
-18. Update Kotlin Expo Module + JNI bridge with track player functions
-19. Update ClickEngine.ts with track player API
-20. TypeScript clean. Update SOT docs.
-
-AUDIO RULES (from ClickTrack, non-negotiable):
-- No system timers for scheduling — frame counting only
-- No blocking/allocation in the audio callback
-- One Oboe output stream — everything mixed in C++
-- All timing from sample rate + frame position
+AUDIT CHECKLIST:
+1. **Schema verification** — Supabase tables match schema_map.md. All RLS policies correct. can_access_song() works.
+2. **Web build** — tsc -b + vite build clean. Test all 15 mockup screens against live web app.
+3. **Android build** — gradlew assembleRelease clean. Install APK on device.
+4. **Feature parity** — verify every feature in D-124–D-153 works on BOTH platforms.
+5. **RLS testing** — create songs as different users, verify visibility rules:
+   - TGT songs: all members see + edit
+   - Personal covers: all members see, only owner edits
+   - Personal originals: only owner + shared members see
+   - Stem ownership: users can only modify their own stems
+6. **Recording flow** — test on both platforms: overdub, click, count-in, post-recording options, best take upload
+7. **Cloud Run** — verify beats-only + re-analyse endpoints
+8. **Edge cases** — song with no beat map, song with no stems, take deletion, best take swap
+9. **Big picture check** — does this serve the band management concept? Nathan on stage with click, others practicing from web, everyone recording takes, multi-cam offline workflow.
+10. Update all SOT docs. Flag any issues found. Provide user testing handoff.
 ```
-
----
-
-## Sprint S27A — Practice Mode UI
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S27A section).
-
-This is Sprint S27A — Practice Mode user interface for native app.
-
-CONTEXT:
-- S26A-C complete: C++ engine has metronome + track player + beat detection + time-stretch
-- ClickEngine.ts exposes full API: loadTrack, setTrackSpeed, analyseTrack, nudgeClick, setLoopRegion, etc.
-- Songs have MP3 practice tracks in Supabase Storage
-
-TASKS:
-1. Create native Practice Mode screen (app/(drawer)/practice.tsx or stack route)
-2. Add Practice Mode to drawer navigation
-3. Song selector: pick any song that has an audio_url attached
-4. On song select:
-   - Download MP3 from Supabase Storage (cache locally)
-   - Decode to PCM, pass to engine
-   - Run aubio analysis — auto-set BPM if not already set
-   - Call loadSong() to configure metronome
-5. Waveform or progress bar showing playback position (poll getPosition/getTotalFrames)
-6. Speed slider: 50% to 150%, drives setTrackSpeed() (adjusts both track + metronome)
-7. A-B loop: tap A marker, tap B marker, track loops that region. Tap again to clear.
-   - Visual markers on the progress bar
-   - Can set while playing OR paused
-8. Beat step/nudge button: tap to shift click alignment (nudgeClick)
-9. Click volume slider (setChannelGain channel 0)
-10. Track volume slider (setChannelGain channel 1)
-11. Master volume (setMasterGain)
-12. Split stereo toggle (setSplitStereo) — click in left ear, track in right ear (for IEMs)
-13. Count-in: configurable bars, plays count before track starts
-14. BPM display: shows current effective BPM (base BPM * speed ratio), monospace
-15. Transport: play/pause/stop
-16. Dark neumorphic styling consistent with rest of app
-
-TypeScript clean. Update SOT docs.
-```
-
----
-
-## Sprint S27B — Practice Tools
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S27B section).
-
-This is Sprint S27B — practice tools for native app.
-
-CONTEXT:
-- S27A complete: Practice Mode UI working with MP3 + click + speed control + A-B loop
-- Practice screen: app/(drawer)/practice.tsx
-- Speed trainer and gap click (muted bars) REMOVED from scope (user prefers manual tempo control)
-
-TASKS:
-1. Tap tempo: tap a button repeatedly, measure intervals, calculate BPM
-   - Display detected BPM live as you tap
-   - "Apply" saves to engine (setBpm) + "Save to Song" writes to Supabase
-2. Save all current settings back to Song in Supabase:
-   - BPM, subdivision, swing, accent pattern, click sound, count-in, beat_offset_ms
-   - One "Save Settings" button on practice screen
-3. Song notes display in practice view (quick reference while practicing)
-
-TypeScript clean. Update SOT docs.
-```
-
----
-
-## Sprint S27C — Web Stage Prompter
-
-```
-Read native/docs/ai_context/STATUS.md first, then todo.md (S27C section).
-
-This is Sprint S27C — web stage prompter for all band members.
-
-CONTEXT:
-- Songs now have lyrics, chords, key, BPM, notes fields
-- Setlists have ordered songs with all details
-- This is for Neil, James, Adam (and Nathan) — view setlist on a tablet/phone on stage
-- No audio — display only. The C++ engine is native-only.
-
-TASKS:
-1. Create web StagePrompter component — full-screen, dark, large text, stage-readable
-2. Setlist selector: pick a setlist to display
-3. Current song display:
-   - Song name (large)
-   - Key + BPM + time signature (info bar)
-   - Chords display (large, readable from distance)
-   - Lyrics display (scrollable or paged, large font)
-   - Per-song notes
-4. Navigation: prev/next song buttons (large, thumb-friendly)
-   - Song position: "3 of 12"
-   - Song list sidebar (collapsible) for quick jump
-5. Full-screen mode (hide browser chrome, F11-style)
-6. Auto-scroll option for lyrics (configurable speed)
-7. Add to ViewContext + Drawer navigation (Stage Prompter nav item)
-8. Responsive: works on phone, tablet, and desktop
-9. Dark theme only (#000000 bg for stage readability)
-10. ChordPro-style rendering if chords field uses [Am]lyrics[F]format — chords displayed above lyrics inline
-
-TypeScript clean. Update SOT docs.
-```
-
----
-
