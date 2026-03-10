@@ -210,7 +210,7 @@ export function TrackDetail({ trackId, onBack }: Props) {
                 </select>
               </div>
             ) : (
-              <span>{track.category ? <span className="badge badge-category">{track.category.replace(/_/g, ' ')}</span> : '\u2014'}</span>
+              <span>{track.category ? <span className={`badge ${track.category.startsWith('personal') ? 'badge-personal' : 'badge-tgt'}`}>{track.category.replace(/_/g, ' ')}</span> : '\u2014'}</span>
             )}
           </div>
 

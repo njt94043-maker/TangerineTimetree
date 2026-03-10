@@ -37,7 +37,7 @@ export function TrackCard({ track, onClick, onToggleFavorite }: Props) {
         <span className="track-card-name">{track.title || 'Untitled'}</span>
         {track.artist && <span className="track-card-artist">{track.artist}</span>}
         <div className="track-card-meta">
-          {track.category && <span className="badge badge-category">{track.category.replace(/_/g, ' ')}</span>}
+          {track.category && <span className={`badge ${track.category.startsWith('personal') ? 'badge-personal' : 'badge-tgt'}`}>{track.category.replace(/_/g, ' ')}</span>}
           {track.bpm && <span className="track-meta-tag">{Math.round(track.bpm)} BPM</span>}
           {track.key && <span className="track-meta-tag">Key: {track.key}</span>}
           <span className="track-meta-tag">{formatDuration(track.duration_seconds)}</span>

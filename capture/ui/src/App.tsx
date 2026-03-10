@@ -57,7 +57,7 @@ export default function App() {
           </button>
           <img src="/icon-192.png" alt="" className="header-logo" />
           <span className="header-title">
-            <span className="header-brand-green">Audio </span>
+            <span className="header-brand-green">TGT </span>
             <span className="header-brand-orange">Capture</span>
           </span>
         </div>
