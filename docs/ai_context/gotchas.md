@@ -348,18 +348,20 @@
 - **Root cause**: AI making scope decisions disguised as technical decisions. D-106 scope reduction was the pivotal example.
 - **Fix**: Never cut scope without explicit user approval. If something seems "too big", explain the cost and let the user decide.
 
-### Player layout built without reading mockups properly (2026-03-10)
-- **What happened**: Attempted to fix player layout (adaptive flex, inline drawer) across all 3 Android screens + web. Made changes that compiled and installed, but the layout was fundamentally wrong:
-  - A/B loop buttons placed below transport (should be in transport top row on Practice only)
-  - Prev/next song nav missing from Live mode (Live has a nav row: prev song / queue / next song)
-  - Side drawer confused with bottom sheet (side drawer = song queue list, bottom inline sheet = display/mixer/settings)
-  - Applied same layout to all 3 modes instead of respecting mode-specific differences
-- **Root cause**: Relied on summary/memory of mockup structure instead of actually reading `mockups/player-live.html` and `mockups/practice-redesign.html` line by line. Made assumptions about layout from previous context instead of verifying.
-- **The mockup differences are critical**:
-  - **Live**: Nav row (prev/next/queue) in transport, NO speed controls, NO A-B loop, NO waveform
-  - **Practice**: Speed (-5/+5) + A-B loop (A/B/Clear) in transport top row, waveform strip, NO nav row
-  - **View**: Needs its own analysis (no dedicated mockup yet)
-- **Fix**: ALWAYS re-read the actual mockup HTML before implementing layout changes. Never trust summaries.
+### Player layout built wrong TWICE (2026-03-10)
+- **What happened**: Two separate attempts at fixing player layout, both wrong. Second attempt still had Click+Record in transport (user says they belong in drawer), and AI kept asking questions instead of just following the mockups + user messages.
+- **User's spec (mockups + messages combined)**:
+  - **Transport bottom (ALL modes)**: ONLY ⏮ Restart | ▶ Play | ■ Stop
+  - **CLICK toggle + RECORD button → bottom drawer** (not transport row)
+  - **Live nav row**: ◀ Prev | ☰ Queue | Next ▶ (above transport, setlist only)
+  - **Practice/View transport top**: Speed (-5/+5) LEFT + A-B loop RIGHT
+  - **Live**: NO speed, NO A-B loop, NO waveform
+  - **Practice**: Waveform strip, mixer in drawer
+  - **View**: Same as Practice layout but teal accent
+  - **Drawer content**: Display toggles, Click toggle + volume, Record button, Mixer (practice/view only), Settings
+  - **Mode switching from player** (Live↔Practice↔View, pick song/setlist from drawer): PLANNED in mockups, NEVER BUILT. Not a regression.
+- **Root cause**: AI summarized mockups instead of reading them. Then when user gave corrections, AI asked clarifying questions instead of just doing the work. User said "the mock ups show everything my message say everything."
+- **Fix**: Read mockup HTML line by line. User messages override mockups. Don't ask — do. Complete ALL screens in one pass, don't half-finish.
 
 ### SOT docs buried in shelved app folder
 - **What happened**: All project-wide SOT docs (STATUS.md, todo.md, SESSION_LOG.md, etc.) were in `native/docs/ai_context/` — a folder belonging to the shelved React Native app. CLAUDE.md was in `native/` instead of project root.
