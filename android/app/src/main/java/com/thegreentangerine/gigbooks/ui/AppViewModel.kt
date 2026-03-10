@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.thegreentangerine.gigbooks.GigBooksApplication
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
+import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.data.supabase.GigRepository
 import com.thegreentangerine.gigbooks.data.supabase.SetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.SongRepository
@@ -39,6 +40,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var setlists by mutableStateOf<List<SetlistWithSongs>>(emptyList()); private set
     var loadError by mutableStateOf<String?>(null);                    private set
     var isLoading by mutableStateOf(true);                             private set
+    var profileNames by mutableStateOf<Map<String, String>>(emptyMap()); private set
+    var sharedSongIds by mutableStateOf<Set<String>>(emptySet());        private set
+    val currentUserId: String? get() = AuthRepository.currentUserId()
 
     // ── Calendar ──────────────────────────────────────────────────────────────
     private val _today = LocalDate.now()
@@ -138,6 +142,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 songs    = SongRepository.getSongs()
                 setlists = SetlistRepository.getAllSetlistsWithSongs()
+                // Load profile name map for owner tags
+                val profiles = GigRepository.getProfiles()
+                profileNames = profiles.associate { it.id to it.name }
+                // Load shared song IDs for current user
+                val uid = currentUserId
+                if (uid != null) {
+                    sharedSongIds = SongRepository.getSharedSongIds(uid)
+                }
             } catch (e: Exception) {
                 loadError = e.message
             } finally {

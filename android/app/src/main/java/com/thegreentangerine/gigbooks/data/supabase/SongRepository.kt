@@ -2,6 +2,7 @@ package com.thegreentangerine.gigbooks.data.supabase
 
 import com.thegreentangerine.gigbooks.data.supabase.models.BeatMap
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
+import com.thegreentangerine.gigbooks.data.supabase.models.SongShare
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 
@@ -60,5 +61,26 @@ object SongRepository {
             }
             .decodeList<BeatMap>()
         return result.firstOrNull()
+    }
+
+    // ─── Sharing (D-135) ─────────────────────────────
+
+    suspend fun getSongShares(songId: String): List<SongShare> = client
+        .from("song_shares")
+        .select {
+            filter { eq("song_id", songId) }
+            order("created_at", Order.ASCENDING)
+        }
+        .decodeList()
+
+    /** Get IDs of personal_original songs shared with a specific user */
+    suspend fun getSharedSongIds(userId: String): Set<String> {
+        val shares = client
+            .from("song_shares")
+            .select {
+                filter { eq("shared_with", userId) }
+            }
+            .decodeList<SongShare>()
+        return shares.map { it.songId }.toSet()
     }
 }

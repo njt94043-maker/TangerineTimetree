@@ -546,6 +546,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onClose={goBack}
             onSaved={() => { goToLibrary(); }}
             bandRole={profile?.band_role}
+            userId={profile?.id ?? ''}
           />
         )}
 
@@ -574,6 +575,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
               // The Player component will handle loading the setlist
               goToPlayer('', mode, slId);
             }}
+            userId={profile?.id ?? ''}
+            profiles={allProfiles}
           />
         )}
 

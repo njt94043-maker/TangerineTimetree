@@ -5643,6 +5643,37 @@ select.ps-form-input {
   border-color: rgba(0,230,118,0.3);
 }
 
+/* Library filter bar (search + 2 dropdowns) */
+.library-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.library-dropdown { min-width: 110px; flex-shrink: 0; }
+.library-dropdown .input-field { font-size: 12px; padding: 6px 8px; }
+
+/* Category badges */
+.badge-tgt { background: rgba(26,188,156,0.12); color: var(--color-teal); border-color: rgba(26,188,156,0.3); }
+.badge-personal { background: rgba(243,156,18,0.12); color: var(--color-tangerine); border-color: rgba(243,156,18,0.3); }
+.badge-shared { background: rgba(187,134,252,0.12); color: var(--color-practice); border-color: rgba(187,134,252,0.3); }
+
+/* Owner name tag */
+.song-owner-tag {
+  font-family: 'Karla', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* Lock icon */
+.song-card-title-row { display: flex; align-items: center; gap: 6px; }
+.song-lock-icon { font-size: 12px; opacity: 0.5; }
+
 /* Song card expanded section */
 .song-card-expanded {
   display: flex;

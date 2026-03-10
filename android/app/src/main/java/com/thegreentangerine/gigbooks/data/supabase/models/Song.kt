@@ -8,7 +8,7 @@ data class Song(
     val id: String,
     val name: String,
     val artist: String = "",
-    val category: String = "tange_cover",         // tange_cover | tange_original | personal
+    val category: String = "tgt_cover",         // tgt_cover | tgt_original | personal_cover | personal_original
     @SerialName("owner_id") val ownerId: String? = null,  // profile id for personal songs
     val bpm: Double = 120.0,
     @SerialName("time_signature_top") val timeSignatureTop: Double = 4.0,
@@ -33,9 +33,24 @@ data class Song(
 ) {
     val hasAudio: Boolean get() = !audioUrl.isNullOrBlank()
     val timeSig: String get() = "${timeSignatureTop.toInt()}/${timeSignatureBottom.toInt()}"
-    val isPersonal: Boolean get() = category == "personal"
-    val isBandSong: Boolean get() = category != "personal"
+    val isTgtSong: Boolean get() = category == "tgt_cover" || category == "tgt_original"
+    val isPersonalSong: Boolean get() = category == "personal_cover" || category == "personal_original"
+    val isCover: Boolean get() = category == "tgt_cover" || category == "personal_cover"
+    val isOriginal: Boolean get() = category == "tgt_original" || category == "personal_original"
     val durationFormatted: String? get() = durationSeconds?.let {
         val secs = it.toInt(); val m = secs / 60; val s = secs % 60; "%d:%02d".format(m, s)
     }
+    fun canEdit(currentUserId: String?): Boolean {
+        if (isTgtSong) return true  // All members edit TGT songs
+        return ownerId == currentUserId  // Personal songs: owner only
+    }
 }
+
+@Serializable
+data class SongShare(
+    val id: String,
+    @SerialName("song_id") val songId: String,
+    @SerialName("shared_with") val sharedWith: String,
+    @SerialName("shared_by") val sharedBy: String,
+    @SerialName("created_at") val createdAt: String = "",
+)

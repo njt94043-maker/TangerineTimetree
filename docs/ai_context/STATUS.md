@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S39 (Foundation) COMPLETE. Migration pushed, shared types/queries done, Cloud Run beats-only code written. Ready for S40.
-- **What works**: Web (full, V4 player), Android (full, V4 player), Cloud Run (beats + stems + CORS + beats-only skip_stems), Capture (built but untested end-to-end).
-- **Last session**: S39 Foundation — Migration pushed: category rename (tgt_cover/tgt_original/personal_cover/personal_original), song_shares table, is_best_take on song_stems, can_access_song() SECURITY DEFINER helper, RLS rewrite (songs/stems/beat_maps/shares). personal_cover visible to all auth (D-125). Shared types updated (SongStem.is_best_take, source='recorded'). Shared queries added (getSongShares, shareSong, unshareSong, setBestTake, clearBestTake). Cloud Run skip_stems flag added to /process and /process-worker (D-148). Web Library.tsx + SongForm.tsx updated for new category names. Web tsc + vite build clean.
-- **Next action**: Sprint S40 — Library + SongForm on both platforms (dropdowns, categories, sharing UI).
+- **Phase**: S40 (Library + SongForm Both) COMPLETE. Dropdowns, categories, sharing, ownership UI on both platforms. Ready for S41.
+- **What works**: Web (full, V4 player, Library dropdowns + sharing), Android (full, V4 player, Library dropdowns + owner tags), Cloud Run (beats + stems + CORS + beats-only skip_stems), Capture (built but untested end-to-end).
+- **Last session**: S40 Library + SongForm — Web: Library.tsx rebuilt with two dropdowns (Scope: All/TGT/Mine/Shared; Type: All/Covers/Originals) replacing filter pills (D-128). Category badges (teal=TGT, orange=personal), owner name tags, lock icons on non-owned, Edit/Delete hidden for non-owned songs. SongForm.tsx: sharing section for personal_original (add/remove members), read-only mode for shared songs (all inputs disabled, banner). Android: Song.kt updated (tgt_* categories, canEdit(), SongShare model). LibraryScreen.kt rebuilt with FilterDropdown composables (Scope + Type), category badges, owner tags, lock icons. Profile.kt added. SongRepository sharing CRUD. AppViewModel loads profileNames + sharedSongIds. Both builds clean (tsc + vite build, assembleDebug).
+- **Next action**: Sprint S41 — Recording + Takes on both platforms.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 4 songs (Cissy Strut, Sultans, War Pigs, Big Yellow Taxi).
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -18,8 +18,8 @@
 |--------|-------|--------|
 | S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Done** |
 | S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | **Done** |
-| S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | **Next** |
-| S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | Queued |
+| S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | **Done** |
+| S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | **Next** |
 | S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | Queued |
 | S43 | **Cloud Run Deploy** — beats-only + re-analyse endpoints deployed + tested | Queued |
 | Audit | Cross-platform surgical audit before user testing | After S43 |
