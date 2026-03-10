@@ -42,8 +42,8 @@
 - [x] **UI**: Category dropdown in TrackDetail, badge on TrackCard, filter in TrackList
 - [x] **Theme**: Teal (#1abc9c) + purple (#bb86fc) in theme.css
 
-### Import Pipeline (was S38 target — OVERDUE, D-158)
-- [ ] **Song import workflow** — Web pulls tracks from Capture server (localhost:9123), maps metadata to Supabase Song, uploads MP3 to `practice-tracks` bucket, triggers Cloud Run processing. Key bridge between Capture and web/Android.
+### Import Pipeline (S44 — DONE except bulk)
+- [x] **Song import workflow** — Web ImportPanel: browse Capture tracks (localhost:9123), map metadata to Supabase Song, upload MP3 to practice-tracks, trigger Cloud Run /process, mark imported in Capture (song_id FK).
 - [ ] **Bulk import UX** — Multiple recordings → batch import with metadata entry. Queue processing for each.
 - [ ] **Capture history view** — Show previous recordings in sidepanel with play/review/import/delete actions.
 
@@ -69,9 +69,9 @@
 - [x] **Web: skip_stems param** — triggerProcessing() now passes skip_stems flag
 - [x] **Re-analyse endpoint** (D-151) — POST /re-analyse, clears beat_map, enqueues beats-only task
 - [x] **Web: Re-analyse button** — SongForm now has "Re-analyse Beats" + "Full Re-process" buttons
-- [ ] **Android: SongForm** — No song edit form. No processing trigger. No re-analyse. (S44)
-- [ ] **Android: triggerProcessing** — No Cloud Run trigger from Android at all (S44)
-- [ ] **Android: Re-analyse** — Can't trigger from Android (S44)
+- [x] **Android: SongForm** — SongFormScreen.kt: full edit form (name, artist, category, BPM, key, time sig, subdivision, swing, count-in, notes, lyrics, chords, drum notation). Edit button in LibraryScreen SongCard. Navigation wired in GigBooksApp.
+- [x] **Android: triggerProcessing** — Cloud Run /process trigger from SongForm (skip_stems=true)
+- [x] **Android: Re-analyse** — Cloud Run /re-analyse trigger from SongForm
 
 ## SOT Doc Gaps (found S43)
 - [x] **IMPACT_MAP**: Added Capture, Import Pipeline, ClickTrack sections
@@ -255,3 +255,4 @@
 | S41 | Recording + Takes (Both) — Recording flow, takes list, post-recording, new song idea on web + Android | 2026-03-10 |
 | S42 | View Mode (Both) — 3rd player tab (Live/Practice/View), local video hero + visualiser fallback, record from View | 2026-03-10 |
 | S43 | Capture Alignment + Cloud Run — category field (schema+backend+UI+theme), /re-analyse endpoint, Cloud Run deploy (rev 00009), web skip_stems + re-analyse buttons | 2026-03-10 |
+| S44 | Import Pipeline + Android SongForm — Web ImportPanel (Capture→Supabase→Cloud Run), Android SongFormScreen (full edit + processing triggers), LibraryScreen Edit button | 2026-03-10 |

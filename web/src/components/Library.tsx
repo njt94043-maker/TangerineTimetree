@@ -4,6 +4,7 @@ import type { Song, Setlist, SongCategory, SetlistType, Profile } from '@shared/
 import { isPersonalSong, isTgtSong } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
+import { ImportPanel } from './ImportPanel';
 
 type Tab = 'songs' | 'setlists';
 type ScopeFilter = 'all' | 'tgt' | 'mine' | 'shared';
@@ -36,6 +37,7 @@ function formatDuration(seconds: number | null) {
 export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onPlaySetlist, userId, profiles }: LibraryProps) {
   const [tab, setTab] = useState<Tab>('songs');
   const [error, setError] = useState('');
+  const [showImport, setShowImport] = useState(false);
 
   // Songs state
   const [allSongs, setAllSongs] = useState<Song[]>([]);
@@ -236,6 +238,13 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
             >
               New Idea
             </button>
+            <button
+              className="btn btn-small btn-teal"
+              style={{ flex: 0, whiteSpace: 'nowrap', fontSize: 11 }}
+              onClick={() => setShowImport(true)}
+            >
+              Import
+            </button>
           </div>
 
           <div className="song-list-items">
@@ -408,6 +417,13 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
           onConfirm={handleDeleteSetlist}
           onCancel={() => setDeleteSetlistTarget(null)}
           danger
+        />
+      )}
+
+      {showImport && (
+        <ImportPanel
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); loadSongs(); }}
         />
       )}
     </div>

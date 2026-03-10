@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -93,6 +94,7 @@ fun LibraryScreen(
     onLaunchSetlistPractice: (SetlistWithSongs) -> Unit,
     onLaunchView: (Song) -> Unit = {},
     onLaunchSetlistView: (SetlistWithSongs) -> Unit = {},
+    onEditSong: (Song) -> Unit = {},
 ) {
     var activeTab by rememberSaveable { mutableStateOf(LibraryTab.Songs) }
     var showNewIdeaDialog by rememberSaveable { mutableStateOf(false) }
@@ -117,6 +119,7 @@ fun LibraryScreen(
                     onLaunchLive = onLaunchLive,
                     onLaunchPractice = onLaunchPractice,
                     onLaunchView = onLaunchView,
+                    onEditSong = onEditSong,
                 )
                 LibraryTab.Setlists -> SetlistsTab(
                     setlists = vm.setlists,
@@ -285,6 +288,7 @@ private fun SongsTab(
     onLaunchLive: (Song) -> Unit,
     onLaunchPractice: (Song) -> Unit,
     onLaunchView: (Song) -> Unit,
+    onEditSong: (Song) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var scopeFilter by rememberSaveable { mutableStateOf(ScopeFilter.All) }
@@ -352,6 +356,7 @@ private fun SongsTab(
                         onLive = { onLaunchLive(song) },
                         onPractice = { onLaunchPractice(song) },
                         onView = { onLaunchView(song) },
+                        onEdit = { onEditSong(song) },
                         currentUserId = currentUserId,
                         ownerName = if (song.isPersonalSong && song.ownerId != null) profileNames[song.ownerId] else null,
                         isShared = sharedSongIds.contains(song.id),
@@ -371,6 +376,7 @@ private fun SongCard(
     onLive: () -> Unit,
     onPractice: () -> Unit,
     onView: () -> Unit,
+    onEdit: () -> Unit,
     currentUserId: String?,
     ownerName: String?,
     isShared: Boolean,
@@ -440,6 +446,17 @@ private fun SongCard(
                     color = GigColors.teal,
                     modifier = Modifier.weight(1f),
                     onClick = onView,
+                )
+            }
+            // Edit button (only if user can edit this song)
+            if (canEdit) {
+                Spacer(Modifier.height(6.dp))
+                LaunchButton(
+                    icon = Icons.Default.Edit,
+                    label = "Edit Song",
+                    color = GigColors.orange,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onEdit,
                 )
             }
         }

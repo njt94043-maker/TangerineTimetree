@@ -326,6 +326,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Clear the new idea flag (after recording starts) */
     fun clearNewIdeaFlag() { newIdeaSong = null }
 
+    /** Update a song's fields in Supabase and refresh local state */
+    fun updateSong(songId: String, updates: Map<String, Any?>, onDone: () -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                SongRepository.updateSong(songId, updates)
+                val refreshed = SongRepository.getSongs()
+                withContext(Dispatchers.Main) {
+                    songs = refreshed
+                    // Update selectedSong if it's the one we just edited
+                    if (selectedSong?.id == songId) {
+                        selectedSong = refreshed.find { it.id == songId }
+                    }
+                    onDone()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    loadError = "Failed to update song: ${e.message}"
+                }
+            }
+        }
+    }
+
     // ── Library loading ───────────────────────────────────────────────────────
     fun loadLibrary() {
         viewModelScope.launch {
