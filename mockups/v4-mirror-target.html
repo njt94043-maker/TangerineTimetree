@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V4 Mirror Target — Unified Design Spec (17 Screens)</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   CANONICAL DESIGN TOKENS — Both platforms MUST match these
+   Source: Web app (locked baseline) + V4 comparison (locked)
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  /* Backgrounds */
+  --bg: #08080c;
+  --bg-card: #111118;
+  --bg-card-light: #16161f;
+  --bg-input: #0c0c12;
+
+  /* Text */
+  --text: #d0d0dc;
+  --text-dim: #7a7a94;
+  --text-muted: #4a4a60;
+
+  /* Accents */
+  --green: #00e676;
+  --green-dark: #00c853;
+  --orange: #f39c12;
+  --purple: #bb86fc;
+  --teal: #1abc9c;
+  --cyan: #00bcd4;
+  --red: #ff5252;
+  --blue: #42a5f5;
+  --pink: #e040fb;
+  --slate: #78909c;
+
+  /* Shadows */
+  --shadow-raised: 4px 4px 12px rgba(0,0,0,0.8), -1px -1px 1px rgba(40,40,60,0.12);
+  --shadow-inset: inset 2px 2px 6px rgba(0,0,0,0.7), inset -1px -1px 1px rgba(40,40,60,0.08);
+
+  /* Glows */
+  --glow-green: 0 0 8px rgba(0,230,118,0.4), 0 0 20px rgba(0,230,118,0.15);
+  --glow-orange: 0 0 8px rgba(243,156,18,0.4), 0 0 20px rgba(243,156,18,0.15);
+  --glow-purple: 0 0 8px rgba(187,134,252,0.4), 0 0 20px rgba(187,134,252,0.15);
+  --glow-red: 0 0 8px rgba(255,82,82,0.35), 0 0 20px rgba(255,82,82,0.12);
+
+  /* Radii */
+  --r-card: 16px;
+  --r-input: 12px;
+  --r-pill: 20px;
+  --r-sm: 8px;
+  --r-xs: 4px;
+
+  /* Borders */
+  --border-subtle: 1px solid rgba(255,255,255,0.04);
+  --border-inset: 1px solid rgba(0,0,0,0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #050508; color: var(--text); font-family: 'Karla', sans-serif; }
+.mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ─── Page chrome ─── */
+.page-hdr { text-align: center; padding: 20px 20px 6px; }
+.page-hdr h1 { font-size: 22px; color: var(--orange); text-shadow: 0 0 20px rgba(243,156,18,0.4); }
+.page-hdr p { font-size: 11px; color: var(--text-muted); margin-top: 4px; max-width: 700px; margin-inline: auto; line-height: 1.5; }
+
+/* ─── Token reference banner ─── */
+.token-ref { max-width: 800px; margin: 10px auto 0; padding: 10px 14px; background: var(--bg-card); border: var(--border-subtle); border-radius: var(--r-sm); font-size: 10px; color: var(--text-dim); line-height: 1.6; }
+.token-ref b { color: var(--orange); }
+.token-ref .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+
+/* ─── Nav bar ─── */
+.nav { display: flex; justify-content: center; gap: 5px; padding: 12px 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; background: rgba(5,5,8,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(255,255,255,0.04); }
+.nav button { padding: 5px 11px; border-radius: var(--r-pill); border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); font-family: inherit; font-size: 10px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.nav button:hover { border-color: rgba(255,255,255,0.12); color: var(--text-dim); }
+.nav button.on { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: 700; }
+
+/* ─── Screens ─── */
+.scr { display: none; padding: 20px; max-width: 900px; margin: 0 auto; }
+.scr.vis { display: block; }
+.scr h2 { font-size: 18px; margin-bottom: 14px; color: var(--green); text-shadow: var(--glow-green); }
+
+/* ─── Annotation callouts ─── */
+.note { background: var(--bg-card); border: var(--border-subtle); border-radius: var(--r-sm); padding: 10px 14px; font-size: 11px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.note b { color: var(--green); }
+.ann { font-size: 10px; padding: 6px 10px; border-radius: var(--r-xs); margin: 6px 0; line-height: 1.4; }
+.ann.spec { background: rgba(0,230,118,0.04); border: 1px solid rgba(0,230,118,0.15); color: var(--green); }
+.ann.lock { background: rgba(243,156,18,0.04); border: 1px solid rgba(243,156,18,0.15); color: var(--orange); }
+.ann.new { background: rgba(187,134,252,0.04); border: 1px solid rgba(187,134,252,0.15); color: var(--purple); }
+.ann.web { background: rgba(26,188,156,0.04); border: 1px solid rgba(26,188,156,0.15); color: var(--teal); }
+
+/* ─── Phone frame ─── */
+.phone { width: 360px; margin: 0 auto 16px; background: var(--bg); border-radius: 24px; border: 2px solid rgba(255,255,255,0.05); overflow: hidden; position: relative; }
+.phone-pair { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+/* ─── Shared phone internals ─── */
+.ph-hdr { display: flex; align-items: center; padding: 10px 14px 6px; gap: 10px; }
+.ph-back { font-size: 16px; color: var(--text-muted); cursor: pointer; }
+.ph-hamburger { font-size: 18px; color: var(--text-muted); }
+.ph-info { flex: 1; min-width: 0; }
+.ph-song { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-artist { font-size: 10px; color: var(--text-muted); }
+.ph-pos { font-size: 9px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+.ph-bpm-block { text-align: right; }
+.ph-bpm { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--green); text-shadow: 0 0 12px rgba(0,230,118,0.3); line-height: 1; }
+.ph-bpm-unit { font-size: 8px; color: rgba(0,230,118,0.4); text-transform: uppercase; letter-spacing: 1px; text-align: right; }
+.mode-badge { font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; padding: 2px 7px; border-radius: 5px; }
+.mode-live { color: var(--green); border: 1px solid rgba(0,230,118,0.2); background: rgba(0,230,118,0.05); }
+.mode-practice { color: var(--purple); border: 1px solid rgba(187,134,252,0.2); background: rgba(187,134,252,0.05); }
+.mode-view { color: var(--blue); border: 1px solid rgba(66,165,245,0.2); background: rgba(66,165,245,0.05); }
+.mode-rec { color: var(--red); border: 1px solid rgba(255,82,82,0.3); background: rgba(255,82,82,0.08); }
+
+/* ─── Visual hero area ─── */
+.vis-hero { position: relative; margin: 5px 8px; border-radius: var(--r-input); background: var(--bg-input); border: var(--border-subtle); overflow: hidden; }
+.vis-switcher { position: absolute; top: 8px; left: 10px; display: flex; gap: 3px; z-index: 5; }
+.vis-btn { padding: 2px 8px; border-radius: var(--r-sm); border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); font-size: 8px; font-family: 'JetBrains Mono', monospace; }
+.vis-btn.on { color: var(--green); border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.06); }
+.vis-bars { display: flex; align-items: flex-end; gap: 2px; height: 50px; padding: 4px; justify-content: center; }
+.vis-bar { width: 4px; border-radius: 2px; background: linear-gradient(to top, var(--green), rgba(0,230,118,0.3)); box-shadow: 0 0 4px rgba(0,230,118,0.15); }
+.vis-center { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10px; color: var(--text-muted); }
+.beat-glow { position: absolute; inset: 0; border-radius: var(--r-input); box-shadow: inset 0 0 30px 8px rgba(0,230,118,0.25), 0 0 20px rgba(0,230,118,0.08); border: 1.5px solid rgba(0,230,118,0.3); opacity: 0.7; pointer-events: none; }
+
+/* ─── Text panel (chords/lyrics/notes/drums) ─── */
+.text-panel { margin: 0 8px 5px; border-radius: var(--r-input); background: var(--bg-input); border: var(--border-subtle); padding: 10px 12px; overflow-y: auto; max-height: 140px; font-size: 11px; line-height: 1.7; }
+.tp-label { font-size: 8px; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 4px; }
+.tp-chords { color: var(--orange); font-family: 'JetBrains Mono', monospace; font-size: 12px; white-space: pre; line-height: 1.6; }
+.tp-lyrics { color: var(--text); font-size: 13px; line-height: 1.6; }
+.tp-notes { color: var(--cyan); font-size: 11px; font-style: italic; }
+.tp-drums { color: var(--pink); font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: pre; }
+
+/* ─── Waveform ─── */
+.waveform { margin: 0 8px 5px; height: 48px; border-radius: var(--r-sm); background: var(--bg-card); border: 1px solid rgba(255,255,255,0.03); position: relative; overflow: hidden; }
+.wf-bars { display: flex; align-items: center; height: 100%; gap: 1px; padding: 8px 6px; }
+.wf-bar { flex: 1; min-width: 1px; border-radius: 1px; }
+.wf-bar.p { background: var(--green); opacity: 0.7; }
+.wf-bar.u { background: var(--green); opacity: 0.12; }
+.wf-head { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.4); left: 35%; }
+.wf-loop { position: absolute; top: 0; bottom: 0; left: 18%; width: 35%; background: rgba(243,156,18,0.04); border-left: 1.5px solid rgba(243,156,18,0.35); border-right: 1.5px solid rgba(243,156,18,0.35); }
+.wf-time { position: absolute; bottom: 2px; left: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; }
+.wf-time .cur { color: var(--text-dim); }
+.wf-time .tot { color: var(--text-muted); }
+.wf-speed { position: absolute; bottom: 2px; right: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--purple); }
+
+/* ─── Transport ─── */
+.transport { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; }
+.transport.stack { flex-direction: column; gap: 6px; }
+.t-row { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+.t-btn { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-card-light); border: 1px solid rgba(255,255,255,0.06); color: var(--text-muted); font-size: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.t-play { width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--green), var(--green-dark)); border: none; color: var(--bg); font-size: 18px; box-shadow: var(--glow-green), var(--shadow-raised); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.t-stop { color: var(--red); }
+.t-click { padding: 0 12px; height: 32px; border-radius: var(--r-pill); border: 1px solid rgba(187,134,252,0.25); background: transparent; color: var(--purple); font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.t-spd-btn { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card-light); color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.t-spd-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--purple); min-width: 36px; text-align: center; }
+.t-loop { padding: 4px 10px; border-radius: var(--r-sm); font-size: 9px; font-family: 'JetBrains Mono', monospace; cursor: pointer; border: 1px solid rgba(243,156,18,0.3); background: rgba(243,156,18,0.06); color: var(--orange); }
+.t-loop.dim { border-color: rgba(255,255,255,0.06); color: var(--text-muted); background: transparent; }
+
+/* ─── Nav row (prev/next song) ─── */
+.nav-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 12px; gap: 6px; }
+.nav-song { padding: 4px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; max-width: 120px; overflow: hidden; }
+.nav-song .nm { font-size: 9px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+.nav-queue { padding: 4px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 10px; cursor: pointer; }
+
+/* ─── Bottom drawer preview ─── */
+.drawer-prev { margin: 8px 8px 0; background: var(--bg-card); border-top: 1px solid rgba(255,255,255,0.04); border-radius: 14px 14px 0 0; padding: 10px 12px; }
+.drawer-handle { width: 30px; height: 3px; background: var(--green); border-radius: 2px; margin: 0 auto 8px; }
+.drawer-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+
+/* ─── Toggle pills ─── */
+.tog-row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.tog { padding: 4px 10px; border-radius: var(--r-input); font-size: 9px; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); cursor: pointer; }
+.tog.on-g { border-color: rgba(0,230,118,0.4); color: var(--green); background: rgba(0,230,118,0.08); }
+.tog.on-o { border-color: rgba(243,156,18,0.4); color: var(--orange); background: rgba(243,156,18,0.08); }
+.tog.on-w { border-color: rgba(255,255,255,0.2); color: var(--text); background: rgba(255,255,255,0.04); }
+.tog.on-c { border-color: rgba(0,188,212,0.4); color: var(--cyan); background: rgba(0,188,212,0.08); }
+.tog.on-p { border-color: rgba(224,64,251,0.4); color: var(--pink); background: rgba(224,64,251,0.08); }
+
+/* ─── Settings pills ─── */
+.set-row { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.set-label { font-size: 9px; color: var(--text-muted); min-width: 55px; }
+.set-pills { display: flex; gap: 3px; }
+.set-pill { padding: 3px 8px; border-radius: 10px; font-size: 8px; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); cursor: pointer; }
+.set-pill.on { background: rgba(187,134,252,0.12); border-color: rgba(187,134,252,0.35); color: var(--purple); }
+
+/* ─── Nudge ─── */
+.nudge-row { display: flex; align-items: center; gap: 6px; }
+.nudge-btn { padding: 3px 8px; border-radius: var(--r-sm); border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-muted); font-size: 10px; cursor: pointer; }
+.nudge-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--green); flex: 1; text-align: center; }
+
+/* ─── Mixer faders ─── */
+.mixer { display: flex; gap: 2px; justify-content: center; margin-bottom: 6px; }
+.mx-ch { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 40px; }
+.mx-lbl { font-family: 'JetBrains Mono', monospace; font-size: 7px; font-weight: 700; text-transform: uppercase; }
+.mx-trk { width: 4px; height: 60px; background: rgba(255,255,255,0.04); border-radius: 2px; position: relative; overflow: hidden; }
+.mx-fill { position: absolute; bottom: 0; width: 100%; border-radius: 2px; }
+.mx-val { font-family: 'JetBrains Mono', monospace; font-size: 7px; color: var(--text-muted); }
+.mx-mute { width: 16px; height: 12px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card-light); font-family: 'JetBrains Mono', monospace; font-size: 6px; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
+
+/* ─── Library components ─── */
+.tab-row { display: flex; gap: 6px; margin-bottom: 14px; }
+.tab-pill { padding: 6px 20px; border-radius: var(--r-pill); font-size: 14px; font-family: inherit; cursor: pointer; border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card); color: var(--text-dim); transition: all 0.15s; }
+.tab-pill:hover { border-color: var(--text-muted); }
+.tab-pill.on { background: var(--green); color: var(--bg); border-color: var(--green); font-weight: 600; }
+
+.filter-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+.filter-grp { display: flex; align-items: center; gap: 6px; }
+.filter-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.filter-sel { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--r-sm); padding: 7px 28px 7px 12px; color: var(--text); font-family: inherit; font-size: 13px; cursor: pointer; min-width: 150px; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a4a60'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.filter-sel:hover, .filter-sel:focus { border-color: var(--green); outline: none; }
+.filter-sel option { background: var(--bg-card); color: var(--text); }
+
+.search-bar { background: var(--bg-card); border: 1px solid rgba(255,255,255,0.06); border-radius: var(--r-sm); padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 13px; width: 200px; }
+.search-bar:focus { border-color: var(--green); outline: none; }
+.search-bar::placeholder { color: var(--text-muted); }
+
+.song-count { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+.song-list { display: flex; flex-direction: column; gap: 8px; }
+.song-card { background: var(--bg-card); border: var(--border-subtle); border-radius: var(--r-card); padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow-raised); }
+.song-card:hover { border-color: var(--text-muted); }
+.s-info { flex: 1; min-width: 0; }
+.s-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-artist { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.s-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.badge { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+.b-tgt { background: rgba(26,188,156,0.15); color: var(--teal); border: 1px solid rgba(26,188,156,0.3); }
+.b-personal { background: rgba(243,156,18,0.15); color: var(--orange); border: 1px solid rgba(243,156,18,0.3); }
+.b-shared { background: rgba(187,134,252,0.1); color: var(--purple); border: 1px solid rgba(187,134,252,0.25); }
+.b-cover { background: rgba(66,165,245,0.1); color: var(--blue); border: 1px solid rgba(66,165,245,0.2); font-size: 9px; }
+.b-original { background: rgba(187,134,252,0.1); color: var(--purple); border: 1px solid rgba(187,134,252,0.2); font-size: 9px; }
+.bpm-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.owner-tag { font-size: 11px; color: var(--orange); opacity: 0.7; }
+.s-actions { display: flex; gap: 6px; }
+.btn-icon { width: 32px; height: 32px; border-radius: var(--r-sm); border: 1px solid rgba(255,255,255,0.06); background: var(--bg-card-light); color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.btn-icon:hover { border-color: var(--green); color: var(--green); }
+.btn-icon.dis { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
+
+/* ─── Form sections ─── */
+.form-sec { background: var(--bg-card); border: var(--border-subtle); border-radius: var(--r-card); padding: 20px; margin-bottom: 16px; box-shadow: var(--shadow-raised); }
+.form-sec h4 { font-size: 13px; color: var(--green); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.f-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
+.f-label { font-size: 12px; color: var(--text-dim); width: 90px; flex-shrink: 0; }
+.f-input { background: var(--bg-input); border: var(--border-inset); border-radius: var(--r-sm); padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 13px; flex: 1; box-shadow: var(--shadow-inset); }
+.f-select { background: var(--bg-input); border: var(--border-inset); border-radius: var(--r-sm); padding: 8px 28px 8px 12px; color: var(--text); font-family: inherit; font-size: 13px; flex: 1; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a4a60'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; box-shadow: var(--shadow-inset); }
+.f-select:focus { border-color: var(--green); outline: none; }
+
+/* Sharing UI */
+.share-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.share-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--bg-input); border: var(--border-inset); border-radius: var(--r-sm); }
+.share-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--bg-card-light); border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-dim); }
+.share-name { flex: 1; font-size: 13px; }
+.share-role { font-size: 11px; color: var(--text-muted); }
+.btn-remove { padding: 3px 10px; font-size: 11px; border: 1px solid rgba(255,82,82,0.3); background: rgba(255,82,82,0.1); color: var(--red); border-radius: var(--r-input); cursor: pointer; font-family: inherit; }
+.btn-add { padding: 6px 14px; font-size: 12px; border: 1px solid rgba(0,230,118,0.3); background: rgba(0,230,118,0.1); color: var(--green); border-radius: var(--r-input); cursor: pointer; font-family: inherit; font-weight: 600; }
+.hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+
+/* ─── Queue list ─── */
+.q-item { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--bg-card); border: 1px solid rgba(255,255,255,0.03); margin-bottom: 3px; font-size: 10px; }
+.q-item.played { opacity: 0.4; }
+.q-item.now { background: rgba(0,230,118,0.04); border-color: rgba(0,230,118,0.3); }
+.q-num { font-family: 'JetBrains Mono', monospace; width: 16px; font-size: 9px; color: var(--text-muted); }
+.q-now .q-num { color: var(--green); }
+.q-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px rgba(0,230,118,0.5); }
+.q-name { flex: 1; font-size: 11px; color: var(--text); }
+.q-now .q-name { color: #fff; font-weight: 700; }
+.q-bpm { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: rgba(0,230,118,0.3); }
+.q-now .q-bpm { color: var(--green); text-shadow: 0 0 6px rgba(0,230,118,0.2); }
+
+/* ─── Setlist cards ─── */
+.setlist-card { background: var(--bg-card); border: var(--border-subtle); border-radius: var(--r-card); padding: 14px 16px; margin-bottom: 8px; box-shadow: var(--shadow-raised); }
+.sl-title { font-size: 14px; font-weight: 600; }
+.sl-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+.sl-type { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
+
+/* ─── Calendar ─── */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 12px; }
+.cal-hdr { text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; padding: 4px 0; }
+.cal-cell { min-height: 44px; background: var(--bg-input); border-radius: var(--r-xs); padding: 4px; text-align: center; font-size: 11px; position: relative; border: 1px solid transparent; box-shadow: var(--shadow-inset); }
+.cal-cell.today { border-color: var(--orange); box-shadow: 0 0 8px rgba(243,156,18,0.2); }
+.cal-cell.sel { background: rgba(243,156,18,0.08); border-color: rgba(243,156,18,0.3); }
+.cal-dots { display: flex; gap: 2px; justify-content: center; margin-top: 3px; }
+.cal-dot { width: 4px; height: 4px; border-radius: 50%; }
+.cal-dot.gig { background: var(--green); }
+.cal-dot.practice { background: var(--purple); }
+.cal-dot.away { background: var(--red); }
+
+/* ─── Toggle switch ─── */
+.toggle { width: 40px; height: 22px; border-radius: 11px; position: relative; cursor: pointer; }
+.toggle.off { background: var(--bg-input); border: var(--border-inset); }
+.toggle.on { background: var(--green); }
+.toggle-knob { width: 18px; height: 18px; border-radius: 50%; position: absolute; top: 2px; }
+.toggle.off .toggle-knob { left: 2px; background: var(--text-muted); }
+.toggle.on .toggle-knob { right: 2px; background: white; }
+</style>
+</head>
+<body>
+
+<div class="page-hdr">
+  <h1>V4 Mirror Target — Unified Design Spec</h1>
+  <p>
+    <b>17 screens.</b> This is what BOTH platforms must look like. Web is the visual baseline.
+    V4 player design is locked. S39 features are locked. All design tokens are canonical.<br>
+    Android divergences must be fixed to match these screens exactly.
+  </p>
+</div>
+
+<div class="token-ref">
+  <b>CANONICAL TOKENS (Android must adopt these):</b><br>
+  <span class="swatch" style="background:#08080c"></span>bg: #08080c &nbsp;
+  <span class="swatch" style="background:#111118"></span>card: #111118 &nbsp;
+  <span class="swatch" style="background:#0c0c12"></span>input: #0c0c12 &nbsp;
+  <span class="swatch" style="background:#d0d0dc"></span>text: #d0d0dc &nbsp;
+  <span class="swatch" style="background:#7a7a94"></span>dim: #7a7a94 &nbsp;
+  <span class="swatch" style="background:#4a4a60"></span>muted: #4a4a60 &nbsp;
+  <span class="swatch" style="background:#00e676"></span>green: #00e676 &nbsp;
+  <span class="swatch" style="background:#1abc9c"></span>teal: #1abc9c &nbsp;
+  <span class="swatch" style="background:#f39c12"></span>orange: #f39c12 &nbsp;
+  <span class="swatch" style="background:#bb86fc"></span>purple: #bb86fc &nbsp;
+  <span class="swatch" style="background:#ff5252"></span>red: #ff5252<br>
+  <b>Android corrections needed:</b> bg #0a0a10→#08080c, text #e0e0e0→#d0d0dc, dim #888899→#7a7a94, muted #555566→#4a4a60, teal #4dd0e1→#1abc9c
+</div>
+
+<nav class="nav">
+  <button class="on" onclick="go('live')">1. Live</button>
+  <button onclick="go('practice')">2. Practice</button>
+  <button onclick="go('queue')">3. Queue</button>
+  <button onclick="go('setcomplete')">4. Set Complete</button>
+  <button onclick="go('lib-songs')">5. Library Songs</button>
+  <button onclick="go('lib-setlists')">6. Library Setlists</button>
+  <button onclick="go('form-tgt')">7. SongForm TGT</button>
+  <button onclick="go('form-personal')">8. SongForm Personal</button>
+  <button onclick="go('form-shared')">9. SongForm Shared</button>
+  <button onclick="go('takes-owner')">10. Takes Owner</button>
+  <button onclick="go('takes-viewer')">11. Takes Viewer</button>
+  <button onclick="go('view-mode')">12. View Mode</button>
+  <button onclick="go('rec-audio')">13. Record Audio</button>
+  <button onclick="go('rec-video')">14. Record Video</button>
+  <button onclick="go('post-rec')">15. Post-Record</button>
+  <button onclick="go('calendar')">16. Calendar</button>
+  <button onclick="go('settings')">17. Settings</button>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 1: LIVE MODE (V4 locked)                                -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr vis" id="s-live">
+  <h2>1. Live Mode</h2>
+  <div class="ann lock">LOCKED (V4). Both platforms must match this layout exactly.</div>
+  <div class="note">
+    Header with back + song info + BPM + mode badge.<br>
+    Visual hero with vis switcher + beat glow.<br>
+    Text panel (chords/lyrics/notes/drums — toggled via drawer).<br>
+    Nav row (prev song / position / next song).<br>
+    Transport row (restart / play / stop / click).<br>
+    Bottom drawer (display toggles + settings: subdiv, count-in, nudge).
+  </div>
+
+  <div class="phone">
+    <div class="ph-hdr">
+      <span class="ph-back">&larr;</span>
+      <div class="ph-info">
+        <div class="ph-song">Cissy Strut</div>
+        <div class="ph-artist">The Meters</div>
+        <div class="ph-pos">3 of 12 &mdash; Friday Night Pub Set</div>
+      </div>
+      <div class="ph-bpm-block">
+        <span class="mode-badge mode-live">LIVE</span>
+        <div class="ph-bpm">91</div>
+        <div class="ph-bpm-unit">BPM</div>
+      </div>
+    </div>
+
+    <div class="vis-hero" style="height:160px">
+      <div class="vis-switcher">
+        <span class="vis-btn on">Spectrum</span>
+        <span class="vis-btn">Rings</span>
+        <span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-center">
+        <div class="vis-bars">
+          <div class="vis-bar" style="height:15%"></div><div class="vis-bar" style="height:55%"></div>
+          <div class="vis-bar" style="height:78%"></div><div class="vis-bar" style="height:92%"></div>
+          <div class="vis-bar" style="height:65%"></div><div class="vis-bar" style="height:80%"></div>
+          <div class="vis-bar" style="height:45%"></div><div class="vis-bar" style="height:70%"></div>
+        </div>
+        <span>Canvas visualiser + beat glow</span>
+      </div>
+      <div class="beat-glow"></div>
+    </div>
+
+    <div class="text-panel" style="max-height:120px">
+      <div class="tp-label" style="color:var(--orange)">Chords</div>
+      <div class="tp-chords">C7  |  C7  |  C7  |  C7
+F7  |  F7  |  C7  |  C7</div>
+      <div style="height:6px"></div>
+      <div class="tp-label" style="color:var(--cyan)">Notes</div>
+      <div class="tp-notes">Hi-hat groove. Break signal bar 16.</div>
+    </div>
+
+    <div class="nav-row">
+      <span class="nav-song">&larr; <span class="nm">Superstition</span></span>
+      <span class="nav-queue mono">3/12</span>
+      <span class="nav-song"><span class="nm">Sultans</span> &rarr;</span>
+    </div>
+
+    <div class="transport">
+      <button class="t-btn">&#9198;</button>
+      <button class="t-play">&#9654;</button>
+      <button class="t-btn t-stop">&#9632;</button>
+      <button class="t-click">CLICK</button>
+    </div>
+
+    <div class="drawer-prev">
+      <div class="drawer-handle"></div>
+      <div class="drawer-label">Display</div>
+      <div class="tog-row">
+        <span class="tog on-g">Visuals</span>
+        <span class="tog on-o">Chords</span>
+        <span class="tog on-w">Lyrics</span>
+        <span class="tog on-c">Notes</span>
+        <span class="tog on-p">Drums</span>
+      </div>
+      <div class="drawer-label">Settings</div>
+      <div class="set-row">
+        <span class="set-label">Subdiv</span>
+        <div class="set-pills"><span class="set-pill on">Off</span><span class="set-pill">8th</span><span class="set-pill">Trip</span><span class="set-pill">16th</span></div>
+      </div>
+      <div class="set-row">
+        <span class="set-label">Count-in</span>
+        <div class="set-pills"><span class="set-pill on">Off</span><span class="set-pill">1</span><span class="set-pill">2</span><span class="set-pill">4</span></div>
+      </div>
+      <div class="set-row">
+        <span class="set-label">Nudge</span>
+        <div class="nudge-row"><span class="nudge-btn">&laquo;</span><span class="nudge-val">+0ms</span><span class="nudge-btn">&raquo;</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Android must add: visual hero, text panel, display toggle drawer, nudge, subdivision. Remove NeuCard vertical scroll layout.</div>
+  <div class="ann web">Web must add: BPM in header, vis switcher modes, drawer with settings pills. Replace flat text buttons with icon transport.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 2: PRACTICE MODE (V4 locked)                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-practice">
+  <h2>2. Practice Mode</h2>
+  <div class="ann lock">LOCKED (V4). Both platforms must match this layout exactly.</div>
+
+  <div class="phone">
+    <div class="ph-hdr">
+      <span class="ph-hamburger">&#9776;</span>
+      <div class="ph-info">
+        <div class="ph-song">Cissy Strut</div>
+        <div class="ph-artist">The Meters</div>
+      </div>
+      <div class="ph-bpm-block">
+        <span class="mode-badge mode-practice">PRACTICE</span>
+        <div class="ph-bpm">91</div>
+        <div class="ph-bpm-unit">BPM</div>
+      </div>
+    </div>
+
+    <div class="vis-hero" style="height:130px">
+      <div class="vis-switcher">
+        <span class="vis-btn on">Spectrum</span><span class="vis-btn">Rings</span><span class="vis-btn">Burst</span>
+      </div>
+      <div class="vis-center">
+        <div class="vis-bars">
+          <div class="vis-bar" style="height:20%"></div><div class="vis-bar" style="height:55%"></div>
+          <div class="vis-bar" style="height:85%"></div><div class="vis-bar" style="height:60%"></div>
+          <div class="vis-bar" style="height:75%"></div><div class="vis-bar" style="height:45%"></div>
+        </div>
+        <span>Canvas + beat glow</span>
+      </div>
+      <div class="beat-glow"></div>
+    </div>
+
+    <div class="waveform">
+      <div class="wf-loop"></div>
+      <div class="wf-bars">
+        <div class="wf-bar p" style="height:25%"></div><div class="wf-bar p" style="height:50%"></div>
+        <div class="wf-bar p" style="height:75%"></div><div class="wf-bar p" style="height:55%"></div>
+        <div class="wf-bar p" style="height:85%"></div><div class="wf-bar u" style="height:65%"></div>
+        <div class="wf-bar u" style="height:70%"></div><div class="wf-bar u" style="height:45%"></div>
+        <div class="wf-bar u" style="height:60%"></div><div class="wf-bar u" style="height:35%"></div>
+      </div>
+      <div class="wf-head"></div>
+      <div class="wf-time"><span class="cur">1:05</span> <span class="tot">/ 3:07</span></div>
+      <div class="wf-speed">x 0.80</div>
+    </div>
+
+    <div class="transport stack">
+      <div class="t-row">
+        <button class="t-spd-btn">-5</button>
+        <span class="t-spd-val">80%</span>
+        <button class="t-spd-btn">+5</button>
+        <span style="flex:1"></span>
+        <button class="t-loop">A</button>
+        <button class="t-loop">B</button>
+        <button class="t-loop dim">Clear</button>
+      </div>
+      <div class="t-row">
+        <button class="t-btn">&#9198;</button>
+        <button class="t-play">&#9654;</button>
+        <button class="t-btn t-stop">&#9632;</button>
+        <button class="t-click">CLICK</button>
+      </div>
+    </div>
+
+    <div class="drawer-prev">
+      <div class="drawer-handle"></div>
+      <div class="drawer-label">Display</div>
+      <div class="tog-row">
+        <span class="tog on-g">Visuals</span>
+        <span class="tog on-o">Chords</span>
+        <span class="tog on-w">Lyrics</span>
+        <span class="tog on-c">Notes</span>
+        <span class="tog on-p">Drums</span>
+      </div>
+      <div class="drawer-label">Mixer</div>
+      <div class="mixer">
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--purple)">Click</span><div class="mx-trk"><div class="mx-fill" style="height:33%;background:linear-gradient(to top,rgba(187,134,252,0.2),var(--purple))"></div></div><span class="mx-val">33</span><span class="mx-mute">M</span></div>
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--green)">Track</span><div class="mx-trk"><div class="mx-fill" style="height:70%;background:linear-gradient(to top,rgba(0,230,118,0.2),var(--green))"></div></div><span class="mx-val">70</span><span class="mx-mute">M</span></div>
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--orange)">Drums</span><div class="mx-trk"><div class="mx-fill" style="height:100%;background:linear-gradient(to top,rgba(243,156,18,0.2),var(--orange))"></div></div><span class="mx-val">100</span><span class="mx-mute">M</span></div>
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--cyan)">Bass</span><div class="mx-trk"><div class="mx-fill" style="height:100%;background:linear-gradient(to top,rgba(0,188,212,0.2),var(--cyan))"></div></div><span class="mx-val">100</span><span class="mx-mute">M</span></div>
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--pink)">Vox</span><div class="mx-trk"><div class="mx-fill" style="height:100%;background:linear-gradient(to top,rgba(224,64,251,0.2),var(--pink))"></div></div><span class="mx-val">100</span><span class="mx-mute">M</span></div>
+        <div class="mx-ch"><span class="mx-lbl" style="color:var(--slate)">Other</span><div class="mx-trk"><div class="mx-fill" style="height:100%;background:linear-gradient(to top,rgba(120,144,156,0.2),var(--slate))"></div></div><span class="mx-val">100</span><span class="mx-mute">M</span></div>
+      </div>
+      <div class="drawer-label">Settings</div>
+      <div class="set-row">
+        <span class="set-label">Subdiv</span>
+        <div class="set-pills"><span class="set-pill on">Off</span><span class="set-pill">8th</span><span class="set-pill">Trip</span><span class="set-pill">16th</span></div>
+      </div>
+      <div class="set-row">
+        <span class="set-label">Count-in</span>
+        <div class="set-pills"><span class="set-pill on">Off</span><span class="set-pill">1</span><span class="set-pill">2</span><span class="set-pill">4</span></div>
+      </div>
+      <div class="set-row">
+        <span class="set-label">Nudge</span>
+        <div class="nudge-row"><span class="nudge-btn">&laquo;</span><span class="nudge-val">+360ms</span><span class="nudge-btn">&raquo;</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Android must add: visual hero, vertical fader mixer (replacing horizontal sliders), 2-tier transport, A-B loop in transport row.</div>
+  <div class="ann web">Web must add: vis switcher, vertical fader mixer (replacing horizontal stem rows), speed +/-5 in transport (replacing separate speed buttons).</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 3: QUEUE OVERLAY (V4 locked)                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-queue">
+  <h2>3. Queue Overlay</h2>
+  <div class="ann lock">LOCKED (V4). Bottom-sheet queue with reorder, BPM, played state.</div>
+
+  <div class="phone" style="min-height:500px">
+    <div style="padding:16px;text-align:center;opacity:0.15;font-size:11px;color:var(--text-muted)">[Player dimmed behind]</div>
+    <div style="background:var(--bg-card);border-top:1px solid rgba(255,255,255,0.04);border-radius:14px 14px 0 0;padding:10px 12px;flex:1">
+      <div class="drawer-handle"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#fff">Friday Night Pub Set</div>
+          <div style="font-size:10px;color:var(--text-muted)">12 songs &middot; ~48 min</div>
+        </div>
+        <span style="padding:4px 10px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,0.06);background:var(--bg-card-light);color:var(--text-muted);font-size:10px" class="mono">Reorder</span>
+      </div>
+      <div class="q-item played">
+        <span class="q-num">1</span>
+        <span class="q-name" style="color:var(--text-dim)">Come Together</span>
+        <span class="q-bpm">83</span>
+        <span style="color:var(--text-muted);font-size:10px">&#10003;</span>
+      </div>
+      <div class="q-item played">
+        <span class="q-num">2</span>
+        <span class="q-name" style="color:var(--text-dim)">War Pigs</span>
+        <span class="q-bpm">91</span>
+        <span style="color:var(--text-muted);font-size:10px">&#10003;</span>
+      </div>
+      <div class="q-item now">
+        <span class="q-num" style="color:var(--green)">3</span>
+        <span class="q-dot"></span>
+        <span class="q-name" style="color:#fff;font-weight:700">Cissy Strut</span>
+        <span class="q-bpm" style="color:var(--green);text-shadow:0 0 6px rgba(0,230,118,0.2)">91</span>
+      </div>
+      <div class="q-item">
+        <span class="q-num">4</span>
+        <span class="q-name">Sultans of Swing</span>
+        <span class="q-bpm">150</span>
+      </div>
+      <div class="q-item">
+        <span class="q-num">5</span>
+        <span class="q-name">Superstition</span>
+        <span class="q-bpm">100</span>
+      </div>
+      <div class="q-item">
+        <span class="q-num">6</span>
+        <span class="q-name">Big Yellow Taxi</span>
+        <span class="q-bpm">167</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Android: Replace NeuCard per-item with flat queue rows. Add BPM column. Keep reorder arrows.</div>
+  <div class="ann web">Web: Add reorder capability, add BPM column, add played/checkmark state.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 4: SET COMPLETE + BETWEEN SONGS                         -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-setcomplete">
+  <h2>4. Set Complete + Between Songs</h2>
+  <div class="ann lock">LOCKED (V4). Celebration screen + between-songs "Next Up" with manual Go.</div>
+
+  <div class="phone-pair">
+    <!-- Between Songs -->
+    <div class="phone" style="min-height:400px">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;height:100%;min-height:380px">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:16px">Next Up</div>
+        <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:4px">Sultans of Swing</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">Dire Straits</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-bottom:24px">4 of 12</div>
+        <div style="display:flex;gap:12px;align-items:baseline;margin-bottom:24px">
+          <span class="mono" style="font-size:28px;color:var(--green);text-shadow:0 0 12px rgba(0,230,118,0.3)">150</span>
+          <span style="font-size:10px;color:var(--text-muted)">BPM</span>
+          <span class="mono" style="font-size:16px;color:var(--teal)">Dm</span>
+          <span class="mono" style="font-size:14px;color:var(--text-muted)">4/4</span>
+        </div>
+        <button style="padding:14px 40px;border-radius:var(--r-card);background:linear-gradient(135deg,var(--green),var(--green-dark));border:none;color:var(--bg);font-family:inherit;font-size:16px;font-weight:700;cursor:pointer;box-shadow:var(--glow-green),var(--shadow-raised)">GO</button>
+      </div>
+    </div>
+
+    <!-- Set Complete -->
+    <div class="phone" style="min-height:400px">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;text-align:center;height:100%;min-height:380px">
+        <div style="font-size:48px;margin-bottom:16px">&#127881;</div>
+        <div style="font-size:20px;font-weight:700;color:var(--green);text-shadow:0 0 16px rgba(0,230,118,0.4);margin-bottom:8px">Set Complete!</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:4px">Friday Night Pub Set</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:32px">12 songs &middot; 48 min</div>
+        <div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:200px">
+          <button style="padding:12px;border-radius:var(--r-input);background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);color:var(--green);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Restart Set</button>
+          <button style="padding:12px;border-radius:var(--r-input);background:rgba(26,188,156,0.08);border:1px solid rgba(26,188,156,0.3);color:var(--teal);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">Back to Library</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Between Songs: manual "GO" button (not auto-countdown). Both platforms identical.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 5: LIBRARY — SONGS                                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-lib-songs">
+  <h2>5. Library — Songs</h2>
+  <div class="ann web">Web baseline. Android Library must match this layout.</div>
+  <div class="note">
+    <b>Dropdown filters replace pills.</b> Two compact dropdowns: Scope + Type.<br>
+    Scope: All Songs / TGT / My Songs / Shared With Me<br>
+    Type: All / Covers / Originals<br>
+    Search bar. Song count. Cards with category badge + type badge + BPM + owner tag.
+  </div>
+
+  <div class="tab-row">
+    <button class="tab-pill on">Songs</button>
+    <button class="tab-pill">Setlists</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-grp">
+      <span class="filter-lbl">Scope</span>
+      <select class="filter-sel">
+        <option selected>All Songs</option>
+        <option>TGT</option>
+        <option>My Songs</option>
+        <option>Shared With Me</option>
+      </select>
+    </div>
+    <div class="filter-grp">
+      <span class="filter-lbl">Type</span>
+      <select class="filter-sel" style="min-width:120px">
+        <option selected>All</option>
+        <option>Covers</option>
+        <option>Originals</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search songs...">
+  </div>
+
+  <div class="song-count">6 songs</div>
+
+  <div class="song-list">
+    <div class="song-card">
+      <div class="s-info">
+        <div class="s-title">Cissy Strut</div>
+        <div class="s-artist">The Meters</div>
+        <div class="s-meta">
+          <span class="badge b-tgt">TGT</span>
+          <span class="badge b-cover">Cover</span>
+          <span class="bpm-tag">104 bpm</span>
+        </div>
+      </div>
+      <div class="s-actions">
+        <button class="btn-icon" title="Live">&#9654;</button>
+        <button class="btn-icon" title="Practice">&#9881;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="s-info">
+        <div class="s-title">Midnight Drive</div>
+        <div class="s-artist">The Green Tangerine</div>
+        <div class="s-meta">
+          <span class="badge b-tgt">TGT</span>
+          <span class="badge b-original">Original</span>
+          <span class="bpm-tag">128 bpm</span>
+        </div>
+      </div>
+      <div class="s-actions">
+        <button class="btn-icon">&#9654;</button>
+        <button class="btn-icon">&#9881;</button>
+        <button class="btn-icon">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="s-info">
+        <div class="s-title">Big Yellow Taxi</div>
+        <div class="s-artist">Joni Mitchell</div>
+        <div class="s-meta">
+          <span class="badge b-personal">My Song</span>
+          <span class="badge b-cover">Cover</span>
+          <span class="bpm-tag">167 bpm</span>
+        </div>
+      </div>
+      <div class="s-actions">
+        <button class="btn-icon">&#9654;</button>
+        <button class="btn-icon">&#9881;</button>
+        <button class="btn-icon">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="s-info">
+        <div class="s-title">Superstition</div>
+        <div class="s-artist">Stevie Wonder</div>
+        <div class="s-meta">
+          <span class="badge b-personal">Personal</span>
+          <span class="badge b-cover">Cover</span>
+          <span class="bpm-tag">100 bpm</span>
+          <span class="owner-tag">Neil</span>
+        </div>
+      </div>
+      <div class="s-actions">
+        <button class="btn-icon">&#9654;</button>
+        <button class="btn-icon">&#9881;</button>
+        <button class="btn-icon dis">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="song-card">
+      <div class="s-info">
+        <div class="s-title">Daybreak</div>
+        <div class="s-artist">Adam Clarke</div>
+        <div class="s-meta">
+          <span class="badge b-shared">Shared</span>
+          <span class="badge b-original">Original</span>
+          <span class="bpm-tag">112 bpm</span>
+          <span class="owner-tag">from Adam</span>
+        </div>
+      </div>
+      <div class="s-actions">
+        <button class="btn-icon">&#9654;</button>
+        <button class="btn-icon">&#9881;</button>
+        <button class="btn-icon dis">&#9998;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Android must: replace filter pills with dropdown selectors, add category/type badges, add owner tag for non-owned songs, add Scope dropdown.</div>
+  <div class="ann new">Badge logic: TGT=teal, My Song=orange, Personal (others')=orange+owner, Shared=purple+owner.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 6: LIBRARY — SETLISTS                                   -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-lib-setlists">
+  <h2>6. Library — Setlists</h2>
+  <div class="ann web">Web baseline. Android must match.</div>
+
+  <div class="tab-row">
+    <button class="tab-pill">Songs</button>
+    <button class="tab-pill on">Setlists</button>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-grp">
+      <span class="filter-lbl">Type</span>
+      <select class="filter-sel" style="min-width:140px">
+        <option selected>All</option>
+        <option>Gig</option>
+        <option>Practice</option>
+        <option>Other Band</option>
+      </select>
+    </div>
+    <input class="search-bar" placeholder="Search setlists...">
+  </div>
+
+  <div class="song-count">3 setlists</div>
+
+  <div class="song-list">
+    <div class="setlist-card" style="display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div class="sl-title">Friday Night Pub Set</div>
+        <div class="sl-meta">12 songs &middot; ~48 min</div>
+      </div>
+      <span class="sl-type" style="background:rgba(0,230,118,0.12);color:var(--green);border:1px solid rgba(0,230,118,0.3)">Gig</span>
+      <div class="s-actions">
+        <button class="btn-icon" title="Live">&#9654;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="setlist-card" style="display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div class="sl-title">Funk Drills</div>
+        <div class="sl-meta">8 songs &middot; ~32 min</div>
+      </div>
+      <span class="sl-type" style="background:rgba(187,134,252,0.12);color:var(--purple);border:1px solid rgba(187,134,252,0.3)">Practice</span>
+      <div class="s-actions">
+        <button class="btn-icon" title="Practice">&#9881;</button>
+        <button class="btn-icon" title="Edit">&#9998;</button>
+      </div>
+    </div>
+
+    <div class="setlist-card" style="display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div class="sl-title">Side Project Covers</div>
+        <div class="sl-meta">5 songs &middot; ~20 min &middot; <span style="color:var(--orange)">The Sidemen</span></div>
+      </div>
+      <span class="sl-type" style="background:rgba(243,156,18,0.12);color:var(--orange);border:1px solid rgba(243,156,18,0.3)">Other</span>
+      <div class="s-actions">
+        <button class="btn-icon">&#9654;</button>
+        <button class="btn-icon">&#9998;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann new">Setlist types: Gig (green), Practice (purple), Other Band (orange + band_name shown).</div>
+</div>
+
+<!-- Screens 7-17 continue in next section -->
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 7: SONG FORM — TGT                                     -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-form-tgt">
+  <h2>7. Song Form — TGT Song</h2>
+  <div class="ann lock">S39 locked. Category dropdown, no sharing section for TGT songs.</div>
+
+  <div class="form-sec">
+    <h4>Song Details</h4>
+    <div class="f-row"><span class="f-label">Name</span><input class="f-input" value="Cissy Strut"></div>
+    <div class="f-row"><span class="f-label">Artist</span><input class="f-input" value="The Meters"></div>
+    <div class="f-row">
+      <span class="f-label">Category</span>
+      <select class="f-select"><option selected>TGT Cover</option><option>TGT Original</option><option>Personal Cover</option><option>Personal Original</option></select>
+    </div>
+    <div class="f-row"><span class="f-label">BPM</span><input class="f-input mono" value="104" style="max-width:80px"></div>
+    <div class="f-row"><span class="f-label">Key</span><input class="f-input" value="C" style="max-width:80px"></div>
+    <div class="f-row"><span class="f-label">Time Sig</span><input class="f-input mono" value="4/4" style="max-width:80px"></div>
+  </div>
+
+  <div class="ann spec">TGT songs: no owner field, no sharing section. All members can edit. If changed to Personal, sharing section appears.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 8: SONG FORM — PERSONAL + SHARING                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-form-personal">
+  <h2>8. Song Form — Personal Original (Owner View)</h2>
+  <div class="ann lock">S39 locked. Sharing section only for Personal Originals.</div>
+
+  <div class="form-sec">
+    <h4>Song Details</h4>
+    <div class="f-row"><span class="f-label">Name</span><input class="f-input" value="Warm Signal"></div>
+    <div class="f-row"><span class="f-label">Artist</span><input class="f-input" value="Nathan Thomas"></div>
+    <div class="f-row">
+      <span class="f-label">Category</span>
+      <select class="f-select"><option>TGT Cover</option><option>TGT Original</option><option>Personal Cover</option><option selected>Personal Original</option></select>
+    </div>
+  </div>
+
+  <div class="form-sec">
+    <h4>Sharing</h4>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">
+      Choose which band members can see and practice this original. Shared members can add their own stems but can't edit yours.
+    </p>
+    <div class="share-list">
+      <div class="share-row">
+        <div class="share-avatar">N</div>
+        <span class="share-name">Neil</span>
+        <span class="share-role">Bass</span>
+        <button class="btn-remove">Remove</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+      <select class="f-select" style="max-width:200px"><option value="">Add member...</option><option>Adam — Guitar</option><option>James — Vocals</option></select>
+      <button class="btn-add">+ Share</button>
+    </div>
+    <p class="hint">Only shared members see this song. You always have full access as owner.</p>
+  </div>
+
+  <div class="ann new">Sharing only for Personal Originals. Personal Covers are visible to all automatically (no sharing needed).</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 9: SONG FORM — SHARED (READ-ONLY)                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-form-shared">
+  <h2>9. Song Form — Shared (Non-owner View)</h2>
+  <div class="ann lock">S39 locked. Read-only details, can manage own stems only.</div>
+
+  <div class="form-sec" style="opacity:0.7">
+    <h4>Song Details <span style="font-size:11px;color:var(--orange);font-weight:normal;text-transform:none">(read-only — owned by Neil)</span></h4>
+    <div class="f-row"><span class="f-label">Name</span><input class="f-input" value="Superstition" disabled style="opacity:0.5"></div>
+    <div class="f-row"><span class="f-label">Artist</span><input class="f-input" value="Stevie Wonder" disabled style="opacity:0.5"></div>
+    <div class="f-row"><span class="f-label">Category</span><select class="f-select" disabled style="opacity:0.5"><option selected>Personal Cover</option></select></div>
+  </div>
+
+  <div class="form-sec">
+    <h4>Stems</h4>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:10px">You can add your own stems. Other members' stems are visible but locked.</p>
+    <div class="share-list">
+      <div class="share-row">
+        <div class="share-avatar" style="background:rgba(26,188,156,0.15);color:var(--teal)">B</div>
+        <span class="share-name">Bass stem</span>
+        <span class="share-role" style="color:var(--teal)">Neil's</span>
+        <span style="font-size:12px;color:var(--text-muted)">&#128274;</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background:rgba(0,230,118,0.15);color:var(--green)">D</div>
+        <span class="share-name">Drums take #1</span>
+        <span class="share-role" style="color:var(--green)">Yours</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+    <div style="margin-top:8px"><button class="btn-add">+ Upload Your Stem</button></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 10: TAKES — OWNER VIEW                                  -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-takes-owner">
+  <h2>10. My Takes — Cissy Strut</h2>
+  <div class="ann lock">S39 locked. Record, review, mark best. Best take promotes to stems for everyone.</div>
+
+  <div class="form-sec">
+    <h4>My Drum Takes</h4>
+    <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Your recorded takes. Mark one as "best" to add it to stems for everyone.</p>
+    <div class="share-list">
+      <div class="share-row">
+        <div class="share-avatar" style="background:var(--bg-input);color:var(--text-muted);font-size:10px">1</div>
+        <div style="flex:1"><span class="share-name">Take #1</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">2:43 &middot; 9 Mar</span></div>
+        <button class="btn-icon" style="width:28px;height:28px;font-size:11px">&#9654;</button>
+        <button style="padding:3px 10px;font-size:11px;border:1px solid rgba(255,255,255,0.06);background:var(--bg-card-light);color:var(--text-muted);border-radius:var(--r-input);cursor:pointer;font-family:inherit">Set Best</button>
+        <button class="btn-remove">Delete</button>
+      </div>
+      <div class="share-row" style="border-color:rgba(0,230,118,0.3);background:rgba(0,230,118,0.03)">
+        <div class="share-avatar" style="background:rgba(0,230,118,0.15);color:var(--green);font-size:10px">2</div>
+        <div style="flex:1">
+          <span class="share-name" style="color:var(--green)">Take #2</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px">3:01 &middot; 9 Mar</span>
+          <span class="badge" style="background:rgba(0,230,118,0.15);color:var(--green);border:1px solid rgba(0,230,118,0.3);margin-left:6px;font-size:9px">BEST</span>
+        </div>
+        <button class="btn-icon" style="width:28px;height:28px;font-size:11px;border-color:rgba(0,230,118,0.3);color:var(--green)">&#9654;</button>
+        <span style="font-size:10px;color:var(--green);opacity:0.7;padding:0 6px">In stems</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background:var(--bg-input);color:var(--text-muted);font-size:10px">3</div>
+        <div style="flex:1"><span class="share-name">Take #3</span><span style="font-size:11px;color:var(--text-muted);margin-left:8px">2:58 &middot; 9 Mar</span></div>
+        <button class="btn-icon" style="width:28px;height:28px;font-size:11px">&#9654;</button>
+        <button style="padding:3px 10px;font-size:11px;border:1px solid rgba(255,255,255,0.06);background:var(--bg-card-light);color:var(--text-muted);border-radius:var(--r-input);cursor:pointer;font-family:inherit">Set Best</button>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 11: TAKES — VIEWER                                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-takes-viewer">
+  <h2>11. Stems — Cissy Strut (Neil's View)</h2>
+  <div class="ann lock">S39 locked. Other members see promoted best takes as normal stems.</div>
+
+  <div class="form-sec">
+    <h4>Stems</h4>
+    <div class="share-list">
+      <div class="share-row">
+        <div class="share-avatar" style="background:rgba(26,188,156,0.15);color:var(--teal);font-size:10px">D</div>
+        <span class="share-name">Drums</span><span class="share-role" style="color:var(--teal)">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background:rgba(26,188,156,0.15);color:var(--teal);font-size:10px">B</div>
+        <span class="share-name">Bass</span><span class="share-role" style="color:var(--teal)">auto</span>
+      </div>
+      <div class="share-row">
+        <div class="share-avatar" style="background:rgba(26,188,156,0.15);color:var(--teal);font-size:10px">V</div>
+        <span class="share-name">Vocals</span><span class="share-role" style="color:var(--teal)">auto</span>
+      </div>
+      <div class="share-row" style="border-color:rgba(0,230,118,0.3)">
+        <div class="share-avatar" style="background:rgba(0,230,118,0.15);color:var(--green);font-size:10px">&#9733;</div>
+        <span class="share-name" style="color:var(--green)">Nathan's Drums (recorded)</span>
+        <span class="share-role" style="color:var(--green)">Nathan</span>
+        <span style="font-size:12px;color:var(--text-muted)">&#128274;</span>
+      </div>
+    </div>
+    <div style="margin-top:8px"><button class="btn-add">+ Upload Your Stem</button></div>
+  </div>
+
+  <div class="form-sec">
+    <h4>My Bass Takes</h4>
+    <div class="share-list">
+      <div class="share-row" style="border-color:rgba(0,230,118,0.3);background:rgba(0,230,118,0.03)">
+        <div class="share-avatar" style="background:rgba(0,230,118,0.15);color:var(--green);font-size:10px">1</div>
+        <div style="flex:1">
+          <span class="share-name" style="color:var(--green)">Take #1</span>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:8px">3:12 &middot; 9 Mar</span>
+          <span class="badge" style="background:rgba(0,230,118,0.15);color:var(--green);border:1px solid rgba(0,230,118,0.3);margin-left:6px;font-size:9px">BEST</span>
+        </div>
+        <button class="btn-icon" style="width:28px;height:28px;font-size:11px;border-color:rgba(0,230,118,0.3);color:var(--green)">&#9654;</button>
+        <span style="font-size:10px;color:var(--green);opacity:0.7;padding:0 6px">In stems</span>
+        <button class="btn-remove">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 12: VIEW MODE                                           -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-view-mode">
+  <h2>12. View Mode — Playback</h2>
+  <div class="ann lock">S39 locked. Same player chrome. Hero = local best-take video. Stem mixer in drawer.</div>
+
+  <div class="phone">
+    <!-- Mode tabs -->
+    <div style="display:flex;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Live</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Practice</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--green);border-bottom:2px solid var(--green);font-weight:600">View</div>
+    </div>
+    <!-- Video hero -->
+    <div style="background:var(--bg-input);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="font-size:48px;opacity:0.15">&#9654;</div>
+      <div style="position:absolute;top:10px;left:12px"><div style="font-size:14px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,0.8)">Cissy Strut</div><div style="font-size:11px;color:var(--text-dim)">The Meters &middot; 104 bpm</div></div>
+      <div style="position:absolute;bottom:10px;right:12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim)">1:24 / 2:43</div>
+    </div>
+    <!-- Progress -->
+    <div style="height:32px;background:var(--bg-input);border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;padding:0 12px">
+      <div style="flex:1;height:16px;background:var(--bg);border-radius:4px;overflow:hidden"><div style="width:52%;height:100%;background:linear-gradient(90deg,rgba(0,230,118,0.15),rgba(0,230,118,0.25));border-right:2px solid var(--green)"></div></div>
+    </div>
+    <!-- Transport -->
+    <div class="transport">
+      <button class="t-btn">&#9198;</button>
+      <button class="t-btn" style="font-size:11px">-5</button>
+      <button class="t-play">&#9654;</button>
+      <button class="t-btn" style="font-size:11px">+5</button>
+      <button class="t-btn">&#9197;</button>
+    </div>
+  </div>
+
+  <div class="ann spec">No click track, no speed controls. Pure playback. Stem mixer in drawer (same vertical faders as Practice).</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 13: RECORDING — AUDIO ONLY                              -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-rec-audio">
+  <h2>13. Recording — Video OFF</h2>
+  <div class="ann lock">S39 locked. Hero = live input level visualiser. Settings in drawer.</div>
+
+  <div class="phone">
+    <div style="display:flex;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Live</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Practice</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--red);border-bottom:2px solid var(--red);font-weight:600">Record</div>
+    </div>
+
+    <!-- Input visualiser hero -->
+    <div style="background:var(--bg-input);aspect-ratio:16/9;position:relative;border-bottom:1px solid rgba(255,255,255,0.04);overflow:hidden">
+      <div style="position:absolute;inset:8px;background:var(--bg);border-radius:var(--r-input);box-shadow:var(--shadow-inset);display:flex;align-items:flex-end;justify-content:center;gap:3px;padding:16px 20px">
+        <div style="width:6px;height:15%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.4));border-radius:3px;box-shadow:0 0 6px rgba(0,230,118,0.2)"></div>
+        <div style="width:6px;height:35%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.4));border-radius:3px;box-shadow:0 0 6px rgba(0,230,118,0.2)"></div>
+        <div style="width:6px;height:55%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.5));border-radius:3px;box-shadow:0 0 8px rgba(0,230,118,0.3)"></div>
+        <div style="width:6px;height:78%;background:linear-gradient(to top,var(--green),#ffeb3b);border-radius:3px;box-shadow:0 0 10px rgba(0,230,118,0.4)"></div>
+        <div style="width:6px;height:92%;background:linear-gradient(to top,var(--green),#ffeb3b,var(--orange));border-radius:3px;box-shadow:0 0 12px rgba(0,230,118,0.4)"></div>
+        <div style="width:6px;height:65%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.5));border-radius:3px;box-shadow:0 0 8px rgba(0,230,118,0.3)"></div>
+        <div style="width:6px;height:80%;background:linear-gradient(to top,var(--green),#ffeb3b);border-radius:3px;box-shadow:0 0 10px rgba(0,230,118,0.4)"></div>
+        <div style="width:6px;height:45%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.4));border-radius:3px;box-shadow:0 0 6px rgba(0,230,118,0.2)"></div>
+        <div style="width:6px;height:70%;background:linear-gradient(to top,var(--green),rgba(0,230,118,0.5));border-radius:3px;box-shadow:0 0 8px rgba(0,230,118,0.3)"></div>
+        <div style="width:6px;height:88%;background:linear-gradient(to top,var(--green),#ffeb3b,var(--orange));border-radius:3px;box-shadow:0 0 12px rgba(0,230,118,0.4)"></div>
+      </div>
+      <div style="position:absolute;top:14px;left:16px;z-index:1"><div style="font-size:14px;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.9)">Cissy Strut</div><div style="font-size:11px;color:var(--text-dim)">The Meters &middot; 104 bpm</div></div>
+      <div style="position:absolute;top:12px;right:14px;z-index:1;display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255,82,82,0.15);border:1px solid rgba(255,82,82,0.4);border-radius:var(--r-pill)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px rgba(255,82,82,0.6)"></div>
+        <span class="mono" style="font-size:12px;color:var(--red);font-weight:500">REC 0:42</span>
+      </div>
+      <div style="position:absolute;bottom:12px;left:16px;font-size:11px;color:var(--text-dim)">Take #3</div>
+      <div style="position:absolute;bottom:12px;right:16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)">0:42 / 2:43</div>
+    </div>
+
+    <!-- Transport -->
+    <div class="transport">
+      <button class="t-btn" style="opacity:0.3">&#9198;</button>
+      <button style="width:48px;height:48px;border-radius:50%;background:var(--red);border:none;color:white;font-size:20px;box-shadow:var(--glow-red),var(--shadow-raised);cursor:pointer;display:flex;align-items:center;justify-content:center">&#9632;</button>
+      <button class="t-btn" style="opacity:0.3">&#9197;</button>
+    </div>
+  </div>
+
+  <div class="ann spec">Camera toggle in drawer switches hero between visualiser (OFF) and camera feed (ON). All recording settings live in drawer.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 14: RECORDING — VIDEO ON                                -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-rec-video">
+  <h2>14. Recording — Video ON</h2>
+  <div class="ann lock">S39 locked. Camera feed fills hero. Input level bar under video.</div>
+
+  <div class="phone">
+    <div style="display:flex;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Live</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--text-muted)">Practice</div>
+      <div style="flex:1;text-align:center;padding:8px;font-size:12px;color:var(--red);border-bottom:2px solid var(--red);font-weight:600">Record</div>
+    </div>
+    <!-- Camera hero -->
+    <div style="background:linear-gradient(135deg,#12121a,#1a1a28,#14141e);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid rgba(255,255,255,0.04)">
+      <div style="font-size:36px;opacity:0.15">&#127909;</div>
+      <div style="position:absolute;top:12px;left:14px"><div style="font-size:14px;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.9)">Cissy Strut</div><div style="font-size:11px;color:var(--text-dim)">The Meters &middot; 104 bpm</div></div>
+      <div style="position:absolute;top:12px;right:14px;display:flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(255,82,82,0.2);border:1px solid rgba(255,82,82,0.5);border-radius:var(--r-pill)">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 10px rgba(255,82,82,0.7)"></div>
+        <span class="mono" style="font-size:12px;color:var(--red);font-weight:500">REC 1:18</span>
+      </div>
+      <div style="position:absolute;bottom:10px;left:14px;font-size:11px;color:var(--text-dim)">Take #4</div>
+      <div style="position:absolute;bottom:10px;right:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim)">1:18 / 2:43</div>
+    </div>
+    <!-- Input level bar -->
+    <div style="height:24px;background:var(--bg-input);border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;padding:0 12px;gap:8px">
+      <span style="font-size:9px;color:var(--text-muted);min-width:30px">INPUT</span>
+      <div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="width:65%;height:100%;background:linear-gradient(90deg,var(--green),#ffeb3b);border-radius:3px"></div></div>
+      <span class="mono" style="font-size:9px;color:var(--text-muted);min-width:28px">-6dB</span>
+    </div>
+    <!-- Transport -->
+    <div class="transport">
+      <button class="t-btn" style="opacity:0.3">&#9198;</button>
+      <button style="width:48px;height:48px;border-radius:50%;background:var(--red);border:none;color:white;font-size:20px;box-shadow:var(--glow-red),var(--shadow-raised);cursor:pointer;display:flex;align-items:center;justify-content:center">&#9632;</button>
+      <button class="t-btn" style="opacity:0.3">&#9197;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 15: POST-RECORDING                                      -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-post-rec">
+  <h2>15. Post-Recording Options</h2>
+  <div class="ann lock">S39 locked. 4 clear options (D-139). Non-best takes stay local.</div>
+
+  <div style="max-width:400px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600">Cissy Strut</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:2px">The Meters &middot; 104 BPM</div>
+    </div>
+
+    <div style="text-align:center;padding:16px;background:var(--bg-input);border-radius:var(--r-card);margin-bottom:20px;box-shadow:var(--shadow-inset)">
+      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Recording Complete</div>
+      <div style="font-size:20px;font-weight:700;color:var(--green)">Take #3</div>
+      <div class="mono" style="font-size:13px;color:var(--text-dim);margin-top:4px">Duration: 2:43</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button style="width:100%;padding:14px 16px;background:rgba(255,82,82,0.08);border:1px solid rgba(255,82,82,0.3);border-radius:var(--r-card);color:var(--red);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">&#128465;</span>
+        <div><div>Discard &amp; Re-take</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">Delete this take, start recording again</div></div>
+      </button>
+      <button style="width:100%;padding:14px 16px;background:rgba(0,230,118,0.06);border:1px solid rgba(0,230,118,0.3);border-radius:var(--r-card);color:var(--green);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">&#128260;</span>
+        <div><div>Save &amp; Re-take</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">Keep this take, start a fresh recording</div></div>
+      </button>
+      <button style="width:100%;padding:14px 16px;background:rgba(66,165,245,0.06);border:1px solid rgba(66,165,245,0.3);border-radius:var(--r-card);color:var(--blue);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">&#128190;</span>
+        <div><div>Save as Take</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">Keep in takes list, back to takes view</div></div>
+      </button>
+      <button style="width:100%;padding:14px 16px;background:rgba(243,156,18,0.06);border:1px solid rgba(243,156,18,0.3);border-radius:var(--r-card);color:var(--orange);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:18px">&#11088;</span>
+        <div><div>Save as Best Take</div><div style="font-size:11px;font-weight:400;color:var(--text-muted);margin-top:2px">Promote to stems — everyone hears this in practice</div></div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 16: CALENDAR                                            -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-calendar">
+  <h2>16. Calendar</h2>
+  <div class="ann web">Web baseline. Android already close — needs token alignment only.</div>
+
+  <div class="phone">
+    <div class="ph-hdr" style="background:var(--bg-card)">
+      <span class="ph-hamburger">&#9776;</span>
+      <span style="font-weight:700;font-size:16px;flex:1">March 2026</span>
+      <span style="font-size:12px;color:var(--orange);font-weight:600;padding:4px 10px;border:1px solid rgba(243,156,18,0.3);border-radius:var(--r-sm);background:rgba(243,156,18,0.08)">Today</span>
+    </div>
+    <div style="padding:8px">
+      <div class="cal-grid">
+        <div class="cal-hdr">M</div><div class="cal-hdr">T</div><div class="cal-hdr">W</div><div class="cal-hdr">T</div><div class="cal-hdr">F</div><div class="cal-hdr">S</div><div class="cal-hdr">S</div>
+        <div class="cal-cell" style="opacity:0.3">23</div>
+        <div class="cal-cell" style="opacity:0.3">24</div>
+        <div class="cal-cell" style="opacity:0.3">25</div>
+        <div class="cal-cell" style="opacity:0.3">26</div>
+        <div class="cal-cell" style="opacity:0.3">27</div>
+        <div class="cal-cell" style="opacity:0.3">28</div>
+        <div class="cal-cell">1</div>
+        <div class="cal-cell">2</div>
+        <div class="cal-cell">3</div>
+        <div class="cal-cell">4</div>
+        <div class="cal-cell">5</div>
+        <div class="cal-cell">6<div class="cal-dots"><span class="cal-dot gig"></span></div></div>
+        <div class="cal-cell">7<div class="cal-dots"><span class="cal-dot gig"></span></div></div>
+        <div class="cal-cell">8</div>
+        <div class="cal-cell today sel">9</div>
+        <div class="cal-cell">10<div class="cal-dots"><span class="cal-dot practice"></span></div></div>
+        <div class="cal-cell">11</div>
+        <div class="cal-cell">12</div>
+        <div class="cal-cell">13<div class="cal-dots"><span class="cal-dot gig"></span><span class="cal-dot gig"></span></div></div>
+        <div class="cal-cell">14<div class="cal-dots"><span class="cal-dot away"></span></div></div>
+        <div class="cal-cell">15</div>
+      </div>
+      <!-- Legend -->
+      <div style="display:flex;justify-content:center;gap:16px;font-size:10px;color:var(--text-muted);margin-bottom:8px">
+        <span><span class="cal-dot gig" style="display:inline-block;vertical-align:middle;margin-right:4px"></span>Gig</span>
+        <span><span class="cal-dot practice" style="display:inline-block;vertical-align:middle;margin-right:4px"></span>Practice</span>
+        <span><span class="cal-dot away" style="display:inline-block;vertical-align:middle;margin-right:4px"></span>Away</span>
+      </div>
+      <!-- Day detail -->
+      <div style="background:var(--bg-card);border-radius:var(--r-card);padding:14px;box-shadow:var(--shadow-raised);border:var(--border-subtle)">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px">Tuesday 9 March</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px">No gigs today</div>
+        <button style="width:100%;padding:10px;border-radius:var(--r-input);background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);color:var(--green);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">+ Add Booking</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ann spec">Android: update color tokens to canonical. Layout is already close.</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- SCREEN 17: SETTINGS (PLAYER PREFS)                             -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div class="scr" id="s-settings">
+  <h2>17. Settings</h2>
+  <div class="ann lock">Player display prefs (Visuals/Chords/Lyrics/Notes/Drums) live in the PLAYER DRAWER as toggle pills — NOT here. The drawer toggles auto-save to user_settings. Both Live and Practice drawers have the same Display toggle row.</div>
+
+  <div style="max-width:500px;margin:0 auto">
+    <div class="form-sec">
+      <h4>Account</h4>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:40px;height:40px;border-radius:50%;background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.3);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--green)">N</div>
+        <div><div style="font-size:14px;font-weight:600">Nathan</div><div style="font-size:12px;color:var(--text-dim)">Drums</div></div>
+      </div>
+      <button style="width:100%;padding:10px;border-radius:var(--r-input);background:rgba(255,82,82,0.08);border:1px solid rgba(255,82,82,0.3);color:var(--red);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Sign Out</button>
+    </div>
+
+    <div class="form-sec">
+      <h4>Audio Engine</h4>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(0,230,118,0.5)"></div>
+        <span style="font-size:13px;color:var(--text-dim)">Engine ready</span>
+      </div>
+    </div>
+
+    <div class="form-sec">
+      <h4>Band Settings <span style="font-size:10px;color:var(--text-muted);font-weight:normal;text-transform:none">(web only)</span></h4>
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Bank details, invoice defaults, band info. Used for PDF generation.</p>
+      <div class="f-row"><span class="f-label">Band Name</span><input class="f-input" value="The Green Tangerine"></div>
+      <div class="f-row"><span class="f-label">Email</span><input class="f-input" value="bookings@thegreentangerine.com"></div>
+      <div class="f-row"><span class="f-label">Bank Name</span><input class="f-input" value="Monzo"></div>
+      <div class="f-row"><span class="f-label">Sort Code</span><input class="f-input mono" value="••-••-••"></div>
+      <div class="f-row"><span class="f-label">Account No.</span><input class="f-input mono" value="••••••••"></div>
+    </div>
+
+    <div class="form-sec">
+      <h4>About</h4>
+      <div style="font-size:14px;font-weight:700;color:var(--orange);text-shadow:var(--glow-orange);margin-bottom:4px">GigBooks</div>
+      <div class="mono" style="font-size:11px;color:var(--text-muted)">v2.0.0 &middot; The Green Tangerine</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function go(id) {
+  document.querySelectorAll('.scr').forEach(s => s.classList.remove('vis'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('on'));
+  document.getElementById('s-' + id).classList.add('vis');
+  event.target.classList.add('on');
+}
+</script>
+
+</body>
+</html>

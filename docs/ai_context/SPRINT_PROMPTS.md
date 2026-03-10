@@ -3,21 +3,79 @@
 > Copy-paste the next sprint's prompt to start a fresh session.
 > Each prompt gives the AI full context to pick up where we left off.
 > At session end, AI provides the prompt for the next sprint.
+> SOT docs are at `docs/ai_context/` (project root). CLAUDE.md is at project root.
 
 ---
 
-## Sprint S39 — Foundation: Migration + Shared + Cloud Run (NEXT)
+## Sprint S38 — Visual Unification: Tokens + Player Rebuild (NEXT)
 
 ```
-Read native/docs/ai_context/STATUS.md, native/docs/ai_context/SPRINT_PROMPTS.md, and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S39.
+Read docs/ai_context/STATUS.md, docs/ai_context/SPRINT_PROMPTS.md, and docs/ai_context/decisions_log.md (D-118, D-119, D-153). This is Sprint S38.
 
 CONTEXT:
-- S39–S45 design is COMPLETE. 15-screen mockup approved at mockups/s39-categories-sharing-mockup.html. 30 decisions locked (D-124–D-153).
-- This is a 7-sprint build sequence (S39–S45). No user testing until ALL sprints complete + cross-platform audit passes.
-- Web + Android are mirror apps (D-153). Web = iOS users (Neil/James/Adam). Android = Nathan. Full feature parity required.
-- Migration SQL partially written at supabase/migrations/20260310000000_s39_song_categories_sharing.sql (NEEDS UPDATE — see below).
-- shared/supabase/types.ts partially updated (SongCategory changed, SongShare added, helpers added).
-- shared/supabase/queries.ts has imports added but sharing CRUD functions NOT yet written.
+- Design audit COMPLETE. V4 player design LOCKED. S39 features LOCKED. Sprint plan revised for cross-platform parity.
+- V4 mirror target mockup: mockups/v4-mirror-target.html (17 screens with canonical design tokens + annotations)
+- 4-way comparison: mockups/four-way-comparison.html (V1/V2/V3/V4 — V4 column is the target)
+- Both players currently diverge from V4: Android = NeuCard vertical scroll, Web = flat single-component
+- Android GigColors has 5 WRONG color values that need correcting to match web canonical tokens
+- This sprint is VISUAL ONLY — no new features, no schema changes
+
+GOALS (S38 — visual unification, must complete before any feature work):
+1. **Android GigColors token correction** (5 values):
+   - bg: #0a0a10 → #08080c
+   - text: #e0e0e0 → #d0d0dc
+   - dim: #888899 → #7a7a94
+   - muted: #555566 → #4a4a60
+   - teal: #4dd0e1 → #1abc9c
+   - Accent colors already match (green #00e676, orange #f39c12, purple #bb86fc, red #ff5252)
+
+2. **Android player rebuild to V4 target** (LiveScreen.kt + PracticeScreen.kt):
+   - Layout: Header → Visual Hero (beat glow, waveform vis, album art placeholder) → Text Panel (scrollable lyrics/chords/notes/drums) → Transport (play/stop, speed, prev/next) → Drawer pull-up
+   - Live Mode drawer: Display toggles (Visuals/Chords/Lyrics/Notes/Drums) + Settings (subdiv/count-in/nudge)
+   - Practice Mode drawer: Display toggles + Mixer (vertical faders: Click/Track/Drums/Bass/Vox/Other) + Settings (subdiv/count-in/nudge)
+   - Both drawers save Display toggles to user_settings (auto-save)
+   - Refer to V4 column in four-way-comparison.html for exact layout
+   - Beat glow = card-level (D-119), NOT full-screen
+
+3. **Web player rebuild to V4 target** (Player.tsx):
+   - Same layout structure as Android (header → hero → text panel → transport → drawer)
+   - Live Mode drawer: Display toggles + Settings
+   - Practice Mode drawer: Display toggles + Mixer + Settings
+   - Match V4 mockup styling exactly (neumorphic cards, shadows, spacing)
+
+4. **Shadow unification**:
+   - Canonical raised: 4px 4px 12px rgba(0,0,0,0.8), -1px -1px 1px rgba(40,40,60,0.12)
+   - Canonical inset: inset 2px 2px 6px rgba(0,0,0,0.7), inset -1px -1px 1px rgba(40,40,60,0.08)
+   - Web: update CSS variables if different
+   - Android: update NeuCard/NeuWell composables to match
+
+5. **Verify**:
+   - cd web && npx tsc -b && npx vite build (must pass clean)
+   - cd android && ./gradlew assembleRelease (must pass clean)
+
+6. **Update SOT docs** and provide S39 sprint prompt.
+
+KEY DECISIONS:
+- D-118: Display toggles in bottom sheet drawer (not main screen)
+- D-119: Card-level beat glow (not full-screen)
+- D-153: Web + Android are mirror apps — same UX, different tech
+
+DO NOT add new features or change schema. Visual alignment only.
+```
+
+---
+
+## Sprint S39 — Foundation: Migration + Shared + Cloud Run
+
+```
+Read docs/ai_context/STATUS.md, docs/ai_context/SPRINT_PROMPTS.md, and docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S39.
+
+CONTEXT:
+- S38 (visual unification) COMPLETE. Both players match V4 target. Tokens unified.
+- S39–S43 is a 6-sprint build sequence. No user testing until ALL sprints complete + audit passes.
+- Web + Android are mirror apps (D-153). Full feature parity required.
+- Migration SQL partially written at supabase/migrations/20260310000000_s39_song_categories_sharing.sql (NEEDS UPDATE).
+- shared/supabase/types.ts partially updated. shared/supabase/queries.ts has imports but sharing CRUD NOT yet written.
 
 GOALS (S39 — foundation layer, both platforms depend on this):
 1. **Update migration SQL**:
@@ -25,270 +83,150 @@ GOALS (S39 — foundation layer, both platforms depend on this):
    - New CHECK constraint: ('tgt_cover','tgt_original','personal_cover','personal_original')
    - song_shares table (D-135): id, song_id FK→songs CASCADE, shared_with FK→profiles, shared_by FK→profiles, created_at, UNIQUE(song_id, shared_with)
    - is_best_take BOOLEAN DEFAULT false on song_stems (D-130)
-   - can_access_song() SECURITY DEFINER helper (D-129): TGT = all auth, personal_cover = all auth, personal_original = owner OR song_shares
-   - RLS rewrite: songs (SELECT/INSERT/UPDATE/DELETE per D-125/D-126), song_stems (SELECT/INSERT/UPDATE/DELETE per D-136), beat_maps, song_shares
-   - Personal covers visible to ALL (D-125). Personal originals = owner + song_shares only (D-126).
+   - can_access_song() SECURITY DEFINER helper (D-129)
+   - RLS rewrite: songs, song_stems, beat_maps, song_shares (per D-125/D-126/D-136)
 
-2. **Complete shared/supabase/types.ts**:
-   - Verify SongCategory = 'tgt_cover' | 'tgt_original' | 'personal_cover' | 'personal_original'
-   - SongShare interface, SongShareWithProfile
-   - isPersonalSong(), isTgtSong() helpers
-   - StemSource type if needed ('uploaded' | 'auto' | 'recorded')
+2. **Complete shared/supabase/types.ts** — SongCategory, SongShare, SongShareWithProfile, helpers
 
-3. **Complete shared/supabase/queries.ts**:
-   - getSongSharesWithProfiles(songId) — shares with profile names
-   - shareSong(songId, sharedWithId) — creates share
-   - unshareSong(songId, sharedWithId) — deletes share
-   - setBestTake(stemId) — set is_best_take, clear previous best for same user+song
-   - clearBestTake(stemId) — unset is_best_take
+3. **Complete shared/supabase/queries.ts** — sharing CRUD, setBestTake, clearBestTake
 
-4. **Cloud Run beats-only endpoint** (D-148):
-   - Add skip_stems parameter or /beats-only route to main.py
-   - When skip_stems=true: run madmom only, skip Demucs. For solo instrument takes.
-   - Don't redeploy yet — just update the code. Deployment in S45.
+4. **Cloud Run beats-only endpoint** (D-148) — skip_stems flag, don't redeploy yet
 
 5. **Push migration**: npx supabase db push
 6. **Verify**: cd web && npx tsc -b && npx vite build (must pass clean)
 7. **Update SOT docs** and provide S40 sprint prompt.
-
-KEY DECISIONS TO FOLLOW:
-- D-124: 4 categories. D-125: personal covers visible to all. D-126: personal originals opt-in.
-- D-129: can_access_song() helper. D-130: is_best_take on song_stems.
-- D-135: song_shares table. D-136: stem ownership via created_by.
-- D-148: Cloud Run beats-only for takes (no Demucs on solo instruments).
-- D-149: Take deletion is manual, no auto-promote.
 
 DO NOT touch web UI or Android code in this sprint. Foundation only.
 ```
 
 ---
 
-## Sprint S40 — Web: Library + SongForm Categories + Sharing
+## Sprint S40 — Library + SongForm (Both Platforms)
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S40.
+Read docs/ai_context/STATUS.md and docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S40.
 
 CONTEXT:
 - S39 complete: migration pushed, shared types/queries done, Cloud Run beats-only code written.
-- Mockup: mockups/s39-categories-sharing-mockup.html — screens 1-8 are relevant (Library views + SongForm views).
+- Mockup: mockups/s39-categories-sharing-mockup.html — screens 1-8 (Library views + SongForm views).
+- V4 target: mockups/v4-mirror-target.html — screens 5-9 (Library + SongForm).
+- BOTH platforms built together this sprint.
 
 GOALS:
-1. **Library.tsx** — replace filter pills with two dropdowns (D-128):
+1. **Web Library.tsx** — two dropdowns replacing filter pills (D-128):
    - Scope: All Songs / TGT / My Songs / Shared With Me
    - Type: All / Covers / Originals
    - Category badges (teal TGT, orange personal, purple shared)
-   - Owner name tag for personal songs
-   - Lock icon for songs user can't edit
-   - Hide Edit/Delete for non-owned personal songs
+   - Owner name tag, lock icons, hide Edit/Delete for non-owned
 
-2. **SongForm.tsx** — 4 categories + sharing UI:
-   - Category dropdown: TGT Cover, TGT Original, Personal Cover, Personal Original
-   - owner_id set when personal (isPersonalSong helper)
-   - Sharing section (personal originals only): list shared members, add/remove sharing
-   - Read-only mode for shared songs user doesn't own
+2. **Web SongForm.tsx** — 4 categories + sharing UI:
+   - Category dropdown, owner_id for personal, sharing section for originals
+   - Read-only mode for shared songs
 
-3. Verify: tsc -b + vite build clean
-4. Update SOT docs, provide S41 prompt.
+3. **Android LibraryScreen.kt** — mirror web Library:
+   - Same two dropdowns, category badges, owner tags, lock icons
+
+4. **Android SongForm** (create or update) — mirror web SongForm:
+   - 4 categories, sharing section, read-only mode
+
+5. **Android Kotlin updates**:
+   - Song.kt: SongCategory enum with new values, SongShare data class
+   - SongRepository.kt: category filters, sharing CRUD
+
+6. Verify: tsc -b + vite build clean. gradlew assembleRelease clean.
+7. Update SOT docs, provide S41 prompt.
 
 KEY DECISIONS: D-124 (4 categories), D-125 (personal covers visible to all), D-126 (originals opt-in), D-128 (dropdowns not pills).
 ```
 
 ---
 
-## Sprint S41 — Web: Recording + Takes + Post-Recording
+## Sprint S41 — Recording + Takes (Both Platforms)
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-130 onwards). This is Sprint S41.
+Read docs/ai_context/STATUS.md and docs/ai_context/decisions_log.md (D-130 onwards). This is Sprint S41.
 
 CONTEXT:
-- S39 (foundation) + S40 (web Library/SongForm) complete.
-- Mockup screens: 9-10 (takes views), 12a-12b (recording video off/on), 13 (post-recording options).
+- S39 (foundation) + S40 (Library/SongForm both) complete.
+- Mockup screens: 9-10 (takes), 12a-12b (recording), 13 (post-recording).
+- BOTH platforms built together.
 
 GOALS:
-1. **Takes UI** in SongForm — takes list per user per song:
-   - Auto-numbered (D-143). Show take # + date + duration.
-   - Star icon for best take. Tap to set/clear best (D-130/D-131).
-   - Delete takes (D-149) — manual, no auto-promote.
-   - Best-only uploads to Supabase storage (D-145). Non-best in IndexedDB.
+1. **Web Takes UI** — takes list per user per song, auto-numbered (D-143), best take star, delete, IndexedDB for non-best
 
-2. **Recording flow** — getUserMedia + MediaRecorder:
-   - Input device picker via enumerateDevices() (D-133) — in drawer
-   - Camera toggle for selfie (D-132) — in drawer. Video saved locally (File System Access API / download fallback).
-   - Record button in transport bar replaces play (D-150). Tab switches to "Record" (red).
-   - Overdub: StemMixer plays existing stems while recording mic input (D-140). User controls via drawer.
-   - Click track active during recording (D-141). Toggle in drawer.
-   - Count-in: user-defined 0/1/2/4 bars in drawer (D-142). Uses song BPM from beat map or manual field.
-   - Recording UI: video OFF = neumorphic visualiser fills hero (D-147). Video ON = camera in hero + input bar underneath.
+2. **Web Recording** — getUserMedia + MediaRecorder, input picker (D-133), camera toggle (D-132), overdub (D-140), click (D-141), count-in (D-142), post-recording 4 options (D-139), record button in transport (D-150)
 
-3. **Post-recording options** (D-139) — 4 buttons:
-   - Discard & Re-take, Save & Re-take, Save as Take, Save & Preview
-   - Mark as Best toggle (D-145) — OFF by default, ON uploads to cloud
+3. **Android Takes UI** — mirror web takes (auto-numbered, best star, delete, local storage)
 
-4. **New song idea flow** (D-138):
-   - Create song with minimal metadata (title + personal_original) → immediate record
-   - First take triggers Cloud Run madmom-only (D-148) — no Demucs on solo instrument
+4. **Android Recording** — Oboe input stream or MediaRecorder, CameraX selfie (D-132), overdub via C++ engine (D-140), click during recording (D-141), count-in (D-142), post-recording options (D-139)
 
-5. **IndexedDB** for local take storage — key structure userId:songId:takeNumber
+5. **New song idea flow** (D-138) — both platforms: create + record immediately
 
-6. Verify: tsc -b + vite build clean. Update SOT docs, provide S42 prompt.
+6. Verify: tsc -b + vite build clean. gradlew assembleRelease clean.
+7. Update SOT docs, provide S42 prompt.
 ```
 
 ---
 
-## Sprint S42 — Web: View Mode + Record from View Mode
+## Sprint S42 — View Mode (Both Platforms)
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-137 onwards). This is Sprint S42.
+Read docs/ai_context/STATUS.md and docs/ai_context/decisions_log.md (D-137 onwards). This is Sprint S42.
 
 CONTEXT:
-- S39-S41 complete. Categories, sharing, recording, takes all working on web.
+- S39-S41 complete. Categories, sharing, recording, takes all working on BOTH platforms.
 - Mockup screens: 11 (View Mode playback), 14 (View Mode recording).
+- BOTH platforms built together.
 
 GOALS:
-1. **View Mode** — 3rd player tab (D-137):
-   - Tab: Live / Practice / View
-   - Hero: local best-take video if available, neumorphic visualiser fallback if not (D-146)
-   - All audio stems play from Supabase (original mix + auto stems + best takes)
-   - Stem mixer in drawer (same as Practice)
-   - Transport: play/pause, seek, prev/next
+1. **Web View Mode** — 3rd player tab (Live/Practice/View), hero shows local video or visualiser fallback (D-146), stem mixer in drawer, record button for layering (D-144)
 
-2. **Record from View Mode** (D-144):
-   - Record button in transport (replaces play, D-150)
-   - Same recording flow as S41 — overdub, click, count-in, camera, post-recording options
-   - Video hero dims during recording, REC overlay + camera PIP (screen 14)
-   - Natural layering workflow: listen → hear something → hit record → play along
+2. **Android View Mode** — mirror web: ExoPlayer/SurfaceView for video, visualiser fallback, record from View Mode (D-144)
 
-3. Verify: tsc -b + vite build clean. Update SOT docs, provide S43 prompt.
+3. Verify: tsc -b + vite build clean. gradlew assembleRelease clean.
+4. Update SOT docs, provide S43 prompt.
 ```
 
 ---
 
-## Sprint S43 — Android: Categories + Sharing + Takes UI
+## Sprint S43 — Cloud Run: Deploy + Re-analyse
 
 ```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S43.
+Read docs/ai_context/STATUS.md and docs/ai_context/decisions_log.md (D-148, D-151). This is Sprint S43.
 
 CONTEXT:
-- S39-S42 complete. Web has full categories, sharing, recording, takes, View Mode.
-- Android needs to mirror web features (D-153). Same Supabase backend, same RLS.
-- Android currently has old category values (tange_cover, tange_original, personal).
-
-GOALS:
-1. **Kotlin data classes** — update Song.kt:
-   - SongCategory enum: TGT_COVER, TGT_ORIGINAL, PERSONAL_COVER, PERSONAL_ORIGINAL
-   - Add SongShare data class
-   - Add is_best_take to SongStem
-
-2. **SongRepository** — update queries:
-   - Category filter with new values
-   - Sharing CRUD (getSongShares, shareSong, unshareSong)
-   - setBestTake, clearBestTake
-
-3. **LibraryScreen** — mirror web Library:
-   - Two dropdowns (Scope + Type) replacing filter pills (D-128)
-   - Category badges, owner tags, lock icons
-   - Same filter logic as web
-
-4. **SongForm** (if exists, or create) — mirror web SongForm:
-   - 4 categories dropdown
-   - Sharing section for personal originals
-   - Read-only mode for shared songs
-
-5. **Takes list** — mirror web takes view:
-   - Auto-numbered takes per user per song
-   - Best take star, delete, local storage for non-best
-
-6. Verify: gradlew assembleRelease clean. Update SOT docs, provide S44 prompt.
-```
-
----
-
-## Sprint S44 — Android: Recording + View Mode
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-132 onwards). This is Sprint S44.
-
-CONTEXT:
-- S39-S43 complete. Web fully built. Android has categories + sharing + takes UI.
-- Android needs recording + View Mode to match web (D-153).
-- C++ Oboe engine already supports audio output streams. Input stream needed for recording.
-
-GOALS:
-1. **Recording** — Oboe input stream or Android MediaRecorder:
-   - USB audio interface support via Android audio routing
-   - CameraX for selfie video (D-132) — video saved to local storage
-   - Overdub: C++ engine plays stems while recording input (D-140)
-   - Click during recording (D-141) — C++ metronome stays active
-   - Count-in (D-142) — same logic as web, uses BPM from beat map
-   - Record button in transport (D-150)
-
-2. **Post-recording** (D-139) — 4 options: Discard & Re-take, Save & Re-take, Save as Take, Save & Preview
-   - Mark as Best toggle (D-145)
-   - Upload best to Supabase, non-best stays local (Room DB or files)
-
-3. **View Mode** — 3rd player tab (D-137):
-   - ExoPlayer or SurfaceView for local video playback
-   - Visualiser fallback when no video (D-146)
-   - Record from View Mode (D-144)
-
-4. **New song idea flow** (D-138) — create + record immediately
-   - First take triggers Cloud Run madmom-only (D-148)
-
-5. Verify: gradlew assembleRelease clean. Update SOT docs, provide S45 prompt.
-```
-
----
-
-## Sprint S45 — Cloud Run: Re-analyse + Beats-only Deploy
-
-```
-Read native/docs/ai_context/STATUS.md and native/docs/ai_context/decisions_log.md (D-148, D-151). This is Sprint S45.
-
-CONTEXT:
-- S39-S44 complete. Web + Android fully built with categories, sharing, recording, takes, View Mode.
+- S38-S42 ALL COMPLETE. Both platforms fully built with unified visuals, categories, sharing, recording, takes, View Mode.
 - Cloud Run beats-only code written in S39 but NOT deployed.
 
 GOALS:
-1. **Deploy beats-only endpoint** to Cloud Run (D-148):
-   - skip_stems=true → madmom only, no Demucs
-   - Test with a solo instrument audio file
-
-2. **Re-analyse from mixed master** (D-151):
-   - Server endpoint that: fetches all best-take audio files for a song → mixes into single WAV → runs madmom → replaces beat_map
-   - Web UI: "Re-analyse" button on SongForm (triggers Cloud Tasks job)
-   - Android: same button, same endpoint
-
-3. **Deploy**: gcloud run deploy with updated main.py
-4. **Also deploy**: error field clearing fix from main.py (pending since S38)
-5. Verify both endpoints work end-to-end.
-6. Update SOT docs, provide audit prompt.
+1. **Deploy beats-only endpoint** (D-148): skip_stems=true → madmom only
+2. **Re-analyse from mixed master** (D-151): server mixes best takes → madmom → replaces beat_map. Web + Android: "Re-analyse" button on SongForm.
+3. **Deploy**: gcloud run deploy
+4. Verify both endpoints end-to-end.
+5. Update SOT docs, provide audit prompt.
 ```
 
 ---
 
-## Post-S45 — Cross-Platform Surgical Audit
+## Post-S43 — Cross-Platform Surgical Audit
 
 ```
-Read native/docs/ai_context/STATUS.md and all SOT docs. This is the cross-platform audit before user testing.
+Read docs/ai_context/STATUS.md and all SOT docs. This is the cross-platform audit before user testing.
 
 CONTEXT:
-- S39-S45 ALL COMPLETE. Both web + Android have: categories, sharing, takes, recording, View Mode, overdub, selfie video, USB interfaces.
+- S38-S43 ALL COMPLETE. Both web + Android have: unified V4 visuals, categories, sharing, takes, recording, View Mode, overdub, selfie video, USB interfaces.
 - Cloud Run has beats-only + re-analyse endpoints deployed.
 - NO user testing has happened yet. This audit catches everything before Nathan and the boys test.
 
 AUDIT CHECKLIST:
-1. **Schema verification** — Supabase tables match schema_map.md. All RLS policies correct. can_access_song() works.
-2. **Web build** — tsc -b + vite build clean. Test all 15 mockup screens against live web app.
-3. **Android build** — gradlew assembleRelease clean. Install APK on device.
-4. **Feature parity** — verify every feature in D-124–D-153 works on BOTH platforms.
-5. **RLS testing** — create songs as different users, verify visibility rules:
-   - TGT songs: all members see + edit
-   - Personal covers: all members see, only owner edits
-   - Personal originals: only owner + shared members see
-   - Stem ownership: users can only modify their own stems
-6. **Recording flow** — test on both platforms: overdub, click, count-in, post-recording options, best take upload
-7. **Cloud Run** — verify beats-only + re-analyse endpoints
-8. **Edge cases** — song with no beat map, song with no stems, take deletion, best take swap
-9. **Big picture check** — does this serve the band management concept? Nathan on stage with click, others practicing from web, everyone recording takes, multi-cam offline workflow.
-10. Update all SOT docs. Flag any issues found. Provide user testing handoff.
+1. **Visual parity** — compare both apps side-by-side against V4 mockup (17 screens). Tokens, shadows, spacing, layouts match.
+2. **Schema verification** — Supabase tables match schema_map.md. All RLS policies correct. can_access_song() works.
+3. **Web build** — tsc -b + vite build clean.
+4. **Android build** — gradlew assembleRelease clean. Install APK on device.
+5. **Feature parity** — verify every feature in D-124–D-153 works on BOTH platforms.
+6. **RLS testing** — TGT visible to all, personal covers visible to all (owner edits only), personal originals = owner + shared only, stem ownership.
+7. **Recording flow** — test on both: overdub, click, count-in, post-recording, best take upload.
+8. **Cloud Run** — beats-only + re-analyse endpoints.
+9. **Edge cases** — no beat map, no stems, take deletion, best take swap.
+10. Update all SOT docs. Provide user testing handoff.
 ```

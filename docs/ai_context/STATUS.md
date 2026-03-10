@@ -6,32 +6,31 @@
 ---
 
 ## Current State
-- **Phase**: PAUSED — design audit in progress. Player divergence discovered. V4 mirror target mockup needed before any build work.
+- **Phase**: Design audit COMPLETE. V4 mockup built. Sprint plan revised for cross-platform parity.
 - **What works**: Web (full), Android (full), Cloud Run (beats + stems + CORS), Capture (built but untested end-to-end).
-- **Last session**: Design audit — discovered Android and Web players were built as 2 separate designs from one conversation. Android = NeuCard vertical scroll, Web = flat single-component, neither matches approved S33 mockups. Created `mockups/four-way-comparison.html` (V1-V4 comparison). User approved direction. V4 mirror target mockup (`mockups/v4-mirror-target.html`) started but not yet written — needs 17 screens at s39-mockup quality level. Practice mode confirmed to include chords/lyrics/notes/drums display (same as Live). SOT docs relocated from `native/docs/ai_context/` to `docs/ai_context/` (project-wide, not native-only). CLAUDE.md moved to project root.
-- **Next action**: Build `mockups/v4-mirror-target.html` (17 screens). Then rebuild sprint plan for true cross-platform parity. S39-S45 sprint ordering needs revision (was web-first, should be interleaved).
+- **Last session**: Built `mockups/v4-mirror-target.html` (17 screens — canonical design spec for both platforms). Includes design token reference banner with Android correction values, per-screen annotations. Fixed: player Display toggles live in drawer (not Settings), Practice Mode drawer has Display row (same as Live). Revised sprint plan from 7 sequential sprints (S39-S45, web-first) to 6 interleaved sprints (S38-S43, both platforms per sprint). S38 = Visual Unification (token correction + player rebuild to V4) comes BEFORE feature work.
+- **Next action**: Sprint S38 — Visual Unification. Android GigColors token correction (5 values) + both players rebuilt to match V4 target design.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 4 songs (Cissy Strut, Sultans, War Pigs, Big Yellow Taxi).
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Sprint Roadmap (S39–S45)
+## Sprint Roadmap (S38–S43) — Revised for Cross-Platform Parity
 | Sprint | Scope | Status |
 |--------|-------|--------|
-| S39 | Migration + shared types/queries + Cloud Run beats-only | **Next** |
-| S40 | Web: Library dropdowns + SongForm categories + sharing UI | Queued |
-| S41 | Web: Recording + takes + post-recording flow | Queued |
-| S42 | Web: View Mode + record-from-View-Mode | Queued |
-| S43 | Android: Categories + sharing + takes UI | Queued |
-| S44 | Android: Recording + View Mode | Queued |
-| S45 | Cloud Run: re-analyse from mixed master | Queued |
-| Audit | Cross-platform surgical audit before user testing | After S45 |
+| S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Next** |
+| S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | Queued |
+| S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | Queued |
+| S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | Queued |
+| S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | Queued |
+| S43 | **Cloud Run Deploy** — beats-only + re-analyse endpoints deployed + tested | Queued |
+| Audit | Cross-platform surgical audit before user testing | After S43 |
 
 ## Key Design Artifacts
 - **S39 Mockup**: `mockups/s39-categories-sharing-mockup.html` — 15 screens (categories/sharing/takes/recording)
 - **S33 Mockups**: `mockups/player-live.html`, `practice-redesign.html`, `library-browser.html`, `player-queue.html` — last approved player designs
-- **V4 Target**: `mockups/v4-mirror-target.html` — TODO: 17-screen unified design spec for both platforms
+- **V4 Target**: `mockups/v4-mirror-target.html` — DONE: 17-screen unified design spec with canonical tokens + per-screen annotations
 - **4-Way Comparison**: `mockups/four-way-comparison.html` — V1/V2/V3/V4 audit (Live, Practice, Queue)
 - **Decisions**: D-124–D-153 in `decisions_log.md` — all locked
-- **Sprint prompts**: `SPRINT_PROMPTS.md` — needs revision for cross-platform parity
+- **Sprint prompts**: `SPRINT_PROMPTS.md` — revised for cross-platform parity (S38-S43)
 - **SOT docs**: `docs/ai_context/` (moved from `native/docs/ai_context/` — project-wide)
 
 ## Big Picture
