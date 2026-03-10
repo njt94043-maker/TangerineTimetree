@@ -6,18 +6,18 @@
 ---
 
 ## Current State
-- **Phase**: Design audit COMPLETE. V4 mockup built. Sprint plan revised for cross-platform parity.
-- **What works**: Web (full), Android (full), Cloud Run (beats + stems + CORS), Capture (built but untested end-to-end).
-- **Last session**: Built `mockups/v4-mirror-target.html` (17 screens — canonical design spec for both platforms). Includes design token reference banner with Android correction values, per-screen annotations. Fixed: player Display toggles live in drawer (not Settings), Practice Mode drawer has Display row (same as Live). Revised sprint plan from 7 sequential sprints (S39-S45, web-first) to 6 interleaved sprints (S38-S43, both platforms per sprint). S38 = Visual Unification (token correction + player rebuild to V4) comes BEFORE feature work.
-- **Next action**: Sprint S38 — Visual Unification. Android GigColors token correction (5 values) + both players rebuilt to match V4 target design.
+- **Phase**: S38 (Visual Unification) COMPLETE. Both players rebuilt to V4 target. Tokens unified. Ready for S39.
+- **What works**: Web (full, V4 player), Android (full, V4 player), Cloud Run (beats + stems + CORS), Capture (built but untested end-to-end).
+- **Last session**: S38 Visual Unification — Android GigColors corrected (5 values + 5 new tokens). NeuCard shadows updated to canonical V4. New PlayerComponents.kt (shared composables). LiveScreen.kt + PracticeScreen.kt rebuilt to V4 layout (header → hero → text panel → transport → drawer via ModalBottomSheet). Web Player.tsx rebuilt to V4 layout (v4-* CSS classes). App.css player section rewritten. Both builds pass clean (web tsc + vite build, android assembleDebug).
+- **Next action**: Sprint S39 — Foundation: Migration + shared types/queries + Cloud Run beats-only code.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 4 songs (Cissy Strut, Sultans, War Pigs, Big Yellow Taxi).
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
 ## Sprint Roadmap (S38–S43) — Revised for Cross-Platform Parity
 | Sprint | Scope | Status |
 |--------|-------|--------|
-| S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Next** |
-| S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | Queued |
+| S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Done** |
+| S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | **Next** |
 | S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | Queued |
 | S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | Queued |
 | S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | Queued |
