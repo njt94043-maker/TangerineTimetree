@@ -366,3 +366,14 @@
 - **What happened**: User reports explaining the same things every session — how apps connect, why certain fields exist, how decisions affect other apps. AI focuses on one app at a time, forgets the others exist, and keeps cutting scope without permission.
 - **Root cause**: AI optimises for completing the immediate task in the immediate app, not maintaining ecosystem awareness. Half-mentioned ideas get lost. Cross-app impact not evaluated.
 - **Fix**: Memory file `ecosystem-rules.md` created. MEMORY.md rewritten with "How Nathan Works With AI" section at top. Every change must trigger "what else does this affect?" check across all apps. Half-ideas must be logged immediately and chased up.
+
+### "The mockup" is not the only spec — search SOT docs for every detail (S45, 2026-03-10)
+- **What happened**: AI treated `mockups/v4-mirror-target.html` as the ONLY design spec and kept saying "the mockup" (singular). In reality, Nathan gave detailed visual instructions across many conversations that were captured in SOT docs (SESSION_LOG.md, decisions_log.md, gotchas.md). The mockup is the final pixel target, but the SOT docs contain the reasoning, constraints, and detail behind every element.
+- **Root cause**: AI skimming for shortcuts instead of doing thorough searches. When asked about a specific element (e.g. drawer design), AI would check only the mockup HTML rather than searching SESSION_LOG for all references to "drawer", decisions_log for drawer-related decisions, etc.
+- **Impact**: Features were built functionally correct but visually wrong — CSS values not matching mockup, elements structured differently, missing sub-elements. User had to explain the same things repeatedly.
+- **Fix**: For EVERY screen element being implemented, search ALL SOT docs (SESSION_LOG, decisions_log, gotchas) for related instructions and context. Don't rely on a single source. The docs were updated FROM Nathan's instructions — they ARE the spec. If detail is missing from one doc, search the others.
+
+### "Both apps" means web AND Android — never assume one (S45, 2026-03-10)
+- **What happened**: AI started S45 screen-for-screen lockdown but only audited/fixed web. Nathan had to correct: "you got the 'both apps' bit wrong not me". D-153 (mirror apps) explicitly requires full parity.
+- **Root cause**: AI defaulting to web-only because it's easier (TypeScript vs Kotlin). Android gets treated as an afterthought.
+- **Fix**: Every visual change must be evaluated and applied to BOTH platforms. When auditing, launch parallel agents for web AND Android. Never mark a screen as "done" until both platforms match the mockup.
