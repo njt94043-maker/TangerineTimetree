@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -31,13 +32,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.supabase.models.Gig
@@ -171,13 +178,12 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                                 val dateStr = "%04d-%02d-%02d".format(viewYear, viewMonth, day)
                                 val isToday = isCurrentMonth && day == today.dayOfMonth
                                 val isPast  = LocalDate.of(viewYear, viewMonth, day).isBefore(today)
-                                val dayGigs = gigsByDate[dateStr] ?: emptyList()
+                                val dayGigs = (gigsByDate[dateStr] ?: emptyList()).filter { !it.isCancelled }
                                 CalendarDayCell(
                                     day         = day,
                                     isToday     = isToday,
                                     isPast      = isPast,
-                                    hasGig      = dayGigs.any { it.isGig },
-                                    hasPractice = dayGigs.any { it.isPractice },
+                                    gigs        = dayGigs,
                                     hasAway     = dateStr in awayDays,
                                     isSelected  = selectedDay?.toString() == dateStr,
                                     modifier    = Modifier.weight(1f),
@@ -194,11 +200,23 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
 
             Spacer(Modifier.height(6.dp))
 
-            // ── Legend ───────────────────────────────────────────────────────
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                LegendItem(GigColors.calGig,      "Gig")
-                LegendItem(GigColors.calPractice, "Practice")
-                LegendItem(GigColors.calAway,     "Away")
+            // ── Legend (6 items, mirrors web exactly) ────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                LegendItem(GigColors.calAvailable, "Available")
+                LegendItem(GigColors.calGig,       "Pub Gig")
+                LegendItem(GigColors.calClient,    "Client")
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                LegendItem(color = null, label = "Enquiry", dashed = true, dashColor = GigColors.calEnquiry)
+                LegendItem(GigColors.calPractice,  "Practice")
+                LegendItem(GigColors.calAway,      "Away")
             }
         }
 
@@ -219,49 +237,163 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
     }
 }
 
-// ─── Day cell ────────────────────────────────────────────────────────────────
+// ─── Compute display type from gigs (mirrors web computeDayDisplay) ─────────
+
+private enum class DayDisplay { Available, Pub, Client, Enquiry, Practice, Away }
+
+private fun computeDayDisplay(gigs: List<Gig>, hasAway: Boolean): DayDisplay {
+    if (hasAway && gigs.isEmpty()) return DayDisplay.Away
+    val clientGigs = gigs.filter { it.isClient }
+    val pubGigs    = gigs.filter { it.isPub }
+    val hasPractice = gigs.any { it.isPractice }
+    return when {
+        clientGigs.isNotEmpty() -> {
+            if (clientGigs.none { it.status == "confirmed" }) DayDisplay.Enquiry else DayDisplay.Client
+        }
+        pubGigs.isNotEmpty() -> DayDisplay.Pub
+        hasPractice -> DayDisplay.Practice
+        hasAway -> DayDisplay.Away
+        else -> DayDisplay.Available
+    }
+}
+
+private fun dayDisplayColor(display: DayDisplay): Color = when (display) {
+    DayDisplay.Available -> GigColors.calAvailable
+    DayDisplay.Pub       -> GigColors.calGig
+    DayDisplay.Client    -> GigColors.calClient
+    DayDisplay.Enquiry   -> GigColors.calEnquiry
+    DayDisplay.Practice  -> GigColors.calPractice
+    DayDisplay.Away      -> GigColors.calAway
+}
+
+// ─── Day cell (mirrors web: colored background, venue text, dots) ───────────
 
 @Composable
 private fun CalendarDayCell(
     day: Int,
     isToday: Boolean,
     isPast: Boolean,
-    hasGig: Boolean,
-    hasPractice: Boolean,
+    gigs: List<Gig>,
     hasAway: Boolean,
     isSelected: Boolean,
     modifier: Modifier,
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(6.dp)
+    val display = computeDayDisplay(gigs, hasAway)
+    val hasEvents = gigs.isNotEmpty() || hasAway
+    val accentColor = dayDisplayColor(display)
+
+    // Cell background: colored tint when events exist (mirrors web)
+    val bgColor = when {
+        isSelected -> GigColors.orange.copy(alpha = 0.1f)
+        hasEvents && display != DayDisplay.Available -> accentColor.copy(alpha = 0.08f)
+        else -> GigColors.shadowDark.copy(alpha = 0.3f)
+    }
+
+    // Border color
+    val borderMod = when {
+        isToday    -> Modifier.border(2.dp, GigColors.orange, shape).shadow(8.dp, shape, ambientColor = GigColors.orange)
+        isSelected -> Modifier.border(1.dp, GigColors.orange.copy(alpha = 0.5f), shape)
+        hasEvents && display == DayDisplay.Enquiry -> Modifier // dashed border drawn in drawBehind
+        hasEvents && display != DayDisplay.Available -> Modifier.border(1.dp, accentColor.copy(alpha = 0.15f), shape)
+        else       -> Modifier.border(1.dp, GigColors.neuBorder, shape)
+    }
+
+    // Dashed border for enquiry
+    val enquiryDraw = if (display == DayDisplay.Enquiry && !isToday && !isSelected) {
+        Modifier.drawBehind {
+            drawRoundRect(
+                color = accentColor.copy(alpha = 0.4f),
+                size = Size(size.width, size.height),
+                cornerRadius = CornerRadius(6.dp.toPx()),
+                style = Stroke(
+                    width = 1.5.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
+                ),
+            )
+        }
+    } else Modifier
+
     Box(
         modifier = modifier
             .clip(shape)
-            .background(if (isSelected) GigColors.orange.copy(alpha = 0.1f) else GigColors.shadowDark.copy(alpha = 0.3f))
-            .then(
-                when {
-                    isToday    -> Modifier.border(2.dp, GigColors.orange, shape).shadow(8.dp, shape, ambientColor = GigColors.orange)
-                    isSelected -> Modifier.border(1.dp, GigColors.orange.copy(alpha = 0.5f), shape)
-                    else       -> Modifier.border(1.dp, GigColors.neuBorder, shape)
-                }
-            )
+            .background(bgColor)
+            .then(borderMod)
+            .then(enquiryDraw)
             .clickable(onClick = onClick)
-            .padding(start = 3.dp, top = 2.dp, bottom = 2.dp),
-        contentAlignment = Alignment.TopStart,
+            .padding(start = 3.dp, top = 2.dp, end = 2.dp, bottom = 2.dp),
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Day number — bold + colored when events exist (mirrors web)
             Text(
-                "$day", fontFamily = Karla, fontSize = 12.sp,
-                color = when { isToday -> GigColors.orange; isPast -> GigColors.textMuted; else -> GigColors.text },
+                "$day", fontFamily = Karla,
+                fontSize = 12.sp,
+                fontWeight = if (hasEvents && display != DayDisplay.Available) FontWeight.Bold else FontWeight.Normal,
+                color = when {
+                    isToday -> GigColors.orange
+                    hasEvents && display != DayDisplay.Available -> accentColor
+                    isPast -> GigColors.textMuted
+                    else -> GigColors.text
+                },
             )
-            val dots = buildList {
-                if (hasGig)      add(GigColors.calGig)
-                if (hasPractice) add(GigColors.calPractice)
-                if (hasAway)     add(GigColors.calAway)
+
+            // Venue text — first gig's venue, one word per line (mirrors web exactly)
+            val firstVenue = gigs.firstOrNull { it.venue.isNotBlank() }?.venue
+            if (firstVenue != null) {
+                val venueColor = when {
+                    gigs.first().isPractice -> GigColors.calPractice
+                    gigs.first().isClient -> GigColors.calClient
+                    else -> GigColors.calGig
+                }
+                val words = firstVenue.split(" ").take(3) // Max 3 words to fit cell
+                words.forEach { word ->
+                    Text(
+                        word,
+                        fontFamily = Karla,
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = venueColor.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 8.sp,
+                    )
+                }
             }
+
+            Spacer(Modifier.weight(1f))
+
+            // Dots at bottom (mirrors web: max 3 dots)
+            val dots = buildList {
+                if (gigs.any { it.isClient })    add(GigColors.calClient to false)
+                if (gigs.any { it.isEnquiry })   add(GigColors.calEnquiry to true)
+                if (gigs.any { it.isPub })       add(GigColors.calGig to false)
+                if (gigs.any { it.isPractice })  add(GigColors.calPractice to false)
+                if (hasAway)                     add(GigColors.calAway to false)
+            }.take(3)
+
             if (dots.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.padding(top = 1.dp)) {
-                    dots.forEach { c -> Box(Modifier.size(4.dp).clip(RoundedCornerShape(2.dp)).background(c)) }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.padding(bottom = 1.dp).align(Alignment.CenterHorizontally),
+                ) {
+                    dots.forEach { (c, isDashed) ->
+                        if (isDashed) {
+                            Box(
+                                Modifier.size(5.dp).drawBehind {
+                                    drawCircle(
+                                        color = c.copy(alpha = 0.6f),
+                                        style = Stroke(
+                                            width = 1.5f,
+                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 2f)),
+                                        ),
+                                    )
+                                },
+                            )
+                        } else {
+                            Box(Modifier.size(5.dp).clip(RoundedCornerShape(2.5.dp)).background(c))
+                        }
+                    }
                 }
             }
         }
@@ -293,9 +425,19 @@ private fun DayDetail(
             }
         }
 
-        gigs.forEach { gig ->
-            val color     = if (gig.isGig) GigColors.calGig else GigColors.calPractice
-            val typeLabel = if (gig.isGig) "Gig" else "Practice"
+        gigs.filter { !it.isCancelled }.forEach { gig ->
+            val color = when {
+                gig.isEnquiry  -> GigColors.calEnquiry
+                gig.isClient   -> GigColors.calClient
+                gig.isPractice -> GigColors.calPractice
+                else           -> GigColors.calGig
+            }
+            val typeLabel = when {
+                gig.isEnquiry  -> "Enquiry"
+                gig.isClient   -> "Client"
+                gig.isPractice -> "Practice"
+                else           -> "Gig"
+            }
             Row(modifier = Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.Top) {
                 Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(color).padding(top = 4.dp))
                 Column(Modifier.padding(start = 8.dp)) {
@@ -321,9 +463,28 @@ private fun DayDetail(
 // ─── Legend ──────────────────────────────────────────────────────────────────
 
 @Composable
-private fun LegendItem(color: Color, label: String) {
+private fun LegendItem(
+    color: Color? = null,
+    label: String,
+    dashed: Boolean = false,
+    dashColor: Color = Color.Transparent,
+) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(color))
+        if (dashed) {
+            Box(
+                Modifier.size(8.dp).drawBehind {
+                    drawCircle(
+                        color = dashColor,
+                        style = Stroke(
+                            width = 1.5f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 2f)),
+                        ),
+                    )
+                },
+            )
+        } else {
+            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(color ?: Color.Transparent))
+        }
         Text(label, modifier = Modifier.padding(start = 4.dp), fontFamily = Karla, fontSize = 10.sp, color = GigColors.textDim)
     }
 }

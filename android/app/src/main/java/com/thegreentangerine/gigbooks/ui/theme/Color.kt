@@ -29,11 +29,13 @@ object GigColors {
     val danger = Color(0xFFff5252)
     val slate = Color(0xFF78909c)
 
-    // Calendar colors
-    val calGig = Color(0xFF00e676)
-    val calPractice = Color(0xFFbb86fc)
-    val calAvailable = Color(0xFF1abc9c)
-    val calAway = Color(0xFFff5252)
+    // Calendar colors — mirrors web legend exactly
+    val calGig = Color(0xFF00e676)        // Pub gig (green)
+    val calClient = Color(0xFFf39c12)     // Client gig (tangerine)
+    val calEnquiry = Color(0xFFf39c12)    // Enquiry (tangerine, rendered dashed)
+    val calPractice = Color(0xFFbb86fc)   // Practice (purple)
+    val calAvailable = Color(0xFF4a4a60)  // Available/unbooked (dark gray, matches web)
+    val calAway = Color(0xFFff5252)       // Away (red)
 
     // Neumorphic — canonical V4 shadows
     val neuBorder = Color(0x0AFFFFFF)       // rgba(255,255,255,0.04)

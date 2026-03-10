@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: Post-S44 Audit **DONE**. Ready for user testing.
-- **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session**: Post-S44 audit — tsc + vite build clean, assembleDebug clean, visual parity verified (3 apps), Capture badge fix (personal=orange), schema_map.md corrected (user_settings columns), RLS verified, edge cases reviewed, all features confirmed present.
-- **Next action**: User testing handoff. Nathan tests all 3 apps end-to-end.
+- **Phase**: Visual Alignment (partial). Next session = screen-for-screen lockdown.
+- **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session**: Visual alignment — Android SplashScreen (full animated, mirrors web), Calendar (colored cell backgrounds + venue text + client/enquiry distinction + 6-item legend), Library (left color borders on song/setlist cards + shimmer skeleton loading), Gig model (gig_subtype + status fields), GigColors (calClient + calEnquiry).
+- **Next action**: Screen-for-screen complete alignment + feature-for-feature lockdown across all apps. Swipe calendar nav. Sidebar visual alignment. Full end-to-end tests on every screen and flow.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
