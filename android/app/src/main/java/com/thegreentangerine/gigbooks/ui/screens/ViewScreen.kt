@@ -1,15 +1,14 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,12 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.ui.AppViewModel
@@ -57,12 +55,11 @@ import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
 import com.thegreentangerine.gigbooks.ui.components.DrawerLabel
 import com.thegreentangerine.gigbooks.ui.components.MixerChannel
 import com.thegreentangerine.gigbooks.ui.components.MixerRow
-import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.components.PlayButton
 import com.thegreentangerine.gigbooks.ui.components.PlayerHeader
+import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TakeItem
 import com.thegreentangerine.gigbooks.ui.components.TakesSection
-import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
 import com.thegreentangerine.gigbooks.ui.components.TransportButton
@@ -71,10 +68,19 @@ import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
+/**
+ * ViewScreen — S42, D-137, D-144, D-146.
+ *
+ * 3rd player mode: View Mode. Plays user's local best-take video in the hero area
+ * (16:9) + all audio stems from Supabase. Stem mixer in drawer.
+ * No-video fallback: neumorphic visualiser in hero (D-146).
+ * Record button for layering (D-144).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit) {
+fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit) {
     val song = vm.selectedSong
 
     // Display toggles (local state)
@@ -141,8 +147,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 }
             }
             NoSongPlaceholder(
-                accent = GigColors.purple,
-                screenName = "Practice",
+                accent = GigColors.teal,
+                screenName = "View",
                 onGoToLibrary = onGoToLibrary,
             )
         } else {
@@ -153,6 +159,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 bpm = vm.effectiveBpm.toInt(),
                 isLiveMode = false,
                 onBackClick = onMenuClick,
+                modeBadgeLabel = "VIEW",
+                modeBadgeColor = GigColors.teal,
             )
 
             // Scrollable content area
@@ -161,21 +169,16 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     .weight(1f)
                     .verticalScroll(rememberScrollState()),
             ) {
-                // Visual Hero (shorter for practice)
+                // View Mode Hero — visualiser fallback (D-146)
+                // TODO: ExoPlayer/SurfaceView for video when local video exists
                 if (showVisuals) {
-                    VisualHero(
-                        heroHeight = 130.dp,
-                        isPlaying = vm.isClickPlaying,
-                        currentBeat = vm.currentBeat,
-                        accent = GigColors.purple,
-                    )
+                    ViewHero(isPlaying = vm.isClickPlaying || vm.isTrackPlaying)
                 }
 
-                // Waveform (practice-specific)
+                // Waveform (same as practice, for track seeking)
                 if (song.hasAudio && vm.trackLoaded) {
                     PracticeWaveform(vm)
                 } else if (song.hasAudio && !vm.trackLoaded) {
-                    // Load track prompt
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -189,14 +192,14 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     ) {
                         if (vm.isLoadingTrack) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                CircularProgressIndicator(color = GigColors.green, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = GigColors.green)
+                                CircularProgressIndicator(color = GigColors.teal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = GigColors.teal)
                             }
                         } else {
                             Text(
                                 "Load Track",
                                 fontFamily = JetBrainsMono, fontSize = 11.sp,
-                                style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.3f), Offset.Zero, 6f)),
+                                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
                             )
                         }
                     }
@@ -221,8 +224,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     Box(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                         TakesSection(
                             takes = takeItems,
-                            onSetBest = { id -> song?.id?.let { vm.setBestTake(id, it) } },
-                            onClearBest = { id -> song?.id?.let { vm.clearBestTake(id, it) } },
+                            onSetBest = { id -> song.id.let { vm.setBestTake(id, it) } },
+                            onClearBest = { id -> song.id.let { vm.clearBestTake(id, it) } },
                             onDelete = { id ->
                                 val take = takeItems.firstOrNull { it.id == id }
                                 if (take != null) {
@@ -230,7 +233,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                     else vm.deleteLocalTake(id, song.id)
                                 }
                             },
-                            onPlay = { /* TODO: S41 recording playback */ },
+                            onPlay = { /* TODO: playback */ },
                             isLoading = vm.takesLoading,
                         )
                     }
@@ -242,14 +245,14 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .background(GigColors.purple.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(1.dp, GigColors.purple.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(1.dp, GigColors.teal.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = GigColors.purple,
+                            color = GigColors.teal,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(14.dp),
                         )
@@ -260,19 +263,9 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                 "separating" -> "Separating stems..."
                                 else -> "Processing..."
                             },
-                            fontFamily = Karla, fontSize = 12.sp, color = GigColors.purple,
+                            fontFamily = Karla, fontSize = 12.sp, color = GigColors.teal,
                         )
                     }
-                }
-
-                // Beat alignment banner
-                if (vm.showBeatBanner) {
-                    BeatAlignBanner(
-                        bpm = vm.detectedBpm,
-                        offsetMs = vm.detectedOffsetMs,
-                        onApply = { vm.applyDetectedBeat() },
-                        onDismiss = { vm.dismissBeatBanner() },
-                    )
                 }
             }
 
@@ -281,13 +274,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 RecordingBanner(vm)
             }
 
-            // Transport (stacked — speed row + main controls)
-            PracticeTransport(vm)
-
-            // A-B Loop buttons (below transport)
-            if (vm.trackLoaded) {
-                LoopRow(vm)
-            }
+            // Transport (same stacked layout as practice — D-144 record button for layering)
+            ViewTransport(vm)
 
             // Drawer preview (pull-up)
             Column(
@@ -346,7 +334,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 if (vm.loadedStems.isNotEmpty() || vm.trackLoaded) {
                     Spacer(Modifier.height(4.dp))
                     DrawerLabel("MIXER")
-                    PracticeMixer(vm)
+                    ViewMixer(vm)
                 }
 
                 Spacer(Modifier.height(4.dp))
@@ -373,10 +361,57 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
     }
 }
 
-// ─── Practice Transport (stacked layout) ─────────────────────────────────────────
+// ─── View Mode Hero (D-146) ─────────────────────────────────────────────────────
 
 @Composable
-private fun PracticeTransport(vm: AppViewModel) {
+private fun ViewHero(isPlaying: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF0A0A14),
+                        Color(0xFF141420),
+                        Color(0xFF0A0A14),
+                    ),
+                ),
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Visualiser bars (teal, D-146 fallback)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+        ) {
+            for (i in 0 until 21) {
+                val fraction = if (isPlaying) {
+                    val base = 0.3f + sin(i * 0.5f + System.currentTimeMillis() / 300f).toFloat() * 0.25f
+                    base.coerceIn(0.08f, 0.8f)
+                } else {
+                    (0.08f + sin(i * 0.3f).toFloat() * 0.04f).coerceIn(0.04f, 0.2f)
+                }
+                Box(
+                    modifier = Modifier
+                        .width(6.dp)
+                        .height((fraction * 80).dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(GigColors.teal.copy(alpha = if (isPlaying) 0.7f else 0.3f))
+                )
+            }
+        }
+    }
+}
+
+// ─── View Transport (same layout as practice, teal accent) ────────────────────────
+
+@Composable
+private fun ViewTransport(vm: AppViewModel) {
     val isPlaying = vm.isClickPlaying || vm.isTrackPlaying
     val speedPct = (vm.practiceSpeed * 100).roundToInt()
 
@@ -392,21 +427,21 @@ private fun PracticeTransport(vm: AppViewModel) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SpeedButton("-5") { vm.applySpeed((vm.practiceSpeed - 0.05f).coerceAtLeast(0.25f)) }
+            ViewSpeedButton("-5") { vm.applySpeed((vm.practiceSpeed - 0.05f).coerceAtLeast(0.25f)) }
             Spacer(Modifier.width(6.dp))
-            SpeedButton("-1") { vm.applySpeed((vm.practiceSpeed - 0.01f).coerceAtLeast(0.25f)) }
+            ViewSpeedButton("-1") { vm.applySpeed((vm.practiceSpeed - 0.01f).coerceAtLeast(0.25f)) }
             Spacer(Modifier.width(8.dp))
             Text(
                 "${speedPct}%",
                 fontFamily = JetBrainsMono, fontSize = 11.sp,
-                color = GigColors.purple,
+                color = GigColors.teal,
                 modifier = Modifier.width(36.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
             )
             Spacer(Modifier.width(8.dp))
-            SpeedButton("+1") { vm.applySpeed((vm.practiceSpeed + 0.01f).coerceAtMost(1.5f)) }
+            ViewSpeedButton("+1") { vm.applySpeed((vm.practiceSpeed + 0.01f).coerceAtMost(1.5f)) }
             Spacer(Modifier.width(6.dp))
-            SpeedButton("+5") { vm.applySpeed((vm.practiceSpeed + 0.05f).coerceAtMost(1.5f)) }
+            ViewSpeedButton("+5") { vm.applySpeed((vm.practiceSpeed + 0.05f).coerceAtMost(1.5f)) }
         }
 
         // Main transport row
@@ -428,10 +463,10 @@ private fun PracticeTransport(vm: AppViewModel) {
                 Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textMuted, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
-            // Play
+            // Play (teal accent)
             PlayButton(
                 isPlaying = isPlaying,
-                accent = GigColors.purple,
+                accent = GigColors.teal,
                 onClick = { if (isPlaying) vm.pause() else vm.play() },
                 enabled = vm.engineAvailable,
             )
@@ -442,9 +477,8 @@ private fun PracticeTransport(vm: AppViewModel) {
             // Click toggle
             ClickToggleButton(isClickMuted = vm.isClickMuted, onClick = { vm.toggleClickMute() })
             Spacer(Modifier.width(8.dp))
-            // Record button (D-150)
+            // Record button (D-144 — layering from View Mode)
             if (vm.recState == AppViewModel.RecState.RECORDING) {
-                // Stop recording button (red square)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -456,7 +490,6 @@ private fun PracticeTransport(vm: AppViewModel) {
                     Icon(Icons.Default.Stop, contentDescription = "Stop Recording", tint = Color.White, modifier = Modifier.size(18.dp))
                 }
             } else if (vm.recState == AppViewModel.RecState.IDLE) {
-                // Record button (red circle with dot)
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -479,7 +512,7 @@ private fun PracticeTransport(vm: AppViewModel) {
 }
 
 @Composable
-private fun SpeedButton(label: String, onClick: () -> Unit) {
+private fun ViewSpeedButton(label: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(24.dp)
@@ -493,145 +526,17 @@ private fun SpeedButton(label: String, onClick: () -> Unit) {
     }
 }
 
-// ─── A-B Loop Row ────────────────────────────────────────────────────────────────
+// ─── View Mixer (drawer) ─────────────────────────────────────────────────────────
 
 @Composable
-private fun LoopRow(vm: AppViewModel) {
-    val hasA = vm.loopAFrame != null
-    val hasB = vm.loopBFrame != null
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        LoopPill("SET A", active = hasA, color = GigColors.orange, modifier = Modifier.weight(1f)) { vm.setLoopA() }
-        LoopPill("SET B", active = hasB, color = GigColors.orange, modifier = Modifier.weight(1f)) { vm.setLoopB() }
-        LoopPill("CLEAR", active = hasA || hasB, color = GigColors.textMuted, modifier = Modifier.weight(1f), enabled = hasA || hasB) { vm.clearLoop() }
-    }
-}
-
-@Composable
-private fun LoopPill(label: String, active: Boolean, color: Color, modifier: Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .height(28.dp)
-            .background(
-                if (active) GigColors.orange.copy(alpha = 0.06f) else Color.Transparent,
-                RoundedCornerShape(8.dp),
-            )
-            .border(
-                1.dp,
-                if (active) GigColors.orange.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.06f),
-                RoundedCornerShape(8.dp),
-            )
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = if (active) GigColors.orange else GigColors.textMuted,
-        )
-    }
-}
-
-// ─── Practice Waveform ───────────────────────────────────────────────────────────
-
-@Composable
-internal fun PracticeWaveform(vm: AppViewModel) {
-    val positionFraction = if (vm.trackTotalFr > 0) vm.trackPositionFr.toFloat() / vm.trackTotalFr else 0f
-    val positionStr = formatFrames(vm.trackPositionFr, vm.trackSampleRate)
-    val totalStr = formatFrames(vm.trackTotalFr, vm.trackSampleRate)
-    val speedPct = (vm.practiceSpeed * 100).roundToInt()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 5.dp)
-            .height(48.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(GigColors.surface)
-            .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
-            .pointerInput(Unit) {
-                detectTapGestures { offset ->
-                    vm.seekTrackFraction((offset.x / size.width).coerceIn(0f, 1f))
-                }
-            },
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 8.dp)) {
-            val w = size.width
-            val h = size.height
-            val midY = h / 2f
-
-            // Loop region
-            val loopA = vm.loopAFrame?.let { it.toFloat() / vm.trackTotalFr.coerceAtLeast(1) }
-            val loopB = vm.loopBFrame?.let { it.toFloat() / vm.trackTotalFr.coerceAtLeast(1) }
-            if (loopA != null && loopB != null) {
-                val lx = minOf(loopA, loopB) * w
-                val rx = maxOf(loopA, loopB) * w
-                drawRect(
-                    color = GigColors.orange.copy(alpha = 0.04f),
-                    topLeft = Offset(lx, 0f),
-                    size = Size(rx - lx, h),
-                )
-                for (x in listOf(lx, rx)) {
-                    drawLine(GigColors.orange.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.5f)
-                }
-            }
-
-            // Waveform bars
-            val envelope = vm.waveformEnvelope
-            if (envelope.isNotEmpty()) {
-                val barW = (w / envelope.size).coerceAtLeast(1f)
-                val playX = positionFraction * w
-                envelope.forEachIndexed { i, amp ->
-                    val x = i * barW + barW / 2f
-                    val barH = amp * midY * 0.9f
-                    val color = if (x < playX) GigColors.green.copy(alpha = 0.7f) else GigColors.green.copy(alpha = 0.12f)
-                    drawLine(color, Offset(x, midY - barH), Offset(x, midY + barH), strokeWidth = barW * 0.72f)
-                }
-            } else {
-                drawLine(GigColors.textMuted.copy(alpha = 0.2f), Offset(0f, midY), Offset(w, midY), strokeWidth = 1f)
-            }
-
-            // Playhead
-            val px = (positionFraction * w).coerceIn(0f, w)
-            drawLine(Color.White, Offset(px, 0f), Offset(px, h), strokeWidth = 2f)
-        }
-
-        // Time overlay
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 8.dp, bottom = 2.dp),
-        ) {
-            Text(positionStr, fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textDim)
-            Text(" / $totalStr", fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textMuted)
-        }
-
-        // Speed overlay
-        Text(
-            "${speedPct}%",
-            fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.purple,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 8.dp, bottom = 2.dp),
-        )
-    }
-}
-
-// ─── Practice Mixer (drawer) ─────────────────────────────────────────────────────
-
-@Composable
-private fun PracticeMixer(vm: AppViewModel) {
+private fun ViewMixer(vm: AppViewModel) {
     val channels = mutableListOf<MixerChannel>()
 
     // Click channel
     channels.add(
         MixerChannel(
             label = "CLK",
-            color = GigColors.purple,
+            color = GigColors.teal,
             value = (vm.clickGain / 2f).coerceIn(0f, 1f),
             onValueChange = { vm.changeClickGain(it * 2f) },
             isMuted = vm.isClickMuted,
@@ -670,216 +575,4 @@ private fun PracticeMixer(vm: AppViewModel) {
     }
 
     MixerRow(channels)
-}
-
-// ─── Beat Align Banner ───────────────────────────────────────────────────────────
-
-@Composable
-private fun BeatAlignBanner(
-    bpm: Float,
-    offsetMs: Int,
-    onApply: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(GigColors.teal.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Beat detected",
-                fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
-            )
-            Text(
-                "${bpm.roundToInt()} BPM · +${offsetMs}ms offset",
-                fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim,
-            )
-        }
-        Box(
-            modifier = Modifier
-                .height(30.dp)
-                .background(GigColors.teal.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                .border(0.5.dp, GigColors.teal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                .clickable(onClick = onApply)
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
-                fontSize = 11.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 4f)),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .height(30.dp)
-                .background(GigColors.textMuted.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
-                .border(0.5.dp, GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                .clickable(onClick = onDismiss)
-                .padding(horizontal = 10.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("✕", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textMuted)
-        }
-    }
-}
-
-// ─── Recording Banner ────────────────────────────────────────────────────────────
-
-@Composable
-internal fun RecordingBanner(vm: AppViewModel) {
-    val isCountIn = vm.recState == AppViewModel.RecState.COUNT_IN
-    val mins = vm.recElapsedSec / 60
-    val secs = vm.recElapsedSec % 60
-    val levelWidth = vm.recInputLevel.coerceIn(0f, 1f)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .border(1.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // Red dot
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(GigColors.danger)
-        )
-
-        // State label
-        Text(
-            if (isCountIn) "COUNT IN" else "REC",
-            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, color = GigColors.danger,
-        )
-
-        // Take number
-        Text(
-            "Take ${vm.recTakeNumber}",
-            fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
-        )
-
-        Spacer(Modifier.weight(1f))
-
-        // Timer
-        if (!isCountIn) {
-            Text(
-                "%d:%02d".format(mins, secs),
-                fontFamily = JetBrainsMono, fontSize = 13.sp, color = GigColors.danger,
-            )
-        }
-
-        // Level bar
-        if (!isCountIn) {
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(GigColors.surfaceLight),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(levelWidth)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(GigColors.green)
-                )
-            }
-        }
-    }
-}
-
-// ─── Post-Recording Dialog (D-139) ───────────────────────────────────────────────
-
-@Composable
-internal fun PostRecordingDialog(vm: AppViewModel) {
-    var markAsBest by remember { mutableStateOf(false) }
-    val durationSec = vm.recDuration.toInt()
-    val durationStr = "%d:%02d".format(durationSec / 60, durationSec % 60)
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = { /* can't dismiss without choosing */ },
-        containerColor = GigColors.surface,
-        title = {
-            Text(
-                "Take ${vm.recTakeNumber} · $durationStr",
-                fontFamily = Karla, fontWeight = FontWeight.Bold,
-                fontSize = 16.sp, color = GigColors.text,
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Best take toggle
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(
-                            if (markAsBest) GigColors.orange.copy(alpha = 0.08f) else Color.Transparent,
-                            RoundedCornerShape(8.dp),
-                        )
-                        .border(
-                            1.dp,
-                            if (markAsBest) GigColors.orange.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.06f),
-                            RoundedCornerShape(8.dp),
-                        )
-                        .clickable { markAsBest = !markAsBest }
-                        .padding(12.dp),
-                ) {
-                    Text(
-                        if (markAsBest) "★" else "☆",
-                        fontSize = 16.sp, color = GigColors.orange,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Mark as Best Take",
-                        fontFamily = Karla, fontSize = 13.sp,
-                        color = if (markAsBest) GigColors.orange else GigColors.textMuted,
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                // 4 action buttons (D-139)
-                PostRecButton("Discard & Re-take", GigColors.danger) { vm.discardRecording(retake = true) }
-                PostRecButton("Save & Re-take", GigColors.purple) { vm.saveRecording(asBest = markAsBest, retake = true) }
-                PostRecButton("Save as Take", GigColors.green) { vm.saveRecording(asBest = markAsBest) }
-                PostRecButton("Save & Preview", GigColors.teal) { vm.saveRecording(asBest = markAsBest, preview = true) }
-            }
-        },
-        confirmButton = {},
-    )
-}
-
-@Composable
-internal fun PostRecButton(label: String, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .background(color.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = color)
-    }
-}
-
-internal fun formatFrames(frames: Long, sampleRate: Int): String {
-    val secs = (frames / sampleRate.coerceAtLeast(1)).toInt()
-    return "%d:%02d".format(secs / 60, secs % 60)
 }

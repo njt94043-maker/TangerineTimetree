@@ -1,11 +1,13 @@
 /**
- * Player — V4 unified player screen (Live / Practice / Record).
+ * Player — V4 unified player screen (Live / Practice / View / Record).
  *
- * Layout: Header → Visual Hero → Text Panel → Waveform (practice) →
+ * Layout: Header (mode tabs) → Visual Hero → Text Panel → Waveform →
  *         Transport → Nav Row → Drawer pull-up.
  *
- * Live mode:  Click + lyrics/chords only (no track playback).
+ * Live mode:     Click + lyrics/chords only (no track playback).
  * Practice mode: Click + track/stems + speed + A-B loop.
+ * View mode (S42, D-137): Local video playback or visualiser fallback (D-146),
+ *   stem mixer in drawer, record button for layering (D-144).
  * Record mode (S41): Record button in transport (D-150), overdub (D-140),
  *   click during recording (D-141), count-in (D-142), post-recording (D-139).
  */
@@ -14,7 +16,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
 import { getSetlistWithSongs, getSong, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
-import { saveTakeLocally, getNextTakeNumber, makeTakeId } from '../storage/takesDb';
+import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
 import type { Song, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
 import type { StemLabel } from '../audio/StemMixer';
 
@@ -229,6 +231,9 @@ interface PlayerProps {
 }
 
 export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: PlayerProps) {
+  // Mode tabs — user can switch between Live/Practice/View (D-137, D-150)
+  const [activeMode, setActiveMode] = useState<PlayerMode>(mode);
+
   // Setlist state
   const [setlist, setSetlist] = useState<SetlistWithSongs | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -265,11 +270,50 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
   const [savingTake, setSavingTake] = useState(false);
   const cameraVideoRef = useRef<HTMLVideoElement>(null);
 
-  // Audio engine
-  const [state, actions] = useAudioEngine(activeSongId, mode);
+  // View Mode state (S42 — D-137, D-146)
+  const viewVideoRef = useRef<HTMLVideoElement>(null);
+  const [viewVideoUrl, setViewVideoUrl] = useState<string | null>(null);
+
+  // Audio engine — uses activeMode so tab switching changes behaviour
+  const [state, actions] = useAudioEngine(activeSongId, activeMode);
 
   // Keep screen awake while playing
   useWakeLock(state.engineState === 'playing' || betweenSongs);
+
+  // Load local video for View Mode (D-146)
+  useEffect(() => {
+    if (activeMode !== 'view' || !activeSongId || !userId) {
+      if (viewVideoUrl) { URL.revokeObjectURL(viewVideoUrl); setViewVideoUrl(null); }
+      return;
+    }
+    let cancelled = false;
+    getBestTakeWithVideo(activeSongId, userId).then(take => {
+      if (cancelled) return;
+      if (take?.video_blob) {
+        const url = URL.createObjectURL(take.video_blob);
+        setViewVideoUrl(url);
+      } else {
+        setViewVideoUrl(null);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [activeMode, activeSongId, userId]);
+
+  // Cleanup view video URL on unmount
+  useEffect(() => {
+    return () => { if (viewVideoUrl) URL.revokeObjectURL(viewVideoUrl); };
+  }, [viewVideoUrl]);
+
+  // Sync view video with audio playback
+  useEffect(() => {
+    const vid = viewVideoRef.current;
+    if (!vid || activeMode !== 'view' || !viewVideoUrl) return;
+    if (state.engineState === 'playing') {
+      vid.play().catch(() => { /* user gesture required */ });
+    } else {
+      vid.pause();
+    }
+  }, [state.engineState, activeMode, viewVideoUrl]);
 
   // Sync display toggles from prefs
   useEffect(() => {
@@ -359,7 +403,8 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
   const songBpm = displaySong?.bpm ?? 0;
 
   const isPlaying = state.engineState === 'playing';
-  const isLive = mode === 'live';
+  const isLive = activeMode === 'live';
+  const isView = activeMode === 'view';
 
   // Setlist helpers
   const prevSongName = setlist && currentIndex > 0
@@ -421,8 +466,8 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
       ? (60000 / bpmVal) * (displaySong?.time_signature_top ?? 4) * countInBarsVal
       : 0;
 
-    // Start overdub playback (D-140) if in practice mode
-    if (mode === 'practice' && state.engineState !== 'playing') {
+    // Start overdub playback (D-140) if in practice/view mode
+    if ((activeMode === 'practice' || activeMode === 'view') && state.engineState !== 'playing') {
       actions.play();
     }
 
@@ -553,9 +598,15 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
           )}
         </div>
         <div className="v4-hdr-right">
-          <span className={`v4-mode-badge ${isRecordMode ? 'record' : isLive ? 'live' : 'practice'}`}>
-            {isRecordMode ? 'REC' : isLive ? 'LIVE' : 'PRACTICE'}
-          </span>
+          {isRecordMode ? (
+            <span className="v4-mode-badge record">REC</span>
+          ) : (
+            <div className="v4-mode-tabs">
+              <button className={`v4-mode-tab ${activeMode === 'live' ? 'active live' : ''}`} onClick={() => { actions.stop(); setActiveMode('live'); }}>Live</button>
+              <button className={`v4-mode-tab ${activeMode === 'practice' ? 'active practice' : ''}`} onClick={() => { actions.stop(); setActiveMode('practice'); }}>Practice</button>
+              <button className={`v4-mode-tab ${activeMode === 'view' ? 'active view' : ''}`} onClick={() => { actions.stop(); setActiveMode('view'); }}>View</button>
+            </div>
+          )}
           <span className="v4-bpm-val">{Math.round(songBpm * state.speed)}</span>
           <span className="v4-bpm-unit">BPM</span>
         </div>
@@ -563,8 +614,8 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
 
       {/* ── Scrollable content ── */}
       <div className="v4-content">
-        {/* Visual Hero — normal or recording mode */}
-        {showVisuals && !isRecordMode && (
+        {/* Visual Hero — normal, view mode, or recording mode */}
+        {showVisuals && !isRecordMode && !isView && (
           <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
             <div className="v4-hero-vis">
               <div className="v4-vis-bars">
@@ -578,6 +629,39 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
               <button className="v4-vis-btn on">Bars</button>
               <button className="v4-vis-btn">Rings</button>
             </div>
+          </div>
+        )}
+
+        {/* View Mode Hero (S42 — D-137, D-146) — local video or visualiser fallback */}
+        {isView && !isRecordMode && (
+          <div className="v4-hero v4-hero-view">
+            {viewVideoUrl ? (
+              <video
+                ref={viewVideoRef}
+                src={viewVideoUrl}
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div className="v4-view-visualizer">
+                {Array.from({ length: 21 }, (_, i) => {
+                  const h = isPlaying
+                    ? Math.max(8, 30 + Math.sin(i * 0.5 + Date.now() / 300) * 25)
+                    : 8 + Math.sin(i * 0.3) * 4;
+                  return <div key={i} className="v4-view-bar" style={{ height: `${h}%` }} />;
+                })}
+              </div>
+            )}
+            {state.beatFlash && <div className="v4-beat-glow" />}
+            <div className="v4-view-info-tl">
+              <div className="v4-rec-song">{songName}</div>
+              <div className="v4-rec-artist">{songArtist} {'\u00B7'} {Math.round(songBpm)} bpm</div>
+            </div>
+            {state.duration > 0 && (
+              <div className="v4-view-time-br">
+                {formatTime(state.currentTime)} / {formatTime(state.duration)}
+              </div>
+            )}
           </div>
         )}
 
@@ -808,7 +892,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
               <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
             </div>
 
-            {/* Mixer (practice only) */}
+            {/* Mixer (practice + view modes) */}
             {!isLive && state.stemChannels.length > 0 && (
               <>
                 <div className="v4-drawer-label" style={{ marginTop: 12 }}>MIXER</div>

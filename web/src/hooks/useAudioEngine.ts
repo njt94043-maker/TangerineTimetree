@@ -18,7 +18,7 @@ import { getSong, getBeatMap, getSongStems, getPlayerPrefs } from '@shared/supab
 import type { Song, BeatMap, SongStem } from '@shared/supabase/types';
 import type { PlayerPrefs } from '@shared/supabase/queries';
 
-export type PlayerMode = 'live' | 'practice';
+export type PlayerMode = 'live' | 'practice' | 'view';
 
 /** Downsample an AudioBuffer to N amplitude peaks (0–1). */
 function generateWaveform(buffer: AudioBuffer, numBins = 200): Float32Array {
@@ -179,7 +179,7 @@ export function useAudioEngine(
         clickEnabledRef.current = prefsData.player_click_enabled;
 
         // In practice mode, load track or stems
-        if (mode === 'practice') {
+        if (mode === 'practice' || mode === 'view') {
           if (stemsData.length > 0) {
             // Load stems
             await mixerRef.current.loadStems(
@@ -279,9 +279,9 @@ export function useAudioEngine(
       clickRef.current.start();
     }
 
-    if (mode === 'practice' && hasStems) {
+    if ((mode === 'practice' || mode === 'view') && hasStems) {
       mixerRef.current.play();
-    } else if (mode === 'practice' && hasTrack) {
+    } else if ((mode === 'practice' || mode === 'view') && hasTrack) {
       trackRef.current.play();
     }
 

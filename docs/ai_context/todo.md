@@ -231,3 +231,4 @@
 | S39 | Foundation — Migration (categories, sharing, is_best_take, RLS), shared types/queries, Cloud Run beats-only | 2026-03-10 |
 | S40 | Library + SongForm (Both) — Dropdowns, categories, sharing UI, ownership, read-only on web + Android | 2026-03-10 |
 | S41 | Recording + Takes (Both) — Recording flow, takes list, post-recording, new song idea on web + Android | 2026-03-10 |
+| S42 | View Mode (Both) — 3rd player tab (Live/Practice/View), local video hero + visualiser fallback, record from View | 2026-03-10 |

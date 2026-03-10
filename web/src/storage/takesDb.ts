@@ -99,6 +99,15 @@ export async function deleteAllTakesLocally(songId: string, userId: string): Pro
   });
 }
 
+/** Get the best local take with video for View Mode playback (D-146) */
+export async function getBestTakeWithVideo(songId: string, userId: string): Promise<LocalTake | null> {
+  const takes = await getUserTakesLocal(songId, userId);
+  // Return the most recent take that has a video blob
+  const withVideo = takes.filter(t => t.video_blob != null);
+  if (withVideo.length === 0) return null;
+  return withVideo[withVideo.length - 1]; // last = highest take number
+}
+
 /** Build composite key */
 export function makeTakeId(songId: string, userId: string, takeNumber: number): string {
   return `${songId}:${userId}:${takeNumber}`;
