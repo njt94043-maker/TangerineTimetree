@@ -26,7 +26,7 @@
 - [x] **S35: Android Library + player refactor** — Library as launchpad (Songs/Setlists tabs, filter pills, launch into player). Shared player screen (mode flag: Live vs Practice). Queue overlay with reorder. Set complete screen. Speed safety check.
 - [x] **S36: Web audio engine + Library redesign + Player UI** — AudioEngine singleton, ClickScheduler (5 click sounds, beat map mode, subdivisions, swing), TrackPlayer (SoundTouchJS), StemMixer (per-stem gain/mute/solo), useAudioEngine hook. Library component (Songs/Setlists tabs, category/type filter pills, inline Live/Practice launch). Player component (transport, beat counter, lyrics/chords, speed, A-B loop, stem mixer, setlist queue). Forgot password fix. View routing (library + player views). Drawer updated (single Library item). All CSS. tsc + vite build clean.
 - [x] **S37: Web player polish** — Wake lock API (visibility re-acquire). Waveform visualiser (canvas amplitude peaks). Player prefs settings UI (7 toggles in Settings, auto-save). Set complete celebration + between-songs countdown. Beat glow polish (pulse animation, multi-layer box-shadow). songComplete flag in useAudioEngine.
-- [ ] **S38: Visual Unification** — Android GigColors token correction (5 values: bg→#08080c, text→#d0d0dc, dim→#7a7a94, muted→#4a4a60, teal→#1abc9c). Both players rebuilt to V4 target design (header + visual hero + text panel + transport + drawer). Practice drawer: Display + Mixer + Settings. Live drawer: Display + Settings.
+- [x] **S38: Visual Unification** — Android GigColors corrected (5 values + 5 new tokens: surfaceLight, greenDark, cyan, pink, slate). NeuCard shadows canonical V4. New PlayerComponents.kt (shared composables: PlayerHeader, VisualHero, TextPanel, Transport, DrawerHandle, DisplayToggleRow, SettingsPills, MixerRow). LiveScreen.kt + PracticeScreen.kt rebuilt to V4 (header→hero→text→transport→drawer via ModalBottomSheet). Web Player.tsx rebuilt (v4-* CSS classes, V4Waveform, TogglePill, drawer overlay). App.css player section rewritten. Both builds clean.
 - [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
 - [ ] Add more songs via web app (currently only 3: Sultans, Cissy Strut, War Pigs)
 - [x] **S29A: Compose CalendarScreen with real Supabase data** — DONE (gigs + away dates, coloured dots, tap-to-expand)
@@ -223,3 +223,6 @@
 | S33 | Songs/Setlists/Live/Practice planning — schema, mockups, architecture decisions | 2026-03-09 |
 | S34 | Migration + types + queries (song categories, setlist types, player prefs) | 2026-03-09 |
 | S35 | Android Library refactor + player refactor (filter pills, queue overlay, set complete) | 2026-03-09 |
+| S36 | Web audio engine + Library redesign + Player UI (AudioEngine, ClickScheduler, TrackPlayer, StemMixer) | 2026-03-09 |
+| S37 | Web player polish (wake lock, waveform, player prefs, set complete, beat glow) | 2026-03-09 |
+| S38 | Visual Unification — Android tokens corrected, both players rebuilt to V4 target design | 2026-03-10 |

@@ -75,8 +75,9 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 | | `android/.../cpp/CMakeLists.txt` — must include ALL .cpp files (SoundTouch too) |
 | | `android/.../AudioEngineBridge.kt` — JNI external declarations must match C++ signatures exactly |
 | | `android/.../AppViewModel.kt` — calls bridge functions, manages engine state |
-| | `android/.../LiveScreen.kt` — transport, BPM controls, beat display |
-| | `android/.../PracticeScreen.kt` — speed, stems, waveform, A-B loop |
+| | `android/.../ui/components/PlayerComponents.kt` — shared V4 player composables (header, hero, transport, text panel, drawer, mixer) |
+| | `android/.../LiveScreen.kt` — V4 layout, uses PlayerComponents composables |
+| | `android/.../PracticeScreen.kt` — V4 layout, uses PlayerComponents composables, waveform, A-B loop |
 
 **Key gotcha**: JNI function names must match package path exactly. No bounds checking on channel indices — Kotlin must validate before calling.
 
@@ -89,7 +90,8 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 | New TypeScript audio engine (S36) | `shared/supabase/queries.ts` — getBeatMap, getStemsBySongId |
 | | `shared/supabase/types.ts` — BeatMap, SongStem, StemLabel |
 | | Web Library screen (S36) — launch buttons feed song/setlist into engine |
-| | Web Player component (S37) — transport, mixer, prefs |
+| | `web/src/components/Player.tsx` — V4 layout (header, hero, text panel, transport, drawer with mixer/toggles/settings) |
+| | `web/src/App.css` — V4 player styles (v4-* class prefix, ~600 lines) |
 | | `user_settings` player prefs — 7 toggles control what's enabled |
 | | Beat map format must match: `beats` field is JSONB array of float seconds |
 | | Stem URLs from `song_stems` table, audio from `song-stems` storage bucket |
@@ -137,12 +139,12 @@ Before changing any file, find its domain below. The **Ripple** column lists eve
 |-------|--------|
 | `user_settings` table (7 player prefs columns) | `shared/supabase/types.ts` — UserSettings interface, player_*_enabled fields |
 | | `shared/supabase/queries.ts` — getPlayerPrefs, updatePlayerPrefs |
-| | Android SettingsScreen — **NOT YET** (prefs UI needed, S38 target) |
+| | Android SettingsScreen — **NOT YET** (prefs UI needed) |
 | | **Web Settings.tsx** — 7 toggle switches, auto-save (built S37) |
-| | Android LiveScreen + PracticeScreen — should read prefs to show/hide features |
-| | **Web Player.tsx** — prefs control lyrics/chords/notes/drums/vis visibility (built S36/S37) |
+| | Android LiveScreen + PracticeScreen — display toggles local state (S38), not yet wired to user_settings persistence |
+| | **Web Player.tsx** — display toggles synced from state.prefs on mount (S38) |
 
-**Status**: 7 columns exist in DB. Web UI built (S37 — Settings toggles + Player respects prefs). Android SettingsScreen still needs toggle UI (S38).
+**Status**: 7 columns exist in DB. Web UI built (S37 — Settings toggles). S38 added display toggles in V4 drawer (local state on both platforms, not yet persisted to user_settings). Android SettingsScreen still needs toggle UI.
 
 ---
 

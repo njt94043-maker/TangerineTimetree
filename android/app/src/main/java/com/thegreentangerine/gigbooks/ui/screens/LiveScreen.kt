@@ -20,22 +20,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,20 +47,42 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.ui.AppViewModel
-import com.thegreentangerine.gigbooks.ui.components.BeatDisplay
+import com.thegreentangerine.gigbooks.ui.components.DisplayToggleRow
+import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
+import com.thegreentangerine.gigbooks.ui.components.DrawerLabel
+import com.thegreentangerine.gigbooks.ui.components.LiveTransport
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.components.NeuWell
-import com.thegreentangerine.gigbooks.ui.components.PlayStopButton
+import com.thegreentangerine.gigbooks.ui.components.PlayerHeader
+import com.thegreentangerine.gigbooks.ui.components.PlayerNavRow
+import com.thegreentangerine.gigbooks.ui.components.SettingsPills
+import com.thegreentangerine.gigbooks.ui.components.TextPanel
+import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
+import com.thegreentangerine.gigbooks.ui.components.VisualHero
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit) {
     val song = vm.selectedSong
     var showQueue by remember { mutableStateOf(false) }
     var showSpeedConfirm by remember { mutableStateOf(false) }
     var pendingBpmDelta by remember { mutableStateOf(0f) }
+
+    // Display toggles (local state — will wire to user_settings later)
+    var showVisuals by remember { mutableStateOf(true) }
+    var showChords by remember { mutableStateOf(true) }
+    var showLyrics by remember { mutableStateOf(true) }
+    var showNotes by remember { mutableStateOf(true) }
+    var showDrums by remember { mutableStateOf(true) }
+
+    // Bottom sheet
+    val sheetState = rememberModalBottomSheetState()
+    var showSheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     // Set complete overlay
     if (vm.isSetComplete && vm.activeSetlist != null) {
@@ -76,73 +97,168 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().background(GigColors.background)) {
-            LiveHeader(
-                onMenuClick = onMenuClick,
-                hasSetlist = vm.activeSetlist != null,
-                onQueueClick = { showQueue = true },
-            )
-
             if (song == null) {
+                // Simple header when no song
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(GigColors.background)
+                        .padding(top = 48.dp, start = 8.dp, end = 16.dp, bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(onClick = onMenuClick) {
+                        Icon(Icons.Default.Close, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                    }
+                }
                 NoSongPlaceholder(
-                    accent     = GigColors.green,
+                    accent = GigColors.green,
                     screenName = "Live Mode",
                     onGoToLibrary = onGoToLibrary,
                 )
             } else {
+                val setlist = vm.activeSetlist
+                val setlistPos = if (setlist != null) "${vm.activeSetlistIdx + 1} of ${setlist.songs.size}" else null
+
+                // V4 Header
+                PlayerHeader(
+                    songName = song.name,
+                    songArtist = song.artist,
+                    bpm = vm.effectiveBpm.toInt(),
+                    isLiveMode = true,
+                    setlistName = setlist?.setlist?.name,
+                    setlistPosition = setlistPos,
+                    onBackClick = onMenuClick,
+                )
+
+                // Scrollable content area
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    // Visual Hero
+                    if (showVisuals) {
+                        VisualHero(
+                            heroHeight = 160.dp,
+                            isPlaying = vm.isClickPlaying,
+                            currentBeat = vm.currentBeat,
+                            accent = GigColors.green,
+                        )
+                    }
+
+                    // Text Panel (scrollable lyrics/chords/notes/drums)
+                    TextPanel(
+                        chords = song.chords,
+                        lyrics = song.lyrics,
+                        notes = song.notes,
+                        drums = song.drumNotation,
+                        toggles = TextPanelToggles(
+                            showChords = showChords,
+                            showLyrics = showLyrics,
+                            showNotes = showNotes,
+                            showDrums = showDrums,
+                        ),
+                    )
+                }
+
+                // Transport
+                LiveTransport(
+                    isPlaying = vm.isClickPlaying,
+                    onPlayStop = { vm.toggleClick() },
+                    onStop = { vm.toggleClick() },
+                    onClickToggle = { vm.toggleClickMute() },
+                    isClickMuted = vm.isClickMuted,
+                    enabled = vm.engineAvailable,
+                )
+
+                // Nav Row (prev/next song)
+                if (setlist != null) {
+                    val prevName = if (vm.activeSetlistIdx > 0) {
+                        setlist.songs.getOrNull(vm.activeSetlistIdx - 1)?.songs?.name
+                    } else null
+                    val nextName = if (vm.activeSetlistIdx < setlist.songs.size - 1) {
+                        setlist.songs.getOrNull(vm.activeSetlistIdx + 1)?.songs?.name
+                    } else null
+
+                    PlayerNavRow(
+                        prevSongName = prevName,
+                        nextSongName = nextName,
+                        queueLabel = "${vm.activeSetlistIdx + 1}/${setlist.songs.size}",
+                        onPrev = { vm.prevSong() },
+                        onNext = { vm.nextSong() },
+                        onQueue = { showQueue = true },
+                    )
+                }
+
+                // Drawer preview (pull-up handle + display toggles)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            GigColors.surface,
+                            RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                        )
+                        .border(
+                            1.dp,
+                            Color.White.copy(alpha = 0.04f),
+                            RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
+                        )
+                        .clickable {
+                            showSheet = true
+                        }
+                        .padding(10.dp, 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    DrawerHandle()
+                    Spacer(Modifier.height(8.dp))
+                    DrawerLabel("DISPLAY")
+                    Spacer(Modifier.height(6.dp))
+                    DisplayToggleRow(
+                        showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
+                        showChords = showChords, onChordsToggle = { showChords = !showChords },
+                        showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
+                        showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
+                        showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
+                    )
+                }
+            }
+        }
+
+        // Bottom sheet drawer (full settings)
+        if (showSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showSheet = false },
+                sheetState = sheetState,
+                containerColor = GigColors.surface,
+                scrimColor = Color.Black.copy(alpha = 0.5f),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
+                    DrawerLabel("DISPLAY")
+                    DisplayToggleRow(
+                        showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
+                        showChords = showChords, onChordsToggle = { showChords = !showChords },
+                        showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
+                        showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
+                        showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
+                    )
+
                     Spacer(Modifier.height(4.dp))
-
-                    LiveSongCard(vm)
-
-                    NeuCard {
-                        BeatDisplay(
-                            beatsPerBar = song.timeSignatureTop.toInt(),
-                            currentBeat = vm.currentBeat,
-                            currentBar  = vm.currentBar,
-                            isPlaying   = vm.isClickPlaying,
-                            accent      = GigColors.green,
-                            modifier    = Modifier.padding(vertical = 14.dp),
-                        )
-                    }
-
-                    PlayStopButton(
-                        isPlaying = vm.isClickPlaying,
-                        accent    = GigColors.green,
-                        onClick   = { vm.toggleClick() },
-                        enabled   = vm.engineAvailable,
+                    DrawerLabel("SETTINGS")
+                    SettingsPills(
+                        subdivision = vm.subdivision,
+                        onSubdivisionChange = { vm.applySubdivision(it) },
+                        countInBars = vm.countInBars,
+                        onCountInChange = { vm.setCountIn(it) },
+                        nudgeOffsetMs = vm.nudgeOffsetMs,
+                        onNudgeBack = { vm.nudge(-1) },
+                        onNudgeForward = { vm.nudge(+1) },
+                        onNudgeReset = { vm.resetNudge() },
                     )
 
-                    if (!vm.engineAvailable) {
-                        Text(
-                            "Audio engine unavailable on this device",
-                            fontFamily = Karla, fontSize = 12.sp,
-                            color = GigColors.danger, textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-
-                    // BPM control with speed safety check
-                    LiveBpmCard(
-                        vm = vm,
-                        onBpmChange = { delta ->
-                            if (vm.isClickPlaying && kotlin.math.abs(delta) >= 5f) {
-                                pendingBpmDelta = delta
-                                showSpeedConfirm = true
-                            } else {
-                                vm.adjustBpm(delta)
-                            }
-                        },
-                    )
-
-                    CountInCard(vm)
-
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
@@ -170,203 +286,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     }
 }
 
-// ─── Header ──────────────────────────────────────────────────────────────────
-
-@Composable
-private fun LiveHeader(onMenuClick: () -> Unit, hasSetlist: Boolean, onQueueClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GigColors.surface)
-            .padding(top = 48.dp, start = 8.dp, end = 8.dp, bottom = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onMenuClick) {
-            Icon(Icons.Default.Menu, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
-        }
-        Text(
-            text = "Live Mode",
-            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-            style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(alpha = 0.45f), Offset.Zero, 14f)),
-            modifier = Modifier.weight(1f),
-        )
-        if (hasSetlist) {
-            IconButton(onClick = onQueueClick) {
-                Icon(
-                    Icons.AutoMirrored.Filled.QueueMusic,
-                    contentDescription = "Queue",
-                    tint = GigColors.teal,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-    }
-}
-
-// ─── Song card ───────────────────────────────────────────────────────────────
-
-@Composable
-private fun LiveSongCard(vm: AppViewModel) {
-    val song    = vm.selectedSong ?: return
-    val setlist = vm.activeSetlist
-
-    NeuCard {
-        if (setlist != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(
-                    onClick = { vm.prevSong() },
-                    enabled = vm.activeSetlistIdx > 0,
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Previous",
-                        tint = if (vm.activeSetlistIdx > 0) GigColors.green else GigColors.textMuted,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = setlist.setlist.name,
-                        fontFamily = Karla, fontSize = 10.sp, color = GigColors.textMuted, letterSpacing = 0.5.sp,
-                    )
-                    Text(
-                        text = "${vm.activeSetlistIdx + 1} / ${setlist.songs.size}",
-                        fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim,
-                    )
-                }
-                IconButton(
-                    onClick = { vm.nextSong() },
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Next",
-                        tint = if (vm.activeSetlistIdx < setlist.songs.size - 1) GigColors.green else GigColors.orange,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 6.dp))
-        }
-
-        Text(
-            text = song.name,
-            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 22.sp,
-            style = TextStyle(color = GigColors.text, shadow = Shadow(GigColors.text.copy(alpha = 0.1f), Offset.Zero, 4f)),
-        )
-        if (song.artist.isNotBlank()) {
-            Text(text = song.artist, fontFamily = Karla, fontSize = 13.sp, color = GigColors.textDim)
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            LiveChip(text = "${song.bpm.toInt()} BPM", color = GigColors.orange)
-            if (song.key.isNotBlank()) LiveChip(text = song.key, color = GigColors.teal)
-            LiveChip(text = song.timeSig, color = GigColors.textMuted)
-        }
-    }
-}
-
-// ─── BPM control ─────────────────────────────────────────────────────────────
-
-@Composable
-private fun LiveBpmCard(vm: AppViewModel, onBpmChange: (Float) -> Unit) {
-    val song = vm.selectedSong ?: return
-    val isModified = vm.bpmOffset != 0f
-
-    NeuCard {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "BPM",
-                fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                color = GigColors.textDim, modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = "${vm.effectiveBpm.toInt()}",
-                fontFamily = JetBrainsMono, fontSize = 28.sp,
-                style = TextStyle(
-                    color      = if (isModified) GigColors.orange else GigColors.text,
-                    shadow     = if (isModified) Shadow(GigColors.orange.copy(alpha = 0.5f), Offset.Zero, 12f) else null,
-                ),
-            )
-            if (isModified) {
-                Text(
-                    text  = " (${song.bpm.toInt()})",
-                    fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.textMuted,
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            BpmButton("\u22125",  GigColors.danger.copy(alpha = 0.7f),  Modifier.weight(1f)) { onBpmChange(-5f) }
-            BpmButton("\u22121",  GigColors.textDim,                    Modifier.weight(1f)) { onBpmChange(-1f) }
-            BpmButton("RESET", if (isModified) GigColors.orange else GigColors.textMuted,
-                Modifier.weight(1.5f), enabled = isModified)                              { vm.resetBpmOffset() }
-            BpmButton("+1",  GigColors.textDim,                    Modifier.weight(1f)) { onBpmChange(+1f) }
-            BpmButton("+5",  GigColors.green.copy(alpha = 0.7f),   Modifier.weight(1f)) { onBpmChange(+5f) }
-        }
-    }
-}
-
-@Composable
-private fun BpmButton(label: String, color: Color, modifier: Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .height(36.dp)
-            .background(color.copy(alpha = if (enabled) 0.08f else 0.03f), RoundedCornerShape(8.dp))
-            .border(0.5.dp, color.copy(alpha = if (enabled) 0.25f else 0.1f), RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, fontFamily = JetBrainsMono, fontSize = 11.sp, color = if (enabled) color else GigColors.textMuted)
-    }
-}
-
-// ─── Count-in ────────────────────────────────────────────────────────────────
-
-@Composable
-private fun CountInCard(vm: AppViewModel) {
-    NeuCard {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Count-in",
-                fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                color = GigColors.textDim, modifier = Modifier.weight(1f),
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(0 to "OFF", 1 to "1 bar", 2 to "2 bars").forEach { (n, label) ->
-                    val selected = vm.countInBars == n
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                if (selected) GigColors.green.copy(alpha = 0.15f) else Color.Transparent,
-                                RoundedCornerShape(8.dp),
-                            )
-                            .border(
-                                0.5.dp,
-                                if (selected) GigColors.green.copy(alpha = 0.4f) else GigColors.textMuted.copy(alpha = 0.2f),
-                                RoundedCornerShape(8.dp),
-                            )
-                            .clickable { vm.setCountIn(n) }
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            label, fontFamily = Karla, fontSize = 12.sp,
-                            style = TextStyle(
-                                color  = if (selected) GigColors.green else GigColors.textMuted,
-                                shadow = if (selected) Shadow(GigColors.green.copy(alpha = 0.4f), Offset.Zero, 6f) else null,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ─── Queue Overlay ──────────────────────────────────────────────────────────
+// ─── Queue Overlay ──────────────────────────────────────────────────────────────
 
 @Composable
 private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
@@ -382,10 +302,9 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(enabled = false, onClick = {}) // block click-through
+                .clickable(enabled = false, onClick = {})
                 .padding(top = 60.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {
-            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -411,7 +330,7 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 itemsIndexed(setlist.songs, key = { _, row -> row.id }) { idx, row ->
                     val isCurrent = idx == currentIdx
-                    val isPlayed  = idx < currentIdx
+                    val isPlayed = idx < currentIdx
                     val song = row.songs
 
                     NeuCard(
@@ -427,14 +346,13 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // Position number
                             Text(
                                 "${idx + 1}",
                                 fontFamily = JetBrainsMono, fontSize = 13.sp,
                                 color = when {
                                     isCurrent -> GigColors.green
-                                    isPlayed  -> GigColors.textMuted
-                                    else      -> GigColors.textDim
+                                    isPlayed -> GigColors.textMuted
+                                    else -> GigColors.textDim
                                 },
                                 modifier = Modifier.width(24.dp),
                             )
@@ -447,8 +365,8 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                                     fontSize = 14.sp,
                                     color = when {
                                         isCurrent -> GigColors.text
-                                        isPlayed  -> GigColors.textMuted
-                                        else      -> GigColors.textDim
+                                        isPlayed -> GigColors.textMuted
+                                        else -> GigColors.textDim
                                     },
                                 )
                                 if (song != null && song.artist.isNotBlank()) {
@@ -460,14 +378,12 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                                 }
                             }
 
-                            // BPM
                             Text(
                                 "${song?.bpm?.toInt() ?: ""}",
                                 fontFamily = JetBrainsMono, fontSize = 12.sp,
                                 color = if (isCurrent) GigColors.orange else GigColors.textMuted,
                             )
 
-                            // Reorder buttons
                             Spacer(Modifier.width(4.dp))
                             Column {
                                 IconButton(
@@ -497,7 +413,6 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                             }
                         }
 
-                        // Current song indicator
                         if (isCurrent) {
                             Text(
                                 "NOW PLAYING",
@@ -513,7 +428,7 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
     }
 }
 
-// ─── Set Complete Screen ───────────────────────────────────────────────────────
+// ─── Set Complete Screen ─────────────────────────────────────────────────────────
 
 @Composable
 private fun SetCompleteScreen(
@@ -561,7 +476,6 @@ private fun SetCompleteScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Restart button
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -580,7 +494,6 @@ private fun SetCompleteScreen(
 
                 Spacer(Modifier.height(10.dp))
 
-                // Back to library
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -601,7 +514,7 @@ private fun SetCompleteScreen(
     }
 }
 
-// ─── Speed Safety Modal ──────────────────────────────────────────────────────
+// ─── Speed Safety Modal ──────────────────────────────────────────────────────────
 
 @Composable
 private fun SpeedSafetyModal(
@@ -677,7 +590,7 @@ private fun SpeedSafetyModal(
     }
 }
 
-// ─── No song placeholder ──────────────────────────────────────────────────────
+// ─── No song placeholder ────────────────────────────────────────────────────────
 
 @Composable
 fun NoSongPlaceholder(accent: Color, screenName: String, onGoToLibrary: () -> Unit) {
@@ -715,7 +628,7 @@ fun NoSongPlaceholder(accent: Color, screenName: String, onGoToLibrary: () -> Un
     }
 }
 
-// ─── Shared small chip ────────────────────────────────────────────────────────
+// ─── Shared small chip ───────────────────────────────────────────────────────────
 
 @Composable
 fun LiveChip(text: String, color: Color) {

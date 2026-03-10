@@ -70,26 +70,26 @@ fun NeuWell(
  */
 fun Modifier.neuShadow(
     cornerRadius: Dp = 16.dp,
-    darkShadowColor: Color = Color(0x66000000),  // rgba(0,0,0,0.4)
-    lightShadowColor: Color = Color(0x08FFFFFF), // rgba(255,255,255,0.03)
-    elevation: Dp = 6.dp,
+    darkShadowColor: Color = Color(0xCC000000),  // rgba(0,0,0,0.8) — canonical raised
+    lightShadowColor: Color = Color(0x1F28283C), // rgba(40,40,60,0.12) — canonical raised
 ): Modifier = this.drawBehind {
     val cr = cornerRadius.toPx()
-    val elev = elevation.toPx()
 
     drawIntoCanvas { canvas ->
+        // Canonical raised: 4px 4px 12px rgba(0,0,0,0.8)
         val darkPaint = Paint().also {
             it.asFrameworkPaint().apply {
                 isAntiAlias = true
                 color = android.graphics.Color.TRANSPARENT
-                setShadowLayer(elev * 2f, elev, elev, darkShadowColor.toArgb())
+                setShadowLayer(12f, 4f, 4f, darkShadowColor.toArgb())
             }
         }
+        // Canonical raised: -1px -1px 1px rgba(40,40,60,0.12)
         val lightPaint = Paint().also {
             it.asFrameworkPaint().apply {
                 isAntiAlias = true
                 color = android.graphics.Color.TRANSPARENT
-                setShadowLayer(elev * 1.3f, -elev * 0.5f, -elev * 0.5f, lightShadowColor.toArgb())
+                setShadowLayer(1f, -1f, -1f, lightShadowColor.toArgb())
             }
         }
         val rect = androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height)

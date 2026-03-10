@@ -1,11 +1,11 @@
 /**
- * Player — Shared Live/Practice player screen.
+ * Player — V4 unified player screen (Live / Practice).
+ *
+ * Layout: Header → Visual Hero → Text Panel → Waveform (practice) →
+ *         Transport → Nav Row → Drawer pull-up.
  *
  * Live mode:  Click + lyrics/chords only (no track playback).
  * Practice mode: Click + track/stems + speed + A-B loop.
- *
- * When launched with a setlistId, loads the full setlist and provides
- * queue navigation (prev/next/song list overlay).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -35,7 +35,6 @@ function useWakeLock(active: boolean) {
 
     acquire();
 
-    // Re-acquire on visibility change (tab switch releases it)
     function onVisibilityChange() {
       if (!cancelled && document.visibilityState === 'visible' && !wakeLockRef.current) {
         acquire();
@@ -52,7 +51,7 @@ function useWakeLock(active: boolean) {
   }, [active]);
 }
 
-// ─── ChordPro parser (shared with StagePrompter) ───
+// ─── ChordPro parser ───
 
 function parseChordPro(line: string): { chord?: string; text: string }[] {
   const segments: { chord?: string; text: string }[] = [];
@@ -106,59 +105,16 @@ function ChordProLine({ line }: { line: string }) {
   const hasChords = segments.some(s => s.chord);
 
   if (!hasChords) {
-    return <div className="player-lyrics-line">{line}</div>;
+    return <div className="v4-tp-lyrics">{line}</div>;
   }
 
   return (
-    <div className="player-chordpro-line">
+    <div className="v4-tp-chordpro">
       {segments.map((seg, i) => (
-        <span key={i} className="player-chordpro-segment">
-          {seg.chord && <span className="player-chord-inline">{seg.chord}</span>}
-          <span className="player-chord-text">{seg.text || '\u00A0'}</span>
+        <span key={i} className="v4-tp-chordpro-seg">
+          {seg.chord && <span className="v4-tp-chord-inline">{seg.chord}</span>}
+          <span>{seg.text || '\u00A0'}</span>
         </span>
-      ))}
-    </div>
-  );
-}
-
-function LyricsPanel({ lyrics, chords, showLyrics, showChords }: {
-  lyrics: string;
-  chords: string;
-  showLyrics: boolean;
-  showChords: boolean;
-}) {
-  if (!showLyrics && !showChords) return null;
-
-  // ChordPro inline: lyrics field contains [Am]text notation
-  if (showLyrics && lyrics && isChordProLine(lyrics)) {
-    return (
-      <div className="player-lyrics">
-        {lyrics.split('\n').map((line, i) => (
-          showChords ? <ChordProLine key={i} line={line} /> : (
-            <div key={i} className="player-lyrics-line">
-              {line.replace(/\[[^\]]+\]/g, '')}
-            </div>
-          )
-        ))}
-      </div>
-    );
-  }
-
-  // Separate chords block + lyrics
-  return (
-    <div className="player-lyrics">
-      {showChords && chords && (
-        <div className="player-chords-block">
-          {chords.split('\n').map((line, i) => (
-            <div key={i} className="player-chord-line">{line}</div>
-          ))}
-        </div>
-      )}
-      {showChords && chords && showLyrics && lyrics && <div className="player-section-divider" />}
-      {showLyrics && lyrics && lyrics.split('\n').map((line, i) => (
-        <div key={i} className={`player-lyrics-line ${line.trim() === '' ? 'player-lyrics-blank' : ''}`}>
-          {line || '\u00A0'}
-        </div>
       ))}
     </div>
   );
@@ -172,19 +128,29 @@ function formatTime(sec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-const STEM_ICONS: Record<string, string> = {
-  drums: 'DR',
-  bass: 'BA',
-  vocals: 'VO',
-  guitar: 'GT',
-  keys: 'KY',
-  backing: 'BK',
-  other: 'OT',
+const STEM_COLORS: Record<string, string> = {
+  drums: 'var(--color-tangerine)',
+  bass: 'var(--color-teal)',
+  vocals: '#e040fb',
+  guitar: 'var(--color-green)',
+  keys: 'var(--color-practice)',
+  backing: '#78909c',
+  other: '#78909c',
 };
 
-// ─── Waveform visualiser ───
+const STEM_LABELS: Record<string, string> = {
+  drums: 'DRM',
+  bass: 'BAS',
+  vocals: 'VOX',
+  guitar: 'GTR',
+  keys: 'KEY',
+  backing: 'OTH',
+  other: 'OTH',
+};
 
-function Waveform({ data, currentTime, duration, loop }: {
+// ─── V4 Waveform ───
+
+function V4Waveform({ data, currentTime, duration, loop }: {
   data: Float32Array;
   currentTime: number;
   duration: number;
@@ -212,29 +178,39 @@ function Waveform({ data, currentTime, duration, loop }: {
     const barW = w / bins;
     const mid = h / 2;
 
-    // Loop region highlight
+    // Loop region
     if (loop && duration > 0) {
       const lx = (loop.start / duration) * w;
       const lw = ((loop.end - loop.start) / duration) * w;
-      ctx.fillStyle = 'rgba(243,156,18,0.08)';
+      ctx.fillStyle = 'rgba(243,156,18,0.04)';
       ctx.fillRect(lx, 0, lw, h);
+      ctx.strokeStyle = 'rgba(243,156,18,0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(lx, 0); ctx.lineTo(lx, h);
+      ctx.moveTo(lx + lw, 0); ctx.lineTo(lx + lw, h);
+      ctx.stroke();
     }
 
+    // Bars
     for (let i = 0; i < bins; i++) {
       const x = i * barW;
       const amp = data[i];
       const barH = Math.max(1, amp * mid * 0.9);
       const isPast = x < progressX;
-      ctx.fillStyle = isPast ? 'rgba(0,230,118,0.6)' : 'rgba(255,255,255,0.15)';
+      ctx.fillStyle = isPast ? 'rgba(0,230,118,0.7)' : 'rgba(0,230,118,0.12)';
       ctx.fillRect(x, mid - barH, Math.max(1, barW - 0.5), barH * 2);
     }
 
     // Playhead
-    ctx.fillStyle = 'var(--color-tangerine)';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(255,255,255,0.4)';
+    ctx.shadowBlur = 6;
     ctx.fillRect(progressX - 1, 0, 2, h);
+    ctx.shadowBlur = 0;
   }, [data, currentTime, duration, loop]);
 
-  return <canvas ref={canvasRef} className="player-waveform" />;
+  return <canvas ref={canvasRef} className="v4-waveform" />;
 }
 
 // ─── Player Component ───
@@ -252,13 +228,11 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [queueOpen, setQueueOpen] = useState(false);
 
-  // Current song ID (either direct or from setlist)
+  // Current song ID
   const [activeSongId, setActiveSongId] = useState<string | null>(songId);
-
-  // Standalone song data (when no setlist)
   const [standaloneSong, setStandaloneSong] = useState<Song | null>(null);
 
-  // A-B loop marking state
+  // A-B loop marking
   const [loopMarkA, setLoopMarkA] = useState<number | null>(null);
 
   // Between-songs / set complete
@@ -266,7 +240,15 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
   const [setComplete, setSetComplete] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
-  const lyricsRef = useRef<HTMLDivElement>(null);
+  // Display toggles (local state — reads from prefs on mount)
+  const [showVisuals, setShowVisuals] = useState(true);
+  const [showChords, setShowChords] = useState(true);
+  const [showLyrics, setShowLyrics] = useState(true);
+  const [showNotes, setShowNotes] = useState(true);
+  const [showDrums, setShowDrums] = useState(true);
+
+  // Drawer open
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Audio engine
   const [state, actions] = useAudioEngine(activeSongId, mode);
@@ -274,10 +256,20 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
   // Keep screen awake while playing
   useWakeLock(state.engineState === 'playing' || betweenSongs);
 
+  // Sync display toggles from prefs
+  useEffect(() => {
+    if (state.prefs) {
+      setShowVisuals(state.prefs.player_vis_enabled ?? true);
+      setShowChords(state.prefs.player_chords_enabled ?? true);
+      setShowLyrics(state.prefs.player_lyrics_enabled ?? true);
+      setShowNotes(state.prefs.player_notes_enabled ?? true);
+      setShowDrums(state.prefs.player_drums_enabled ?? true);
+    }
+  }, [state.prefs]);
+
   // Handle song completion in setlist mode
   useEffect(() => {
     if (!state.songComplete || !setlist) return;
-
     const isLast = currentIndex >= setlist.songs.length - 1;
     if (isLast) {
       setSetComplete(true);
@@ -287,7 +279,7 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     }
   }, [state.songComplete, setlist, currentIndex]);
 
-  // Load setlist if provided
+  // Load setlist
   useEffect(() => {
     if (!setlistId) return;
     getSetlistWithSongs(setlistId).then(data => {
@@ -299,7 +291,7 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     });
   }, [setlistId]);
 
-  // Load standalone song name if no setlist and no songId in engine yet
+  // Load standalone song
   useEffect(() => {
     if (setlistId || !songId) return;
     getSong(songId).then(s => { if (s) setStandaloneSong(s); });
@@ -315,7 +307,6 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     setLoopMarkA(null);
     setBetweenSongs(false);
     setSetComplete(false);
-    if (lyricsRef.current) lyricsRef.current.scrollTop = 0;
   }, [setlist, actions]);
 
   const goToPrevSong = useCallback(() => {
@@ -328,7 +319,7 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     }
   }, [setlist, currentIndex, goToSetlistSong]);
 
-  // Countdown timer for between-songs auto-advance
+  // Countdown timer
   useEffect(() => {
     if (!betweenSongs) return;
     if (countdown <= 0) {
@@ -340,53 +331,43 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
     return () => clearTimeout(timer);
   }, [betweenSongs, countdown, goToNextSong]);
 
-  // Current song details
+  // Derived display data
   const currentSetlistSong: SetlistSongWithDetails | undefined = setlist?.songs[currentIndex];
   const displaySong = state.song;
 
-  // Derive display data
   const songName = currentSetlistSong?.song_name ?? standaloneSong?.name ?? displaySong?.name ?? '';
   const songArtist = currentSetlistSong?.song_artist ?? standaloneSong?.artist ?? displaySong?.artist ?? '';
   const songLyrics = displaySong?.lyrics ?? '';
   const songChords = displaySong?.chords ?? '';
   const songNotes = displaySong?.notes ?? '';
-  const songKey = displaySong?.key ?? '';
+  const songDrums = (displaySong as any)?.drum_notation ?? '';
   const songBpm = displaySong?.bpm ?? 0;
 
-  // Prefs
-  const showLyrics = state.prefs?.player_lyrics_enabled ?? true;
-  const showChords = state.prefs?.player_chords_enabled ?? true;
-  const showNotes = state.prefs?.player_notes_enabled ?? true;
-
-  // Transport
   const isPlaying = state.engineState === 'playing';
-  const isPaused = state.engineState === 'paused';
+  const isLive = mode === 'live';
+
+  // Setlist helpers
+  const prevSongName = setlist && currentIndex > 0
+    ? setlist.songs[currentIndex - 1]?.song_name ?? null : null;
+  const nextSongName = setlist && currentIndex < setlist.songs.length - 1
+    ? setlist.songs[currentIndex + 1]?.song_name ?? null : null;
 
   function handlePlayPause() {
     if (isPlaying) actions.pause();
     else actions.play();
   }
 
-  function handleSeek(e: React.ChangeEvent<HTMLInputElement>) {
-    actions.seek(Number(e.target.value));
-  }
-
   function handleSpeedChange(delta: number) {
-    actions.setSpeed(state.speed + delta);
+    actions.setSpeed(Math.round((state.speed + delta) * 100) / 100);
   }
 
-  // A-B loop
   function handleLoopMark() {
     if (loopMarkA === null) {
-      // Mark A
       setLoopMarkA(state.currentTime);
     } else {
-      // Mark B — set loop
       const a = loopMarkA;
       const b = state.currentTime;
-      if (b > a) {
-        actions.setLoop({ start: a, end: b });
-      }
+      if (b > a) actions.setLoop({ start: a, end: b });
       setLoopMarkA(null);
     }
   }
@@ -398,17 +379,12 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
 
   // Loading / error
   if (state.loading) {
-    return (
-      <div className="player-wrap">
-        <div className="player-loading">Loading...</div>
-      </div>
-    );
+    return <div className="v4-player"><div className="v4-loading">Loading...</div></div>;
   }
-
   if (state.error) {
     return (
-      <div className="player-wrap">
-        <div className="player-error">
+      <div className="v4-player">
+        <div className="v4-error">
           <p>{state.error}</p>
           <button className="btn btn-green" onClick={onClose}>Back</button>
         </div>
@@ -417,170 +393,256 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
   }
 
   return (
-    <div className={`player-wrap ${state.beatFlash ? 'player-flash' : ''}`}>
-      {/* ── Top bar ── */}
-      <div className="player-topbar">
-        <button className="btn btn-small btn-green" onClick={() => { actions.stop(); onClose(); }}>
-          {'\u25C0'} Back
+    <div className={`v4-player ${state.beatFlash ? 'v4-flash' : ''}`}>
+      {/* ── V4 Header ── */}
+      <div className="v4-hdr">
+        <button className="v4-hdr-back" onClick={() => { actions.stop(); onClose(); }}>
+          {isLive ? '←' : '☰'}
         </button>
-        <div className="player-topbar-info">
-          <span className="player-song-name">{songName}</span>
-          {songArtist && <span className="player-song-artist">{songArtist}</span>}
+        <div className="v4-hdr-info">
+          <span className="v4-hdr-song">{songName}</span>
+          {songArtist && <span className="v4-hdr-artist">{songArtist}</span>}
+          {setlist && (
+            <span className="v4-hdr-pos">{currentIndex + 1} of {setlist.songs.length} — {setlist.name}</span>
+          )}
         </div>
-        <span className="player-mode-badge">{mode}</span>
-      </div>
-
-      {/* ── Info tags ── */}
-      <div className="player-info-tags">
-        {songKey && <span className="player-info-tag">{songKey}</span>}
-        {songBpm > 0 && <span className="player-info-tag">{Math.round(songBpm * state.speed)} BPM</span>}
-        {state.speed !== 1.0 && <span className="player-info-tag player-speed-tag">{Math.round(state.speed * 100)}%</span>}
-      </div>
-
-      {/* ── Beat counter ── */}
-      <div className="player-beat-counter">
-        <span className="player-bar-num">Bar {state.currentBar + 1}</span>
-        <div className="player-beat-dots">
-          {Array.from({ length: displaySong?.time_signature_top ?? 4 }, (_, i) => (
-            <span
-              key={i}
-              className={`player-beat-dot ${i === state.currentBeat && isPlaying ? 'active' : ''} ${i === 0 ? 'downbeat' : ''}`}
-            />
-          ))}
+        <div className="v4-hdr-right">
+          <span className={`v4-mode-badge ${isLive ? 'live' : 'practice'}`}>
+            {isLive ? 'LIVE' : 'PRACTICE'}
+          </span>
+          <span className="v4-bpm-val">{Math.round(songBpm * state.speed)}</span>
+          <span className="v4-bpm-unit">BPM</span>
         </div>
       </div>
 
-      {/* ── Lyrics/Chords ── */}
-      <div className="player-lyrics-area" ref={lyricsRef}>
-        <LyricsPanel
-          lyrics={songLyrics}
-          chords={songChords}
-          showLyrics={showLyrics}
-          showChords={showChords}
-        />
-        {showNotes && songNotes && (
-          <div className="player-notes">
-            <span className="player-notes-label">Notes</span>
-            <span className="player-notes-text">{songNotes}</span>
+      {/* ── Scrollable content ── */}
+      <div className="v4-content">
+        {/* Visual Hero */}
+        {showVisuals && (
+          <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
+            <div className="v4-hero-vis">
+              <div className="v4-vis-bars">
+                {[0.3, 0.5, 0.7, 0.9, 1, 0.85, 0.65, 0.8, 0.95, 0.7, 0.55, 0.4, 0.6, 0.75, 0.5, 0.35].map((h, i) => (
+                  <div key={i} className="v4-vis-bar" style={{ height: `${h * 50}px` }} />
+                ))}
+              </div>
+            </div>
+            {/* Beat glow overlay */}
+            {state.beatFlash && <div className="v4-beat-glow" />}
+            {/* Vis switcher */}
+            <div className="v4-vis-switcher">
+              <button className="v4-vis-btn on">Bars</button>
+              <button className="v4-vis-btn">Rings</button>
+            </div>
+          </div>
+        )}
+
+        {/* Text Panel */}
+        {(showChords || showLyrics || showNotes || showDrums) && (
+          <div className="v4-text-panel">
+            {showChords && songChords && !isChordProLine(songLyrics) && (
+              <>
+                <div className="v4-tp-label" style={{ color: 'var(--color-tangerine)' }}>CHORDS</div>
+                <div className="v4-tp-chords">{songChords}</div>
+              </>
+            )}
+            {showLyrics && songLyrics && (
+              <>
+                <div className="v4-tp-label" style={{ color: 'var(--color-text)' }}>LYRICS</div>
+                {isChordProLine(songLyrics) ? (
+                  songLyrics.split('\n').map((line, i) => (
+                    showChords ? <ChordProLine key={i} line={line} /> : (
+                      <div key={i} className="v4-tp-lyrics">{line.replace(/\[[^\]]+\]/g, '')}</div>
+                    )
+                  ))
+                ) : (
+                  songLyrics.split('\n').map((line, i) => (
+                    <div key={i} className="v4-tp-lyrics">{line || '\u00A0'}</div>
+                  ))
+                )}
+              </>
+            )}
+            {showNotes && songNotes && (
+              <>
+                <div className="v4-tp-label" style={{ color: 'var(--color-teal)' }}>NOTES</div>
+                <div className="v4-tp-notes">{songNotes}</div>
+              </>
+            )}
+            {showDrums && songDrums && (
+              <>
+                <div className="v4-tp-label" style={{ color: '#e040fb' }}>DRUMS</div>
+                <div className="v4-tp-drums">{songDrums}</div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Waveform (practice only) */}
+        {!isLive && state.duration > 0 && state.waveformData && showVisuals && (
+          <V4Waveform
+            data={state.waveformData}
+            currentTime={state.currentTime}
+            duration={state.duration}
+            loop={state.loop}
+          />
+        )}
+        {!isLive && state.duration > 0 && (
+          <div className="v4-wf-info">
+            <span className="v4-wf-time"><span className="cur">{formatTime(state.currentTime)}</span> <span className="tot">/ {formatTime(state.duration)}</span></span>
+            <span className="v4-wf-speed">{Math.round(state.speed * 100)}%</span>
           </div>
         )}
       </div>
 
-      {/* ── Waveform + Transport (practice mode) ── */}
-      {mode === 'practice' && state.duration > 0 && (
-        <>
-          {state.waveformData && (state.prefs?.player_vis_enabled ?? true) && (
-            <Waveform
-              data={state.waveformData}
-              currentTime={state.currentTime}
-              duration={state.duration}
-              loop={state.loop}
-            />
-          )}
-          <div className="player-transport">
-            <span className="player-time">{formatTime(state.currentTime)}</span>
-            <input
-              type="range"
-              className="player-seek-bar"
-              min={0}
-              max={state.duration}
-              step={0.1}
-              value={state.currentTime}
-              onChange={handleSeek}
-            />
-            <span className="player-time">{formatTime(state.duration)}</span>
+      {/* ── Transport ── */}
+      {isLive ? (
+        <div className="v4-transport">
+          <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+          <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
+            {isPlaying ? '■' : '▶'}
+          </button>
+          <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
+            CLICK
+          </button>
+        </div>
+      ) : (
+        <div className="v4-transport stack">
+          {/* Speed row */}
+          <div className="v4-t-row">
+            <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.05)}>-5</button>
+            <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.01)}>-1</button>
+            <span className="v4-t-spd-val">{Math.round(state.speed * 100)}%</span>
+            <button className="v4-t-spd" onClick={() => handleSpeedChange(0.01)}>+1</button>
+            <button className="v4-t-spd" onClick={() => handleSpeedChange(0.05)}>+5</button>
           </div>
-        </>
+          {/* Main row */}
+          <div className="v4-t-row">
+            <button className="v4-t-btn" onClick={actions.stop}>
+              <span style={{ fontSize: '18px' }}>⏮</span>
+            </button>
+            <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
+              {isPlaying ? '■' : '▶'}
+            </button>
+            <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+            <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
+              CLICK
+            </button>
+          </div>
+          {/* A-B Loop row */}
+          {state.duration > 0 && (
+            <div className="v4-t-row">
+              <button className={`v4-t-loop ${loopMarkA !== null ? 'marking' : ''}`} onClick={handleLoopMark}>
+                {state.loop ? 'A-B' : loopMarkA !== null ? `A: ${formatTime(loopMarkA)}` : 'SET A'}
+              </button>
+              <button className={`v4-t-loop ${state.loop ? '' : 'dim'}`} onClick={handleLoopMark} disabled={state.loop !== null && loopMarkA === null}>
+                SET B
+              </button>
+              {state.loop && <button className="v4-t-loop" onClick={clearLoop}>CLEAR</button>}
+            </div>
+          )}
+        </div>
       )}
 
-      {/* ── Controls ── */}
-      <div className="player-controls">
-        <button
-          className={`player-ctrl-btn ${isPlaying ? 'playing' : ''}`}
-          onClick={handlePlayPause}
-        >
-          {isPlaying ? 'Pause' : isPaused ? 'Resume' : 'Play'}
-        </button>
-        <button className="player-ctrl-btn" onClick={actions.stop}>Stop</button>
-        <button
-          className="player-ctrl-btn player-ctrl-click"
-          onClick={actions.toggleClick}
-          title="Toggle click"
-        >
-          Click
-        </button>
+      {/* ── Nav Row ── */}
+      {setlist && (
+        <div className="v4-nav-row">
+          <button className="v4-nav-song" onClick={goToPrevSong} disabled={currentIndex === 0}>
+            ← <span className="nm">{prevSongName ?? '—'}</span>
+          </button>
+          <button className="v4-nav-queue" onClick={() => setQueueOpen(o => !o)}>
+            {currentIndex + 1}/{setlist.songs.length}
+          </button>
+          <button className="v4-nav-song" onClick={goToNextSong} disabled={currentIndex === setlist.songs.length - 1}>
+            <span className="nm">{nextSongName ?? '—'}</span> →
+          </button>
+        </div>
+      )}
+
+      {/* ── Drawer preview ── */}
+      <div className="v4-drawer-prev" onClick={() => setDrawerOpen(true)}>
+        <div className="v4-drawer-handle" />
+        <div className="v4-drawer-label">DISPLAY</div>
+        <div className="v4-tog-row">
+          <TogglePill label="Visuals" active={showVisuals} color="var(--color-green)" onClick={() => setShowVisuals(v => !v)} />
+          <TogglePill label="Chords" active={showChords} color="var(--color-tangerine)" onClick={() => setShowChords(v => !v)} />
+          <TogglePill label="Lyrics" active={showLyrics} color="var(--color-text)" onClick={() => setShowLyrics(v => !v)} />
+          <TogglePill label="Notes" active={showNotes} color="var(--color-teal)" onClick={() => setShowNotes(v => !v)} />
+          <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
+        </div>
       </div>
 
-      {/* ── Speed controls (practice mode) ── */}
-      {mode === 'practice' && (
-        <div className="player-speed-controls">
-          <button className="player-speed-btn" onClick={() => handleSpeedChange(-0.05)}>-5%</button>
-          <span className="player-speed-display">{Math.round(state.speed * 100)}%</span>
-          <button className="player-speed-btn" onClick={() => handleSpeedChange(0.05)}>+5%</button>
-          <button className="player-speed-btn" onClick={() => actions.setSpeed(1.0)}>Reset</button>
-        </div>
-      )}
+      {/* ── Drawer (full) ── */}
+      {drawerOpen && (
+        <div className="v4-drawer-overlay" onClick={() => setDrawerOpen(false)}>
+          <div className="v4-drawer" onClick={e => e.stopPropagation()}>
+            <div className="v4-drawer-handle" />
 
-      {/* ── A-B Loop (practice mode) ── */}
-      {mode === 'practice' && state.duration > 0 && (
-        <div className="player-loop-controls">
-          <button
-            className={`player-loop-btn ${loopMarkA !== null ? 'marking' : ''} ${state.loop ? 'active' : ''}`}
-            onClick={handleLoopMark}
-          >
-            {state.loop ? 'A-B' : loopMarkA !== null ? `A: ${formatTime(loopMarkA)} → B?` : 'Set A-B'}
-          </button>
-          {state.loop && (
-            <button className="player-loop-btn" onClick={clearLoop}>Clear Loop</button>
-          )}
-        </div>
-      )}
+            <div className="v4-drawer-label">DISPLAY</div>
+            <div className="v4-tog-row">
+              <TogglePill label="Visuals" active={showVisuals} color="var(--color-green)" onClick={() => setShowVisuals(v => !v)} />
+              <TogglePill label="Chords" active={showChords} color="var(--color-tangerine)" onClick={() => setShowChords(v => !v)} />
+              <TogglePill label="Lyrics" active={showLyrics} color="var(--color-text)" onClick={() => setShowLyrics(v => !v)} />
+              <TogglePill label="Notes" active={showNotes} color="var(--color-teal)" onClick={() => setShowNotes(v => !v)} />
+              <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
+            </div>
 
-      {/* ── Stem mixer (practice mode with stems) ── */}
-      {mode === 'practice' && state.stemChannels.length > 0 && (
-        <div className="player-stems">
-          <div className="player-stems-label">Stems</div>
-          <div className="player-stems-grid">
-            {state.stemChannels.map(ch => (
-              <div key={ch.label} className={`player-stem ${ch.muted ? 'muted' : ''} ${ch.solo ? 'solo' : ''}`}>
-                <span className="player-stem-icon">{STEM_ICONS[ch.label] ?? ch.label.slice(0, 2).toUpperCase()}</span>
-                <input
-                  type="range"
-                  className="player-stem-gain"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={ch.gain}
-                  onChange={e => actions.setStemGain(ch.label as StemLabel, Number(e.target.value))}
-                />
-                <div className="player-stem-btns">
-                  <button
-                    className={`player-stem-btn ${ch.muted ? 'active' : ''}`}
-                    onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
-                  >M</button>
-                  <button
-                    className={`player-stem-btn ${ch.solo ? 'active' : ''}`}
-                    onClick={() => actions.toggleStemSolo(ch.label as StemLabel)}
-                  >S</button>
+            {/* Mixer (practice only) */}
+            {!isLive && state.stemChannels.length > 0 && (
+              <>
+                <div className="v4-drawer-label" style={{ marginTop: 12 }}>MIXER</div>
+                <div className="v4-mixer">
+                  {state.stemChannels.map(ch => (
+                    <div key={ch.label} className="v4-mx-ch">
+                      <span className="v4-mx-lbl" style={{ color: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)' }}>
+                        {STEM_LABELS[ch.label] ?? ch.label.slice(0, 3).toUpperCase()}
+                      </span>
+                      <div className="v4-mx-trk">
+                        <div className="v4-mx-fill" style={{
+                          height: `${ch.gain * 100}%`,
+                          background: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)',
+                        }} />
+                      </div>
+                      <span className="v4-mx-val">{Math.round(ch.gain * 100)}</span>
+                      <button
+                        className={`v4-mx-mute ${ch.muted ? 'on' : ''}`}
+                        onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
+                      >M</button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="v4-drawer-label" style={{ marginTop: 12 }}>SETTINGS</div>
+            <div className="v4-set-section">
+              <div className="v4-set-row">
+                <span className="v4-set-label">Subdiv</span>
+                <div className="v4-set-pills">
+                  {['Off', '8th', 'Trip', '16th'].map(l => (
+                    <span key={l} className={`v4-set-pill ${l === 'Off' ? 'on' : ''}`}>{l}</span>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+              <div className="v4-set-row">
+                <span className="v4-set-label">Count-in</span>
+                <div className="v4-set-pills">
+                  {['Off', '1', '2', '4'].map(l => (
+                    <span key={l} className={`v4-set-pill ${l === 'Off' ? 'on' : ''}`}>{l}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="v4-set-row">
+                <span className="v4-set-label">Nudge</span>
+                <div className="v4-set-pills">
+                  <span className="v4-set-pill">&lt;&lt;</span>
+                  <span className="v4-nudge-val">+0ms</span>
+                  <span className="v4-set-pill">&gt;&gt;</span>
+                </div>
+              </div>
+            </div>
 
-      {/* ── Setlist queue nav ── */}
-      {setlist && (
-        <div className="player-queue-nav">
-          <button className="player-queue-btn" onClick={goToPrevSong} disabled={currentIndex === 0}>
-            Prev
-          </button>
-          <button className="player-queue-toggle" onClick={() => setQueueOpen(o => !o)}>
-            {currentIndex + 1} / {setlist.songs.length}
-          </button>
-          <button className="player-queue-btn" onClick={goToNextSong} disabled={currentIndex === setlist.songs.length - 1}>
-            Next
-          </button>
+            <button className="v4-drawer-close" onClick={() => setDrawerOpen(false)}>Close</button>
+          </div>
         </div>
       )}
 
@@ -596,18 +658,14 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
             )}
             <span className="player-transition-countdown">{countdown}</span>
             <div className="player-transition-actions">
-              <button className="btn btn-green btn-small" onClick={() => { setBetweenSongs(false); goToNextSong(); }}>
-                Skip
-              </button>
-              <button className="btn btn-outline btn-small" onClick={() => setBetweenSongs(false)}>
-                Stay
-              </button>
+              <button className="btn btn-green btn-small" onClick={() => { setBetweenSongs(false); goToNextSong(); }}>Skip</button>
+              <button className="btn btn-outline btn-small" onClick={() => setBetweenSongs(false)}>Stay</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Set complete celebration ── */}
+      {/* ── Set complete ── */}
       {setComplete && (
         <div className="player-transition-overlay">
           <div className="player-transition-card player-set-complete">
@@ -617,12 +675,8 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
               {setlist ? `${setlist.songs.length} songs played` : 'Great session'}
             </span>
             <div className="player-transition-actions">
-              <button className="btn btn-green" onClick={() => { setSetComplete(false); onClose(); }}>
-                Done
-              </button>
-              <button className="btn btn-outline btn-small" onClick={() => { setSetComplete(false); goToSetlistSong(0); }}>
-                Replay Set
-              </button>
+              <button className="btn btn-green" onClick={() => { setSetComplete(false); onClose(); }}>Done</button>
+              <button className="btn btn-outline btn-small" onClick={() => { setSetComplete(false); goToSetlistSong(0); }}>Replay Set</button>
             </div>
           </div>
         </div>
@@ -653,5 +707,28 @@ export function Player({ songId, setlistId, mode, onClose }: PlayerProps) {
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Toggle Pill ───
+
+function TogglePill({ label, active, color, onClick }: {
+  label: string;
+  active: boolean;
+  color: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`v4-tog ${active ? 'on' : ''}`}
+      style={active ? {
+        borderColor: color,
+        color: color,
+        background: `color-mix(in srgb, ${color} 8%, transparent)`,
+      } : undefined}
+      onClick={e => { e.stopPropagation(); onClick(); }}
+    >
+      {label}
+    </button>
   );
 }

@@ -7,7 +7,7 @@
 
 ---
 
-## Sprint S38 — Visual Unification: Tokens + Player Rebuild (NEXT)
+## Sprint S38 — Visual Unification: Tokens + Player Rebuild (DONE)
 
 ```
 Read docs/ai_context/STATUS.md, docs/ai_context/SPRINT_PROMPTS.md, and docs/ai_context/decisions_log.md (D-118, D-119, D-153). This is Sprint S38.
@@ -65,7 +65,7 @@ DO NOT add new features or change schema. Visual alignment only.
 
 ---
 
-## Sprint S39 — Foundation: Migration + Shared + Cloud Run
+## Sprint S39 — Foundation: Migration + Shared + Cloud Run (NEXT)
 
 ```
 Read docs/ai_context/STATUS.md, docs/ai_context/SPRINT_PROMPTS.md, and docs/ai_context/decisions_log.md (D-124 onwards). This is Sprint S39.
