@@ -100,7 +100,7 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
 
           const gigCount = activeGigs.length;
 
-          // Build dots: one per active gig (max 3), colored by subtype
+          // Build dots: one per active gig (max 3), colored by subtype — marks incomplete bookings
           const dots = activeGigs.slice(0, 3).map((g, i) => {
             const color = g.gig_type === 'practice'
               ? 'var(--color-practice)'
@@ -147,7 +147,6 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
       </div>
 
       <div className="legend">
-        <LegendItem color="var(--color-available)" label="Available" />
         <LegendItem color="var(--color-gig)" label="Pub Gig" />
         <LegendItem color="var(--color-tangerine)" label="Client" />
         <LegendItem color="var(--color-tangerine)" label="Enquiry" dashed />

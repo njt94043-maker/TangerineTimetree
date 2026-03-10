@@ -626,8 +626,9 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
             </div>
             {state.beatFlash && <div className="v4-beat-glow" />}
             <div className="v4-vis-switcher">
-              <button className="v4-vis-btn on">Bars</button>
+              <button className="v4-vis-btn on">Spectrum</button>
               <button className="v4-vis-btn">Rings</button>
+              <button className="v4-vis-btn">Burst</button>
             </div>
           </div>
         )}
@@ -798,10 +799,13 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
         </div>
       ) : isLive ? (
         <div className="v4-transport">
-          <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+          <button className="v4-t-btn" onClick={() => { actions.stop(); actions.seek(0); }} title="Restart">
+            <span style={{ fontSize: '18px' }}>⏮</span>
+          </button>
           <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
             {isPlaying ? '■' : '▶'}
           </button>
+          <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
           <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
             CLICK
           </button>
@@ -811,9 +815,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
           {/* Speed row */}
           <div className="v4-t-row">
             <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.05)}>-5</button>
-            <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.01)}>-1</button>
             <span className="v4-t-spd-val">{Math.round(state.speed * 100)}%</span>
-            <button className="v4-t-spd" onClick={() => handleSpeedChange(0.01)}>+1</button>
             <button className="v4-t-spd" onClick={() => handleSpeedChange(0.05)}>+5</button>
           </div>
           {/* Main row — with record button (D-150) */}
