@@ -7,6 +7,67 @@
 
 ---
 
+## S45 — Screen-for-Screen Lockdown + Full End-to-End Tests (NEXT)
+
+```
+Read docs/ai_context/STATUS.md, docs/ai_context/IMPACT_MAP.md, docs/ai_context/todo.md, docs/ai_context/gotchas.md. This is S45: Screen-for-Screen Lockdown.
+
+CONTEXT:
+- Post-S44 audit + visual alignment session complete. Splash, calendar (colored cells + venue text + client/enquiry + 6 legend), library (left borders + shimmer skeleton), Gig model (gig_subtype + status) all done.
+- Web and Android are MIRROR APPS (D-153). Every screen that exists on BOTH must look and behave identically. The only limiter is "is this possible?" — never "is this hard/slow?".
+- Web has 45 components. Android has 9 screens + 3 component files. Features that are web-only by design (invoicing, quotes, clients, venues, PDF, public site, stage prompter, dashboard, booking wizard) stay web-only. Everything else must match.
+
+RULES FOR THIS SESSION:
+1. **Mirror apps = identical UX.** If web has it and Android could have it, Android MUST have it. No exceptions for difficulty/time.
+2. **Screen-by-screen audit.** Go through every shared screen, compare web vs Android pixel-for-pixel, fix every gap.
+3. **Feature-for-feature lockdown.** Check every feature in both apps. If one has it and the other doesn't (and it's in scope), build it.
+4. **Full end-to-end tests.** Test every screen and flow — forwards AND backwards. Navigate in, do the thing, navigate out. Catch anything broken.
+5. **Clean up behind us.** Fix any leftover inconsistencies, dead code, stale state.
+
+SHARED SCREENS TO AUDIT (must match):
+| Screen | Android File | Web File | Key Areas |
+|--------|-------------|----------|-----------|
+| Splash | SplashScreen.kt | SplashScreen.tsx | ✅ Done (animated, mirrors web) |
+| Login | LoginScreen.kt | LoginPage.tsx | Neumorphic inputs, glow button, layout |
+| Calendar | CalendarScreen.kt | Calendar.tsx + DayDetail.tsx | ✅ Done (colors, venue, legend). ADD: swipe month nav, day detail parity |
+| Library | LibraryScreen.kt | Library.tsx | ✅ Done (borders, skeleton). CHECK: filter pill styling, empty states, expand/collapse parity |
+| Song Form | SongFormScreen.kt | SongForm.tsx | Field parity, sharing UI (Android missing), processing triggers |
+| Live Mode | LiveScreen.kt | Player.tsx (mode=live) | Transport, beat dots, lyrics/chords, setlist queue, speed safety, set complete |
+| Practice Mode | PracticeScreen.kt | Player.tsx (mode=practice) | Stems, speed, A-B loop, waveform, recording, takes |
+| View Mode | ViewScreen.kt | Player.tsx (mode=view) | Video hero, visualiser fallback, record from view |
+| Settings | SettingsScreen.kt | Settings.tsx | Player prefs, user info, bank details (web-only extras OK) |
+| Drawer | GigBooksApp.kt | Drawer.tsx | Visual styling (3 items on Android is correct scope, but styling must match) |
+
+MISSING FEATURES TO BUILD (Android doesn't have, web does, should be in Android scope):
+- [ ] Song sharing UI in SongForm (web has it, Android SongForm missing share controls for personal_original)
+- [ ] Click sound picker in Settings (5 sounds exist in C++, no UI to choose)
+- [ ] Processing status polling (Android doesn't poll Cloud Run for stem/beat completion)
+- [ ] Take playback (takes stored locally but no in-app player for reviewing takes)
+- [ ] Swipe month navigation on calendar (most calendar apps have this)
+- [ ] Login: neumorphic inset input styling to match web
+- [ ] Drawer: visual styling parity (header, item appearance, transitions)
+
+VISUAL ALIGNMENT CHECKLIST (for each shared screen):
+- [ ] Background colors match
+- [ ] Text sizes + weights + colors match
+- [ ] Spacing + padding match
+- [ ] Border styles match (neumorphic raised/inset)
+- [ ] Loading states match (skeleton shimmer, not bare spinner)
+- [ ] Empty states match (same messaging, same styling)
+- [ ] Error states match
+- [ ] Transitions/animations comparable
+- [ ] Icons + icon sizes match
+- [ ] Interactive states match (hover/press/selected)
+
+END OF SESSION:
+1. Both builds clean (tsc + assembleDebug)
+2. Provide a COMPLETE status: every screen, every feature, built or not, with reason
+3. Update all SOT docs
+4. Commit and push
+```
+
+---
+
 ## Sprint S38 — Visual Unification: Tokens + Player Rebuild (DONE)
 
 ```
