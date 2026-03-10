@@ -16,9 +16,10 @@ const STEM_LABELS: { value: StemLabel; label: string }[] = [
 ];
 
 const SONG_CATEGORIES: { value: SongCategory; label: string }[] = [
-  { value: 'tange_cover', label: 'TGT Cover' },
-  { value: 'tange_original', label: 'TGT Original' },
-  { value: 'personal', label: 'Personal' },
+  { value: 'tgt_cover', label: 'TGT Cover' },
+  { value: 'tgt_original', label: 'TGT Original' },
+  { value: 'personal_cover', label: 'Personal Cover' },
+  { value: 'personal_original', label: 'Personal Original' },
 ];
 
 const CLICK_SOUNDS: ClickSound[] = ['default', 'high', 'low', 'wood', 'rim'];
@@ -41,7 +42,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
 
   const [name, setName] = useState('');
   const [artist, setArtist] = useState('');
-  const [category, setCategory] = useState<SongCategory>('tange_cover');
+  const [category, setCategory] = useState<SongCategory>('tgt_cover');
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [bpm, setBpm] = useState('120');
@@ -128,7 +129,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
         name: name.trim(),
         artist: artist.trim(),
         category,
-        owner_id: category === 'personal' ? ownerId : null,
+        owner_id: (category === 'personal_cover' || category === 'personal_original') ? ownerId : null,
         bpm: bpmNum,
         time_signature_top: timeSigTop,
         time_signature_bottom: timeSigBottom,
@@ -313,7 +314,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole }: SongFormProps) 
           </select>
         </div>
 
-        {category === 'personal' && (
+        {(category === 'personal_cover' || category === 'personal_original') && (
           <>
             <label className="label">OWNER</label>
             <div className="neu-inset">

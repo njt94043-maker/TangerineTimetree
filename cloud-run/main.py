@@ -72,9 +72,7 @@ def update_beat_map_status(song_id: str, status: str, error: str = None,
         f"{url}?song_id=eq.{song_id}&select=id",
         headers=headers,
     )
-    payload = {"status": status}
-    if error is not None:
-        payload["error"] = error
+    payload = {"status": status, "error": error}
     if beats is not None:
         payload["beats"] = beats
     if bpm is not None:
@@ -287,7 +285,7 @@ def run_demucs(wav_path: str) -> dict:
 # Cloud Tasks enqueue
 # ---------------------------------------------------------------------------
 
-def enqueue_process_task(song_id: str, audio_url: str):
+def enqueue_process_task(song_id: str, audio_url: str, skip_stems: bool = False):
     """Create a Cloud Task to call /process-worker."""
     from google.cloud import tasks_v2
 
@@ -305,6 +303,7 @@ def enqueue_process_task(song_id: str, audio_url: str):
             "body": json.dumps({
                 "song_id": song_id,
                 "audio_url": audio_url,
+                "skip_stems": skip_stems,
             }).encode(),
         },
     }
@@ -375,9 +374,11 @@ def process():
     if not GCP_PROJECT or not CLOUD_RUN_SERVICE_URL:
         return jsonify({"error": "Server not configured (missing GCP config)"}), 500
 
+    skip_stems = data.get("skip_stems", False)
+
     try:
         update_beat_map_status(song_id, "pending", error=None)
-        enqueue_process_task(song_id, audio_url)
+        enqueue_process_task(song_id, audio_url, skip_stems=skip_stems)
         return jsonify({"status": "queued"}), 202
     except Exception as e:
         update_beat_map_status(song_id, "failed", error=str(e))
@@ -399,6 +400,7 @@ def process_worker():
 
     song_id = data.get("song_id")
     audio_url = data.get("audio_url")
+    skip_stems = data.get("skip_stems", False)
 
     if not song_id or not audio_url:
         return jsonify({"error": "song_id and audio_url required"}), 400
@@ -411,6 +413,12 @@ def process_worker():
         audio_bytes = download_audio(audio_url)
         wav_mono = decode_to_wav(audio_bytes, channels=1)
         beat_list, bpm = run_madmom(wav_mono)
+
+        if skip_stems:
+            # Beats-only mode (D-148): skip Demucs, go straight to done
+            update_beat_map_status(song_id, "ready", beats=beat_list, bpm=bpm)
+            return jsonify({"status": "done", "stems": [], "bpm": bpm, "beats_only": True}), 200
+
         update_beat_map_status(song_id, "separating", beats=beat_list, bpm=bpm)
 
         # Phase 2: Stem separation (Demucs needs stereo)

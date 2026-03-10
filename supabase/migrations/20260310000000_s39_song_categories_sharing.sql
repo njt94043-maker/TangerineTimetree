@@ -1,24 +1,8 @@
--- S39: Song categories overhaul + selective sharing
+-- S39: Song categories overhaul + selective sharing + is_best_take
 -- Categories: tgt_cover, tgt_original, personal_cover, personal_original
--- Sharing: personal songs can be shared with specific band members
--- RLS: personal songs protected — owner + shared users only
-
--- ─── Helper function: can current user access this song? ───
-
-CREATE OR REPLACE FUNCTION can_access_song(p_song_id UUID)
-RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM songs
-    WHERE id = p_song_id AND (
-      category IN ('tgt_cover', 'tgt_original')
-      OR created_by = auth.uid()
-      OR EXISTS (
-        SELECT 1 FROM song_shares
-        WHERE song_id = p_song_id AND shared_with = auth.uid()
-      )
-    )
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+-- Sharing: personal_original songs require explicit sharing (D-126)
+-- personal_cover visible to ALL authenticated users (D-125)
+-- RLS: can_access_song() includes personal_cover as visible-to-all
 
 -- ─── Category migration ───
 
@@ -36,9 +20,13 @@ ALTER TABLE songs ADD CONSTRAINT songs_category_check
 
 ALTER TABLE songs ALTER COLUMN category SET DEFAULT 'tgt_cover';
 
--- ─── song_shares table ───
+-- ─── is_best_take on song_stems (D-130) ───
 
-CREATE TABLE song_shares (
+ALTER TABLE song_stems ADD COLUMN IF NOT EXISTS is_best_take BOOLEAN NOT NULL DEFAULT false;
+
+-- ─── song_shares table (D-135) ───
+
+CREATE TABLE IF NOT EXISTS song_shares (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   song_id UUID NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
   shared_with UUID NOT NULL REFERENCES profiles(id),
@@ -47,8 +35,27 @@ CREATE TABLE song_shares (
   UNIQUE(song_id, shared_with)
 );
 
-CREATE INDEX idx_song_shares_song ON song_shares(song_id);
-CREATE INDEX idx_song_shares_shared_with ON song_shares(shared_with);
+CREATE INDEX IF NOT EXISTS idx_song_shares_song ON song_shares(song_id);
+CREATE INDEX IF NOT EXISTS idx_song_shares_shared_with ON song_shares(shared_with);
+
+-- ─── Helper function: can current user access this song? (D-129) ───
+-- TGT songs + personal_cover = all authenticated (D-125)
+-- personal_original = owner OR song_shares entry (D-126)
+
+CREATE OR REPLACE FUNCTION can_access_song(p_song_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM songs
+    WHERE id = p_song_id AND (
+      category IN ('tgt_cover', 'tgt_original', 'personal_cover')
+      OR created_by = auth.uid()
+      OR EXISTS (
+        SELECT 1 FROM song_shares
+        WHERE song_id = p_song_id AND shared_with = auth.uid()
+      )
+    )
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- ─── RLS: song_shares ───
 
@@ -83,11 +90,11 @@ DROP POLICY IF EXISTS "songs_insert_authenticated" ON songs;
 DROP POLICY IF EXISTS "songs_update_authenticated" ON songs;
 DROP POLICY IF EXISTS "songs_delete_authenticated" ON songs;
 
--- SELECT: TGT visible to all, personal visible to owner + shared
+-- SELECT: TGT + personal_cover visible to all (D-125), personal_original = owner + shared (D-126)
 CREATE POLICY "songs_select"
   ON songs FOR SELECT TO authenticated
   USING (
-    category IN ('tgt_cover', 'tgt_original')
+    category IN ('tgt_cover', 'tgt_original', 'personal_cover')
     OR created_by = auth.uid()
     OR EXISTS (
       SELECT 1 FROM song_shares WHERE song_id = id AND shared_with = auth.uid()
@@ -134,10 +141,15 @@ CREATE POLICY "song_stems_insert"
     AND can_access_song(song_id)
   );
 
--- UPDATE: own stems only
+-- UPDATE: own stems OR song owner (for is_best_take management)
 CREATE POLICY "song_stems_update"
   ON song_stems FOR UPDATE TO authenticated
-  USING (created_by = auth.uid());
+  USING (
+    created_by = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM songs WHERE id = song_id AND songs.created_by = auth.uid()
+    )
+  );
 
 -- DELETE: own stems OR song owner
 CREATE POLICY "song_stems_delete"

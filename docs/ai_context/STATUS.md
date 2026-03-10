@@ -6,10 +6,10 @@
 ---
 
 ## Current State
-- **Phase**: S38 (Visual Unification) COMPLETE. Both players rebuilt to V4 target. Tokens unified. Ready for S39.
-- **What works**: Web (full, V4 player), Android (full, V4 player), Cloud Run (beats + stems + CORS), Capture (built but untested end-to-end).
-- **Last session**: S38 Visual Unification — Android GigColors corrected (5 values + 5 new tokens). NeuCard shadows updated to canonical V4. New PlayerComponents.kt (shared composables). LiveScreen.kt + PracticeScreen.kt rebuilt to V4 layout (header → hero → text panel → transport → drawer via ModalBottomSheet). Web Player.tsx rebuilt to V4 layout (v4-* CSS classes). App.css player section rewritten. Both builds pass clean (web tsc + vite build, android assembleDebug).
-- **Next action**: Sprint S39 — Foundation: Migration + shared types/queries + Cloud Run beats-only code.
+- **Phase**: S39 (Foundation) COMPLETE. Migration pushed, shared types/queries done, Cloud Run beats-only code written. Ready for S40.
+- **What works**: Web (full, V4 player), Android (full, V4 player), Cloud Run (beats + stems + CORS + beats-only skip_stems), Capture (built but untested end-to-end).
+- **Last session**: S39 Foundation — Migration pushed: category rename (tgt_cover/tgt_original/personal_cover/personal_original), song_shares table, is_best_take on song_stems, can_access_song() SECURITY DEFINER helper, RLS rewrite (songs/stems/beat_maps/shares). personal_cover visible to all auth (D-125). Shared types updated (SongStem.is_best_take, source='recorded'). Shared queries added (getSongShares, shareSong, unshareSong, setBestTake, clearBestTake). Cloud Run skip_stems flag added to /process and /process-worker (D-148). Web Library.tsx + SongForm.tsx updated for new category names. Web tsc + vite build clean.
+- **Next action**: Sprint S40 — Library + SongForm on both platforms (dropdowns, categories, sharing UI).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues in Supabase. 4 songs (Cissy Strut, Sultans, War Pigs, Big Yellow Taxi).
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -17,8 +17,8 @@
 | Sprint | Scope | Status |
 |--------|-------|--------|
 | S38 | **Visual Unification** — Android token correction (5 colors), both player rebuilds to V4 target design | **Done** |
-| S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | **Next** |
-| S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | Queued |
+| S39 | **Foundation** — Migration + shared types/queries + Cloud Run beats-only code | **Done** |
+| S40 | **Library + SongForm (Both)** — Dropdowns, categories, sharing on web + Android together | **Next** |
 | S41 | **Recording + Takes (Both)** — Recording flow, takes list, post-recording on web + Android together | Queued |
 | S42 | **View Mode (Both)** — View Mode + record from View Mode on web + Android together | Queued |
 | S43 | **Cloud Run Deploy** — beats-only + re-analyse endpoints deployed + tested | Queued |
@@ -44,7 +44,7 @@
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-08)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (25 tables, 4 storage buckets)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1)
 - **Capture tool**: localhost:5174 (UI) + localhost:9123 (backend). Launch via start-silent.vbs or start.ps1.
 
