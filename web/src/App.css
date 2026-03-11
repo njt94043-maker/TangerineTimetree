@@ -5831,6 +5831,7 @@ select.ps-form-input {
   margin: 0 auto;
   height: 100vh;
   height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--bg-primary);
   position: relative;
 }
@@ -5846,7 +5847,7 @@ select.ps-form-input {
 .v4-hdr {
   display: flex;
   align-items: center;
-  padding: 10px 14px 6px;
+  padding: max(4px, env(safe-area-inset-top, 4px)) 14px 6px;
   gap: 10px;
 }
 .v4-hdr-back {
