@@ -45,6 +45,9 @@ Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps 
 5. Update SOT docs at session end
 6. Don't refactor unless explicitly asked
 7. Commit and push all work before session end
+8. CHECK `decisions_log.md` BEFORE modifying any behavioral code — if a decision covers it, DO NOT CHANGE IT
+9. LOG every new decision in `decisions_log.md` BEFORE writing code — if Nathan says how something should work, that's a decision
+10. APPEND every Nathan message to `NATHAN_VERBATIM.md` organized by topic — his exact words are the authoritative spec
 
 ## SOT (Source of Truth) Documents
 All in `docs/ai_context/` (project root level):
@@ -60,6 +63,7 @@ All in `docs/ai_context/` (project root level):
 | `schema_map.md` | DB schema + TypeScript types | Data model changes |
 | `pain_journal.md` | Root cause analysis of real failures | After significant debugging |
 | `SPRINT_PROMPTS.md` | Sprint pickup prompts | New sprint planned |
+| `NATHAN_VERBATIM.md` | Nathan's exact words, by topic — check before overriding decisions | Every user message |
 
 ## Session Start Protocol
 1. Read `STATUS.md` — instant context

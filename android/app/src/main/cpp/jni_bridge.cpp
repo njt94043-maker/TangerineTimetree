@@ -93,6 +93,12 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeGetCurrentBar(
     return AudioEngine::getInstance().getCurrentBar();
 }
 
+JNIEXPORT jint JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeGetBeatTick(
+        JNIEnv*, jclass) {
+    return AudioEngine::getInstance().getBeatTick();
+}
+
 JNIEXPORT jboolean JNICALL
 Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeIsPlaying(
         JNIEnv*, jclass) {

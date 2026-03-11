@@ -56,6 +56,7 @@ public:
 
     // State queries (atomic — safe from any thread)
     int32_t getCurrentBeat() const { return currentBeat_.load(); }
+    int32_t getBeatTick() const { return beatTick_.load(); }
     int32_t getCurrentBar() const { return currentBar_.load(); }
 
     // Frame position info (for future track player beat-sync)
@@ -141,6 +142,7 @@ private:
 
     std::atomic<int32_t> currentBeat_{0};
     std::atomic<int32_t> currentBar_{0};
+    std::atomic<int32_t> beatTick_{0};    // monotonic counter, increments each beat fire
 
     int32_t scheduledBeat_ = 0;
     int32_t scheduledBar_ = 0;

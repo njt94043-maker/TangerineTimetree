@@ -65,8 +65,8 @@ fun BeatDisplay(
                     beatIndex   = i,
                     currentBeat = currentBeat,
                     isPlaying   = isPlaying,
-                    accent      = if (i == 0) GigColors.orange else accent,
-                    isDownbeat  = i == 0,
+                    accent      = accent,
+                    isDownbeat  = false,
                 )
             }
         }

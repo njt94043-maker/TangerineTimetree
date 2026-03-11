@@ -169,6 +169,7 @@ void Metronome::start() {
     scheduledBar_ = 0;
     currentBeat_.store(0);
     currentBar_.store(0);
+    beatTick_.store(0);
 
     currentBeatStartFrame_ = 0;
     subBeatIndex_ = 0;
@@ -362,6 +363,7 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
 
                 beatMapBeatCount_++;
                 beatMapIdx_++;
+                beatTick_.fetch_add(1);
                 beatFired = true;
 
                 // When beat map is exhausted, transition to constant-BPM fallback
@@ -412,6 +414,7 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
                 isSubClickActive_      = false;
 
                 nextBeatFrame_   = framePosition_ + fpb;
+                beatTick_.fetch_add(1);
 
                 scheduledBeat_ = beat + 1;
                 if (scheduledBeat_ >= bpb) {
