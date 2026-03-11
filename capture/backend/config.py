@@ -19,6 +19,8 @@ PORT = 9123
 CORS_ORIGINS = [
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "http://localhost:5173",       # web app dev server
+    "https://thegreentangerine.com",  # deployed PWA
     "chrome-extension://*",
 ]
 
