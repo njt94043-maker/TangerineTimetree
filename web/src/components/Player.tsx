@@ -15,7 +15,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
-import { getSetlistWithSongs, getSong, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
+import { getSetlistWithSongs, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
 import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
 import type { Song, Setlist, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
 import type { StemLabel } from '../audio/StemMixer';
@@ -247,7 +247,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
 
   // Current song ID
   const [activeSongId, setActiveSongId] = useState<string | null>(songId);
-  const [standaloneSong, setStandaloneSong] = useState<Song | null>(null);
+  const [standaloneSong] = useState<Song | null>(null);
 
   // A-B loop marking
   const [loopMarkA, setLoopMarkA] = useState<number | null>(null);
