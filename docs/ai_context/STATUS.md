@@ -8,9 +8,13 @@
 ## Current State
 - **Phase**: S47 — Web parity. Library rebuilt, Player polished.
 - **What works**: Web (full, V4 player + **rebuilt Library** matching Android layout — NeuCard cards, left accent border, big BPM, tap-to-expand launch buttons, key/time sig/duration/TRACK badges + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S48 quick)**: Fixed Vercel deploy blocker.
-  1. **Vercel deploy fixed**: Removed unused `getSong` import + `setStandaloneSong` setter from Player.tsx (TS6133 errors failing Vercel build). All S47 web changes now live at thegreentangerine.com.
-- **Next action**: Android Player gaps (Burst vis, mixer colour/size verification, between-songs screen). Then: Web Settings sections, Android Library dropdowns (D-128). Full cross-platform parity audit.
+- **Last session (S49)**: Android mixer + mode dropdown + LiveScreen visual fill fix.
+  1. **Android mode dropdown pill**: Replaced 3 small tab buttons with a dropdown pill (tap to open, shows Live/Practice/View). Matches web's pill-style mode switcher.
+  2. **Android draggable mixer faders**: Mixer tracks now wider (44dp), taller (80dp), with vertical drag gesture for gain control. Mute state dims the fill bar.
+  3. **Android track/stem mute toggles**: Added `isTrackMuted`, `stemMutes` state + `toggleTrackMute()`, `toggleStemMute()` in AppViewModel. Muting silences channel (gain→0) while preserving stored gain.
+  4. **LiveScreen visual fill fix**: When no text content (no chords/lyrics/notes/drums), the visual hero now fills the full screen (Modifier.weight(1f)) instead of being capped at 180.dp. Matches PracticeScreen/ViewScreen behaviour.
+  5. **Benchmarks captured**: Screenshots saved for all 3 modes (Live, Practice, View) in their perfected state.
+- **Next action**: Port mixer interactivity to web (track mute handler, draggable faders). Then: Web Settings sections, Android Library dropdowns (D-128), Burst vis option. Full cross-platform parity audit.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -69,7 +73,7 @@
 
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
-- **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-08)
+- **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-11)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7 (S43: beats-only + re-analyse deployed)
 - **Capture**: localhost:5174 (UI) + localhost:9123 (backend). Flakey but functional.

@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,12 +32,19 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -126,19 +134,20 @@ fun PlayerHeader(
             }
         }
 
-        // Mode switch tabs + BPM block
-        Column(horizontalAlignment = Alignment.End) {
-            if (onSwitchMode != null && currentMode != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    ModeTab("Live", "live", currentMode, GigColors.green, onSwitchMode)
-                    ModeTab("Practice", "practice", currentMode, GigColors.purple, onSwitchMode)
-                    ModeTab("View", "view", currentMode, GigColors.teal, onSwitchMode)
-                }
-            } else if (modeBadgeLabel != null && modeBadgeColor != null) {
-                ModeBadge(label = modeBadgeLabel, color = modeBadgeColor)
-            } else {
-                ModeBadge(isLive = isLiveMode)
-            }
+        // Mode dropdown pill
+        if (onSwitchMode != null && currentMode != null) {
+            ModeDropdown(currentMode = currentMode, onSwitchMode = onSwitchMode)
+        } else if (modeBadgeLabel != null && modeBadgeColor != null) {
+            ModeBadge(label = modeBadgeLabel, color = modeBadgeColor)
+        } else {
+            ModeBadge(isLive = isLiveMode)
+        }
+
+        // BPM block
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(start = 8.dp),
+        ) {
             Text(
                 text = "$bpm",
                 fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 24.sp,
@@ -155,29 +164,66 @@ fun PlayerHeader(
     }
 }
 
+private data class ModeOption(val key: String, val label: String, val color: Color)
+
 @Composable
-private fun ModeTab(label: String, mode: String, currentMode: String, color: Color, onSwitch: (String) -> Unit) {
-    val isActive = mode == currentMode
-    Box(
-        modifier = Modifier
-            .background(
-                if (isActive) color.copy(alpha = 0.08f) else Color.Transparent,
-                RoundedCornerShape(6.dp),
-            )
-            .border(
-                0.5.dp,
-                if (isActive) color.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.04f),
-                RoundedCornerShape(6.dp),
-            )
-            .clickable { if (!isActive) onSwitch(mode) }
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    ) {
-        Text(
-            label,
-            fontFamily = JetBrainsMono, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 7.sp, letterSpacing = 0.5.sp,
-            color = if (isActive) color else GigColors.textMuted,
-        )
+private fun ModeDropdown(currentMode: String, onSwitchMode: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val modes = listOf(
+        ModeOption("live", "Live", GigColors.green),
+        ModeOption("practice", "Practice", GigColors.purple),
+        ModeOption("view", "View", GigColors.teal),
+    )
+    val current = modes.first { it.key == currentMode }
+
+    Box {
+        // Selected mode pill — tap to open dropdown
+        Box(
+            modifier = Modifier
+                .background(current.color.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                .border(1.dp, current.color.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                .clickable { expanded = true }
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    current.label,
+                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp, letterSpacing = 0.5.sp,
+                    color = current.color,
+                )
+                Text(
+                    " \u25BE", // ▾ down triangle
+                    fontSize = 9.sp,
+                    color = current.color.copy(alpha = 0.6f),
+                )
+            }
+        }
+
+        // Dropdown menu
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(GigColors.surface),
+        ) {
+            modes.forEach { mode ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            mode.label,
+                            fontFamily = JetBrainsMono,
+                            fontWeight = if (mode.key == currentMode) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 12.sp,
+                            color = mode.color,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        if (mode.key != currentMode) onSwitchMode(mode.key)
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -825,13 +871,17 @@ data class MixerChannel(
 
 @Composable
 fun MixerRow(channels: List<MixerChannel>) {
+    val trackHeightDp = 80.dp
+    val density = LocalDensity.current
+    val trackHeightPx = with(density) { trackHeightDp.toPx() }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
     ) {
         channels.forEach { ch ->
             Column(
-                modifier = Modifier.width(40.dp),
+                modifier = Modifier.width(44.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
@@ -839,44 +889,55 @@ fun MixerRow(channels: List<MixerChannel>) {
                 Text(
                     ch.label,
                     fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                    fontSize = 7.sp, color = ch.color,
+                    fontSize = 8.sp, color = ch.color,
                 )
-                // Track (vertical bar)
+                // Draggable gain fader
                 Box(
                     modifier = Modifier
-                        .width(4.dp)
-                        .height(60.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.04f)),
+                        .width(20.dp)
+                        .height(trackHeightDp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.White.copy(alpha = 0.04f))
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { change, _ ->
+                                change.consume()
+                                // Convert touch Y to gain: top = 1.0, bottom = 0.0
+                                val y = change.position.y.coerceIn(0f, trackHeightPx)
+                                val gain = 1f - (y / trackHeightPx)
+                                ch.onValueChange(gain.coerceIn(0f, 1f))
+                            }
+                        },
                 ) {
+                    // Filled portion
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height((ch.value * 60).dp)
+                            .height((ch.value * trackHeightDp.value).dp)
                             .align(Alignment.BottomCenter)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(ch.color),
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (ch.isMuted) ch.color.copy(alpha = 0.15f) else ch.color),
                     )
                 }
                 // Value
                 Text(
                     "${(ch.value * 100).toInt()}",
-                    fontFamily = JetBrainsMono, fontSize = 7.sp, color = GigColors.textMuted,
+                    fontFamily = JetBrainsMono, fontSize = 7.sp,
+                    color = if (ch.isMuted) GigColors.textMuted.copy(alpha = 0.4f) else GigColors.textMuted,
                 )
                 // Mute button
                 Box(
                     modifier = Modifier
-                        .size(width = 16.dp, height = 12.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (ch.isMuted) ch.color.copy(alpha = 0.2f) else GigColors.surfaceLight)
-                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(2.dp))
+                        .size(width = 20.dp, height = 16.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(if (ch.isMuted) ch.color.copy(alpha = 0.3f) else GigColors.surfaceLight)
+                        .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
                         .clickable(onClick = ch.onMuteToggle),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "M",
                         fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 6.sp, color = if (ch.isMuted) ch.color else GigColors.textMuted,
+                        fontSize = 7.sp, color = if (ch.isMuted) ch.color else GigColors.textMuted,
                     )
                 }
             }

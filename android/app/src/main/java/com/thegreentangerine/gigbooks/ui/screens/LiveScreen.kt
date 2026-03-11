@@ -140,13 +140,18 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 Column(
                     modifier = Modifier.weight(1f),
                 ) {
-                    // Visual Hero — fills space, splits with text when both visible
+                    // Visual Hero — fills available space when solo, splits with text
                     if (showVisuals) {
+                        val heroMod = when {
+                            bothVisible -> Modifier.weight(0.55f)
+                            !hasTextContent -> Modifier.weight(1f)  // fill screen when no text
+                            else -> Modifier.height(180.dp)
+                        }
                         VisualHero(
                             isPlaying = vm.isClickPlaying,
                             currentBeat = vm.currentBeat,
                             accent = GigColors.green,
-                            modifier = Modifier.weight(if (bothVisible) 0.55f else 1f),
+                            modifier = heroMod,
                             suppressBeatGlow = glowFullscreen,
                         )
                     }
@@ -321,7 +326,7 @@ private fun LiveMixer(vm: AppViewModel) {
     channels.add(
         MixerChannel(
             label = "CLK",
-            color = GigColors.green,
+            color = GigColors.purple,
             value = (vm.clickGain / 2f).coerceIn(0f, 1f),
             onValueChange = { vm.changeClickGain(it * 2f) },
             isMuted = vm.isClickMuted,
