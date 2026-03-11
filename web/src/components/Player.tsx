@@ -268,6 +268,10 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   // Drawer open
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Live mode BPM safety modal (matches APK SpeedSafetyModal)
+  const [showSpeedConfirm, setShowSpeedConfirm] = useState(false);
+  const [pendingBpmDelta, setPendingBpmDelta] = useState(0);
+
   // Recording state (S41)
   const recording = useRecording();
   const [isRecordMode, setIsRecordMode] = useState(false);
@@ -420,6 +424,19 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     setSetComplete(false);
   }, [actions]);
 
+  // Reorder queue (D-115: queue editable mid-performance)
+  const reorderQueueSong = useCallback((fromIdx: number, toIdx: number) => {
+    if (!setlist || fromIdx === toIdx) return;
+    const reordered = [...setlist.songs];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    setSetlist({ ...setlist, songs: reordered });
+    // Keep currentIndex tracking the active song
+    if (fromIdx === currentIndex) setCurrentIndex(toIdx);
+    else if (fromIdx < currentIndex && toIdx >= currentIndex) setCurrentIndex(currentIndex - 1);
+    else if (fromIdx > currentIndex && toIdx <= currentIndex) setCurrentIndex(currentIndex + 1);
+  }, [setlist, currentIndex]);
+
   // Countdown timer
   useEffect(() => {
     if (!betweenSongs) return;
@@ -461,6 +478,21 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
 
   function handleSpeedChange(delta: number) {
     actions.setSpeed(Math.round((state.speed + delta) * 100) / 100);
+  }
+
+  // Live mode BPM change — show safety confirmation when playing
+  function handleLiveBpmChange(delta: number) {
+    if (isPlaying) {
+      setPendingBpmDelta(delta);
+      setShowSpeedConfirm(true);
+    } else {
+      handleSpeedChange(delta / 100);
+    }
+  }
+
+  function confirmBpmChange() {
+    handleSpeedChange(pendingBpmDelta / 100);
+    setShowSpeedConfirm(false);
   }
 
   function handleLoopMark() {
@@ -864,14 +896,25 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
           <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>⏭</button>
         </div>
       ) : isLive ? (
-        <div className="v4-transport">
-          <button className="v4-t-btn" onClick={() => { actions.stop(); actions.seek(0); }} title="Restart">
-            <span style={{ fontSize: '18px' }}>⏮</span>
-          </button>
-          <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-          <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+        <div className="v4-transport stack">
+          {/* Top row: BPM adjustment (matches APK SpeedSafetyModal) */}
+          <div className="v4-t-row">
+            <div className="v4-t-speed-group">
+              <button className="v4-t-spd" onClick={() => handleLiveBpmChange(-5)}>-5</button>
+              <span className="v4-t-spd-val">{Math.round(songBpm * state.speed)}<span className="v4-t-spd-unit">BPM</span></span>
+              <button className="v4-t-spd" onClick={() => handleLiveBpmChange(5)}>+5</button>
+            </div>
+          </div>
+          {/* Bottom row: restart / play / stop */}
+          <div className="v4-t-row">
+            <button className="v4-t-btn" onClick={() => { actions.stop(); actions.seek(0); }} title="Restart">
+              <span style={{ fontSize: '18px' }}>⏮</span>
+            </button>
+            <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
+              {isPlaying ? '⏸' : '▶'}
+            </button>
+            <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+          </div>
         </div>
       ) : (
         <div className="v4-transport stack">
@@ -1194,15 +1237,32 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             <div className="player-queue-list">
               {/* Queue tab */}
               {queueTab === 'queue' && setlist && setlist.songs.map((song, i) => (
-                <button
+                <div
                   key={song.id}
-                  className={`player-queue-item ${i === currentIndex ? 'active' : ''}`}
+                  className={`player-queue-item ${i === currentIndex ? 'active' : ''} ${i < currentIndex ? 'played' : ''}`}
                   onClick={() => goToSetlistSong(i)}
                 >
                   <span className="player-queue-pos">{i + 1}</span>
-                  <span className="player-queue-name">{song.song_name}</span>
-                  {song.song_artist && <span className="player-queue-artist">{song.song_artist}</span>}
-                </button>
+                  <div className="player-queue-info">
+                    <span className="player-queue-name">{song.song_name}</span>
+                    {song.song_artist && <span className="player-queue-artist">{song.song_artist}</span>}
+                    {i === currentIndex && <span className="player-queue-now">NOW PLAYING</span>}
+                  </div>
+                  <span className="player-queue-bpm">{song.song_bpm ?? ''}</span>
+                  {/* Reorder arrows (D-115) */}
+                  <div className="player-queue-reorder" onClick={e => e.stopPropagation()}>
+                    <button
+                      className="player-queue-arrow"
+                      disabled={i === 0}
+                      onClick={() => reorderQueueSong(i, i - 1)}
+                    >▲</button>
+                    <button
+                      className="player-queue-arrow"
+                      disabled={i === setlist.songs.length - 1}
+                      onClick={() => reorderQueueSong(i, i + 1)}
+                    >▼</button>
+                  </div>
+                </div>
               ))}
               {queueTab === 'queue' && !setlist && (
                 <div className="player-queue-empty">No active queue</div>
@@ -1236,6 +1296,25 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
               {queueTab === 'setlists' && allSetlists.length === 0 && (
                 <div className="player-queue-empty">Loading setlists…</div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Speed Safety Modal (Live mode — matches APK SpeedSafetyModal) ── */}
+      {showSpeedConfirm && (
+        <div className="v4-speed-modal-overlay" onClick={() => setShowSpeedConfirm(false)}>
+          <div className="v4-speed-modal" onClick={e => e.stopPropagation()}>
+            <span className="v4-speed-modal-title">Speed Change</span>
+            <span className="v4-speed-modal-desc">
+              Change BPM by {pendingBpmDelta > 0 ? '+' : ''}{pendingBpmDelta} while playing?
+            </span>
+            <span className="v4-speed-modal-bpm">
+              {Math.round(songBpm * state.speed)} → {Math.round(songBpm * state.speed) + pendingBpmDelta} BPM
+            </span>
+            <div className="v4-speed-modal-actions">
+              <button className="v4-speed-modal-btn cancel" onClick={() => setShowSpeedConfirm(false)}>Cancel</button>
+              <button className="v4-speed-modal-btn confirm" onClick={confirmBpmChange}>Confirm</button>
             </div>
           </div>
         </div>
