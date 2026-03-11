@@ -106,12 +106,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var trackGain    by mutableStateOf(0.7f)
     var isClickMuted by mutableStateOf(false)
 
+    var isTrackMuted by mutableStateOf(false)
+
     fun changeClickGain(g: Float) { clickGain = g; if (!isClickMuted && engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(0, g) } catch (_: Exception) { } }
-    fun changeTrackGain(g: Float) { trackGain = g; if (engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(1, g) } catch (_: Exception) { } }
+    fun changeTrackGain(g: Float) { trackGain = g; if (!isTrackMuted && engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(1, g) } catch (_: Exception) { } }
     fun toggleClickMute() {
         isClickMuted = !isClickMuted
         if (engineAvailable) try {
             AudioEngineBridge.nativeSetChannelGain(0, if (isClickMuted) 0f else clickGain)
+        } catch (_: Exception) { }
+    }
+    fun toggleTrackMute() {
+        isTrackMuted = !isTrackMuted
+        if (engineAvailable) try {
+            AudioEngineBridge.nativeSetChannelGain(1, if (isTrackMuted) 0f else trackGain)
         } catch (_: Exception) { }
     }
 
@@ -133,6 +141,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var stemErrors    by mutableStateOf<Map<String, String>>(emptyMap());        private set
     // stemGains: idx → gain (0..1), one entry per loaded stem, default 1.0
     var stemGains     by mutableStateOf<Map<Int, Float>>(emptyMap());            private set
+    // stemMutes: idx → muted (true = channel silenced, gain stored in stemGains)
+    var stemMutes     by mutableStateOf<Map<Int, Boolean>>(emptyMap());          private set
     // processingStatus: non-null while server is processing stems (pending/analysing/separating)
     var processingStatus by mutableStateOf<String?>(null);                       private set
 
@@ -481,7 +491,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ── Selection ─────────────────────────────────────────────────────────────
     fun setStemGain(idx: Int, gain: Float) {
         stemGains = stemGains + (idx to gain)
-        if (engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(2 + idx, gain) } catch (_: Exception) { }
+        if (stemMutes[idx] != true && engineAvailable) {
+            try { AudioEngineBridge.nativeSetChannelGain(2 + idx, gain) } catch (_: Exception) { }
+        }
+    }
+
+    fun toggleStemMute(idx: Int) {
+        val wasMuted = stemMutes[idx] == true
+        stemMutes = stemMutes + (idx to !wasMuted)
+        if (engineAvailable) try {
+            val gain = if (!wasMuted) 0f else (stemGains[idx] ?: 1f)
+            AudioEngineBridge.nativeSetChannelGain(2 + idx, gain)
+        } catch (_: Exception) { }
     }
 
     fun selectSong(song: Song) {
@@ -494,6 +515,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loadedStems     = emptyList()
         stemErrors      = emptyMap()
         stemGains       = emptyMap()
+        stemMutes       = emptyMap()
 
         selectedSong        = song
         bpmOffset           = 0f
@@ -763,6 +785,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Clear stems + analysis state from previous song
         loadedStems         = emptyList()
         stemErrors          = emptyMap()
+        stemMutes           = emptyMap()
+        isTrackMuted        = false
         showBeatBanner      = false
         appliedBeatOffsetMs = 0
         if (engineAvailable) try {
@@ -893,6 +917,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             stemsLoading = true
             stemErrors   = emptyMap()
             loadedStems  = emptyList()
+            stemMutes    = emptyMap()
             if (engineAvailable) try { AudioEngineBridge.nativeClearAllStems() } catch (_: Exception) { }
 
             try {

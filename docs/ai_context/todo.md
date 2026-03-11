@@ -78,7 +78,8 @@
 - [ ] Add "Burst" option to vis switcher
 - [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
 - [ ] Practice: waveform strip with loop region + playhead
-- [ ] Verify mixer colours/sizes match mockup
+- [x] Mixer rebuilt: wider channels (44dp), taller faders (80dp), draggable gain, mute toggles
+- [ ] Web mixer: wire track mute onClick, add draggable faders (parity with Android)
 - [ ] Verify between-songs screen completeness
 
 ### Android — Settings + Calendar

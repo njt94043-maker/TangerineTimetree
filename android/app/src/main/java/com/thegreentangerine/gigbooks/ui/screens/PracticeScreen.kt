@@ -685,6 +685,8 @@ private fun PracticeMixer(vm: AppViewModel) {
                 color = GigColors.green,
                 value = vm.trackGain,
                 onValueChange = { vm.changeTrackGain(it) },
+                isMuted = vm.isTrackMuted,
+                onMuteToggle = { vm.toggleTrackMute() },
             )
         )
     }
@@ -695,6 +697,8 @@ private fun PracticeMixer(vm: AppViewModel) {
             "DRUMS" -> GigColors.orange
             "BASS" -> GigColors.cyan
             "VOCALS" -> GigColors.pink
+            "GUITAR", "GTR" -> GigColors.green
+            "KEYS", "KEY" -> GigColors.teal
             else -> GigColors.slate
         }
         channels.add(
@@ -703,7 +707,30 @@ private fun PracticeMixer(vm: AppViewModel) {
                 color = stemColor,
                 value = vm.stemGains[idx] ?: 1f,
                 onValueChange = { vm.setStemGain(idx, it) },
+                isMuted = vm.stemMutes[idx] == true,
+                onMuteToggle = { vm.toggleStemMute(idx) },
             )
+        )
+    }
+
+    // Loading indicator
+    if (vm.stemsLoading) {
+        Text(
+            "Loading stems...",
+            fontFamily = JetBrainsMono, fontSize = 9.sp,
+            color = GigColors.teal, modifier = Modifier.padding(top = 4.dp),
+        )
+    } else if (vm.processingStatus != null) {
+        Text(
+            "Server: ${vm.processingStatus}...",
+            fontFamily = JetBrainsMono, fontSize = 9.sp,
+            color = GigColors.orange, modifier = Modifier.padding(top = 4.dp),
+        )
+    } else if (vm.loadedStems.isEmpty() && vm.trackLoaded && vm.stemErrors.isEmpty()) {
+        Text(
+            "No stems — process track for multitrack",
+            fontFamily = JetBrainsMono, fontSize = 8.sp,
+            color = GigColors.textMuted, modifier = Modifier.padding(top = 4.dp),
         )
     }
 

@@ -189,3 +189,33 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "dont you push it through, it needs to work for me"
 
 > "so its the queue in the app thats not workin?"
+
+> "PROCESSING Failed: Failed to fetch nope, over 30 retry atempts."
+
+> "it appears to work from my mobile. maybe a pc firewall issue for webapp and capture app?"
+
+> "renders my flow useless i havent got the files on my phone. can you look into it?"
+
+> "ok that worked. awesome, my apk version needs the multitrack mixer now"
+
+## APK Mixer (S49)
+
+**2026-03-11**:
+> "my apk version needs the multitrack mixer now"
+
+> "im very happy with that, well saved"
+
+> "its still not perfect we havent got the visuals (all 3) adding takes etc but its better."
+
+## Player Mode Selector (S49)
+
+**2026-03-11**:
+> "we need to change 'live practive view' to a drop down selctor so it fits nicely between the track name header and bpm. stick with the pill style for the mode that is selected it fits well its just too small and wedged above the bpm when it could fit niceley beside it and the song title"
+
+> "outdone yourself again. this why i get so frstraded. you nail it mostly! well done"
+
+> "lets wrap up to be safe make sure all our changes and tweeks get carried over to the webapp now"
+
+> "this screenshot is our current benchmark for both apps players, shall we screen shot the other 2 just to be extra safe?"
+
+> "just as i was about to send this i noticed the live screen card layout is wrong (with there being no other notes etc visual should fill screen), fix that then all 3 screens are ready to capture in their 'perfect current state'"
