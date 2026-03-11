@@ -228,11 +228,12 @@ interface PlayerProps {
   setlistId: string | null;
   mode: PlayerMode;
   onClose: () => void;
+  onMenuClick: () => void;
   userId?: string;
   bandRole?: string;
 }
 
-export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: PlayerProps) {
+export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, bandRole }: PlayerProps) {
   // Mode tabs — user can switch between Live/Practice/View (D-137, D-150)
   const [activeMode, setActiveMode] = useState<PlayerMode>(mode);
 
@@ -628,8 +629,11 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
     <div className={`v4-player ${state.beatFlash ? 'v4-flash' : ''}${state.beatFlash && glowFullscreen ? ' v4-glow-full' : ''}`}>
       {/* ── V4 Header ── */}
       <div className="v4-hdr">
-        <button className="v4-hdr-back" onClick={() => { actions.stop(); onClose(); }}>
-          {isLive ? '←' : '☰'}
+        <button className="v4-hdr-menu" onClick={onMenuClick} title="Menu">
+          ☰
+        </button>
+        <button className="v4-hdr-close" onClick={() => { actions.stop(); onClose(); }} title="Exit player">
+          ✕
         </button>
         <div className="v4-hdr-info">
           <span className="v4-hdr-song">{songName}</span>
