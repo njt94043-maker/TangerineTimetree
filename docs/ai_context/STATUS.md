@@ -8,19 +8,9 @@
 ## Current State
 - **Phase**: S47 — Web parity. Library rebuilt, Player polished.
 - **What works**: Web (full, V4 player + **rebuilt Library** matching Android layout — NeuCard cards, left accent border, big BPM, tap-to-expand launch buttons, key/time sig/duration/TRACK badges + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S47 continued)**: Web Player parity — fullscreen fixes + APK feature matching:
-  1. **Player fullscreen gap fixed**: Removed 52px margin-top + 16px padding from .main-content when player active.
-  2. **Empty text panel hidden**: Web now matches APK — no empty card when song has no text content.
-  3. **Safe-area insets**: env(safe-area-inset-top/bottom) for cross-device compatibility.
-  4. **Menu + Close buttons**: Player header now has ☰ (opens side drawer, D-166 player persists) + ✕ (exits player). Drawer available in player view.
-  5. **Live BPM adjustment**: -5/+5 buttons with safety confirmation modal when playing (matches APK SpeedSafetyModal).
-  6. **Queue reorder (D-115)**: Up/down arrows in Queue tab. NOW PLAYING badge. Played songs dimmed.
-  7. **Always-active queue (D-168)**: Opening any song builds "All Songs" queue. No more standalone mode. Prev/next nav always visible.
-  8. **Queue overlay**: Fullscreen (95% opacity) with teal title + glow, matching APK's QueueOverlay. Songs tab rebuilds queue on pick.
-  9. **Verbatim logging**: UserPromptSubmit hook + CLAUDE.md protocol + memory enforcement.
-  10. **Secrets protected**: .claude/settings.json added to .gitignore. Push protection caught leak before remote.
-- **BLOCKER**: Last 2 Vercel deploys FAILED (commits cf104e9 + e64a836). Build passes locally (vite build + tsc --noEmit). Need to check Vercel dashboard for error. Live site is on commit 310368d.
-- **Next action**: Fix Vercel deploy failure. Then: remaining cosmetic gaps (Settings sections, Android Library dropdowns D-128). Full cross-platform parity audit.
+- **Last session (S48 quick)**: Fixed Vercel deploy blocker.
+  1. **Vercel deploy fixed**: Removed unused `getSong` import + `setStandaloneSong` setter from Player.tsx (TS6133 errors failing Vercel build). All S47 web changes now live at thegreentangerine.com.
+- **Next action**: Android Player gaps (Burst vis, mixer colour/size verification, between-songs screen). Then: Web Settings sections, Android Library dropdowns (D-128). Full cross-platform parity audit.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -44,8 +34,8 @@
 ### Web — Library — DONE (S47)
 > Rebuilt to match Android. NeuCard cards, left accent border, big BPM, tap-to-expand, full badge set.
 
-### Web — Player — IN PROGRESS (S47)
-> Fullscreen gap fixed. Menu+Close buttons. Live BPM. Queue reorder. Always-active queue. Queue overlay fullscreen. BUT: last 2 Vercel deploys failed — changes not live yet.
+### Web — Player — DONE (S47, deployed S48)
+> Fullscreen gap fixed. Menu+Close buttons. Live BPM. Queue reorder. Always-active queue. Queue overlay fullscreen. Vercel deploy fixed (S48) — all changes now live.
 
 ### Web — Settings
 - Missing Account section, Audio Engine status, About section
