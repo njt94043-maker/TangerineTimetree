@@ -7,16 +7,11 @@
 
 ## CRITICAL BUGS — Must Fix Before Cosmetics
 
-### Track Loading Broken — Both Platforms (D-165)
-- [ ] **Android: Add `nativeResetTrack()` JNI binding** — expose C++ `TrackPlayer::reset()` to Kotlin
-- [ ] **Android: `selectSong()` must auto-load track** — stop playback → reset old track/stems → download & load new song's track + stems. No manual "Load Track" step.
-- [ ] **Android: `nextSong()`/`prevSong()` must trigger full track swap** — same stop→reset→load cycle
-- [ ] **Web: Verify same auto-load/release behaviour** — web TrackPlayer must release old track when song changes (D-164: both platforms)
+### Track Loading — Both Platforms (D-165) — DONE
+> Confirmed working by Nathan (2026-03-11). No issues reported.
 
-### Player Not Persistent — Both Platforms (D-166)
-- [ ] **Android: Player survives navigation** — navigating to Library/Calendar/Settings must NOT destroy player state. Back button or re-entering player restores song, position, mode.
-- [ ] **Android: Clean up C++ engine on explicit close only** — track should only be released when user explicitly exits the player session (e.g. "End Session"), not on navigation
-- [ ] **Web: Verify player persistence** — same behaviour expected (D-164: both platforms)
+### Player Persistence — Both Platforms (D-166) — DONE
+> Confirmed working by Nathan (2026-03-11). No issues reported.
 
 ### Android Library — Header Gap Bug
 - [ ] **Fix gap between header ("Library" / "New Idea") and Songs/Setlists tabs**

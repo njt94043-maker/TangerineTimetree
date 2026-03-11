@@ -4888,6 +4888,29 @@ select.ps-form-input {
 .btn-icon:hover { border-color: var(--color-green); color: var(--color-green); }
 .btn-icon.disabled { opacity: 0.25; cursor: not-allowed; pointer-events: none; }
 
+/* Library action buttons (New Song, New Idea, Import) */
+.lib-action-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--btn-accent, var(--color-green)) 30%, transparent);
+  background: color-mix(in srgb, var(--btn-accent, var(--color-green)) 6%, var(--bg-card-light, #16161f));
+  color: var(--btn-accent, var(--color-green));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: 0.15s;
+}
+.lib-action-btn:hover {
+  border-color: var(--btn-accent, var(--color-green));
+  background: color-mix(in srgb, var(--btn-accent, var(--color-green)) 12%, var(--bg-card-light, #16161f));
+}
+
 /* Setlist list */
 .setlist-list-items {
   display: flex;
@@ -6347,10 +6370,10 @@ select.ps-form-input {
   background: var(--color-green);
 }
 
-/* Mixer (drawer) */
+/* Mixer (drawer) — matches Android S49 dimensions */
 .v4-mixer {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   justify-content: center;
   margin-bottom: 6px;
   align-self: center;
@@ -6360,19 +6383,19 @@ select.ps-form-input {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  width: 40px;
+  width: 50px;
 }
 .v4-mx-lbl {
   font-family: var(--font-mono);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
 }
 .v4-mx-trk {
-  width: 4px;
-  height: 60px;
+  width: 20px;
+  height: 80px;
   background: rgba(255,255,255,0.04);
-  border-radius: 2px;
+  border-radius: 4px;
   position: relative;
   overflow: hidden;
 }
@@ -6380,27 +6403,30 @@ select.ps-form-input {
   position: absolute;
   bottom: 0;
   width: 100%;
-  border-radius: 2px;
+  border-radius: 4px;
+  transition: opacity 0.15s;
 }
 .v4-mx-val {
   font-family: var(--font-mono);
-  font-size: 7px;
+  font-size: 8px;
   color: var(--color-text-muted);
+  transition: opacity 0.15s;
 }
 .v4-mx-mute {
-  width: 16px;
-  height: 12px;
-  border-radius: 2px;
+  width: 24px;
+  height: 16px;
+  border-radius: 3px;
   border: 1px solid rgba(255,255,255,0.06);
   background: var(--bg-card-light);
   font-family: var(--font-mono);
-  font-size: 6px;
+  font-size: 7px;
   font-weight: 700;
   color: var(--color-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s;
 }
 .v4-mx-mute.on { color: var(--color-danger); border-color: rgba(255,82,82,0.3); }
 

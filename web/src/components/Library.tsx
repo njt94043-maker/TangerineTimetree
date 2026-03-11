@@ -233,11 +233,12 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <span className="song-count">{songs.length} song{songs.length !== 1 ? 's' : ''}</span>
             <span style={{ flex: 1 }} />
-            <button className="btn-icon" title="Add Song" onClick={onNewSong} style={{ color: 'var(--color-green)', borderColor: 'rgba(0,230,118,0.3)' }}>+</button>
+            <button className="lib-action-btn" onClick={onNewSong} style={{ '--btn-accent': 'var(--color-green)' } as React.CSSProperties}>
+              + New Song
+            </button>
             <button
-              className="btn-icon"
-              title="New Idea"
-              style={{ color: '#ff4646', borderColor: 'rgba(255,70,70,0.25)' }}
+              className="lib-action-btn"
+              style={{ '--btn-accent': '#ff4646' } as React.CSSProperties}
               onClick={async () => {
                 const name = prompt('Name your song idea:');
                 if (!name?.trim()) return;
@@ -248,8 +249,10 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
                   setError(e instanceof Error ? e.message : 'Failed to create song');
                 }
               }}
-            >&#128161;</button>
-            <button className="btn-icon" title="Import" onClick={() => setShowImport(true)} style={{ color: 'var(--color-teal)', borderColor: 'rgba(26,188,156,0.3)' }}>&#8595;</button>
+            >New Idea</button>
+            <button className="lib-action-btn" onClick={() => setShowImport(true)} style={{ '--btn-accent': 'var(--color-teal)' } as React.CSSProperties}>
+              Import
+            </button>
           </div>
 
           <div className="song-list-items">
