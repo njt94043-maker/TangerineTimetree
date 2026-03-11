@@ -181,3 +181,5 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "header gap is fixed. tracks load properly and navs thru queue list fine as far as i can tell. click and flash is not quite as tight as apk version. apk is bang on. apk is persistant webapp is not."
 
 > "push then address next set of issues, in this session if we have enough memory, or another one if safer. webapp installed on my pc doesnt import from tgt capture as intended. webapp wont attatch the practice app to start the process of giving me seperated stems with beatmap attatched. its built and functional but only ever completed end to end by ai so never fully set up for me to run the tasks on my own through the app as intended"
+
+> "thats not what i said. capture works as intended now. fixed. webapp has import from capture function, its supposed to create a song from my capture library, or full lists. thats a later on feature, but even basic 1 track import doesnt work yet. most important tho is the practice track pipeline as this affects me directly"
