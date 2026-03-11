@@ -330,58 +330,91 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
     }
   }, [beatStatus]);
 
-  /** Trigger processing pipeline via Cloud Tasks. skip_stems=true → beats only. */
+  /** Trigger processing pipeline via Cloud Tasks. skip_stems=true → beats only.
+   *  Retries up to 3 times to handle Cloud Run cold start (~90s wake-up on free tier). */
   async function triggerProcessing(trackUrl: string, skipStems = false) {
     if (!songId || !BEAT_ANALYSIS_URL) return;
 
     setBeatStatus('pending');
     setBeatError('');
-    try {
-      const resp = await fetch(`${BEAT_ANALYSIS_URL}/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ song_id: songId, audio_url: trackUrl, skip_stems: skipStems }),
-      });
 
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
-        throw new Error(errBody.error || `HTTP ${resp.status}`);
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 1) {
+          setBeatError(`Server waking up... attempt ${attempt}/${maxRetries}`);
+        }
+        const resp = await fetch(`${BEAT_ANALYSIS_URL}/process`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song_id: songId, audio_url: trackUrl, skip_stems: skipStems }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
+          throw new Error(errBody.error || `HTTP ${resp.status}`);
+        }
+
+        // Success — start polling for status updates
+        setBeatError('');
+        startPolling();
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to start processing';
+        const isNetworkError = msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('503');
+        if (isNetworkError && attempt < maxRetries) {
+          // Wait before retry — server is likely cold-starting
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        setBeatStatus('failed');
+        setBeatError(msg);
+        await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
+        return;
       }
-
-      // Start polling for status updates
-      startPolling();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to start processing';
-      setBeatStatus('failed');
-      setBeatError(msg);
-      await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
     }
   }
 
-  /** Re-analyse beats only (D-151) — clears old beat map, re-runs madmom. */
+  /** Re-analyse beats only (D-151) — clears old beat map, re-runs madmom.
+   *  Retries up to 3 times for Cloud Run cold start. */
   async function reAnalyse() {
     if (!songId || !audioUrl || !BEAT_ANALYSIS_URL) return;
 
     setBeatStatus('pending');
     setBeatError('');
-    try {
-      const resp = await fetch(`${BEAT_ANALYSIS_URL}/re-analyse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ song_id: songId, audio_url: audioUrl }),
-      });
 
-      if (!resp.ok) {
-        const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
-        throw new Error(errBody.error || `HTTP ${resp.status}`);
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 1) {
+          setBeatError(`Server waking up... attempt ${attempt}/${maxRetries}`);
+        }
+        const resp = await fetch(`${BEAT_ANALYSIS_URL}/re-analyse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ song_id: songId, audio_url: audioUrl }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.json().catch(() => ({ error: 'Failed to queue' }));
+          throw new Error(errBody.error || `HTTP ${resp.status}`);
+        }
+
+        setBeatError('');
+        startPolling();
+        return;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to start re-analysis';
+        const isNetworkError = msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('503');
+        if (isNetworkError && attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        setBeatStatus('failed');
+        setBeatError(msg);
+        await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
+        return;
       }
-
-      startPolling();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to start re-analysis';
-      setBeatStatus('failed');
-      setBeatError(msg);
-      await upsertBeatMap(songId, { status: 'failed', error: msg }).catch(() => {});
     }
   }
 
