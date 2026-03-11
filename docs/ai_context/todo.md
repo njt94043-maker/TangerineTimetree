@@ -39,16 +39,26 @@
 - [x] Setlists: tap-to-expand with Live/Practice/View + Edit buttons, left accent border
 - [x] Tab bar accent colours (teal for Songs, orange for Setlists)
 
-### Web — Player — DONE (S47)
+### Web — Player — BLOCKED (Vercel deploy failing)
 - [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
 - [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
-- [x] Browse Songs button when no setlist active — DONE (S45)
 - [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
 - [x] Wire up settings pills — DONE (S45)
 - [x] Vis button label already "Spectrum" — verified
 - [x] Text panel max-height 200→120px — DONE (S47)
 - [x] Practice transport: speed + A-B loop layout already correct — verified
 - [x] Waveform strip height 56→72px — DONE (S47)
+- [x] Fullscreen gap fixed (margin-top + padding zeroed) — DONE (S47)
+- [x] Empty text panel hidden when no content — DONE (S47)
+- [x] Safe-area insets (top/bottom) — DONE (S47)
+- [x] Menu ☰ + Close ✕ buttons in header (D-166) — DONE (S47)
+- [x] Side drawer available in player view — DONE (S47)
+- [x] Live BPM adjustment (-5/+5) with safety modal — DONE (S47)
+- [x] Queue reorder arrows (D-115) — DONE (S47)
+- [x] Always-active queue (D-168) — no standalone mode — DONE (S47)
+- [x] Queue overlay fullscreen + teal theme — DONE (S47)
+- [x] Songs tab rebuilds queue on pick (D-168) — DONE (S47)
+- [ ] **BLOCKER: Fix Vercel deploy failure** — last 2 commits error on Vercel. Builds clean locally. Check Vercel dashboard.
 
 ### Web — Settings (match mockup screen 17)
 - [ ] Add Account section
