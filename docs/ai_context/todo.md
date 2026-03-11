@@ -58,7 +58,7 @@
 - [x] Always-active queue (D-168) — no standalone mode — DONE (S47)
 - [x] Queue overlay fullscreen + teal theme — DONE (S47)
 - [x] Songs tab rebuilds queue on pick (D-168) — DONE (S47)
-- [ ] **BLOCKER: Fix Vercel deploy failure** — last 2 commits error on Vercel. Builds clean locally. Check Vercel dashboard.
+- [x] **BLOCKER: Fix Vercel deploy failure** — FIXED (S48). Unused `getSong` import + `setStandaloneSong` setter caused TS6133. All S47 changes now live.
 
 ### Web — Settings (match mockup screen 17)
 - [ ] Add Account section
