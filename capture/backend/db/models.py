@@ -1,6 +1,6 @@
 """SQLite schema and model definitions."""
 
-SCHEMA_SQL = """
+TABLES_SQL = """
 CREATE TABLE IF NOT EXISTS tracks (
     id                TEXT PRIMARY KEY,
     title             TEXT NOT NULL DEFAULT 'Untitled',
@@ -75,7 +75,9 @@ CREATE TABLE IF NOT EXISTS capture_sessions (
     raw_file_path  TEXT NOT NULL DEFAULT '',
     paused         INTEGER NOT NULL DEFAULT 0
 );
+"""
 
+INDEXES_SQL = """
 CREATE INDEX IF NOT EXISTS idx_tracks_title ON tracks(title);
 CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
 CREATE INDEX IF NOT EXISTS idx_tracks_capture_date ON tracks(capture_date);

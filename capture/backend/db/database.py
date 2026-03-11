@@ -7,14 +7,15 @@ from typing import Any
 from uuid import uuid4
 
 from config import DB_PATH
-from db.models import SCHEMA_SQL
+from db.models import TABLES_SQL, INDEXES_SQL
 
 
 def init_db():
-    """Create tables if they don't exist, then run migrations."""
+    """Create tables → migrate existing DBs → create indexes."""
     with get_conn() as conn:
-        conn.executescript(SCHEMA_SQL)
+        conn.executescript(TABLES_SQL)
         _migrate(conn)
+        conn.executescript(INDEXES_SQL)
 
 
 def _migrate(conn):
