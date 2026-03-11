@@ -515,7 +515,11 @@ html, body, #root {
 
 /* Push content below fixed header */
 .main-content { margin-top: 52px; }
-.main-content.player-fullscreen { margin-top: 0; }
+.main-content.player-fullscreen {
+  margin-top: 0;
+  padding: 0;
+  max-width: 100%;
+}
 
 /* ─── Calendar ─── */
 .calendar {
