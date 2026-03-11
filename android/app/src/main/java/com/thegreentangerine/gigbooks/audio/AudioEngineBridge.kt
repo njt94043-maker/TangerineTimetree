@@ -24,6 +24,7 @@ object AudioEngineBridge {
     external fun nativeStopClick()
     external fun nativeGetCurrentBeat(): Int
     external fun nativeGetCurrentBar(): Int
+    external fun nativeGetBeatTick(): Int
     external fun nativeIsPlaying(): Boolean
 
     // --- Practice mode ---

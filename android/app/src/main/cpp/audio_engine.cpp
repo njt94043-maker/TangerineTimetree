@@ -154,6 +154,10 @@ int32_t AudioEngine::getCurrentBar() const {
     return metronome_.getCurrentBar();
 }
 
+int32_t AudioEngine::getBeatTick() const {
+    return metronome_.getBeatTick();
+}
+
 bool AudioEngine::isClickPlaying() const {
     return metronome_.isPlaying();
 }

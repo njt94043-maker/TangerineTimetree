@@ -550,14 +550,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         try { AudioEngineBridge.nativeStartClick() } catch (_: Exception) { return }
         isClickPlaying = true
         beatPollJob?.cancel()
+        var lastTick = 0  // matches C++ start() reset: beatTick_=0
         beatPollJob = viewModelScope.launch(Dispatchers.Default) {
             while (isActive) {
                 try {
-                    val b = AudioEngineBridge.nativeGetCurrentBeat()
-                    val r = AudioEngineBridge.nativeGetCurrentBar()
-                    withContext(Dispatchers.Main) { currentBeat = b; currentBar = r }
+                    val tick = AudioEngineBridge.nativeGetBeatTick()
+                    if (tick > 0 && tick != lastTick) {
+                        lastTick = tick
+                        // C++ currentBeat_ is 0-indexed (0..beatsPerBar-1)
+                        // UI needs 1-indexed (1..beatsPerBar), 0 = idle
+                        val b = AudioEngineBridge.nativeGetCurrentBeat() + 1
+                        val r = AudioEngineBridge.nativeGetCurrentBar()
+                        withContext(Dispatchers.Main) { currentBeat = b; currentBar = r }
+                    }
                 } catch (_: Exception) { }
-                delay(40L)
+                delay(16L)
             }
         }
     }

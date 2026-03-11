@@ -44,6 +44,7 @@ public:
     // State queries
     int32_t getCurrentBeat() const;
     int32_t getCurrentBar() const;
+    int32_t getBeatTick() const;
     bool isClickPlaying() const;
 
     // Mixer (channel 0 = click, channel 1 = track)

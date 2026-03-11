@@ -392,3 +392,14 @@
 - **What happened**: AI started S45 screen-for-screen lockdown but only audited/fixed web. Nathan had to correct: "you got the 'both apps' bit wrong not me". D-153 (mirror apps) explicitly requires full parity.
 - **Root cause**: AI defaulting to web-only because it's easier (TypeScript vs Kotlin). Android gets treated as an afterthought.
 - **Fix**: Every visual change must be evaluated and applied to BOTH platforms. When auditing, launch parallel agents for web AND Android. Never mark a screen as "done" until both platforms match the mockup.
+
+### Decision bulldozing — AI overrides locked decisions without checking (S45, 2026-03-11)
+- **What happened**: In a single session, AI violated 4 decisions: added accent click on beat 1 (D-159), kept orange/larger beat 1 dot (D-160), broke beat sync timing (D-161), and needed multiple iterations to fix each because it kept applying "fixes" that introduced new violations.
+- **Root cause**: AI sees code that looks "wrong" (e.g. `currentClickIsDownbeat_ = false` with comment "no accent — all clicks sound identical") and "fixes" it without understanding it's an intentional decision. Comments in code ARE decisions — if code says "no accent", that's deliberate.
+- **Impact**: User had to re-explain the same locked decisions repeatedly within one session. Each "fix" broke something else. Trust eroded.
+- **Fix**: Before modifying ANY behavioral code: (1) Read decisions_log.md for related decisions. (2) If code has a comment explaining WHY something is a certain way, DO NOT CHANGE IT without asking. (3) Log every new decision IMMEDIATELY in decisions_log.md before writing code. (4) When user says "X was working before", the first action is `git log` + `git diff` to find what changed, not to theorize about what's wrong.
+
+### Beat sync: polling vs event-driven (S45, 2026-03-11)
+- **What happened**: C++ metronome stored `currentBeat_` as 0-indexed (0,1,2,3). UI used 0 as "idle". So beat 0 (first beat of every bar) was invisible — no flash, no dot. Additionally, raw 40ms polling caused visual drift from the click sound.
+- **Root cause**: No change-detection mechanism. UI polled raw `currentBeat_` which had dual meaning (0 = idle AND 0 = first beat). No way to distinguish "no beat fired yet" from "beat 0 just fired".
+- **Fix**: Added `beatTick_` atomic counter in C++ that only increments when a beat fires in the audio thread. Kotlin polls every 16ms but only updates UI when `beatTick` changes AND > 0. `currentBeat` converted to 1-indexed (1..N) at the single Kotlin conversion point. 0 = idle only. See D-161.
