@@ -200,16 +200,17 @@ export class ClickScheduler {
       }
     }
 
-    // Emit beat event for UI (flash, beat counter)
+    // Queue beat event for frame-accurate UI sync (D-161 pattern)
+    // Instead of setTimeout (4-8ms jitter), queue the event with its scheduled time.
+    // The rAF tick loop polls and emits when ctx.currentTime passes the beat time,
+    // giving 0-16ms visual jitter (one frame) — same as Android's atomic counter polling.
     const beatEvent: BeatEvent = {
       beat: this.currentBeat,
       bar: this.currentBar,
       isDownbeat,
       time,
     };
-    // Schedule the emit close to the actual beat time
-    const delay = Math.max(0, (time - ctx.currentTime) * 1000);
-    setTimeout(() => AudioEngine.emitBeat(beatEvent), delay);
+    AudioEngine.queueBeat(time, beatEvent);
 
     // Schedule subdivision clicks
     if (subdivision > 1) {

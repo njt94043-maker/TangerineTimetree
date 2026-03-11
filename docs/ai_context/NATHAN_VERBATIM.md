@@ -173,3 +173,11 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "take the screenshot, theres a slight gap still at the top that makes user have to scroll down to access the drawer"
 
 > "if it will still work on other phones, yes" [re: safe-area-inset for top/bottom]
+
+## Session Start (2026-03-11, new session)
+
+> [Nathan shared STATUS.md — reviewing current state, no specific directive yet]
+
+> "header gap is fixed. tracks load properly and navs thru queue list fine as far as i can tell. click and flash is not quite as tight as apk version. apk is bang on. apk is persistant webapp is not."
+
+> "push then address next set of issues, in this session if we have enough memory, or another one if safer. webapp installed on my pc doesnt import from tgt capture as intended. webapp wont attatch the practice app to start the process of giving me seperated stems with beatmap attatched. its built and functional but only ever completed end to end by ai so never fully set up for me to run the tasks on my own through the app as intended"

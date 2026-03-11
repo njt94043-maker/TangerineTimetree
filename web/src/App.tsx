@@ -157,6 +157,19 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const toggleDrawer = useCallback(() => setDrawerOpen(o => !o), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
+  // Player persistence (D-166): keep Player mounted when navigating away.
+  // Player only unmounts on explicit close, not on view change.
+  const [playerMounted, setPlayerMounted] = useState(false);
+
+  useEffect(() => {
+    if (view === 'player') setPlayerMounted(true);
+  }, [view]);
+
+  const handlePlayerClose = useCallback(() => {
+    setPlayerMounted(false);
+    goBack();
+  }, [goBack]);
+
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
     else setMonth(m => m - 1);
@@ -582,16 +595,20 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
           />
         )}
 
-        {view === 'player' && (
-          <Player
-            songId={playerSongId}
-            setlistId={playerSetlistId}
-            mode={playerMode}
-            onClose={goBack}
-            onMenuClick={toggleDrawer}
-            userId={profile?.id ?? ''}
-            bandRole={profile?.band_role}
-          />
+        {/* Player persistence (D-166): stays mounted when navigating away, hidden with CSS.
+            Audio keeps playing. Only unmounts on explicit close. */}
+        {playerMounted && (
+          <div style={{ display: view === 'player' ? undefined : 'none' }}>
+            <Player
+              songId={playerSongId}
+              setlistId={playerSetlistId}
+              mode={playerMode}
+              onClose={handlePlayerClose}
+              onMenuClick={toggleDrawer}
+              userId={profile?.id ?? ''}
+              bandRole={profile?.band_role}
+            />
+          </div>
         )}
 
       </main>

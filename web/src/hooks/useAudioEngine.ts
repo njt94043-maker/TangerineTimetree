@@ -301,8 +301,11 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // Start tick loop for time updates
+    // Start tick loop for time updates + beat polling
     AudioEngine.startTick(() => {
+      // Poll queued beats — frame-accurate visual sync (D-161 pattern)
+      AudioEngine.pollBeats();
+
       let pos = 0;
       if (hasStems) {
         pos = mixerRef.current.getPosition();
