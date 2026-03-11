@@ -167,3 +167,9 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "have i gotta change my keys again. i will stop this project right now and cancel my subscribtion if this is the case. these problems we're facing cannot be solved the way i see things"
 
 > "yes fix it"
+
+> "ok, better, something tells me your not asking for the screen size on the dice and making it fit, just adjusting randomly and hoping it fits it this case, which is not fine because it will be different on different phones, especially ios"
+
+> "take the screenshot, theres a slight gap still at the top that makes user have to scroll down to access the drawer"
+
+> "if it will still work on other phones, yes" [re: safe-area-inset for top/bottom]
