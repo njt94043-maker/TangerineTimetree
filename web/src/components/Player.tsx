@@ -361,10 +361,32 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     });
   }, [setlistId]);
 
-  // Load standalone song
+  // Load standalone song → build "All Songs" queue (D-168: always a queue)
   useEffect(() => {
     if (setlistId || !songId) return;
-    getSong(songId).then(s => { if (s) setStandaloneSong(s); });
+    getSongs().then(songs => {
+      if (songs.length === 0) return;
+      setAllSongs(songs);
+      const startIdx = songs.findIndex(s => s.id === songId);
+      // Build a virtual setlist from all songs so nav row + queue work
+      const virtualSetlist: SetlistWithSongs = {
+        id: '__all_songs__',
+        name: 'All Songs',
+        setlist_type: 'all',
+        songs: songs.map((s, i) => ({
+          id: `__q_${s.id}`,
+          setlist_id: '__all_songs__',
+          song_id: s.id,
+          position: i,
+          song_name: s.name,
+          song_artist: s.artist,
+          song_bpm: s.bpm,
+        })),
+      } as any;
+      setSetlist(virtualSetlist);
+      setCurrentIndex(startIdx >= 0 ? startIdx : 0);
+      setActiveSongId(songId);
+    });
   }, [songId, setlistId]);
 
   // Load songs/setlists for queue browse tabs (lazy — only when queue opens)
@@ -396,17 +418,32 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     }
   }, [setlist, currentIndex, goToSetlistSong]);
 
-  // Pick a song from browse tab (standalone, no setlist)
+  // Pick a song from Songs tab — rebuild queue as "All Songs" (D-168)
   const pickSong = useCallback((id: string) => {
     actions.stop();
+    const startIdx = allSongs.findIndex(s => s.id === id);
+    const virtualSetlist: SetlistWithSongs = {
+      id: '__all_songs__',
+      name: 'All Songs',
+      setlist_type: 'all',
+      songs: allSongs.map((s, i) => ({
+        id: `__q_${s.id}`,
+        setlist_id: '__all_songs__',
+        song_id: s.id,
+        position: i,
+        song_name: s.name,
+        song_artist: s.artist,
+        song_bpm: s.bpm,
+      })),
+    } as any;
+    setSetlist(virtualSetlist);
+    setCurrentIndex(startIdx >= 0 ? startIdx : 0);
     setActiveSongId(id);
-    setSetlist(null);
-    setCurrentIndex(0);
     setQueueOpen(false);
     setLoopMarkA(null);
     setBetweenSongs(false);
     setSetComplete(false);
-  }, [actions]);
+  }, [actions, allSongs]);
 
   // Pick a setlist from browse tab
   const pickSetlist = useCallback((id: string) => {
@@ -1236,6 +1273,9 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             </div>
             <div className="player-queue-list">
               {/* Queue tab */}
+              {queueTab === 'queue' && setlist && (
+                <div className="player-queue-subtitle">{setlist.name}</div>
+              )}
               {queueTab === 'queue' && setlist && setlist.songs.map((song, i) => (
                 <div
                   key={song.id}
@@ -1268,31 +1308,48 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
                 <div className="player-queue-empty">No active queue</div>
               )}
               {/* Songs tab */}
-              {queueTab === 'songs' && allSongs.map(song => (
-                <button
-                  key={song.id}
-                  className={`player-queue-item ${song.id === activeSongId ? 'active' : ''}`}
-                  onClick={() => pickSong(song.id)}
-                >
-                  <span className="player-queue-name">{song.name}</span>
-                  <span className="player-queue-artist">{song.artist}</span>
-                  <span className="player-queue-bpm">{song.bpm}</span>
-                </button>
-              ))}
+              {queueTab === 'songs' && allSongs.length > 0 && (
+                <div className="player-queue-subtitle">{allSongs.length} songs</div>
+              )}
+              {queueTab === 'songs' && allSongs.map(song => {
+                const isCurrent = song.id === activeSongId;
+                return (
+                  <div
+                    key={song.id}
+                    className={`player-queue-item ${isCurrent ? 'active songs-active' : ''}`}
+                    onClick={() => pickSong(song.id)}
+                  >
+                    <div className="player-queue-info">
+                      <span className="player-queue-name">{song.name}</span>
+                      {song.artist && <span className="player-queue-artist">{song.artist}</span>}
+                    </div>
+                    <span className="player-queue-bpm" style={isCurrent ? { color: 'var(--color-tangerine)' } : undefined}>{song.bpm}</span>
+                    {isCurrent && <span className="player-queue-now-badge">NOW</span>}
+                  </div>
+                );
+              })}
               {queueTab === 'songs' && allSongs.length === 0 && (
                 <div className="player-queue-empty">Loading songs…</div>
               )}
               {/* Setlists tab */}
-              {queueTab === 'setlists' && allSetlists.map(sl => (
-                <button
-                  key={sl.id}
-                  className={`player-queue-item ${setlist?.id === sl.id ? 'active' : ''}`}
-                  onClick={() => pickSetlist(sl.id)}
-                >
-                  <span className="player-queue-name">{sl.name}</span>
-                  <span className="player-queue-artist">{sl.setlist_type}</span>
-                </button>
-              ))}
+              {queueTab === 'setlists' && allSetlists.length > 0 && (
+                <div className="player-queue-subtitle">{allSetlists.length} setlists</div>
+              )}
+              {queueTab === 'setlists' && allSetlists.map(sl => {
+                const isCurrent = setlist?.id === sl.id;
+                return (
+                  <div
+                    key={sl.id}
+                    className={`player-queue-item ${isCurrent ? 'active songs-active' : ''}`}
+                    onClick={() => pickSetlist(sl.id)}
+                  >
+                    <div className="player-queue-info">
+                      <span className="player-queue-name">{sl.name}</span>
+                      <span className="player-queue-artist">{(sl as any).song_count ?? ''} songs · {sl.setlist_type}</span>
+                    </div>
+                  </div>
+                );
+              })}
               {queueTab === 'setlists' && allSetlists.length === 0 && (
                 <div className="player-queue-empty">Loading setlists…</div>
               )}
