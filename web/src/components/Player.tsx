@@ -771,8 +771,8 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
           </div>
         )}
 
-        {/* Text Panel */}
-        {(showChords || showLyrics || showNotes || showDrums) && (
+        {/* Text Panel — only render if there's actual content */}
+        {(showChords || showLyrics || showNotes || showDrums) && (songChords || songLyrics || songNotes || songDrums) && (
           <div className="v4-text-panel">
             {showChords && songChords && !isChordProLine(songLyrics) && (
               <>
