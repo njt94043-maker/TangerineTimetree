@@ -16,25 +16,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +47,10 @@ import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.DisplayToggleRow
 import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
 import com.thegreentangerine.gigbooks.ui.components.DrawerLabel
+import com.thegreentangerine.gigbooks.ui.components.FullscreenBeatGlow
 import com.thegreentangerine.gigbooks.ui.components.LiveTransport
+import com.thegreentangerine.gigbooks.ui.components.MixerChannel
+import com.thegreentangerine.gigbooks.ui.components.MixerRow
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
 import com.thegreentangerine.gigbooks.ui.components.NeuWell
 import com.thegreentangerine.gigbooks.ui.components.PlayerHeader
@@ -62,11 +62,9 @@ import com.thegreentangerine.gigbooks.ui.components.VisualHero
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
-import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit) {
+fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onSwitchMode: (String) -> Unit = {}) {
     val song = vm.selectedSong
     var showQueue by remember { mutableStateOf(false) }
     var showSpeedConfirm by remember { mutableStateOf(false) }
@@ -78,11 +76,10 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     var showLyrics by remember { mutableStateOf(true) }
     var showNotes by remember { mutableStateOf(true) }
     var showDrums by remember { mutableStateOf(true) }
+    var glowFullscreen by remember { mutableStateOf(false) }
 
-    // Bottom sheet
-    val sheetState = rememberModalBottomSheetState()
-    var showSheet by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    // Inline drawer (expands in-place, shrinks hero)
+    var drawerOpen by remember { mutableStateOf(false) }
 
     // Set complete overlay
     if (vm.isSetComplete && vm.activeSetlist != null) {
@@ -128,25 +125,32 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     setlistName = setlist?.setlist?.name,
                     setlistPosition = setlistPos,
                     onBackClick = onMenuClick,
+                    onSwitchMode = { mode -> vm.stopClick(); onSwitchMode(mode) },
+                    currentMode = "live",
                 )
 
-                // Scrollable content area
+                // Content area — hero + text fill available space (no scroll)
+                val hasTextContent = (showChords && !song.chords.isNullOrBlank()) ||
+                    (showLyrics && !song.lyrics.isNullOrBlank()) ||
+                    (showNotes && !song.notes.isNullOrBlank()) ||
+                    (showDrums && !song.drumNotation.isNullOrBlank())
+                val bothVisible = showVisuals && hasTextContent
+
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                    modifier = Modifier.weight(1f),
                 ) {
-                    // Visual Hero
+                    // Visual Hero — fills space, splits with text when both visible
                     if (showVisuals) {
                         VisualHero(
-                            heroHeight = 160.dp,
                             isPlaying = vm.isClickPlaying,
                             currentBeat = vm.currentBeat,
                             accent = GigColors.green,
+                            modifier = Modifier.weight(if (bothVisible) 0.55f else 1f),
+                            suppressBeatGlow = glowFullscreen,
                         )
                     }
 
-                    // Text Panel (scrollable lyrics/chords/notes/drums)
+                    // Text Panel — fills space when hero hidden, splits when both visible
                     TextPanel(
                         chords = song.chords,
                         lyrics = song.lyrics,
@@ -158,20 +162,11 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                             showNotes = showNotes,
                             showDrums = showDrums,
                         ),
+                        modifier = if (hasTextContent) Modifier.weight(if (bothVisible) 0.45f else 1f) else Modifier,
                     )
                 }
 
-                // Transport
-                LiveTransport(
-                    isPlaying = vm.isClickPlaying,
-                    onPlayStop = { vm.toggleClick() },
-                    onStop = { vm.toggleClick() },
-                    onClickToggle = { vm.toggleClickMute() },
-                    isClickMuted = vm.isClickMuted,
-                    enabled = vm.engineAvailable,
-                )
-
-                // Nav Row (prev/next song)
+                // Nav Row (prev/next song) — above transport
                 if (setlist != null) {
                     val prevName = if (vm.activeSetlistIdx > 0) {
                         setlist.songs.getOrNull(vm.activeSetlistIdx - 1)?.songs?.name
@@ -188,9 +183,37 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                         onNext = { vm.nextSong() },
                         onQueue = { showQueue = true },
                     )
+                } else {
+                    // Standalone queue/browse button when no setlist is active
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(GigColors.surface, RoundedCornerShape(10.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
+                                .clickable(onClick = { showQueue = true })
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
+                        ) {
+                            Text(
+                                "Browse Songs",
+                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+                            )
+                        }
+                    }
                 }
 
-                // Drawer preview (pull-up handle + display toggles)
+                // Transport (restart / play-pause / stop)
+                LiveTransport(
+                    isPlaying = vm.isClickPlaying,
+                    onPlayStop = { vm.toggleClick() },
+                    onStop = { vm.stopClick() },
+                    onRestart = { vm.stopClick(); vm.toggleClick() },
+                    enabled = vm.engineAvailable,
+                )
+
+                // Inline drawer — handle + expandable settings
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,69 +225,74 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                             1.dp,
                             Color.White.copy(alpha = 0.04f),
                             RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
-                        )
-                        .clickable {
-                            showSheet = true
+                        ),
+                ) {
+                    // Pull handle
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { drawerOpen = !drawerOpen }
+                            .padding(10.dp, 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        DrawerHandle()
+                    }
+
+                    // Expandable drawer content (inline, pushes hero up)
+                    AnimatedVisibility(
+                        visible = drawerOpen,
+                        enter = expandVertically(),
+                        exit = shrinkVertically(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            DrawerLabel("DISPLAY")
+                            DisplayToggleRow(
+                                showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
+                                showChords = showChords, onChordsToggle = { showChords = !showChords },
+                                showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
+                                showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
+                                showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
+                                glowFullscreen = glowFullscreen, onGlowToggle = { glowFullscreen = !glowFullscreen },
+                            )
+
+                            Spacer(Modifier.height(4.dp))
+                            DrawerLabel("MIXER")
+                            LiveMixer(vm)
+
+                            Spacer(Modifier.height(4.dp))
+                            DrawerLabel("SETTINGS")
+                            SettingsPills(
+                                subdivision = vm.subdivision,
+                                onSubdivisionChange = { vm.applySubdivision(it) },
+                                countInBars = vm.countInBars,
+                                onCountInChange = { vm.setCountIn(it) },
+                                nudgeOffsetMs = vm.nudgeOffsetMs,
+                                onNudgeBack = { vm.nudge(-1) },
+                                onNudgeForward = { vm.nudge(+1) },
+                                onNudgeReset = { vm.resetNudge() },
+                            )
+
+                            Spacer(Modifier.height(12.dp))
                         }
-                        .padding(10.dp, 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    DrawerHandle()
-                    Spacer(Modifier.height(8.dp))
-                    DrawerLabel("DISPLAY")
-                    Spacer(Modifier.height(6.dp))
-                    DisplayToggleRow(
-                        showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
-                        showChords = showChords, onChordsToggle = { showChords = !showChords },
-                        showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
-                        showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
-                        showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
-                    )
+                    }
                 }
             }
         }
 
-        // Bottom sheet drawer (full settings)
-        if (showSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showSheet = false },
-                sheetState = sheetState,
-                containerColor = GigColors.surface,
-                scrimColor = Color.Black.copy(alpha = 0.5f),
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    DrawerLabel("DISPLAY")
-                    DisplayToggleRow(
-                        showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
-                        showChords = showChords, onChordsToggle = { showChords = !showChords },
-                        showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
-                        showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
-                        showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-                    DrawerLabel("SETTINGS")
-                    SettingsPills(
-                        subdivision = vm.subdivision,
-                        onSubdivisionChange = { vm.applySubdivision(it) },
-                        countInBars = vm.countInBars,
-                        onCountInChange = { vm.setCountIn(it) },
-                        nudgeOffsetMs = vm.nudgeOffsetMs,
-                        onNudgeBack = { vm.nudge(-1) },
-                        onNudgeForward = { vm.nudge(+1) },
-                        onNudgeReset = { vm.resetNudge() },
-                    )
-
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
+        // Fullscreen beat glow overlay
+        if (glowFullscreen) {
+            FullscreenBeatGlow(
+                isPlaying = vm.isClickPlaying,
+                currentBeat = vm.currentBeat,
+                accent = GigColors.green,
+            )
         }
 
-        // Queue overlay
-        if (showQueue && vm.activeSetlist != null) {
+        // Queue overlay (tabs: Queue / Songs / Setlists)
+        if (showQueue) {
             QueueOverlay(
                 vm = vm,
                 onDismiss = { showQueue = false },
@@ -286,17 +314,37 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     }
 }
 
-// ─── Queue Overlay ──────────────────────────────────────────────────────────────
+// ─── Live Mixer (drawer) ────────────────────────────────────────────────────────
 
 @Composable
-private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
-    val setlist = vm.activeSetlist ?: return
-    val currentIdx = vm.activeSetlistIdx
+private fun LiveMixer(vm: AppViewModel) {
+    val channels = mutableListOf<MixerChannel>()
+
+    // Click channel — always present
+    channels.add(
+        MixerChannel(
+            label = "CLK",
+            color = GigColors.green,
+            value = (vm.clickGain / 2f).coerceIn(0f, 1f),
+            onValueChange = { vm.changeClickGain(it * 2f) },
+            isMuted = vm.isClickMuted,
+            onMuteToggle = { vm.toggleClickMute() },
+        )
+    )
+
+    MixerRow(channels)
+}
+
+// ─── Queue Overlay (with tabs: Queue / Songs / Setlists) ────────────────────
+
+@Composable
+fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
+    var activeTab by remember { mutableStateOf(0) } // 0=Queue, 1=Songs, 2=Setlists
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background.copy(alpha = 0.92f))
+            .background(GigColors.background.copy(alpha = 0.95f))
             .clickable(onClick = onDismiss),
     ) {
         Column(
@@ -305,135 +353,329 @@ private fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                 .clickable(enabled = false, onClick = {})
                 .padding(top = 60.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
         ) {
+            // Header with close button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Queue",
+                    when (activeTab) { 0 -> "Queue"; 1 -> "Songs"; else -> "Setlists" },
                     fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
                     style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.4f), Offset.Zero, 12f)),
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    setlist.setlist.name,
-                    fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted,
-                )
-                Spacer(Modifier.width(8.dp))
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Close, contentDescription = "Close", tint = GigColors.textDim, modifier = Modifier.size(20.dp))
                 }
             }
 
+            Spacer(Modifier.height(8.dp))
+
+            // Tab row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                QueueTab("Queue", 0, activeTab) { activeTab = 0 }
+                QueueTab("Songs", 1, activeTab) { activeTab = 1 }
+                QueueTab("Setlists", 2, activeTab) { activeTab = 2 }
+            }
+
             Spacer(Modifier.height(12.dp))
 
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(setlist.songs, key = { _, row -> row.id }) { idx, row ->
-                    val isCurrent = idx == currentIdx
-                    val isPlayed = idx < currentIdx
-                    val song = row.songs
+            // Tab content
+            when (activeTab) {
+                0 -> QueueTabContent(vm, onDismiss)
+                1 -> SongsTabContent(vm, onDismiss)
+                2 -> SetlistsTabContent(vm, onDismiss)
+            }
+        }
+    }
+}
 
-                    // Flat row (no NeuCard — matches web queue style)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (isCurrent) Modifier
-                                    .background(GigColors.green.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                                    .border(0.5.dp, GigColors.green.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
-                                else Modifier
-                            )
-                            .clickable { vm.jumpToSong(idx); onDismiss() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
+@Composable
+private fun QueueTab(label: String, idx: Int, activeTab: Int, onClick: () -> Unit) {
+    val isActive = idx == activeTab
+    Box(
+        modifier = Modifier
+            .background(
+                if (isActive) GigColors.teal.copy(alpha = 0.1f) else Color.Transparent,
+                RoundedCornerShape(8.dp),
+            )
+            .border(
+                1.dp,
+                if (isActive) GigColors.teal.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
+                RoundedCornerShape(8.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Text(
+            label,
+            fontFamily = JetBrainsMono, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 11.sp, color = if (isActive) GigColors.teal else GigColors.textMuted,
+        )
+    }
+}
+
+@Composable
+private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
+    val setlist = vm.activeSetlist
+    if (setlist == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No active queue", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+        }
+        return
+    }
+    val currentIdx = vm.activeSetlistIdx
+
+    // Setlist name subtitle
+    Text(setlist.setlist.name, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Spacer(Modifier.height(8.dp))
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        itemsIndexed(setlist.songs, key = { _, row -> row.id }) { idx, row ->
+            val isCurrent = idx == currentIdx
+            val isPlayed = idx < currentIdx
+            val song = row.songs
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isCurrent) Modifier
+                            .background(GigColors.green.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, GigColors.green.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                        else Modifier
+                    )
+                    .clickable { vm.jumpToSong(idx); onDismiss() }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "${idx + 1}",
+                        fontFamily = JetBrainsMono, fontSize = 13.sp,
+                        color = when {
+                            isCurrent -> GigColors.green
+                            isPlayed -> GigColors.textMuted
+                            else -> GigColors.textDim
+                        },
+                        modifier = Modifier.width(24.dp),
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            song?.name ?: "",
+                            fontFamily = Karla,
+                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp,
+                            color = when {
+                                isCurrent -> GigColors.text
+                                isPlayed -> GigColors.textMuted
+                                else -> GigColors.textDim
+                            },
+                        )
+                        if (song != null && song.artist.isNotBlank()) {
                             Text(
-                                "${idx + 1}",
-                                fontFamily = JetBrainsMono, fontSize = 13.sp,
-                                color = when {
-                                    isCurrent -> GigColors.green
-                                    isPlayed -> GigColors.textMuted
-                                    else -> GigColors.textDim
-                                },
-                                modifier = Modifier.width(24.dp),
-                            )
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    song?.name ?: "",
-                                    fontFamily = Karla,
-                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = 14.sp,
-                                    color = when {
-                                        isCurrent -> GigColors.text
-                                        isPlayed -> GigColors.textMuted
-                                        else -> GigColors.textDim
-                                    },
-                                )
-                                if (song != null && song.artist.isNotBlank()) {
-                                    Text(
-                                        song.artist,
-                                        fontFamily = Karla, fontSize = 11.sp,
-                                        color = if (isPlayed) GigColors.textMuted.copy(alpha = 0.5f) else GigColors.textMuted,
-                                    )
-                                }
-                            }
-
-                            Text(
-                                "${song?.bpm?.toInt() ?: ""}",
-                                fontFamily = JetBrainsMono, fontSize = 12.sp,
-                                color = if (isCurrent) GigColors.orange else GigColors.textMuted,
-                            )
-
-                            Spacer(Modifier.width(4.dp))
-                            Column {
-                                IconButton(
-                                    onClick = { vm.reorderSetlistSong(idx, idx - 1) },
-                                    enabled = idx > 0,
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Default.KeyboardArrowUp,
-                                        contentDescription = "Move up",
-                                        tint = if (idx > 0) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { vm.reorderSetlistSong(idx, idx + 1) },
-                                    enabled = idx < setlist.songs.size - 1,
-                                    modifier = Modifier.size(24.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Default.KeyboardArrowDown,
-                                        contentDescription = "Move down",
-                                        tint = if (idx < setlist.songs.size - 1) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                        }
-
-                        if (isCurrent) {
-                            Text(
-                                "NOW PLAYING",
-                                fontFamily = JetBrainsMono, fontSize = 9.sp, letterSpacing = 1.sp,
-                                style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.4f), Offset.Zero, 6f)),
-                                modifier = Modifier.padding(top = 4.dp),
+                                song.artist,
+                                fontFamily = Karla, fontSize = 11.sp,
+                                color = if (isPlayed) GigColors.textMuted.copy(alpha = 0.5f) else GigColors.textMuted,
                             )
                         }
                     }
-                    // Divider between items (flat row style)
-                    if (!isCurrent && idx < setlist.songs.size - 1) {
-                        androidx.compose.material3.HorizontalDivider(
-                            color = GigColors.textMuted.copy(alpha = 0.1f),
-                            modifier = Modifier.padding(horizontal = 4.dp),
+
+                    Text(
+                        "${song?.bpm?.toInt() ?: ""}",
+                        fontFamily = JetBrainsMono, fontSize = 12.sp,
+                        color = if (isCurrent) GigColors.orange else GigColors.textMuted,
+                    )
+
+                    Spacer(Modifier.width(4.dp))
+                    Column {
+                        IconButton(
+                            onClick = { vm.reorderSetlistSong(idx, idx - 1) },
+                            enabled = idx > 0,
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = "Move up",
+                                tint = if (idx > 0) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                        IconButton(
+                            onClick = { vm.reorderSetlistSong(idx, idx + 1) },
+                            enabled = idx < setlist.songs.size - 1,
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = "Move down",
+                                tint = if (idx < setlist.songs.size - 1) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
+
+                if (isCurrent) {
+                    Text(
+                        "NOW PLAYING",
+                        fontFamily = JetBrainsMono, fontSize = 9.sp, letterSpacing = 1.sp,
+                        style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.4f), Offset.Zero, 6f)),
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+            if (!isCurrent && idx < setlist.songs.size - 1) {
+                androidx.compose.material3.HorizontalDivider(
+                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
+    val songs = vm.songs
+    val currentSongId = vm.selectedSong?.id
+
+    if (songs.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No songs loaded", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+        }
+        return
+    }
+
+    Text("${songs.size} songs", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Spacer(Modifier.height(8.dp))
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        itemsIndexed(songs, key = { _, song -> song.id }) { _, song ->
+            val isCurrent = song.id == currentSongId
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isCurrent) Modifier
+                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                        else Modifier
+                    )
+                    .clickable {
+                        vm.selectSong(song)
+                        onDismiss()
+                    }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        song.name,
+                        fontFamily = Karla,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 14.sp,
+                        color = if (isCurrent) GigColors.text else GigColors.textDim,
+                    )
+                    if (song.artist.isNotBlank()) {
+                        Text(
+                            song.artist,
+                            fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
                         )
                     }
                 }
+                Text(
+                    "${song.bpm.toInt()}",
+                    fontFamily = JetBrainsMono, fontSize = 12.sp,
+                    color = if (isCurrent) GigColors.orange else GigColors.textMuted,
+                )
+                if (isCurrent) {
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "NOW",
+                        fontFamily = JetBrainsMono, fontSize = 8.sp, letterSpacing = 1.sp,
+                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                    )
+                }
+            }
+            if (!isCurrent) {
+                androidx.compose.material3.HorizontalDivider(
+                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetlistsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
+    val setlists = vm.setlists
+    val activeSetlistId = vm.activeSetlist?.setlist?.id
+
+    if (setlists.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("No setlists loaded", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+        }
+        return
+    }
+
+    Text("${setlists.size} setlists", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Spacer(Modifier.height(8.dp))
+
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        itemsIndexed(setlists, key = { _, sl -> sl.setlist.id }) { _, sl ->
+            val isCurrent = sl.setlist.id == activeSetlistId
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (isCurrent) Modifier
+                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                        else Modifier
+                    )
+                    .clickable {
+                        vm.selectSetlist(sl)
+                        onDismiss()
+                    }
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        sl.setlist.name,
+                        fontFamily = Karla,
+                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = 14.sp,
+                        color = if (isCurrent) GigColors.text else GigColors.textDim,
+                    )
+                    Text(
+                        "${sl.songCount} songs",
+                        fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
+                    )
+                }
+                if (isCurrent) {
+                    Text(
+                        "ACTIVE",
+                        fontFamily = JetBrainsMono, fontSize = 8.sp, letterSpacing = 1.sp,
+                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                    )
+                }
+            }
+            if (!isCurrent) {
+                androidx.compose.material3.HorizontalDivider(
+                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
             }
         }
     }

@@ -27,16 +27,15 @@
 - [ ] Setlists: add conditional action buttons
 
 ### Web — Player (match mockups/player-live.html + mockups/practice-redesign.html)
-- [ ] **CRITICAL: Re-read both mockup HTMLs line by line before ANY code changes**
+- [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
+- [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
+- [x] Browse Songs button when no setlist active — DONE (S45)
+- [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
+- [x] Wire up settings pills — DONE (S45)
 - [ ] Vis button label "Bars"→"Spectrum"
 - [ ] Text panel max-height 200→120px
-- [ ] Live transport: nav row (prev song / queue "☰ 3/12" / next song) — NO speed, NO A-B
 - [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
 - [ ] Practice: waveform strip (72px, loop region overlay, playhead)
-- [ ] Bottom inline sheet: display toggles + mixer + settings (NOT on main screen)
-- [ ] Side drawer = song queue list (NOT settings)
-- [ ] Wire up settings pills (currently non-functional)
-- [ ] **Current working tree has WRONG layout changes — must be reverted or redone**
 
 ### Web — Settings (match mockup screen 17)
 - [ ] Add Account section
@@ -49,16 +48,15 @@
 - [ ] Queue items: NeuCard → flat rows
 
 ### Android — Player (match mockups/player-live.html + mockups/practice-redesign.html)
-- [ ] **CRITICAL: Re-read both mockup HTMLs line by line before ANY code changes**
+- [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
+- [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
+- [x] Browse Songs button when no setlist active — DONE (S45)
+- [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
 - [ ] Add "Burst" option to vis switcher
-- [ ] Live transport: nav row (prev song / queue / next song) — NO speed, NO A-B
 - [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
 - [ ] Practice: waveform strip with loop region + playhead
-- [ ] Bottom inline sheet: display toggles + mixer + settings
-- [ ] Side drawer = song queue list
 - [ ] Verify mixer colours/sizes match mockup
 - [ ] Verify between-songs screen completeness
-- [ ] **Current working tree has WRONG layout changes — must be reverted or redone**
 
 ### Android — Settings + Calendar
 - [ ] Verify display prefs not duplicated in Settings (should be drawer-only per D-118)
@@ -219,6 +217,7 @@
 - [x] Spec properly when S27 complete — Done in S41
 
 ## Backlog — Other
+- [ ] **Library-as-queue** — Play all songs (or filtered subset) as a queue without needing a setlist. Significant add — separate sprint item. Both platforms.
 - FreeAgent API integration — sync income/expenses for tax reporting (D-047, needs planning)
 
 ---
