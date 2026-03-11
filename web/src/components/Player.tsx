@@ -156,6 +156,60 @@ const STEM_LABELS: Record<string, string> = {
   other: 'OTH',
 };
 
+// ─── Draggable Mixer Fader ───
+
+function DraggableFader({ gain, color, muted, onGainChange }: {
+  gain: number;
+  color: string;
+  muted: boolean;
+  onGainChange: (gain: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const gainFromY = useCallback((clientY: number) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const y = clientY - rect.top;
+    const g = Math.max(0, Math.min(1, 1 - y / rect.height));
+    onGainChange(g);
+  }, [onGainChange]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    dragging.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    gainFromY(e.clientY);
+  }, [gainFromY]);
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    gainFromY(e.clientY);
+  }, [gainFromY]);
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
+  return (
+    <div
+      className="v4-mx-trk"
+      ref={trackRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{ touchAction: 'none', cursor: 'ns-resize' }}
+    >
+      <div className="v4-mx-fill" style={{
+        height: `${(muted ? gain : gain) * 100}%`,
+        background: color,
+        opacity: muted ? 0.15 : 1,
+      }} />
+    </div>
+  );
+}
+
 // ─── V4 Waveform ───
 
 function V4Waveform({ data, currentTime, duration, loop }: {
@@ -1018,15 +1072,18 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             {/* Click channel — always present */}
             <div className="v4-mx-ch">
               <span className="v4-mx-lbl" style={{ color: STEM_COLORS.click }}>CLK</span>
-              <div className="v4-mx-trk">
-                <div className="v4-mx-fill" style={{
-                  height: state.prefs?.player_click_enabled === false ? '0%' : '80%',
-                  background: STEM_COLORS.click,
-                }} />
-              </div>
-              <span className="v4-mx-val">{state.prefs?.player_click_enabled === false ? 0 : 80}</span>
+              <DraggableFader
+                gain={state.clickGain}
+                color={STEM_COLORS.click}
+                muted={state.clickMuted}
+                onGainChange={actions.setClickGain}
+              />
+              <span className="v4-mx-val" style={{ opacity: state.clickMuted ? 0.4 : 1 }}>
+                {Math.round(state.clickGain * 100)}
+              </span>
               <button
-                className={`v4-mx-mute ${state.prefs?.player_click_enabled === false ? 'on' : ''}`}
+                className={`v4-mx-mute ${state.clickMuted ? 'on' : ''}`}
+                style={state.clickMuted ? { background: 'rgba(255,255,255,0.08)', borderColor: 'rgba(255,255,255,0.2)' } : undefined}
                 onClick={actions.toggleClick}
               >M</button>
             </div>
@@ -1034,32 +1091,47 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             {!isLive && state.stemChannels.length === 0 && state.duration > 0 && (
               <div className="v4-mx-ch">
                 <span className="v4-mx-lbl" style={{ color: 'var(--color-green)' }}>TRK</span>
-                <div className="v4-mx-trk">
-                  <div className="v4-mx-fill" style={{ height: '100%', background: 'var(--color-green)' }} />
-                </div>
-                <span className="v4-mx-val">100</span>
-                <button className="v4-mx-mute">M</button>
+                <DraggableFader
+                  gain={state.trackGain}
+                  color="var(--color-green)"
+                  muted={state.trackMuted}
+                  onGainChange={actions.setTrackGain}
+                />
+                <span className="v4-mx-val" style={{ opacity: state.trackMuted ? 0.4 : 1 }}>
+                  {Math.round(state.trackGain * 100)}
+                </span>
+                <button
+                  className={`v4-mx-mute ${state.trackMuted ? 'on' : ''}`}
+                  style={state.trackMuted ? { background: 'rgba(0,230,118,0.08)', borderColor: 'rgba(0,230,118,0.2)' } : undefined}
+                  onClick={actions.toggleTrackMute}
+                >M</button>
               </div>
             )}
             {/* Stem channels — practice/view only (live = no backing tracks) */}
-            {!isLive && state.stemChannels.map(ch => (
-              <div key={ch.label} className="v4-mx-ch">
-                <span className="v4-mx-lbl" style={{ color: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)' }}>
-                  {STEM_LABELS[ch.label] ?? ch.label.slice(0, 3).toUpperCase()}
-                </span>
-                <div className="v4-mx-trk">
-                  <div className="v4-mx-fill" style={{
-                    height: `${ch.gain * 100}%`,
-                    background: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)',
-                  }} />
+            {!isLive && state.stemChannels.map(ch => {
+              const color = STEM_COLORS[ch.label] ?? 'var(--color-text-muted)';
+              return (
+                <div key={ch.label} className="v4-mx-ch">
+                  <span className="v4-mx-lbl" style={{ color }}>
+                    {STEM_LABELS[ch.label] ?? ch.label.slice(0, 3).toUpperCase()}
+                  </span>
+                  <DraggableFader
+                    gain={ch.gain}
+                    color={color}
+                    muted={ch.muted}
+                    onGainChange={(g) => actions.setStemGain(ch.label as StemLabel, g)}
+                  />
+                  <span className="v4-mx-val" style={{ opacity: ch.muted ? 0.4 : 1 }}>
+                    {Math.round(ch.gain * 100)}
+                  </span>
+                  <button
+                    className={`v4-mx-mute ${ch.muted ? 'on' : ''}`}
+                    style={ch.muted ? { background: `color-mix(in srgb, ${color} 8%, transparent)`, borderColor: `color-mix(in srgb, ${color} 30%, transparent)` } : undefined}
+                    onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
+                  >M</button>
                 </div>
-                <span className="v4-mx-val">{Math.round(ch.gain * 100)}</span>
-                <button
-                  className={`v4-mx-mute ${ch.muted ? 'on' : ''}`}
-                  onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
-                >M</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Input/Output + Camera — always visible in drawer (D-133, D-147) */}

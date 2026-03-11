@@ -1,7 +1,11 @@
 package com.thegreentangerine.gigbooks.ui.components
 
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -49,6 +53,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -252,6 +257,8 @@ fun ModeBadge(label: String, color: Color) {
 
 // ─── V4 Visual Hero ─────────────────────────────────────────────────────────────
 
+enum class VisType { Spectrum, Rings, Burst }
+
 @Composable
 fun VisualHero(
     isPlaying: Boolean,
@@ -259,12 +266,37 @@ fun VisualHero(
     accent: Color,
     modifier: Modifier = Modifier,
     suppressBeatGlow: Boolean = false,
+    selectedVis: VisType = VisType.Spectrum,
+    onVisChange: (VisType) -> Unit = {},
 ) {
     val beatGlowAlpha = remember { Animatable(0f) }
     LaunchedEffect(currentBeat, isPlaying) {
         if (isPlaying && currentBeat > 0) {
             beatGlowAlpha.snapTo(0.7f)
             beatGlowAlpha.animateTo(0f, animationSpec = tween(200))
+        }
+    }
+
+    // Burst radial animation
+    val burstRadius = remember { Animatable(0f) }
+    val burstAlpha = remember { Animatable(0f) }
+    LaunchedEffect(currentBeat, isPlaying, selectedVis) {
+        if (isPlaying && currentBeat > 0 && selectedVis == VisType.Burst) {
+            burstRadius.snapTo(0f)
+            burstAlpha.snapTo(0.8f)
+            coroutineScope {
+                launch { burstRadius.animateTo(1f, animationSpec = tween(400)) }
+                launch { burstAlpha.animateTo(0f, animationSpec = tween(400)) }
+            }
+        }
+    }
+
+    // Rings pulse animation
+    val ringScale = remember { Animatable(0.6f) }
+    LaunchedEffect(currentBeat, isPlaying, selectedVis) {
+        if (isPlaying && currentBeat > 0 && selectedVis == VisType.Rings) {
+            ringScale.snapTo(0.6f)
+            ringScale.animateTo(1f, animationSpec = tween(300, easing = FastOutSlowInEasing))
         }
     }
 
@@ -277,25 +309,84 @@ fun VisualHero(
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        // Placeholder spectrum bars (static visual)
-        Row(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            val barHeights = listOf(0.3f, 0.5f, 0.7f, 0.9f, 1.0f, 0.85f, 0.65f, 0.8f, 0.95f, 0.7f, 0.55f, 0.4f, 0.6f, 0.75f, 0.5f, 0.35f)
-            barHeights.forEach { h ->
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .height((h * 50).dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(accent, accent.copy(alpha = 0.3f)),
+        when (selectedVis) {
+            VisType.Spectrum -> {
+                // Spectrum bars (static visual)
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    val barHeights = listOf(0.3f, 0.5f, 0.7f, 0.9f, 1.0f, 0.85f, 0.65f, 0.8f, 0.95f, 0.7f, 0.55f, 0.4f, 0.6f, 0.75f, 0.5f, 0.35f)
+                    barHeights.forEach { h ->
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height((h * 50).dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(accent, accent.copy(alpha = 0.3f)),
+                                    )
+                                ),
+                        )
+                    }
+                }
+            }
+
+            VisType.Rings -> {
+                // Concentric rings that pulse on beat
+                Canvas(modifier = Modifier.size(100.dp)) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val maxR = size.minDimension / 2f
+                    for (i in 3 downTo 0) {
+                        val frac = (i + 1) / 4f * ringScale.value
+                        drawCircle(
+                            color = accent.copy(alpha = 0.15f + 0.1f * (3 - i)),
+                            radius = maxR * frac,
+                            center = Offset(cx, cy),
+                            style = Stroke(width = 2f),
+                        )
+                    }
+                    // Center dot
+                    drawCircle(
+                        color = accent.copy(alpha = ringScale.value),
+                        radius = 6f,
+                        center = Offset(cx, cy),
+                    )
+                }
+            }
+
+            VisType.Burst -> {
+                // Radial burst expanding outward on each beat
+                Canvas(modifier = Modifier.size(100.dp)) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val maxR = size.minDimension / 2f
+                    // 3 expanding rings at staggered radii
+                    for (i in 0 until 3) {
+                        val offset = i * 0.15f
+                        val r = ((burstRadius.value + offset) % 1f)
+                        val alpha = burstAlpha.value * (1f - r) * 0.8f
+                        if (alpha > 0f) {
+                            drawCircle(
+                                color = accent.copy(alpha = alpha),
+                                radius = maxR * r,
+                                center = Offset(cx, cy),
+                                style = Stroke(width = 3f - r * 2f),
                             )
-                        ),
-                )
+                        }
+                    }
+                    // Center flash
+                    if (burstAlpha.value > 0.1f) {
+                        drawCircle(
+                            color = accent.copy(alpha = burstAlpha.value * 0.6f),
+                            radius = 10f,
+                            center = Offset(cx, cy),
+                        )
+                    }
+                }
             }
         }
 
@@ -306,9 +397,14 @@ fun VisualHero(
                 .padding(8.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            VisSwitcherButton("Spectrum", selected = true, accent = accent)
-            VisSwitcherButton("Rings", selected = false, accent = accent)
-            VisSwitcherButton("Burst", selected = false, accent = accent)
+            VisType.entries.forEach { vis ->
+                VisSwitcherButton(
+                    label = vis.name,
+                    selected = selectedVis == vis,
+                    accent = accent,
+                    onClick = { onVisChange(vis) },
+                )
+            }
         }
 
         // Beat glow overlay (card-level, suppressed when fullscreen glow is active)
@@ -329,9 +425,10 @@ fun VisualHero(
 }
 
 @Composable
-private fun VisSwitcherButton(label: String, selected: Boolean, accent: Color) {
+private fun VisSwitcherButton(label: String, selected: Boolean, accent: Color, onClick: () -> Unit = {}) {
     Box(
         modifier = Modifier
+            .clickable(onClick = onClick)
             .background(
                 if (selected) accent.copy(alpha = 0.06f) else GigColors.surface,
                 RoundedCornerShape(8.dp),

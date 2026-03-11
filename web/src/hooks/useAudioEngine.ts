@@ -79,6 +79,12 @@ export interface AudioEngineState {
     muted: boolean;
     solo: boolean;
   }>;
+
+  // Mixer gain state for click + track channels
+  clickGain: number;
+  clickMuted: boolean;
+  trackGain: number;
+  trackMuted: boolean;
 }
 
 export interface AudioEngineActions {
@@ -92,6 +98,9 @@ export interface AudioEngineActions {
   toggleStemMute: (label: StemLabel) => void;
   toggleStemSolo: (label: StemLabel) => void;
   toggleClick: () => void;
+  setClickGain: (gain: number) => void;
+  setTrackGain: (gain: number) => void;
+  toggleTrackMute: () => void;
   setSubdivision: (sub: number) => void;
   setCountIn: (bars: number) => void;
   nudge: (direction: -1 | 1) => void;
@@ -127,6 +136,10 @@ export function useAudioEngine(
   const [songComplete, setSongComplete] = useState(false);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
   const [subdivision, setSubdivisionState] = useState(1);
+  const [clickGain, setClickGainState] = useState(0.8);
+  const [clickMuted, setClickMuted] = useState(false);
+  const [trackGain, setTrackGainState] = useState(1.0);
+  const [trackMuted, setTrackMuted] = useState(false);
   const [countInBars, setCountInBarsState] = useState(0);
   const [nudgeOffsetMs, setNudgeOffsetMs] = useState(0);
 
@@ -380,6 +393,7 @@ export function useAudioEngine(
 
   const toggleClick = useCallback(() => {
     clickEnabledRef.current = !clickEnabledRef.current;
+    setClickMuted(!clickEnabledRef.current);
     if (engineState === 'playing') {
       if (clickEnabledRef.current) {
         clickRef.current.start();
@@ -388,6 +402,35 @@ export function useAudioEngine(
       }
     }
   }, [engineState]);
+
+  const setClickGain = useCallback((gain: number) => {
+    const clamped = Math.max(0, Math.min(1, gain));
+    setClickGainState(clamped);
+    clickRef.current.configure({ gain: clamped });
+  }, []);
+
+  const setTrackGain = useCallback((gain: number) => {
+    const clamped = Math.max(0, Math.min(1, gain));
+    setTrackGainState(clamped);
+    if (mixerRef.current.isLoaded()) {
+      // When stems are loaded, set master gain on mixer
+      // Each stem has individual gain via setStemGain
+    } else {
+      trackRef.current.setGain(clamped);
+    }
+  }, []);
+
+  const toggleTrackMute = useCallback(() => {
+    setTrackMuted(prev => {
+      const willMute = !prev;
+      if (mixerRef.current.isLoaded()) {
+        // no-op: stems have individual mutes
+      } else {
+        trackRef.current.setGain(willMute ? 0 : trackGain);
+      }
+      return willMute;
+    });
+  }, [trackGain]);
 
   const state: AudioEngineState = {
     loading,
@@ -410,6 +453,10 @@ export function useAudioEngine(
     subdivision,
     countInBars,
     nudgeOffsetMs,
+    clickGain,
+    clickMuted,
+    trackGain,
+    trackMuted,
   };
 
   const actions: AudioEngineActions = {
@@ -423,6 +470,9 @@ export function useAudioEngine(
     toggleStemMute,
     toggleStemSolo,
     toggleClick,
+    setClickGain,
+    setTrackGain,
+    toggleTrackMute,
     setSubdivision: (sub: number) => {
       setSubdivisionState(sub);
       clickRef.current.configure({ subdivision: sub });

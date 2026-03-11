@@ -58,6 +58,7 @@ import com.thegreentangerine.gigbooks.ui.components.PlayerNavRow
 import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
+import com.thegreentangerine.gigbooks.ui.components.VisType
 import com.thegreentangerine.gigbooks.ui.components.VisualHero
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
@@ -77,6 +78,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     var showNotes by remember { mutableStateOf(true) }
     var showDrums by remember { mutableStateOf(true) }
     var glowFullscreen by remember { mutableStateOf(false) }
+    var selectedVis by remember { mutableStateOf(VisType.Spectrum) }
 
     // Inline drawer (expands in-place, shrinks hero)
     var drawerOpen by remember { mutableStateOf(false) }
@@ -153,6 +155,8 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                             accent = GigColors.green,
                             modifier = heroMod,
                             suppressBeatGlow = glowFullscreen,
+                            selectedVis = selectedVis,
+                            onVisChange = { selectedVis = it },
                         )
                     }
 

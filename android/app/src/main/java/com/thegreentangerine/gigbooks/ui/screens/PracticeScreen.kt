@@ -65,6 +65,7 @@ import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
 import com.thegreentangerine.gigbooks.ui.components.TransportButton
+import com.thegreentangerine.gigbooks.ui.components.VisType
 import com.thegreentangerine.gigbooks.ui.components.VisualHero
 import com.thegreentangerine.gigbooks.ui.theme.GigColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
@@ -82,6 +83,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
     var showNotes by remember { mutableStateOf(true) }
     var showDrums by remember { mutableStateOf(true) }
     var glowFullscreen by remember { mutableStateOf(false) }
+    var selectedVis by remember { mutableStateOf(VisType.Spectrum) }
     var showQueue by remember { mutableStateOf(false) }
 
     // Load takes when song changes
@@ -176,6 +178,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                         accent = GigColors.purple,
                         modifier = Modifier.weight(if (bothVisible) 0.55f else 1f),
                         suppressBeatGlow = glowFullscreen,
+                        selectedVis = selectedVis,
+                        onVisChange = { selectedVis = it },
                     )
                 }
 
