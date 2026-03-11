@@ -186,6 +186,7 @@ fun GigBooksApp() {
                     vm            = vm,
                     onMenuClick   = { openMenu() },
                     onGoToLibrary = { navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> navigate(mode) },
                 )
             }
             composable(Screen.Practice.route) {
@@ -193,6 +194,7 @@ fun GigBooksApp() {
                     vm            = vm,
                     onMenuClick   = { openMenu() },
                     onGoToLibrary = { navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> navigate(mode) },
                 )
             }
             composable(Screen.View.route) {
@@ -200,6 +202,7 @@ fun GigBooksApp() {
                     vm            = vm,
                     onMenuClick   = { openMenu() },
                     onGoToLibrary = { navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> navigate(mode) },
                 )
             }
             composable(Screen.SongForm.route) {

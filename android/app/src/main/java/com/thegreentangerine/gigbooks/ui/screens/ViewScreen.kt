@@ -8,28 +8,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -49,14 +46,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.ui.AppViewModel
-import com.thegreentangerine.gigbooks.ui.components.ClickToggleButton
 import com.thegreentangerine.gigbooks.ui.components.DisplayToggleRow
 import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
 import com.thegreentangerine.gigbooks.ui.components.DrawerLabel
+import com.thegreentangerine.gigbooks.ui.components.FullscreenBeatGlow
 import com.thegreentangerine.gigbooks.ui.components.MixerChannel
 import com.thegreentangerine.gigbooks.ui.components.MixerRow
 import com.thegreentangerine.gigbooks.ui.components.PlayButton
 import com.thegreentangerine.gigbooks.ui.components.PlayerHeader
+import com.thegreentangerine.gigbooks.ui.components.PlayerNavRow
 import com.thegreentangerine.gigbooks.ui.components.SettingsPills
 import com.thegreentangerine.gigbooks.ui.components.TakeItem
 import com.thegreentangerine.gigbooks.ui.components.TakesSection
@@ -78,9 +76,8 @@ import kotlin.math.sin
  * No-video fallback: neumorphic visualiser in hero (D-146).
  * Record button for layering (D-144).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit) {
+fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onSwitchMode: (String) -> Unit = {}) {
     val song = vm.selectedSong
 
     // Display toggles (local state)
@@ -89,6 +86,8 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     var showLyrics by remember { mutableStateOf(true) }
     var showNotes by remember { mutableStateOf(true) }
     var showDrums by remember { mutableStateOf(true) }
+    var glowFullscreen by remember { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
 
     // Load takes when song changes
     LaunchedEffect(song?.id) {
@@ -128,10 +127,10 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
         }
     }
 
-    // Bottom sheet
-    val sheetState = rememberModalBottomSheetState()
-    var showSheet by remember { mutableStateOf(false) }
+    // Inline drawer
+    var drawerOpen by remember { mutableStateOf(false) }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(GigColors.background)) {
         if (song == null) {
             // Simple header when no song
@@ -159,20 +158,27 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 bpm = vm.effectiveBpm.toInt(),
                 isLiveMode = false,
                 onBackClick = onMenuClick,
-                modeBadgeLabel = "VIEW",
-                modeBadgeColor = GigColors.teal,
+                onSwitchMode = { mode -> vm.stop(); onSwitchMode(mode) },
+                currentMode = "view",
             )
 
-            // Scrollable content area
+            // Content area — hero + text fill available space (no scroll)
+            val hasTextContent = (showChords && !song.chords.isNullOrBlank()) ||
+                (showLyrics && !song.lyrics.isNullOrBlank()) ||
+                (showNotes && !song.notes.isNullOrBlank()) ||
+                (showDrums && !song.drumNotation.isNullOrBlank())
+            val bothVisible = showVisuals && hasTextContent
+
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
+                modifier = Modifier.weight(1f),
             ) {
                 // View Mode Hero — visualiser fallback (D-146)
                 // TODO: ExoPlayer/SurfaceView for video when local video exists
                 if (showVisuals) {
-                    ViewHero(isPlaying = vm.isClickPlaying || vm.isTrackPlaying)
+                    ViewHero(
+                        isPlaying = vm.isClickPlaying || vm.isTrackPlaying,
+                        modifier = Modifier.weight(if (bothVisible) 0.55f else 1f),
+                    )
                 }
 
                 // Waveform (same as practice, for track seeking)
@@ -205,7 +211,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     }
                 }
 
-                // Text Panel (toggled via drawer)
+                // Text Panel — fills space when hero hidden, splits when both visible
                 TextPanel(
                     chords = song.chords,
                     lyrics = song.lyrics,
@@ -217,6 +223,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                         showNotes = showNotes,
                         showDrums = showDrums,
                     ),
+                    modifier = if (hasTextContent) Modifier.weight(if (bothVisible) 0.45f else 1f) else Modifier,
                 )
 
                 // Takes section (S41)
@@ -277,10 +284,50 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 RecordingBanner(vm)
             }
 
-            // Transport (same stacked layout as practice — D-144 record button for layering)
+            // Nav Row (prev/next song) — all modes
+            run {
+                val setlist = vm.activeSetlist
+                if (setlist != null) {
+                    val prevName = if (vm.activeSetlistIdx > 0) {
+                        setlist.songs.getOrNull(vm.activeSetlistIdx - 1)?.songs?.name
+                    } else null
+                    val nextName = if (vm.activeSetlistIdx < setlist.songs.size - 1) {
+                        setlist.songs.getOrNull(vm.activeSetlistIdx + 1)?.songs?.name
+                    } else null
+
+                    PlayerNavRow(
+                        prevSongName = prevName,
+                        nextSongName = nextName,
+                        queueLabel = "${vm.activeSetlistIdx + 1}/${setlist.songs.size}",
+                        onPrev = { vm.prevSong() },
+                        onNext = { vm.nextSong() },
+                        onQueue = { showQueue = true },
+                    )
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(GigColors.surface, RoundedCornerShape(10.dp))
+                                .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
+                                .clickable(onClick = { showQueue = true })
+                                .padding(horizontal = 14.dp, vertical = 5.dp),
+                        ) {
+                            Text(
+                                "Browse Songs",
+                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Transport (same stacked layout as practice)
             ViewTransport(vm)
 
-            // Drawer preview (pull-up)
+            // Inline drawer — handle + expandable settings
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -292,71 +339,109 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                         1.dp,
                         Color.White.copy(alpha = 0.04f),
                         RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
-                    )
-                    .clickable { showSheet = true }
-                    .padding(10.dp, 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    ),
             ) {
-                DrawerHandle()
-                Spacer(Modifier.height(8.dp))
-                DrawerLabel("DISPLAY")
-                Spacer(Modifier.height(6.dp))
-                DisplayToggleRow(
-                    showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
-                    showChords = showChords, onChordsToggle = { showChords = !showChords },
-                    showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
-                    showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
-                    showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
-                )
-            }
-        }
-    }
-
-    // Bottom sheet drawer (full settings + mixer)
-    if (showSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showSheet = false },
-            sheetState = sheetState,
-            containerColor = GigColors.surface,
-            scrimColor = Color.Black.copy(alpha = 0.5f),
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                DrawerLabel("DISPLAY")
-                DisplayToggleRow(
-                    showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
-                    showChords = showChords, onChordsToggle = { showChords = !showChords },
-                    showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
-                    showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
-                    showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
-                )
-
-                // Mixer section
-                if (vm.loadedStems.isNotEmpty() || vm.trackLoaded) {
-                    Spacer(Modifier.height(4.dp))
-                    DrawerLabel("MIXER")
-                    ViewMixer(vm)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { drawerOpen = !drawerOpen }
+                        .padding(10.dp, 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    DrawerHandle()
                 }
 
-                Spacer(Modifier.height(4.dp))
-                DrawerLabel("SETTINGS")
-                SettingsPills(
-                    subdivision = vm.subdivision,
-                    onSubdivisionChange = { vm.applySubdivision(it) },
-                    countInBars = vm.countInBars,
-                    onCountInChange = { vm.setCountIn(it) },
-                    nudgeOffsetMs = vm.nudgeOffsetMs,
-                    onNudgeBack = { vm.nudge(-1) },
-                    onNudgeForward = { vm.nudge(+1) },
-                    onNudgeReset = { vm.resetNudge() },
-                )
+                AnimatedVisibility(
+                    visible = drawerOpen,
+                    enter = expandVertically(),
+                    exit = shrinkVertically(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        DrawerLabel("DISPLAY")
+                        DisplayToggleRow(
+                            showVisuals = showVisuals, onVisualsToggle = { showVisuals = !showVisuals },
+                            showChords = showChords, onChordsToggle = { showChords = !showChords },
+                            showLyrics = showLyrics, onLyricsToggle = { showLyrics = !showLyrics },
+                            showNotes = showNotes, onNotesToggle = { showNotes = !showNotes },
+                            showDrums = showDrums, onDrumsToggle = { showDrums = !showDrums },
+                            glowFullscreen = glowFullscreen, onGlowToggle = { glowFullscreen = !glowFullscreen },
+                        )
 
-                Spacer(Modifier.height(16.dp))
+                        // Mixer section — always visible (click is always a channel)
+                        Spacer(Modifier.height(4.dp))
+                        DrawerLabel("MIXER")
+                        ViewMixer(vm)
+
+                        // Record button (D-144) — in drawer
+                        if (vm.recState == AppViewModel.RecState.RECORDING) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(GigColors.danger)
+                                    .clickable { vm.stopRecording() }
+                                    .align(Alignment.CenterHorizontally),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Default.Stop, contentDescription = "Stop Recording", tint = Color.White, modifier = Modifier.size(22.dp))
+                            }
+                        } else if (vm.recState == AppViewModel.RecState.IDLE) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(GigColors.danger.copy(alpha = 0.15f))
+                                    .border(1.dp, GigColors.danger.copy(alpha = 0.4f), CircleShape)
+                                    .clickable { vm.startRecording() }
+                                    .align(Alignment.CenterHorizontally),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clip(CircleShape)
+                                        .background(GigColors.danger)
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        DrawerLabel("SETTINGS")
+                        SettingsPills(
+                            subdivision = vm.subdivision,
+                            onSubdivisionChange = { vm.applySubdivision(it) },
+                            countInBars = vm.countInBars,
+                            onCountInChange = { vm.setCountIn(it) },
+                            nudgeOffsetMs = vm.nudgeOffsetMs,
+                            onNudgeBack = { vm.nudge(-1) },
+                            onNudgeForward = { vm.nudge(+1) },
+                            onNudgeReset = { vm.resetNudge() },
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
             }
         }
     }
+
+    // Fullscreen beat glow overlay
+    if (glowFullscreen) {
+        FullscreenBeatGlow(
+            isPlaying = vm.isClickPlaying || vm.isTrackPlaying,
+            currentBeat = vm.currentBeat,
+            accent = GigColors.teal,
+        )
+    }
+
+    // Queue overlay (tabs: Queue / Songs / Setlists)
+    if (showQueue) {
+        QueueOverlay(vm = vm, onDismiss = { showQueue = false })
+    }
+    } // Box
 
     // Post-recording dialog (D-139)
     if (vm.recState == AppViewModel.RecState.DONE) {
@@ -367,12 +452,11 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
 // ─── View Mode Hero (D-146) ─────────────────────────────────────────────────────
 
 @Composable
-private fun ViewHero(isPlaying: Boolean) {
+private fun ViewHero(isPlaying: Boolean, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 5.dp)
-            .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(12.dp))
             .background(
                 brush = androidx.compose.ui.graphics.Brush.linearGradient(
@@ -411,12 +495,14 @@ private fun ViewHero(isPlaying: Boolean) {
     }
 }
 
-// ─── View Transport (same layout as practice, teal accent) ────────────────────────
+// ─── View Transport (2-tier: speed+loop top, main bottom, teal accent) ───────────
 
 @Composable
 private fun ViewTransport(vm: AppViewModel) {
     val isPlaying = vm.isClickPlaying || vm.isTrackPlaying
     val speedPct = (vm.practiceSpeed * 100).roundToInt()
+    val hasA = vm.loopAFrame != null
+    val hasB = vm.loopBFrame != null
 
     Column(
         modifier = Modifier
@@ -424,30 +510,38 @@ private fun ViewTransport(vm: AppViewModel) {
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // Speed row
+        // Top row: speed (left) + A-B loop (right)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ViewSpeedButton("-5") { vm.applySpeed((vm.practiceSpeed - 0.05f).coerceAtLeast(0.25f)) }
-            Spacer(Modifier.width(6.dp))
-            ViewSpeedButton("-1") { vm.applySpeed((vm.practiceSpeed - 0.01f).coerceAtLeast(0.25f)) }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "${speedPct}%",
-                fontFamily = JetBrainsMono, fontSize = 11.sp,
-                color = GigColors.teal,
-                modifier = Modifier.width(36.dp),
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.width(8.dp))
-            ViewSpeedButton("+1") { vm.applySpeed((vm.practiceSpeed + 0.01f).coerceAtMost(1.5f)) }
-            Spacer(Modifier.width(6.dp))
-            ViewSpeedButton("+5") { vm.applySpeed((vm.practiceSpeed + 0.05f).coerceAtMost(1.5f)) }
+            // Speed controls (left)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ViewSpeedButton("-5") { vm.applySpeed((vm.practiceSpeed - 0.05f).coerceAtLeast(0.25f)) }
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "${speedPct}%",
+                    fontFamily = JetBrainsMono, fontSize = 11.sp,
+                    color = GigColors.teal,
+                    modifier = Modifier.width(36.dp),
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.width(6.dp))
+                ViewSpeedButton("+5") { vm.applySpeed((vm.practiceSpeed + 0.05f).coerceAtMost(1.5f)) }
+            }
+
+            // A-B loop controls (right) — only when track loaded
+            if (vm.trackLoaded) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ViewLoopPill("A", active = hasA, color = GigColors.orange) { vm.setLoopA() }
+                    ViewLoopPill("B", active = hasB, color = GigColors.orange) { vm.setLoopB() }
+                    ViewLoopPill("Clear", active = hasA || hasB, color = GigColors.textMuted, enabled = hasA || hasB) { vm.clearLoop() }
+                }
+            }
         }
 
-        // Main transport row
+        // Bottom row: restart / play / stop
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -476,40 +570,6 @@ private fun ViewTransport(vm: AppViewModel) {
             Spacer(Modifier.width(8.dp))
             // Stop
             TransportButton(icon = "■", color = GigColors.danger, onClick = { vm.stop() })
-            Spacer(Modifier.width(16.dp))
-            // Click toggle
-            ClickToggleButton(isClickMuted = vm.isClickMuted, onClick = { vm.toggleClickMute() })
-            Spacer(Modifier.width(8.dp))
-            // Record button (D-144 — layering from View Mode)
-            if (vm.recState == AppViewModel.RecState.RECORDING) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(GigColors.danger)
-                        .clickable { vm.stopRecording() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Default.Stop, contentDescription = "Stop Recording", tint = Color.White, modifier = Modifier.size(18.dp))
-                }
-            } else if (vm.recState == AppViewModel.RecState.IDLE) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(GigColors.danger.copy(alpha = 0.15f))
-                        .border(1.dp, GigColors.danger.copy(alpha = 0.4f), CircleShape)
-                        .clickable { vm.startRecording() },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(GigColors.danger)
-                    )
-                }
-            }
         }
     }
 }
@@ -526,6 +586,32 @@ private fun ViewSpeedButton(label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(label, fontFamily = JetBrainsMono, fontSize = 8.sp, color = GigColors.textMuted)
+    }
+}
+
+@Composable
+private fun ViewLoopPill(label: String, active: Boolean, color: Color, enabled: Boolean = true, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(28.dp)
+            .background(
+                if (active) color.copy(alpha = 0.08f) else Color.Transparent,
+                RoundedCornerShape(12.dp),
+            )
+            .border(
+                1.dp,
+                if (active) color.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.06f),
+                RoundedCornerShape(12.dp),
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            fontFamily = JetBrainsMono, fontSize = 9.sp,
+            color = if (active) color else GigColors.textMuted,
+        )
     }
 }
 

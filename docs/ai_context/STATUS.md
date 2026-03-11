@@ -6,16 +6,18 @@
 ---
 
 ## Current State
-- **Phase**: S45 — Screen-for-screen lockdown. Full audit complete, gaps catalogued. No code changes yet.
-- **What works**: Web (full, V4 player, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session**: Two attempts at S45 player layout fixes, both wrong. Working tree has broken layout code (NOT committed). User clarified key requirements:
-  1. **Transport bottom = ONLY Restart | Play | Stop** (all modes)
-  2. **CLICK toggle + RECORD button → move to bottom drawer** (not transport)
-  3. **Live mode nav row**: ◀ Prev | ☰ Queue | Next ▶ (above transport, setlist only) — this exists in code but user couldn't see it
-  4. **Practice/View transport top row**: Speed controls (left) + A-B loop (right) — already there
-  5. **Mode switching from player** (Live↔Practice↔View + song/setlist picking from side drawer) was PLANNED in mockups but NEVER BUILT. This is NOT a regression — it's missing functionality.
-  6. **Drawer content**: Display toggles, Click toggle + volume, Record button, Mixer (practice/view), Settings
-- **Next action**: DISCARD working tree player changes (git checkout the 4 Android files + 2 web files). Start fresh from mockups. Build EXACTLY what mockups show with user's overrides (click/record → drawer). Do NOT half-finish — complete all 3 Android screens + web Player.tsx in one pass, verify build, install APK.
+- **Phase**: S45 — Player audit fixes COMPLETE. Glow toggle + queue tabs done on both platforms.
+- **What works**: Web (full, V4 player with queue tabs + glow toggle + browse songs, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + browse songs, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session (S45 cont.)**: Completed player audit fixes across both platforms:
+  1. **Transport**: ONLY ⏮ Restart | ▶ Play | ■ Stop (all modes, both platforms) — verified
+  2. **Mixer paradigm**: Every sound source gets own mixer channel/fader (CLK, TRK, DRM, BAS, VOX) in bottom drawer — verified
+  3. **Glow toggle**: Card-level beat glow = locked default (VisualHero). Fullscreen edge glow = experimental opt-in toggle in drawer DISPLAY section. Added to all 3 Android screens + web Player.tsx.
+  4. **Queue tabs**: 3-tab overlay (Queue/Songs/Setlists) on both platforms. Queue = current setlist songs, Songs = all songs browse, Setlists = all setlists browse. Works with or without active setlist.
+  5. **Browse Songs button**: Nav row shows "Browse Songs" when no setlist active (all modes, both platforms).
+  6. **Settings pills**: Wired up in web drawer (already done previous session).
+  7. **Mode switching**: Web already had onSwitchMode wired. Android has it via NavController.
+  8. **Builds**: Android assembleDebug SUCCESSFUL. Web tsc -b clean.
+- **Next action**: Remaining S45 calendar/library/settings cosmetic gaps (see todo.md). Library-as-queue (playing filtered songs) deferred as separate sprint item.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

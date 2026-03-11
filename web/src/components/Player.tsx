@@ -15,9 +15,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
-import { getSetlistWithSongs, getSong, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
+import { getSetlistWithSongs, getSong, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
 import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
-import type { Song, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
+import type { Song, Setlist, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
 import type { StemLabel } from '../audio/StemMixer';
 
 // ─── Wake Lock ───
@@ -135,6 +135,7 @@ function formatTime(sec: number): string {
 }
 
 const STEM_COLORS: Record<string, string> = {
+  click: 'var(--color-text)',
   drums: 'var(--color-tangerine)',
   bass: 'var(--color-teal)',
   vocals: '#e040fb',
@@ -145,6 +146,7 @@ const STEM_COLORS: Record<string, string> = {
 };
 
 const STEM_LABELS: Record<string, string> = {
+  click: 'CLK',
   drums: 'DRM',
   bass: 'BAS',
   vocals: 'VOX',
@@ -238,6 +240,9 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
   const [setlist, setSetlist] = useState<SetlistWithSongs | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [queueOpen, setQueueOpen] = useState(false);
+  const [queueTab, setQueueTab] = useState<'queue' | 'songs' | 'setlists'>('queue');
+  const [allSongs, setAllSongs] = useState<Song[]>([]);
+  const [allSetlists, setAllSetlists] = useState<Setlist[]>([]);
 
   // Current song ID
   const [activeSongId, setActiveSongId] = useState<string | null>(songId);
@@ -257,6 +262,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
   const [showLyrics, setShowLyrics] = useState(true);
   const [showNotes, setShowNotes] = useState(true);
   const [showDrums, setShowDrums] = useState(true);
+  const [glowFullscreen, setGlowFullscreen] = useState(false);
 
   // Drawer open
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -356,6 +362,13 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
     getSong(songId).then(s => { if (s) setStandaloneSong(s); });
   }, [songId, setlistId]);
 
+  // Load songs/setlists for queue browse tabs (lazy — only when queue opens)
+  useEffect(() => {
+    if (!queueOpen) return;
+    if (allSongs.length === 0) getSongs().then(s => setAllSongs(s));
+    if (allSetlists.length === 0) getSetlists().then(s => setAllSetlists(s));
+  }, [queueOpen]);
+
   // Navigate setlist
   const goToSetlistSong = useCallback((index: number) => {
     if (!setlist) return;
@@ -377,6 +390,34 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
       goToSetlistSong(currentIndex + 1);
     }
   }, [setlist, currentIndex, goToSetlistSong]);
+
+  // Pick a song from browse tab (standalone, no setlist)
+  const pickSong = useCallback((id: string) => {
+    actions.stop();
+    setActiveSongId(id);
+    setSetlist(null);
+    setCurrentIndex(0);
+    setQueueOpen(false);
+    setLoopMarkA(null);
+    setBetweenSongs(false);
+    setSetComplete(false);
+  }, [actions]);
+
+  // Pick a setlist from browse tab
+  const pickSetlist = useCallback((id: string) => {
+    actions.stop();
+    getSetlistWithSongs(id).then(data => {
+      if (data && data.songs.length > 0) {
+        setSetlist(data);
+        setCurrentIndex(0);
+        setActiveSongId(data.songs[0].song_id);
+      }
+    });
+    setQueueOpen(false);
+    setLoopMarkA(null);
+    setBetweenSongs(false);
+    setSetComplete(false);
+  }, [actions]);
 
   // Countdown timer
   useEffect(() => {
@@ -584,7 +625,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
   }
 
   return (
-    <div className={`v4-player ${state.beatFlash ? 'v4-flash' : ''}`}>
+    <div className={`v4-player ${state.beatFlash ? 'v4-flash' : ''}${state.beatFlash && glowFullscreen ? ' v4-glow-full' : ''}`}>
       {/* ── V4 Header ── */}
       <div className="v4-hdr">
         <button className="v4-hdr-back" onClick={() => { actions.stop(); onClose(); }}>
@@ -612,8 +653,8 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
         </div>
       </div>
 
-      {/* ── Scrollable content ── */}
-      <div className="v4-content">
+      {/* ── Content area — adaptive flex layout ── */}
+      <div className={`v4-content${(showVisuals || isView || isRecordMode) && (showChords || showLyrics || showNotes || showDrums) && !!(songChords || songLyrics || songNotes || songDrums) ? ' both-visible' : ''}`}>
         {/* Visual Hero — normal, view mode, or recording mode */}
         {showVisuals && !isRecordMode && !isView && (
           <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
@@ -624,7 +665,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
                 ))}
               </div>
             </div>
-            {state.beatFlash && <div className="v4-beat-glow" />}
+            {state.beatFlash && !glowFullscreen && <div className="v4-beat-glow" />}
             <div className="v4-vis-switcher">
               <button className="v4-vis-btn on">Spectrum</button>
               <button className="v4-vis-btn">Rings</button>
@@ -653,7 +694,7 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
                 })}
               </div>
             )}
-            {state.beatFlash && <div className="v4-beat-glow" />}
+            {state.beatFlash && !glowFullscreen && <div className="v4-beat-glow" />}
             <div className="v4-view-info-tl">
               <div className="v4-rec-song">{songName}</div>
               <div className="v4-rec-artist">{songArtist} {'\u00B7'} {Math.round(songBpm)} bpm</div>
@@ -787,6 +828,27 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
         )}
       </div>
 
+      {/* ── Nav Row ── */}
+      {setlist ? (
+        <div className="v4-nav-row">
+          <button className="v4-nav-song" onClick={goToPrevSong} disabled={currentIndex === 0}>
+            ← <span className="nm">{prevSongName ?? '—'}</span>
+          </button>
+          <button className="v4-nav-queue" onClick={() => setQueueOpen(o => !o)}>
+            {currentIndex + 1}/{setlist.songs.length}
+          </button>
+          <button className="v4-nav-song" onClick={goToNextSong} disabled={currentIndex === setlist.songs.length - 1}>
+            <span className="nm">{nextSongName ?? '—'}</span> →
+          </button>
+        </div>
+      ) : (
+        <div className="v4-nav-row" style={{ justifyContent: 'center' }}>
+          <button className="v4-nav-queue" onClick={() => { setQueueTab('songs'); setQueueOpen(true); }}>
+            Browse Songs
+          </button>
+        </div>
+      )}
+
       {/* ── Transport ── */}
       {isRecordMode && recording.state === 'recording' ? (
         /* Recording transport — stop button only (D-150) */
@@ -803,187 +865,190 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
             <span style={{ fontSize: '18px' }}>⏮</span>
           </button>
           <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
-            {isPlaying ? '■' : '▶'}
+            {isPlaying ? '⏸' : '▶'}
           </button>
           <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
-          <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
-            CLICK
-          </button>
         </div>
       ) : (
         <div className="v4-transport stack">
-          {/* Speed row */}
-          <div className="v4-t-row">
-            <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.05)}>-5</button>
-            <span className="v4-t-spd-val">{Math.round(state.speed * 100)}%</span>
-            <button className="v4-t-spd" onClick={() => handleSpeedChange(0.05)}>+5</button>
+          {/* Top row: speed (left) + A-B loop (right) */}
+          <div className="v4-t-row v4-t-row-split">
+            <div className="v4-t-speed-group">
+              <button className="v4-t-spd" onClick={() => handleSpeedChange(-0.05)}>-5</button>
+              <span className="v4-t-spd-val">{Math.round(state.speed * 100)}%</span>
+              <button className="v4-t-spd" onClick={() => handleSpeedChange(0.05)}>+5</button>
+            </div>
+            {state.duration > 0 && (
+              <div className="v4-t-loop-group">
+                <button className={`v4-t-loop ${loopMarkA !== null ? 'marking' : ''}`} onClick={handleLoopMark}>
+                  {state.loop ? 'A-B' : loopMarkA !== null ? `A: ${formatTime(loopMarkA)}` : 'A'}
+                </button>
+                <button className={`v4-t-loop ${state.loop ? '' : 'dim'}`} onClick={handleLoopMark} disabled={state.loop !== null && loopMarkA === null}>
+                  B
+                </button>
+                {state.loop && <button className="v4-t-loop" onClick={clearLoop}>Clear</button>}
+              </div>
+            )}
           </div>
-          {/* Main row — with record button (D-150) */}
+          {/* Bottom row: restart / play / stop / click / record */}
           <div className="v4-t-row">
-            <button className="v4-t-btn" onClick={actions.stop}>
+            <button className="v4-t-btn" onClick={() => { actions.stop(); actions.seek(0); }} title="Restart">
               <span style={{ fontSize: '18px' }}>⏮</span>
             </button>
             <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
-              {isPlaying ? '■' : '▶'}
+              {isPlaying ? '⏸' : '▶'}
             </button>
             <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
-            <button className={`v4-t-click ${state.prefs?.player_click_enabled === false ? 'off' : ''}`} onClick={actions.toggleClick}>
-              CLICK
-            </button>
-            {userId && (
-              <button className="v4-t-rec" onClick={handleStartRecording} title="Record take">
-                ●
-              </button>
-            )}
           </div>
-          {/* A-B Loop row */}
-          {state.duration > 0 && (
-            <div className="v4-t-row">
-              <button className={`v4-t-loop ${loopMarkA !== null ? 'marking' : ''}`} onClick={handleLoopMark}>
-                {state.loop ? 'A-B' : loopMarkA !== null ? `A: ${formatTime(loopMarkA)}` : 'SET A'}
+        </div>
+      )}
+
+      {/* ── Inline drawer — handle + expandable settings ── */}
+      <div className={`v4-inline-drawer${drawerOpen ? ' open' : ''}`}>
+        <div className="v4-drawer-prev" onClick={() => {
+          setDrawerOpen(o => {
+            const opening = !o;
+            if (opening && recording.audioDevices.length === 0) {
+              recording.enumerateDevices();
+            }
+            return opening;
+          });
+        }}>
+          <div className="v4-drawer-handle" />
+        </div>
+
+        <div className="v4-inline-drawer-content">
+          <div className="v4-drawer-label">DISPLAY</div>
+          <div className="v4-tog-row">
+            <TogglePill label="Visuals" active={showVisuals} color="var(--color-green)" onClick={() => setShowVisuals(v => !v)} />
+            <TogglePill label="Chords" active={showChords} color="var(--color-tangerine)" onClick={() => setShowChords(v => !v)} />
+            <TogglePill label="Lyrics" active={showLyrics} color="var(--color-text)" onClick={() => setShowLyrics(v => !v)} />
+            <TogglePill label="Notes" active={showNotes} color="var(--color-teal)" onClick={() => setShowNotes(v => !v)} />
+            <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
+            <TogglePill label={glowFullscreen ? 'Glow: Full' : 'Glow: Card'} active={glowFullscreen} color="var(--color-green)" onClick={() => setGlowFullscreen(v => !v)} />
+          </div>
+
+          {/* Mixer — all modes. Click is always a channel; stems when available */}
+          <div className="v4-drawer-label" style={{ marginTop: 12 }}>MIXER</div>
+          <div className="v4-mixer">
+            {/* Click channel — always present */}
+            <div className="v4-mx-ch">
+              <span className="v4-mx-lbl" style={{ color: STEM_COLORS.click }}>CLK</span>
+              <div className="v4-mx-trk">
+                <div className="v4-mx-fill" style={{
+                  height: state.prefs?.player_click_enabled === false ? '0%' : '80%',
+                  background: STEM_COLORS.click,
+                }} />
+              </div>
+              <span className="v4-mx-val">{state.prefs?.player_click_enabled === false ? 0 : 80}</span>
+              <button
+                className={`v4-mx-mute ${state.prefs?.player_click_enabled === false ? 'on' : ''}`}
+                onClick={actions.toggleClick}
+              >M</button>
+            </div>
+            {/* Track channel — practice/view only, when track loaded but no stems */}
+            {!isLive && state.stemChannels.length === 0 && state.duration > 0 && (
+              <div className="v4-mx-ch">
+                <span className="v4-mx-lbl" style={{ color: 'var(--color-green)' }}>TRK</span>
+                <div className="v4-mx-trk">
+                  <div className="v4-mx-fill" style={{ height: '100%', background: 'var(--color-green)' }} />
+                </div>
+                <span className="v4-mx-val">100</span>
+                <button className="v4-mx-mute">M</button>
+              </div>
+            )}
+            {/* Stem channels — practice/view only (live = no backing tracks) */}
+            {!isLive && state.stemChannels.map(ch => (
+              <div key={ch.label} className="v4-mx-ch">
+                <span className="v4-mx-lbl" style={{ color: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)' }}>
+                  {STEM_LABELS[ch.label] ?? ch.label.slice(0, 3).toUpperCase()}
+                </span>
+                <div className="v4-mx-trk">
+                  <div className="v4-mx-fill" style={{
+                    height: `${ch.gain * 100}%`,
+                    background: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)',
+                  }} />
+                </div>
+                <span className="v4-mx-val">{Math.round(ch.gain * 100)}</span>
+                <button
+                  className={`v4-mx-mute ${ch.muted ? 'on' : ''}`}
+                  onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
+                >M</button>
+              </div>
+            ))}
+          </div>
+
+          {/* Input/Output + Camera — always visible in drawer (D-133, D-147) */}
+          <div className="v4-drawer-label" style={{ marginTop: 12 }}>INPUT / OUTPUT</div>
+          <div className="v4-set-section">
+            <div className="v4-set-row">
+              <span className="v4-set-label">Input</span>
+              <select
+                className="v4-rec-select"
+                value={recording.selectedDeviceId}
+                onChange={e => recording.selectDevice(e.target.value)}
+              >
+                {recording.audioDevices.length === 0 && (
+                  <option value="">Loading devices…</option>
+                )}
+                {recording.audioDevices.map(d => (
+                  <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="v4-set-row">
+              <span className="v4-set-label">Camera</span>
+              <button
+                className={`v4-tog ${recording.cameraEnabled ? 'on' : ''}`}
+                style={recording.cameraEnabled ? { borderColor: 'var(--color-green)', color: 'var(--color-green)' } : undefined}
+                onClick={() => recording.toggleCamera(!recording.cameraEnabled)}
+              >
+                {recording.cameraEnabled ? 'ON' : 'OFF'}
               </button>
-              <button className={`v4-t-loop ${state.loop ? '' : 'dim'}`} onClick={handleLoopMark} disabled={state.loop !== null && loopMarkA === null}>
-                SET B
-              </button>
-              {state.loop && <button className="v4-t-loop" onClick={clearLoop}>CLEAR</button>}
+            </div>
+          </div>
+
+          {/* Record button — in drawer (D-150) */}
+          {userId && (
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+              <button
+                className="v4-t-rec"
+                onClick={handleStartRecording}
+                title="Record take"
+                style={{ width: 48, height: 48, fontSize: 24 }}
+              >●</button>
             </div>
           )}
-        </div>
-      )}
 
-      {/* ── Nav Row ── */}
-      {setlist && (
-        <div className="v4-nav-row">
-          <button className="v4-nav-song" onClick={goToPrevSong} disabled={currentIndex === 0}>
-            ← <span className="nm">{prevSongName ?? '—'}</span>
-          </button>
-          <button className="v4-nav-queue" onClick={() => setQueueOpen(o => !o)}>
-            {currentIndex + 1}/{setlist.songs.length}
-          </button>
-          <button className="v4-nav-song" onClick={goToNextSong} disabled={currentIndex === setlist.songs.length - 1}>
-            <span className="nm">{nextSongName ?? '—'}</span> →
-          </button>
-        </div>
-      )}
-
-      {/* ── Drawer preview ── */}
-      <div className="v4-drawer-prev" onClick={() => setDrawerOpen(true)}>
-        <div className="v4-drawer-handle" />
-        <div className="v4-drawer-label">DISPLAY</div>
-        <div className="v4-tog-row">
-          <TogglePill label="Visuals" active={showVisuals} color="var(--color-green)" onClick={() => setShowVisuals(v => !v)} />
-          <TogglePill label="Chords" active={showChords} color="var(--color-tangerine)" onClick={() => setShowChords(v => !v)} />
-          <TogglePill label="Lyrics" active={showLyrics} color="var(--color-text)" onClick={() => setShowLyrics(v => !v)} />
-          <TogglePill label="Notes" active={showNotes} color="var(--color-teal)" onClick={() => setShowNotes(v => !v)} />
-          <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
-        </div>
-      </div>
-
-      {/* ── Drawer (full) ── */}
-      {drawerOpen && (
-        <div className="v4-drawer-overlay" onClick={() => setDrawerOpen(false)}>
-          <div className="v4-drawer" onClick={e => e.stopPropagation()}>
-            <div className="v4-drawer-handle" />
-
-            <div className="v4-drawer-label">DISPLAY</div>
-            <div className="v4-tog-row">
-              <TogglePill label="Visuals" active={showVisuals} color="var(--color-green)" onClick={() => setShowVisuals(v => !v)} />
-              <TogglePill label="Chords" active={showChords} color="var(--color-tangerine)" onClick={() => setShowChords(v => !v)} />
-              <TogglePill label="Lyrics" active={showLyrics} color="var(--color-text)" onClick={() => setShowLyrics(v => !v)} />
-              <TogglePill label="Notes" active={showNotes} color="var(--color-teal)" onClick={() => setShowNotes(v => !v)} />
-              <TogglePill label="Drums" active={showDrums} color="#e040fb" onClick={() => setShowDrums(v => !v)} />
-            </div>
-
-            {/* Mixer (practice + view modes) */}
-            {!isLive && state.stemChannels.length > 0 && (
-              <>
-                <div className="v4-drawer-label" style={{ marginTop: 12 }}>MIXER</div>
-                <div className="v4-mixer">
-                  {state.stemChannels.map(ch => (
-                    <div key={ch.label} className="v4-mx-ch">
-                      <span className="v4-mx-lbl" style={{ color: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)' }}>
-                        {STEM_LABELS[ch.label] ?? ch.label.slice(0, 3).toUpperCase()}
-                      </span>
-                      <div className="v4-mx-trk">
-                        <div className="v4-mx-fill" style={{
-                          height: `${ch.gain * 100}%`,
-                          background: STEM_COLORS[ch.label] ?? 'var(--color-text-muted)',
-                        }} />
-                      </div>
-                      <span className="v4-mx-val">{Math.round(ch.gain * 100)}</span>
-                      <button
-                        className={`v4-mx-mute ${ch.muted ? 'on' : ''}`}
-                        onClick={() => actions.toggleStemMute(ch.label as StemLabel)}
-                      >M</button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Recording settings (S41 — visible when in record mode) */}
-            {isRecordMode && (
-              <>
-                <div className="v4-drawer-label" style={{ marginTop: 12 }}>RECORDING</div>
-                <div className="v4-set-section">
-                  <div className="v4-set-row">
-                    <span className="v4-set-label">Input</span>
-                    <select
-                      className="v4-rec-select"
-                      value={recording.selectedDeviceId}
-                      onChange={e => recording.selectDevice(e.target.value)}
-                    >
-                      {recording.audioDevices.map(d => (
-                        <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="v4-set-row">
-                    <span className="v4-set-label">Camera</span>
-                    <button
-                      className={`v4-tog ${recording.cameraEnabled ? 'on' : ''}`}
-                      style={recording.cameraEnabled ? { borderColor: 'var(--color-green)', color: 'var(--color-green)' } : undefined}
-                      onClick={() => recording.toggleCamera(!recording.cameraEnabled)}
-                    >
-                      {recording.cameraEnabled ? 'ON' : 'OFF'}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="v4-drawer-label" style={{ marginTop: 12 }}>SETTINGS</div>
-            <div className="v4-set-section">
-              <div className="v4-set-row">
-                <span className="v4-set-label">Subdiv</span>
-                <div className="v4-set-pills">
-                  {([['Off', 1], ['8th', 2], ['Trip', 3], ['16th', 4]] as const).map(([l, v]) => (
-                    <span key={l} className={`v4-set-pill ${state.subdivision === v ? 'on' : ''}`} onClick={() => actions.setSubdivision(v)}>{l}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="v4-set-row">
-                <span className="v4-set-label">Count-in</span>
-                <div className="v4-set-pills">
-                  {([['Off', 0], ['1', 1], ['2', 2], ['4', 4]] as const).map(([l, v]) => (
-                    <span key={l} className={`v4-set-pill ${state.countInBars === v ? 'on' : ''}`} onClick={() => actions.setCountIn(v)}>{l}</span>
-                  ))}
-                </div>
-              </div>
-              <div className="v4-set-row">
-                <span className="v4-set-label">Nudge</span>
-                <div className="v4-set-pills">
-                  <span className="v4-set-pill" onClick={() => actions.nudge(-1)}>&lt;&lt;</span>
-                  <span className="v4-nudge-val" onClick={() => actions.resetNudge()}>{state.nudgeOffsetMs >= 0 ? '+' : ''}{state.nudgeOffsetMs}ms</span>
-                  <span className="v4-set-pill" onClick={() => actions.nudge(1)}>&gt;&gt;</span>
-                </div>
+          <div className="v4-drawer-label" style={{ marginTop: 12 }}>SETTINGS</div>
+          <div className="v4-set-section">
+            <div className="v4-set-row">
+              <span className="v4-set-label">Subdiv</span>
+              <div className="v4-set-pills">
+                {([['Off', 1], ['8th', 2], ['Trip', 3], ['16th', 4]] as const).map(([l, v]) => (
+                  <span key={l} className={`v4-set-pill ${state.subdivision === v ? 'on' : ''}`} onClick={() => actions.setSubdivision(v)}>{l}</span>
+                ))}
               </div>
             </div>
-
-            <button className="v4-drawer-close" onClick={() => setDrawerOpen(false)}>Close</button>
+            <div className="v4-set-row">
+              <span className="v4-set-label">Count-in</span>
+              <div className="v4-set-pills">
+                {([['Off', 0], ['1', 1], ['2', 2], ['4', 4]] as const).map(([l, v]) => (
+                  <span key={l} className={`v4-set-pill ${state.countInBars === v ? 'on' : ''}`} onClick={() => actions.setCountIn(v)}>{l}</span>
+                ))}
+              </div>
+            </div>
+            <div className="v4-set-row">
+              <span className="v4-set-label">Nudge</span>
+              <div className="v4-set-pills">
+                <span className="v4-set-pill" onClick={() => actions.nudge(-1)}>&lt;&lt;</span>
+                <span className="v4-nudge-val" onClick={() => actions.resetNudge()}>{state.nudgeOffsetMs >= 0 ? '+' : ''}{state.nudgeOffsetMs}ms</span>
+                <span className="v4-set-pill" onClick={() => actions.nudge(1)}>&gt;&gt;</span>
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── Between songs transition ── */}
       {betweenSongs && setlist && (
@@ -1100,16 +1165,31 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
         </div>
       )}
 
-      {/* ── Queue overlay ── */}
-      {queueOpen && setlist && (
+      {/* ── Queue overlay (tabbed: Queue / Songs / Setlists) ── */}
+      {queueOpen && (
         <div className="player-queue-overlay" onClick={() => setQueueOpen(false)}>
           <div className="player-queue-panel" onClick={e => e.stopPropagation()}>
             <div className="player-queue-header">
-              <span className="player-queue-title">{setlist.name}</span>
+              <span className="player-queue-title">
+                {queueTab === 'queue' ? 'Queue' : queueTab === 'songs' ? 'Songs' : 'Setlists'}
+              </span>
               <button className="player-queue-close" onClick={() => setQueueOpen(false)}>X</button>
             </div>
+            {/* Tab row */}
+            <div className="player-queue-tabs">
+              {(['queue', 'songs', 'setlists'] as const).map(tab => (
+                <button
+                  key={tab}
+                  className={`player-queue-tab ${queueTab === tab ? 'active' : ''}`}
+                  onClick={() => setQueueTab(tab)}
+                >
+                  {tab === 'queue' ? 'Queue' : tab === 'songs' ? 'Songs' : 'Setlists'}
+                </button>
+              ))}
+            </div>
             <div className="player-queue-list">
-              {setlist.songs.map((song, i) => (
+              {/* Queue tab */}
+              {queueTab === 'queue' && setlist && setlist.songs.map((song, i) => (
                 <button
                   key={song.id}
                   className={`player-queue-item ${i === currentIndex ? 'active' : ''}`}
@@ -1120,6 +1200,38 @@ export function Player({ songId, setlistId, mode, onClose, userId, bandRole }: P
                   {song.song_artist && <span className="player-queue-artist">{song.song_artist}</span>}
                 </button>
               ))}
+              {queueTab === 'queue' && !setlist && (
+                <div className="player-queue-empty">No active queue</div>
+              )}
+              {/* Songs tab */}
+              {queueTab === 'songs' && allSongs.map(song => (
+                <button
+                  key={song.id}
+                  className={`player-queue-item ${song.id === activeSongId ? 'active' : ''}`}
+                  onClick={() => pickSong(song.id)}
+                >
+                  <span className="player-queue-name">{song.name}</span>
+                  <span className="player-queue-artist">{song.artist}</span>
+                  <span className="player-queue-bpm">{song.bpm}</span>
+                </button>
+              ))}
+              {queueTab === 'songs' && allSongs.length === 0 && (
+                <div className="player-queue-empty">Loading songs…</div>
+              )}
+              {/* Setlists tab */}
+              {queueTab === 'setlists' && allSetlists.map(sl => (
+                <button
+                  key={sl.id}
+                  className={`player-queue-item ${setlist?.id === sl.id ? 'active' : ''}`}
+                  onClick={() => pickSetlist(sl.id)}
+                >
+                  <span className="player-queue-name">{sl.name}</span>
+                  <span className="player-queue-artist">{sl.setlist_type}</span>
+                </button>
+              ))}
+              {queueTab === 'setlists' && allSetlists.length === 0 && (
+                <div className="player-queue-empty">Loading setlists…</div>
+              )}
             </div>
           </div>
         </div>

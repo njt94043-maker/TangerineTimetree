@@ -253,6 +253,11 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                   <button className="changelog-toggle" onClick={(e) => { e.stopPropagation(); toggleLog(gig.id); }}>
                     {expandedLog === gig.id ? 'Hide history' : 'Show history'}
                   </button>
+                  {!isPractice && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
+                    <button className="changelog-toggle gig-invoice-link" onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}>
+                      + Invoice
+                    </button>
+                  )}
                   <button className="changelog-toggle changelog-toggle-danger" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(gig.id); }}>
                     Delete
                   </button>
@@ -276,16 +281,6 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                     ))}
                     {(changelog.get(gig.id) ?? []).length === 0 && <div className="changelog-text">No history yet</div>}
                   </div>
-                )}
-
-                {!isPractice && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
-                  <button
-                    className="btn btn-small btn-primary gig-create-invoice-btn"
-                    onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}
-                    style={{ marginTop: 8, width: '100%' }}
-                  >
-                    Create Invoice
-                  </button>
                 )}
               </div>
             </div>

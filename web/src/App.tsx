@@ -235,33 +235,36 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
 
   return (
     <>
-      {/* Header */}
-      <header className="header">
-        <div className="flex-row-gap-10">
-          <button className="hamburger" onClick={toggleDrawer} aria-label="Toggle menu">
-            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-            <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-          </button>
-          <img src="/logo.png" alt="TGT" className="header-logo" />
-          <span className="header-title">
-            <span className="header-brand-green">Tangerine</span>{' '}
-            <span className="header-brand-orange">Timetree</span>
-          </span>
-        </div>
-        <div className="flex-row-gap-8">
-          <span className="header-screen-name">{headerTitle}</span>
-          <button className="header-avatar" onClick={() => setView('profile')} title={profile?.name ?? 'Profile'}>
-            {(profile?.name ?? 'U')[0]}
-          </button>
-          <button className="header-user header-signout" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
-      </header>
+      {/* Header + Drawer — hidden when player is fullscreen */}
+      {view !== 'player' && (
+        <>
+          <header className="header">
+            <div className="flex-row-gap-10">
+              <button className="hamburger" onClick={toggleDrawer} aria-label="Toggle menu">
+                <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+                <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+                <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
+              </button>
+              <img src="/logo.png" alt="TGT" className="header-logo" />
+              <span className="header-title">
+                <span className="header-brand-green">Tangerine</span>{' '}
+                <span className="header-brand-orange">Timetree</span>
+              </span>
+            </div>
+            <div className="flex-row-gap-8">
+              <span className="header-screen-name">{headerTitle}</span>
+              <button className="header-avatar" onClick={() => setView('profile')} title={profile?.name ?? 'Profile'}>
+                {(profile?.name ?? 'U')[0]}
+              </button>
+              <button className="header-user header-signout" onClick={onSignOut}>
+                Sign out
+              </button>
+            </div>
+          </header>
 
-      {/* Drawer */}
-      <Drawer isOpen={drawerOpen} onClose={closeDrawer} profileName={profile?.name ?? 'User'} />
+          <Drawer isOpen={drawerOpen} onClose={closeDrawer} profileName={profile?.name ?? 'User'} />
+        </>
+      )}
 
       {/* Main content area */}
       <main className="main-content">

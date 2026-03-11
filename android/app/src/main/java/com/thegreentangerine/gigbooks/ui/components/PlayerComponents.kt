@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -62,6 +65,8 @@ fun PlayerHeader(
     onBackClick: () -> Unit,
     modeBadgeLabel: String? = null,
     modeBadgeColor: Color? = null,
+    onSwitchMode: ((String) -> Unit)? = null,
+    currentMode: String? = null,
 ) {
     val accent = modeBadgeColor ?: if (isLiveMode) GigColors.green else GigColors.purple
     Row(
@@ -74,8 +79,8 @@ fun PlayerHeader(
         // Back / menu button
         IconButton(onClick = onBackClick, modifier = Modifier.size(36.dp)) {
             Icon(
-                if (isLiveMode) Icons.AutoMirrored.Filled.ArrowBack else Icons.Default.Menu,
-                contentDescription = if (isLiveMode) "Back" else "Menu",
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
                 tint = GigColors.textDim,
                 modifier = Modifier.size(20.dp),
             )
@@ -107,9 +112,15 @@ fun PlayerHeader(
             }
         }
 
-        // Mode badge + BPM block
+        // Mode switch tabs + BPM block
         Column(horizontalAlignment = Alignment.End) {
-            if (modeBadgeLabel != null && modeBadgeColor != null) {
+            if (onSwitchMode != null && currentMode != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    ModeTab("Live", "live", currentMode, GigColors.green, onSwitchMode)
+                    ModeTab("Practice", "practice", currentMode, GigColors.purple, onSwitchMode)
+                    ModeTab("View", "view", currentMode, GigColors.teal, onSwitchMode)
+                }
+            } else if (modeBadgeLabel != null && modeBadgeColor != null) {
                 ModeBadge(label = modeBadgeLabel, color = modeBadgeColor)
             } else {
                 ModeBadge(isLive = isLiveMode)
@@ -127,6 +138,32 @@ fun PlayerHeader(
                 color = GigColors.green.copy(alpha = 0.4f),
             )
         }
+    }
+}
+
+@Composable
+private fun ModeTab(label: String, mode: String, currentMode: String, color: Color, onSwitch: (String) -> Unit) {
+    val isActive = mode == currentMode
+    Box(
+        modifier = Modifier
+            .background(
+                if (isActive) color.copy(alpha = 0.08f) else Color.Transparent,
+                RoundedCornerShape(6.dp),
+            )
+            .border(
+                0.5.dp,
+                if (isActive) color.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.04f),
+                RoundedCornerShape(6.dp),
+            )
+            .clickable { if (!isActive) onSwitch(mode) }
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            label,
+            fontFamily = JetBrainsMono, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 7.sp, letterSpacing = 0.5.sp,
+            color = if (isActive) color else GigColors.textMuted,
+        )
     }
 }
 
@@ -157,11 +194,11 @@ fun ModeBadge(label: String, color: Color) {
 
 @Composable
 fun VisualHero(
-    heroHeight: Dp = 160.dp,
     isPlaying: Boolean,
     currentBeat: Int,
     accent: Color,
     modifier: Modifier = Modifier,
+    suppressBeatGlow: Boolean = false,
 ) {
     val beatGlowAlpha = remember { Animatable(0f) }
     LaunchedEffect(currentBeat, isPlaying) {
@@ -175,7 +212,6 @@ fun VisualHero(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 5.dp)
-            .height(heroHeight)
             .clip(RoundedCornerShape(12.dp))
             .background(GigColors.surfaceInset)
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp)),
@@ -215,8 +251,8 @@ fun VisualHero(
             VisSwitcherButton("Burst", selected = false, accent = accent)
         }
 
-        // Beat glow overlay
-        if (beatGlowAlpha.value > 0f) {
+        // Beat glow overlay (card-level, suppressed when fullscreen glow is active)
+        if (beatGlowAlpha.value > 0f && !suppressBeatGlow) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -255,6 +291,35 @@ private fun VisSwitcherButton(label: String, selected: Boolean, accent: Color) {
     }
 }
 
+// ─── Fullscreen Beat Glow Overlay ───────────────────────────────────────────
+
+@Composable
+fun FullscreenBeatGlow(
+    isPlaying: Boolean,
+    currentBeat: Int,
+    accent: Color,
+) {
+    val glowAlpha = remember { Animatable(0f) }
+    LaunchedEffect(currentBeat, isPlaying) {
+        if (isPlaying && currentBeat > 0) {
+            glowAlpha.snapTo(0.5f)
+            glowAlpha.animateTo(0f, animationSpec = tween(300))
+        }
+    }
+    if (glowAlpha.value > 0f) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(accent.copy(alpha = glowAlpha.value * 0.06f))
+                .border(
+                    (glowAlpha.value * 2).dp,
+                    accent.copy(alpha = glowAlpha.value * 0.25f),
+                    RoundedCornerShape(0.dp),
+                ),
+        )
+    }
+}
+
 // ─── V4 Text Panel ──────────────────────────────────────────────────────────────
 
 data class TextPanelToggles(
@@ -287,6 +352,7 @@ fun TextPanel(
             .clip(RoundedCornerShape(12.dp))
             .background(GigColors.surfaceInset)
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
+            .verticalScroll(rememberScrollState())
             .padding(10.dp, 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -342,8 +408,9 @@ fun LiveTransport(
     isPlaying: Boolean,
     onPlayStop: () -> Unit,
     onStop: () -> Unit,
-    onClickToggle: () -> Unit,
-    isClickMuted: Boolean,
+    onRestart: () -> Unit = onStop,
+    onClickToggle: () -> Unit = {},
+    isClickMuted: Boolean = false,
     enabled: Boolean = true,
 ) {
     Row(
@@ -353,15 +420,20 @@ fun LiveTransport(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Stop
-        TransportButton(
-            icon = "■",
-            color = GigColors.danger,
-            onClick = onStop,
-            size = 36.dp,
-        )
+        // Restart
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(GigColors.surfaceLight)
+                .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
+                .clickable(enabled = enabled, onClick = onRestart),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textMuted, modifier = Modifier.size(18.dp))
+        }
         Spacer(Modifier.width(8.dp))
-        // Play/Stop (primary)
+        // Play/Pause (primary)
         PlayButton(
             isPlaying = isPlaying,
             accent = GigColors.green,
@@ -369,10 +441,12 @@ fun LiveTransport(
             enabled = enabled,
         )
         Spacer(Modifier.width(8.dp))
-        // Click toggle
-        ClickToggleButton(
-            isClickMuted = isClickMuted,
-            onClick = onClickToggle,
+        // Stop
+        TransportButton(
+            icon = "■",
+            color = GigColors.danger,
+            onClick = onStop,
+            size = 36.dp,
         )
     }
 }
@@ -401,7 +475,11 @@ fun PlayButton(
         contentAlignment = Alignment.Center,
     ) {
         if (isPlaying) {
-            Text("■", fontSize = 18.sp, color = accent, textAlign = TextAlign.Center)
+            // Pause icon (two vertical bars)
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Box(Modifier.size(4.dp, 18.dp).background(accent, RoundedCornerShape(1.dp)))
+                Box(Modifier.size(4.dp, 18.dp).background(accent, RoundedCornerShape(1.dp)))
+            }
         } else {
             Icon(
                 Icons.Default.PlayArrow,
@@ -573,6 +651,7 @@ fun DisplayToggleRow(
     showLyrics: Boolean, onLyricsToggle: () -> Unit,
     showNotes: Boolean, onNotesToggle: () -> Unit,
     showDrums: Boolean, onDrumsToggle: () -> Unit,
+    glowFullscreen: Boolean = false, onGlowToggle: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -583,6 +662,12 @@ fun DisplayToggleRow(
         TogglePill("Lyrics", showLyrics, GigColors.text, onLyricsToggle)
         TogglePill("Notes", showNotes, GigColors.cyan, onNotesToggle)
         TogglePill("Drums", showDrums, GigColors.pink, onDrumsToggle)
+        if (onGlowToggle != null) {
+            TogglePill(
+                if (glowFullscreen) "Glow: Full" else "Glow: Card",
+                glowFullscreen, GigColors.green, onGlowToggle,
+            )
+        }
     }
 }
 
