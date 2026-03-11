@@ -4722,13 +4722,30 @@ select.ps-form-input {
 }
 .song-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  flex-direction: column;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: transform 0.1s;
+  transition: border-color 0.15s;
 }
 .song-card:hover { border-color: var(--color-text-muted); }
+
+/* Card body: accent | info | bpm */
+.song-card-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Left accent border (3px, matches Android) */
+.song-card-accent {
+  width: 3px;
+  height: 56px;
+  border-radius: 1.5px;
+  flex-shrink: 0;
+}
+.song-card-accent.tgt { background: var(--color-teal); }
+.song-card-accent.personal { background: var(--color-tangerine); }
+
 .song-card-info {
   flex: 1;
   min-width: 0;
@@ -4737,7 +4754,7 @@ select.ps-form-input {
   gap: 2px;
 }
 .song-card-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
@@ -4752,33 +4769,102 @@ select.ps-form-input {
 .song-card-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 5px;
   align-items: center;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .song-meta-tag {
+  font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 0.5px solid rgba(255,255,255,0.06);
   color: var(--color-text-muted);
+  background: rgba(255,255,255,0.03);
 }
-.bpm-tag {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  text-transform: none;
-  border: none;
-  background: none;
-  padding: 0;
-}
-.song-card-actions {
+
+/* BPM right-aligned (matches Android: big orange monospace) */
+.song-card-bpm {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
 }
+.song-card-bpm-val {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  color: var(--color-tangerine);
+  text-shadow: 0 0 8px rgba(243,156,18,0.3);
+  line-height: 1;
+}
+.song-card-bpm-unit {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* TRACK badge */
+.badge-track { background: rgba(0,230,118,0.1); color: var(--color-green); border-color: rgba(0,230,118,0.3); }
+
+/* Expanded section with launch buttons */
+.song-card-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.song-card-launch {
+  display: flex;
+  gap: 8px;
+}
+.song-card-launch .lib-launch-btn { flex: 1; }
+
+/* Launch buttons (matches Android LaunchButton) */
+.lib-launch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border-radius: 10px;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  font-family: 'Karla', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  transition: 0.15s;
+  padding: 0 12px;
+}
+.lib-launch-btn .lib-launch-icon { font-size: 14px; }
+.lib-launch-btn.live {
+  color: var(--color-green);
+  background: rgba(0,230,118,0.08);
+  border-color: rgba(0,230,118,0.25);
+}
+.lib-launch-btn.practice {
+  color: var(--color-practice);
+  background: rgba(187,134,252,0.08);
+  border-color: rgba(187,134,252,0.25);
+}
+.lib-launch-btn.view {
+  color: var(--color-teal);
+  background: rgba(26,188,156,0.08);
+  border-color: rgba(26,188,156,0.25);
+}
+.lib-launch-btn.edit {
+  color: var(--color-tangerine);
+  background: rgba(243,156,18,0.08);
+  border-color: rgba(243,156,18,0.25);
+}
+.lib-launch-btn:hover { filter: brightness(1.2); }
+
 /* Icon buttons matching mockup: 32x32 rounded squares */
 .btn-icon {
   width: 32px;
@@ -4806,22 +4892,26 @@ select.ps-form-input {
 }
 .setlist-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  flex-direction: column;
+  padding: 12px 14px;
   cursor: pointer;
-  transition: transform 0.1s;
+  transition: border-color 0.15s;
 }
 .setlist-card:hover { border-color: var(--color-text-muted); }
+.setlist-card-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .setlist-card-info {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .setlist-card-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text);
 }
@@ -4829,9 +4919,15 @@ select.ps-form-input {
   font-size: 12px;
   color: var(--color-text-dim);
 }
-.setlist-card-actions {
+.setlist-card-meta {
   display: flex;
-  gap: 6px;
+  gap: 5px;
+  align-items: center;
+}
+.setlist-card-chevron {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  flex-shrink: 0;
 }
 
 /* Setlist detail - song rows with drag */
@@ -5641,9 +5737,16 @@ select.ps-form-input {
   transition: 0.2s;
 }
 .library-tab.active {
-  color: var(--color-text);
   background: var(--color-card);
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.library-tab.active.songs-tab {
+  color: var(--color-teal);
+  text-shadow: 0 0 10px rgba(26,188,156,0.5);
+}
+.library-tab.active.setlists-tab {
+  color: var(--color-tangerine);
+  text-shadow: 0 0 10px rgba(243,156,18,0.5);
 }
 
 /* Filter pills */
@@ -5718,20 +5821,6 @@ select.ps-form-input {
 /* Lock icon */
 .song-card-title-row { display: flex; align-items: center; gap: 6px; }
 .song-lock-icon { font-size: 12px; opacity: 0.5; }
-
-/* Song card expanded section (fallback — primary actions now use btn-icon) */
-.song-card-expanded {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255,255,255,0.04);
-}
-.song-card-launch {
-  display: flex;
-  gap: 6px;
-}
-.song-card-launch .btn { flex: 1; }
 
 /* ═══ V4 Player ═══ */
 .v4-player {
@@ -5916,6 +6005,7 @@ select.ps-form-input {
 .v4-text-panel {
   flex: 1;
   min-height: 60px;
+  max-height: 120px;
   border-radius: var(--radius-input);
   background: var(--bg-input);
   border: 1px solid rgba(255,255,255,0.03);
@@ -5980,7 +6070,7 @@ select.ps-form-input {
 .v4-waveform {
   width: 100%;
   flex-shrink: 0;
-  height: 56px;
+  height: 72px;
   border-radius: 8px;
   background: var(--bg-card);
   border: 1px solid rgba(255,255,255,0.03);

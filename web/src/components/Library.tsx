@@ -27,6 +27,17 @@ const SETLIST_FILTERS: { value: SetlistFilter; label: string }[] = [
   { value: 'other_band', label: 'Other' },
 ];
 
+function formatDuration(seconds: number | null): string | null {
+  if (!seconds || seconds <= 0) return null;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatTimeSig(top: number, bottom: number): string {
+  return `${top}/${bottom}`;
+}
+
 
 export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onPlaySetlist, userId, profiles }: LibraryProps) {
   const [tab, setTab] = useState<Tab>('songs');
@@ -40,11 +51,13 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [search, setSearch] = useState('');
   const [deleteSongTarget, setDeleteSongTarget] = useState<Song | null>(null);
+  const [expandedSongId, setExpandedSongId] = useState<string | null>(null);
 
   // Setlists state
   const [setlists, setSetlists] = useState<Setlist[]>([]);
   const [setlistFilter, setSetlistFilter] = useState<SetlistFilter>('all');
   const [deleteSetlistTarget, setDeleteSetlistTarget] = useState<Setlist | null>(null);
+  const [expandedSetlistId, setExpandedSetlistId] = useState<string | null>(null);
 
   // New setlist modal
   const [showNewSetlist, setShowNewSetlist] = useState(false);
@@ -166,13 +179,13 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
       {/* Tab bar */}
       <div className="library-tabs">
         <button
-          className={`library-tab ${tab === 'songs' ? 'active' : ''}`}
+          className={`library-tab songs-tab ${tab === 'songs' ? 'active' : ''}`}
           onClick={() => setTab('songs')}
         >
           Songs
         </button>
         <button
-          className={`library-tab ${tab === 'setlists' ? 'active' : ''}`}
+          className={`library-tab setlists-tab ${tab === 'setlists' ? 'active' : ''}`}
           onClick={() => setTab('setlists')}
         >
           Setlists
@@ -244,27 +257,66 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
               const editable = canEditSong(song);
               const ownerName = isPersonalSong(song.category) && song.owner_id ? profileMap.get(song.owner_id) : null;
               const isShared = sharedSongIds.has(song.id);
+              const expanded = expandedSongId === song.id;
+              const isTgt = isTgtSong(song.category);
+              const dur = formatDuration(song.duration_seconds);
 
               return (
-                <div key={song.id} className="song-card neu-card">
-                  <div className="song-card-info">
-                    <div className="song-card-title-row">
-                      <span className="song-card-name">{song.name}</span>
-                      {!editable && <span className="song-lock-icon" title="Read-only">{'\uD83D\uDD12'}</span>}
+                <div
+                  key={song.id}
+                  className={`song-card neu-card${expanded ? ' expanded' : ''}`}
+                  onClick={() => setExpandedSongId(expanded ? null : song.id)}
+                >
+                  <div className="song-card-body">
+                    {/* Left accent border */}
+                    <div className={`song-card-accent ${isTgt ? 'tgt' : 'personal'}`} />
+
+                    {/* Info column */}
+                    <div className="song-card-info">
+                      <div className="song-card-title-row">
+                        <span className="song-card-name">{song.name}</span>
+                        {!editable && <span className="song-lock-icon" title="Read-only">{'\uD83D\uDD12'}</span>}
+                      </div>
+                      {song.artist && <span className="song-card-artist">{song.artist}</span>}
+                      <div className="song-card-meta">
+                        <SongCategoryBadge category={song.category} />
+                        {ownerName && <span className="song-owner-tag">{ownerName}</span>}
+                        {isShared && <span className="song-meta-tag badge-shared">Shared</span>}
+                        {song.key && <span className="song-meta-tag badge-tgt">{song.key}</span>}
+                        <span className="song-meta-tag">{formatTimeSig(song.time_signature_top, song.time_signature_bottom)}</span>
+                        {dur && <span className="song-meta-tag">{dur}</span>}
+                        {song.audio_url && <span className="song-meta-tag badge-track">TRACK</span>}
+                      </div>
                     </div>
-                    {song.artist && <span className="song-card-artist">{song.artist}</span>}
-                    <div className="song-card-meta">
-                      <SongCategoryBadge category={song.category} />
-                      {ownerName && <span className="song-owner-tag">{ownerName}</span>}
-                      {isShared && <span className="song-meta-tag badge-shared">Shared</span>}
-                      <span className="bpm-tag">{song.bpm} bpm</span>
+
+                    {/* BPM right-aligned */}
+                    <div className="song-card-bpm">
+                      <span className="song-card-bpm-val">{Math.round(song.bpm)}</span>
+                      <span className="song-card-bpm-unit">BPM</span>
                     </div>
                   </div>
-                  <div className="song-card-actions">
-                    <button className="btn-icon" title="Live" onClick={() => onPlaySong(song.id, 'live')}>&#9654;</button>
-                    <button className="btn-icon" title="Practice" onClick={() => onPlaySong(song.id, 'practice')}>&#9881;</button>
-                    <button className={`btn-icon${!editable ? ' disabled' : ''}`} title="Edit" onClick={() => editable && onEditSong(song.id)}>&#9998;</button>
-                  </div>
+
+                  {/* Expanded: launch buttons */}
+                  {expanded && (
+                    <div className="song-card-expanded">
+                      <div className="song-card-launch">
+                        <button className="lib-launch-btn live" onClick={e => { e.stopPropagation(); onPlaySong(song.id, 'live'); }}>
+                          <span className="lib-launch-icon">&#9654;</span> Live
+                        </button>
+                        <button className="lib-launch-btn practice" onClick={e => { e.stopPropagation(); onPlaySong(song.id, 'practice'); }}>
+                          <span className="lib-launch-icon">&#127911;</span> Practice
+                        </button>
+                        <button className="lib-launch-btn view" onClick={e => { e.stopPropagation(); onPlaySong(song.id, 'view'); }}>
+                          <span className="lib-launch-icon">&#127909;</span> View
+                        </button>
+                      </div>
+                      {editable && (
+                        <button className="lib-launch-btn edit" onClick={e => { e.stopPropagation(); onEditSong(song.id); }}>
+                          <span className="lib-launch-icon">&#9998;</span> Edit Song
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -301,26 +353,56 @@ export function Library({ onNewSong, onEditSong, onSetlistPress, onPlaySong, onP
           </div>
 
           <div className="setlist-list-items">
-            {setlists.map(sl => (
-              <div key={sl.id} className="setlist-card neu-card" onClick={() => onSetlistPress(sl.id)}>
-                <div className="setlist-card-info">
-                  <span className="setlist-card-name">{sl.name}</span>
-                  <div className="setlist-card-meta">
-                    <span className={`song-meta-tag ${sl.setlist_type === 'tange' ? 'badge-tgt' : 'badge-personal'}`}>
-                      {sl.setlist_type === 'tange' ? 'TGT' : sl.band_name}
-                    </span>
-                    {sl.description && (
-                      <span className="setlist-card-desc">{sl.description}</span>
-                    )}
+            {setlists.map(sl => {
+              const expanded = expandedSetlistId === sl.id;
+              return (
+                <div
+                  key={sl.id}
+                  className={`setlist-card neu-card${expanded ? ' expanded' : ''}`}
+                  onClick={() => setExpandedSetlistId(expanded ? null : sl.id)}
+                >
+                  <div className="setlist-card-body">
+                    {/* Left accent border (orange) */}
+                    <div className="song-card-accent personal" />
+
+                    <div className="setlist-card-info">
+                      <span className="setlist-card-name">{sl.name}</span>
+                      <div className="setlist-card-meta">
+                        <span className={`song-meta-tag ${sl.setlist_type === 'tange' ? 'badge-tgt' : 'badge-personal'}`}>
+                          {sl.setlist_type === 'tange' ? 'TGT' : sl.band_name}
+                        </span>
+                        {sl.description && (
+                          <span className="setlist-card-desc">{sl.description}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expand chevron */}
+                    <span className="setlist-card-chevron">{expanded ? '\u25B2' : '\u25BC'}</span>
                   </div>
+
+                  {/* Expanded: launch buttons */}
+                  {expanded && (
+                    <div className="song-card-expanded">
+                      <div className="song-card-launch">
+                        <button className="lib-launch-btn live" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'live'); }}>
+                          <span className="lib-launch-icon">&#9654;</span> Live
+                        </button>
+                        <button className="lib-launch-btn practice" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'practice'); }}>
+                          <span className="lib-launch-icon">&#127911;</span> Practice
+                        </button>
+                        <button className="lib-launch-btn view" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'view'); }}>
+                          <span className="lib-launch-icon">&#127909;</span> View
+                        </button>
+                      </div>
+                      <button className="lib-launch-btn edit" onClick={e => { e.stopPropagation(); onSetlistPress(sl.id); }}>
+                        <span className="lib-launch-icon">&#9998;</span> Edit Setlist
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="setlist-card-actions">
-                  <button className="btn-icon" title="Live" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'live'); }} style={{ color: 'var(--color-green)', borderColor: 'rgba(0,230,118,0.3)' }}>&#9654;</button>
-                  <button className="btn-icon" title="Practice" onClick={e => { e.stopPropagation(); onPlaySetlist(sl.id, 'practice'); }} style={{ color: 'var(--color-purple)', borderColor: 'rgba(187,134,252,0.3)' }}>&#9835;</button>
-                  <button className="btn-icon" title="Edit" onClick={e => { e.stopPropagation(); onSetlistPress(sl.id); }}>&#9998;</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {setlists.length === 0 && (
               <p className="empty-text">No setlists yet</p>
             )}
