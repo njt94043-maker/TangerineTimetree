@@ -188,7 +188,7 @@ export class ClickScheduler {
 
     // Schedule primary click
     if (shouldSound) {
-      const buffer = this.getClickBuffer(ctx, isDownbeat);
+      const buffer = this.getClickBuffer(ctx, false); // D-159: all beats identical, no accent
       if (buffer) {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
