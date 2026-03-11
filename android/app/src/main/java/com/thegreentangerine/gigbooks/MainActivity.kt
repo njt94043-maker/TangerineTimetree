@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
@@ -28,9 +31,16 @@ class MainActivity : ComponentActivity() {
                 val sessionStatus by AuthRepository.sessionStatus.collectAsState(
                     initial = SessionStatus.Initializing
                 )
+                // D-166: Once authenticated, stay on GigBooksApp even if session
+                // briefly flickers to Initializing on resume. Prevents destroying
+                // the player/nav state when returning from background.
+                var wasAuthenticated by remember { mutableStateOf(false) }
+                if (sessionStatus is SessionStatus.Authenticated) wasAuthenticated = true
+                if (sessionStatus is SessionStatus.NotAuthenticated) wasAuthenticated = false
 
-                when (sessionStatus) {
-                    is SessionStatus.Initializing -> {
+                when {
+                    wasAuthenticated -> GigBooksApp()
+                    sessionStatus is SessionStatus.Initializing -> {
                         Box(
                             modifier = Modifier.fillMaxSize().background(GigColors.background),
                             contentAlignment = Alignment.Center,
@@ -38,7 +48,6 @@ class MainActivity : ComponentActivity() {
                             CircularProgressIndicator(color = GigColors.orange)
                         }
                     }
-                    is SessionStatus.Authenticated -> GigBooksApp()
                     else -> LoginScreen()
                 }
             }

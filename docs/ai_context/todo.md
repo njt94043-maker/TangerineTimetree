@@ -5,7 +5,28 @@
 
 ---
 
+## CRITICAL BUGS — Must Fix Before Cosmetics
+
+### Track Loading Broken — Both Platforms (D-165)
+- [ ] **Android: Add `nativeResetTrack()` JNI binding** — expose C++ `TrackPlayer::reset()` to Kotlin
+- [ ] **Android: `selectSong()` must auto-load track** — stop playback → reset old track/stems → download & load new song's track + stems. No manual "Load Track" step.
+- [ ] **Android: `nextSong()`/`prevSong()` must trigger full track swap** — same stop→reset→load cycle
+- [ ] **Web: Verify same auto-load/release behaviour** — web TrackPlayer must release old track when song changes (D-164: both platforms)
+
+### Player Not Persistent — Both Platforms (D-166)
+- [ ] **Android: Player survives navigation** — navigating to Library/Calendar/Settings must NOT destroy player state. Back button or re-entering player restores song, position, mode.
+- [ ] **Android: Clean up C++ engine on explicit close only** — track should only be released when user explicitly exits the player session (e.g. "End Session"), not on navigation
+- [ ] **Web: Verify player persistence** — same behaviour expected (D-164: both platforms)
+
+### Android Library — Header Gap Bug
+- [ ] **Fix gap between header ("Library" / "New Idea") and Songs/Setlists tabs**
+
+---
+
 ## Immediate Actions — S45 Screen-for-Screen Lockdown
+
+### Web — Library — REBUILD to match Android (D-163)
+> **NOTE: Previous Web Library tasks are INVALID.** Web Library must be rebuilt to match Android's layout (NeuCard cards, big BPM right-aligned, badges inline, tap-to-expand with Live/Practice/View buttons). Not a refinement of the current web layout.
 
 ### Web — Calendar (match mockup screens 16-17)
 - [ ] Cell min-height 48→44px
@@ -16,15 +37,13 @@
 - [ ] Today button: font 10→12px, padding 3px 14px→4px 10px, radius 10→8px, add background fill rgba(243,156,18,0.08)
 - [ ] Cell background token correction
 
-### Web — Library (match mockup screens 5-6)
-- [ ] Add filter labels above dropdowns
-- [ ] Split badges into separate scope + type badges (not combined)
-- [ ] Add Cover/Original type badges
-- [ ] Fix owner tag styling
-- [ ] Setlists: pills → dropdown (D-128)
-- [ ] Setlists: add type badge on cards (Gig/Practice/Other)
-- [ ] Setlists: add song count + duration display
-- [ ] Setlists: add conditional action buttons
+### Web — Library — DETAILED (D-163: match Android)
+- [ ] Rebuild song cards as NeuCard raised style (not flat rows)
+- [ ] Big BPM right-aligned on card
+- [ ] Badges inline: scope (TGT/Personal) + type (Cover/Original) + TRACK indicator
+- [ ] Tap-to-expand card → reveal Live/Practice/View launch buttons
+- [ ] Filter dropdowns with labels above (Scope / Type) — match Android (D-128)
+- [ ] Setlists: dropdown filter (D-128) + type badge + song count + duration + action buttons
 
 ### Web — Player (match mockups/player-live.html + mockups/practice-redesign.html)
 - [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)

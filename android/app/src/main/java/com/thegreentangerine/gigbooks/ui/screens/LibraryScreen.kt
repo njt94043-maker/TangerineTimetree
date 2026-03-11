@@ -94,11 +94,11 @@ private enum class SetlistFilter(val label: String) {
 fun LibraryScreen(
     vm: AppViewModel,
     onMenuClick: () -> Unit,
-    onLaunchLive: (Song) -> Unit,
-    onLaunchPractice: (Song) -> Unit,
+    onLaunchLive: (Song, List<Song>) -> Unit,
+    onLaunchPractice: (Song, List<Song>) -> Unit,
     onLaunchSetlistLive: (SetlistWithSongs) -> Unit,
     onLaunchSetlistPractice: (SetlistWithSongs) -> Unit,
-    onLaunchView: (Song) -> Unit = {},
+    onLaunchView: (Song, List<Song>) -> Unit = { _, _ -> },
     onLaunchSetlistView: (SetlistWithSongs) -> Unit = {},
     onEditSong: (Song) -> Unit = {},
 ) {
@@ -144,7 +144,7 @@ fun LibraryScreen(
             onCreate = { name ->
                 showNewIdeaDialog = false
                 vm.createSongIdea(name) { song ->
-                    onLaunchPractice(song)
+                    onLaunchPractice(song, listOf(song))
                     // Auto-start recording after a brief delay for screen transition
                     vm.clearNewIdeaFlag()
                 }
@@ -166,7 +166,7 @@ private fun LibraryHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 48.dp, start = 8.dp, end = 16.dp, bottom = 0.dp),
+                .padding(start = 8.dp, end = 16.dp, bottom = 0.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onMenuClick) {
@@ -242,9 +242,9 @@ private fun SongsTab(
     currentUserId: String?,
     profileNames: Map<String, String>,
     sharedSongIds: Set<String>,
-    onLaunchLive: (Song) -> Unit,
-    onLaunchPractice: (Song) -> Unit,
-    onLaunchView: (Song) -> Unit,
+    onLaunchLive: (Song, List<Song>) -> Unit,
+    onLaunchPractice: (Song, List<Song>) -> Unit,
+    onLaunchView: (Song, List<Song>) -> Unit,
     onEditSong: (Song) -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -310,9 +310,9 @@ private fun SongsTab(
                         song = song,
                         expanded = expandedSongId == song.id,
                         onClick = { expandedSongId = if (expandedSongId == song.id) null else song.id },
-                        onLive = { onLaunchLive(song) },
-                        onPractice = { onLaunchPractice(song) },
-                        onView = { onLaunchView(song) },
+                        onLive = { onLaunchLive(song, filtered) },
+                        onPractice = { onLaunchPractice(song, filtered) },
+                        onView = { onLaunchView(song, filtered) },
                         onEdit = { onEditSong(song) },
                         currentUserId = currentUserId,
                         ownerName = if (song.isPersonalSong && song.ownerId != null) profileNames[song.ownerId] else null,

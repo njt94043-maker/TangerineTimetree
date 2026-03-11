@@ -85,7 +85,7 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(GigColors.background).padding(top = 48.dp),
+        modifier = Modifier.fillMaxSize().background(GigColors.background),
     ) {
         // ── Header ──────────────────────────────────────────────────────────
         Row(

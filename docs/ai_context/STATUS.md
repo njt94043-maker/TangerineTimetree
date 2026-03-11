@@ -6,18 +6,18 @@
 ---
 
 ## Current State
-- **Phase**: S45 — Player audit fixes COMPLETE. Glow toggle + queue tabs done on both platforms.
-- **What works**: Web (full, V4 player with queue tabs + glow toggle + browse songs, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + browse songs, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S45 cont.)**: Completed player audit fixes across both platforms:
-  1. **Transport**: ONLY ⏮ Restart | ▶ Play | ■ Stop (all modes, both platforms) — verified
-  2. **Mixer paradigm**: Every sound source gets own mixer channel/fader (CLK, TRK, DRM, BAS, VOX) in bottom drawer — verified
-  3. **Glow toggle**: Card-level beat glow = locked default (VisualHero). Fullscreen edge glow = experimental opt-in toggle in drawer DISPLAY section. Added to all 3 Android screens + web Player.tsx.
-  4. **Queue tabs**: 3-tab overlay (Queue/Songs/Setlists) on both platforms. Queue = current setlist songs, Songs = all songs browse, Setlists = all setlists browse. Works with or without active setlist.
-  5. **Browse Songs button**: Nav row shows "Browse Songs" when no setlist active (all modes, both platforms).
-  6. **Settings pills**: Wired up in web drawer (already done previous session).
-  7. **Mode switching**: Web already had onSwitchMode wired. Android has it via NavController.
-  8. **Builds**: Android assembleDebug SUCCESSFUL. Web tsc -b clean.
-- **Next action**: Remaining S45 calendar/library/settings cosmetic gaps (see todo.md). Library-as-queue (playing filtered songs) deferred as separate sprint item.
+- **Phase**: S46 — Stabilization. Critical bugs fixed. Player persistence + queue + auto-save.
+- **What works**: Web (full, V4 player with queue tabs + glow toggle + browse songs, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session (S46)**: Stabilization sprint — fix everything before new features:
+  1. **System bar padding**: Replaced hardcoded/per-screen `statusBarsPadding()` with single `systemBarsPadding()` on NavHost. All 7 screens cleaned up. Gap above headers FIXED.
+  2. **Android 12+ splash**: Added `values-v31/themes.xml` with dark splash background. No more white flash.
+  3. **D-165 Track auto-load/release**: Added `resetTrack()` through C++→JNI→Kotlin chain. `selectSong()` now stops old track, resets engine, auto-loads new song's audio.
+  4. **D-167 Auto-save beat analysis**: Analysis results saved to Supabase automatically on completion. No manual "Save" banner tap needed.
+  5. **D-168 Queue = source list**: Generalized queue system. Selecting a song from any list (filtered songs, setlist) makes that list the queue for next/prev navigation. Queue overlay Songs/Setlists tabs update the queue on selection.
+  6. **D-166 Player persistence**: Auth flicker protection (wasAuthenticated flag), splash skip on resume (splashDone in ViewModel), "Now Playing" drawer item to return to active player.
+  7. **Close button**: X button on player header ends session (stops engine, clears state, navigates to Library). Menu hamburger button preserved alongside for drawer access.
+  8. **Builds**: Android assembleDebug SUCCESSFUL.
+- **Next action**: Web parity for D-165/D-166/D-167/D-168. Remaining cosmetic gaps (see todo.md). Full cross-platform parity audit.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

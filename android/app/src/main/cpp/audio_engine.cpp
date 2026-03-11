@@ -229,6 +229,18 @@ void AudioEngine::loadTrack(std::vector<float>&& pcmData, int32_t numFrames,
     trackPlayer_.load(std::move(pcmData), numFrames, sampleRate, channels);
 }
 
+void AudioEngine::resetTrack() {
+    // D-165: Stop playback and release track + all stems so a new song can load clean
+    trackPlayer_.stop();
+    trackPlayer_.reset();
+    for (int32_t i = 0; i < MAX_STEMS; i++) {
+        stemPlayers_[i].stop();
+        stemPlayers_[i].reset();
+    }
+    metronome_.clearBeatMap();
+    LOGI("resetTrack: track + %d stems released", MAX_STEMS);
+}
+
 void AudioEngine::playTrack() {
     trackPlayer_.play();
     for (int32_t i = 0; i < MAX_STEMS; i++) {

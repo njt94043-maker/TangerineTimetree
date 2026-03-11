@@ -38,6 +38,7 @@ object AudioEngineBridge {
 
     // --- Track Player ---
     external fun nativeLoadTrack(pcmData: FloatArray, numFrames: Int, sampleRate: Int, channels: Int)
+    external fun nativeResetTrack()  // D-165: stop + unload track + all stems
     external fun nativePlayTrack()
     external fun nativePauseTrack()
     external fun nativeStopTrack()

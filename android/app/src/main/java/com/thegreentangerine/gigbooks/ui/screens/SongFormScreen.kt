@@ -214,7 +214,7 @@ fun SongFormScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(GigColors.surface)
-                .padding(top = 48.dp, start = 4.dp, end = 16.dp, bottom = 12.dp),
+                .padding(start = 4.dp, end = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {

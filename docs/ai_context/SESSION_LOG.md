@@ -1684,3 +1684,44 @@
 - Deploy beats-only endpoint (D-148): skip_stems=true → madmom only
 - Re-analyse from mixed master (D-151): server mixes best takes → madmom → replaces beat_map
 - See SPRINT_PROMPTS.md for pickup prompt
+
+---
+
+## S46 — Stabilization (2026-03-11)
+
+### Context
+User directive: STOP all new features. Fix everything to current specs. Both platforms must be identical.
+
+### What Got Done
+1. **System bar padding fix**: Removed per-screen `statusBarsPadding()` from all 7 screens. Added single `systemBarsPadding()` on NavHost. Fixed gap above headers on all screens.
+2. **Android 12+ splash fix**: Created `values-v31/themes.xml` with `windowSplashScreenBackground=#0a0a10`. No more white flash before app loads.
+3. **D-165 Track auto-load/release**: Added `resetTrack()` in C++ AudioEngine (stop track + stems + clear beat map), JNI bridge, Kotlin bridge. `selectSong()` now auto-resets old track and auto-loads new song's audio.
+4. **D-167 Auto-save beat analysis**: Both server beatmap and local BTrack analysis results now auto-call `applyDetectedBeat()` instead of showing a "Save" banner. Results saved to Supabase immediately.
+5. **D-168 Queue = source list**: Added `queueSongs`, `queueIdx`, `queueLabel` to AppViewModel. Library passes filtered song list as queue when launching player. Setlists populate queue via `selectSetlist()`. `nextSong()`/`prevSong()` use generalized queue. Queue overlay tabs update queue on selection.
+6. **D-166 Player persistence**: Auth flicker protection (`wasAuthenticated` in MainActivity), `splashDone` flag in ViewModel to skip splash on resume. "Now Playing" drawer item appears when player session is active. `activePlayerRoute` tracked in ViewModel.
+7. **Player close button**: X button on PlayerHeader calls `exitPlayer()` — stops engine, clears song/queue/session state, navigates to Library. Menu hamburger preserved alongside for drawer access.
+8. **Decisions logged**: D-165, D-166, D-167, D-168. Gotchas logged: AI replacing functionality, AI narrowing entry points, AI editing without approval.
+
+### Files Changed (20 files)
+- C++ engine: `audio_engine.h/cpp` (resetTrack), `jni_bridge.cpp` (nativeResetTrack)
+- Kotlin: `AudioEngineBridge.kt`, `AppViewModel.kt` (queue, auto-save, exitPlayer, splashDone, activePlayerRoute), `GigBooksApp.kt` (systemBarsPadding, splash skip, Now Playing drawer, close callbacks), `MainActivity.kt` (auth flicker protection)
+- Screens: All 7 screens (statusBarsPadding removal), `LiveScreen.kt` + `PracticeScreen.kt` + `ViewScreen.kt` (queue refs, onClose)
+- Components: `PlayerComponents.kt` (close button + menu button, removed hardcoded 48dp)
+- Resources: `values-v31/themes.xml` (new)
+- SOT docs: decisions_log.md, NATHAN_VERBATIM.md, gotchas.md, todo.md, STATUS.md, SESSION_LOG.md
+
+### What's NOT Done (web parity pending)
+- Web: Track auto-load/release (D-165 web side)
+- Web: Player persistence (D-166 web side)
+- Web: Auto-save beat analysis (D-167 web side)
+- Web: Queue = source list (D-168 web side)
+- Web: Library rebuild to match Android (D-163)
+- Full cross-platform parity audit
+- Remaining cosmetic gaps from S45 audit
+
+### What's Blocked
+- Nothing
+
+### Next Session
+- Web parity for D-165/D-166/D-167/D-168
+- Cross-platform visual audit (screenshot every screen on both platforms)

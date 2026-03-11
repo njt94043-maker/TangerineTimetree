@@ -43,6 +43,31 @@
 **2026-03-11** (from previous session context):
 > "are you taking shortcuts again?"
 
+## Cross-Platform Parity (ONE APP, TWO PLATFORMS)
+
+**2026-03-11**:
+> "this is what you cant seem to manage! you have never been able to consider the both apps one app. they both need to be the same, youve made improvments just to apk now and got losts wich ones are correct?"
+
+> [Re: Library screen — Android APK is more correct than web] "in this case its the apk thats more correct apart from that gap at the top. (live / practice / view are shown when user taps a song by expanding the card)"
+
+## Player / Track Loading
+
+**2026-03-11**:
+> "when a song is opened its track / tracks should open automatically and release when song is changed and the next song opened should be loaded. currently when 1 song is loaded, its stuck there and all other songs can only play that one opened track. and the player is not persistant, if i navigate away the player is lost and i go back to calander but track is still stuck loaded"
+
+**2026-03-11**:
+> "it doesnt save the loaded song so i still have to tap save, that should be automatic also. (rec n share has the re-analys option assuming 1st attempt fails, it generally doesnt with our beatmaps)"
+
+## Queue Behavior
+
+**2026-03-11**:
+> "upon first entry to the players, whatever songs is selected becomes the qued list of songs started from on that list that song was selected from. we can move to ther lists from that queue list, whatever song is selected its list it came from becomes the queue"
+
+## Stabilization / Priority
+
+**2026-03-11**:
+> "i dont know, i think we should fix everything now before changing anything else. we cant make any more changes until we know more. we need both apps completed to current specs"
+
 ## Visual Ideas (mentioned but not yet decided)
 
 **2026-03-11** — Nathan acknowledged these as options but didn't pick one yet:
