@@ -183,3 +183,9 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "push then address next set of issues, in this session if we have enough memory, or another one if safer. webapp installed on my pc doesnt import from tgt capture as intended. webapp wont attatch the practice app to start the process of giving me seperated stems with beatmap attatched. its built and functional but only ever completed end to end by ai so never fully set up for me to run the tasks on my own through the app as intended"
 
 > "thats not what i said. capture works as intended now. fixed. webapp has import from capture function, its supposed to create a song from my capture library, or full lists. thats a later on feature, but even basic 1 track import doesnt work yet. most important tho is the practice track pipeline as this affects me directly"
+
+> "PROCESSING Failed: Failed to fetch" [after uploading practice track on deployed webapp]
+
+> "dont you push it through, it needs to work for me"
+
+> "so its the queue in the app thats not workin?"

@@ -118,14 +118,25 @@ export function ImportPanel({ onClose, onImported }: Props) {
       const fileName = `import-${Date.now()}.mp3`;
       const audioUrl = await uploadPracticeTrack(song.id, fileName, audioBuffer, 'audio/mpeg');
 
-      // 4. Trigger Cloud Run processing (full pipeline)
+      // 4. Trigger Cloud Run processing (full pipeline) — retry for cold start
       if (BEAT_ANALYSIS_URL) {
         setImportStatus('Starting analysis...');
-        await fetch(`${BEAT_ANALYSIS_URL}/process`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ song_id: song.id, audio_url: audioUrl }),
-        });
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            if (attempt > 1) setImportStatus(`Server waking up... attempt ${attempt}/3`);
+            const procResp = await fetch(`${BEAT_ANALYSIS_URL}/process`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ song_id: song.id, audio_url: audioUrl }),
+            });
+            if (procResp.ok) break;
+            const procErr = await procResp.json().catch(() => ({ error: '' }));
+            if (attempt === 3) throw new Error(procErr.error || `HTTP ${procResp.status}`);
+          } catch (fetchErr) {
+            if (attempt === 3) throw fetchErr;
+            await new Promise(r => setTimeout(r, 5000));
+          }
+        }
       }
 
       // 5. Mark as imported in Capture (update song_id FK)
