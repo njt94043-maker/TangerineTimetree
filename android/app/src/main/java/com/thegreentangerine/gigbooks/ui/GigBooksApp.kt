@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.HorizontalDivider
@@ -71,6 +72,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object View     : Screen("view",     "View Mode",        Icons.Default.CalendarMonth)  // Not in drawer
     data object Settings : Screen("settings", "Settings",         Icons.Default.Settings)
     data object SongForm : Screen("songform", "Edit Song",        Icons.Default.Settings)  // Not in drawer
+    data object NowPlaying : Screen("nowplaying", "Now Playing", Icons.Default.PlayArrow)  // Dynamic drawer item (D-166)
 }
 
 // Only these appear in the drawer
@@ -79,6 +81,8 @@ private val drawerScreens = listOf(Screen.Calendar, Screen.Library, Screen.Setti
 @Composable
 fun GigBooksApp() {
     val vm: AppViewModel    = viewModel()
+    // D-166: Skip splash on Activity recreation / resume — go straight to Calendar
+    val startDest = if (vm.splashDone) Screen.Calendar.route else Screen.Splash.route
     val navController       = rememberNavController()
     val drawerState         = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope               = rememberCoroutineScope()
@@ -121,9 +125,19 @@ fun GigBooksApp() {
                 DrawerSectionLabel("MUSIC")
                 DrawerNavItem(
                     Screen.Library,
-                    currentRoute in listOf(Screen.Library.route, Screen.Live.route, Screen.Practice.route, Screen.View.route),
+                    currentRoute == Screen.Library.route,
                     GigColors.teal,
                 ) { navigate(Screen.Library.route) }
+
+                // D-166: "Now Playing" — return to active player session
+                val playerRoute = vm.activePlayerRoute
+                if (playerRoute != null && vm.selectedSong != null) {
+                    DrawerNavItem(
+                        Screen.NowPlaying,
+                        currentRoute in listOf(Screen.Live.route, Screen.Practice.route, Screen.View.route),
+                        GigColors.green,
+                    ) { navigate(playerRoute) }
+                }
 
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
@@ -134,11 +148,12 @@ fun GigBooksApp() {
     ) {
         NavHost(
             navController    = navController,
-            startDestination = Screen.Splash.route,
-            modifier = Modifier.fillMaxSize().safeDrawingPadding().background(GigColors.background),
+            startDestination = startDest,
+            modifier = Modifier.fillMaxSize().systemBarsPadding().background(GigColors.background),
         ) {
             composable(Screen.Splash.route) {
                 SplashScreen(onFinished = {
+                    vm.splashDone = true
                     navController.navigate(Screen.Calendar.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
@@ -151,28 +166,37 @@ fun GigBooksApp() {
                 LibraryScreen(
                     vm          = vm,
                     onMenuClick = { openMenu() },
-                    onLaunchLive = { song ->
+                    onLaunchLive = { song, songList ->
+                        vm.setQueue(songList, song)  // D-168
                         vm.selectSong(song)
+                        vm.enterPlayer(Screen.Live.route)
                         navigate(Screen.Live.route)
                     },
-                    onLaunchPractice = { song ->
+                    onLaunchPractice = { song, songList ->
+                        vm.setQueue(songList, song)  // D-168
                         vm.selectSong(song)
+                        vm.enterPlayer(Screen.Practice.route)
                         navigate(Screen.Practice.route)
                     },
                     onLaunchSetlistLive = { setlist ->
                         vm.selectSetlist(setlist)
+                        vm.enterPlayer(Screen.Live.route)
                         navigate(Screen.Live.route)
                     },
                     onLaunchSetlistPractice = { setlist ->
                         vm.selectSetlist(setlist)
+                        vm.enterPlayer(Screen.Practice.route)
                         navigate(Screen.Practice.route)
                     },
-                    onLaunchView = { song ->
+                    onLaunchView = { song, songList ->
+                        vm.setQueue(songList, song)  // D-168
                         vm.selectSong(song)
+                        vm.enterPlayer(Screen.View.route)
                         navigate(Screen.View.route)
                     },
                     onLaunchSetlistView = { setlist ->
                         vm.selectSetlist(setlist)
+                        vm.enterPlayer(Screen.View.route)
                         navigate(Screen.View.route)
                     },
                     onEditSong = { song ->
@@ -185,24 +209,27 @@ fun GigBooksApp() {
                 LiveScreen(
                     vm            = vm,
                     onMenuClick   = { openMenu() },
-                    onGoToLibrary = { navigate(Screen.Library.route) },
-                    onSwitchMode  = { mode -> navigate(mode) },
+                    onGoToLibrary = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onClose       = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> vm.enterPlayer(mode); navigate(mode) },
                 )
             }
             composable(Screen.Practice.route) {
                 PracticeScreen(
                     vm            = vm,
                     onMenuClick   = { openMenu() },
-                    onGoToLibrary = { navigate(Screen.Library.route) },
-                    onSwitchMode  = { mode -> navigate(mode) },
+                    onGoToLibrary = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onClose       = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> vm.enterPlayer(mode); navigate(mode) },
                 )
             }
             composable(Screen.View.route) {
                 ViewScreen(
                     vm            = vm,
                     onMenuClick   = { openMenu() },
-                    onGoToLibrary = { navigate(Screen.Library.route) },
-                    onSwitchMode  = { mode -> navigate(mode) },
+                    onGoToLibrary = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onClose       = { vm.exitPlayer(); navigate(Screen.Library.route) },
+                    onSwitchMode  = { mode -> vm.enterPlayer(mode); navigate(mode) },
                 )
             }
             composable(Screen.SongForm.route) {

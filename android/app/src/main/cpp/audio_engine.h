@@ -68,6 +68,7 @@ public:
     // --- Track Player ---
     void loadTrack(std::vector<float>&& pcmData, int32_t numFrames,
                    int32_t sampleRate, int32_t channels);
+    void resetTrack();  // Stop + unload track + all stems (D-165)
     void playTrack();
     void pauseTrack();
     void stopTrack();

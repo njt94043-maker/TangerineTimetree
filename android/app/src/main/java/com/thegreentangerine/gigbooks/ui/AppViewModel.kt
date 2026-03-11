@@ -35,6 +35,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val engineAvailable: Boolean = GigBooksApplication.engineAvailable
 
+    // D-166: Track splash completion so we skip it on Activity recreation / resume
+    var splashDone by mutableStateOf(false)
+
     // ── Library ───────────────────────────────────────────────────────────────
     var songs    by mutableStateOf<List<Song>>(emptyList());           private set
     var setlists by mutableStateOf<List<SetlistWithSongs>>(emptyList()); private set
@@ -56,6 +59,32 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var selectedSong     by mutableStateOf<Song?>(null)
     var activeSetlist    by mutableStateOf<SetlistWithSongs?>(null);   private set
     var activeSetlistIdx by mutableStateOf(0);                         private set
+
+    // D-166: Track the last player mode so the drawer can offer "return to player"
+    // Values: "live", "practice", "view", or null when no player session is active
+    var activePlayerRoute by mutableStateOf<String?>(null);            private set
+
+    fun enterPlayer(route: String) { activePlayerRoute = route }
+    fun exitPlayer() {
+        activePlayerRoute = null
+        // Stop playback + release audio so nothing runs in background
+        if (engineAvailable) try {
+            if (isClickPlaying) { AudioEngineBridge.nativeStopClick(); isClickPlaying = false }
+            AudioEngineBridge.nativeResetTrack()
+        } catch (_: Exception) { }
+        trackLoaded = false
+        isTrackPlaying = false
+        selectedSong = null
+        queueSongs = emptyList()
+        activeSetlist = null
+    }
+
+    // ── Queue (D-168) ────────────────────────────────────────────────────────
+    // Generalized queue: the ordered list of songs for next/prev navigation.
+    // Set from the source list the user tapped from (filtered songs, setlist, etc.)
+    var queueSongs by mutableStateOf<List<Song>>(emptyList());  private set
+    var queueIdx   by mutableStateOf(0);                         private set
+    var queueLabel by mutableStateOf("All Songs");               private set
 
     // ── Click engine ──────────────────────────────────────────────────────────
     var isClickPlaying by mutableStateOf(false);    private set
@@ -456,6 +485,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun selectSong(song: Song) {
+        // D-165: Stop + release previous track/stems before loading new song
+        if (engineAvailable) try {
+            if (isClickPlaying) { AudioEngineBridge.nativeStopClick(); isClickPlaying = false }
+            AudioEngineBridge.nativeResetTrack()
+        } catch (_: Exception) { }
+        trackLoaded     = false
+        loadedStems     = emptyList()
+        stemErrors      = emptyMap()
+        stemGains       = emptyMap()
+
         selectedSong        = song
         bpmOffset           = 0f
         practiceSpeed       = 1f
@@ -469,13 +508,34 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             ?.indexOfFirst { it.songs?.id == song.id }
             ?.takeIf { it >= 0 }
             ?.let { activeSetlistIdx = it }
+        // D-168: keep queueIdx in sync
+        queueSongs.indexOfFirst { it.id == song.id }
+            .takeIf { it >= 0 }
+            ?.let { queueIdx = it }
         applyEngineSettings(song)  // always sync BPM/time-sig to engine when song selected
+
+        // D-165: Auto-load the new song's track if it has audio
+        if (song.hasAudio) {
+            loadTrack(song.audioUrl!!)
+        }
     }
 
     fun selectSetlist(setlist: SetlistWithSongs) {
         activeSetlist    = setlist
         activeSetlistIdx = 0
+        // D-168: setlist songs become the queue
+        queueSongs = setlist.songs.mapNotNull { it.songs }
+        queueIdx   = 0
+        queueLabel = setlist.setlist.name
         setlist.songs.firstOrNull()?.songs?.let { selectSong(it) }
+    }
+
+    /** D-168: Set the queue from an ad-hoc song list (e.g. filtered Library songs). */
+    fun setQueue(songs: List<Song>, startSong: Song, label: String = "All Songs") {
+        activeSetlist = null
+        queueSongs = songs
+        queueIdx   = songs.indexOfFirst { it.id == startSong.id }.coerceAtLeast(0)
+        queueLabel = label
     }
 
     fun clearSetlist() { activeSetlist = null }
@@ -487,43 +547,57 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun restartSetlist() {
         isSetComplete = false
+        queueIdx = 0
         activeSetlistIdx = 0
-        activeSetlist?.songs?.firstOrNull()?.songs?.let { selectSong(it) }
+        queueSongs.firstOrNull()?.let { selectSong(it) }
     }
 
     fun nextSong() {
-        val list = activeSetlist?.songs ?: return
-        if (activeSetlistIdx < list.size - 1) {
-            activeSetlistIdx++
-            list[activeSetlistIdx].songs?.let { selectSong(it) }
+        // D-168: navigate via generalized queue
+        if (queueSongs.isEmpty()) return
+        if (queueIdx < queueSongs.size - 1) {
+            queueIdx++
+            activeSetlist?.let { activeSetlistIdx = queueIdx }
+            selectSong(queueSongs[queueIdx])
         } else {
             isSetComplete = true
         }
     }
 
     fun prevSong() {
-        val list = activeSetlist?.songs ?: return
-        if (activeSetlistIdx > 0) {
-            activeSetlistIdx--
-            list[activeSetlistIdx].songs?.let { selectSong(it) }
+        if (queueSongs.isEmpty()) return
+        if (queueIdx > 0) {
+            queueIdx--
+            activeSetlist?.let { activeSetlistIdx = queueIdx }
+            selectSong(queueSongs[queueIdx])
         }
     }
 
     fun reorderSetlistSong(fromIdx: Int, toIdx: Int) {
-        val current = activeSetlist ?: return
-        if (fromIdx == toIdx) return
-        val songs = current.songs.toMutableList()
-        val moved = songs.removeAt(fromIdx)
-        songs.add(toIdx, moved)
-        activeSetlist = current.copy(songs = songs)
-        activeSetlistIdx = songs.indexOfFirst { it.songs?.id == selectedSong?.id }.coerceAtLeast(0)
+        if (fromIdx == toIdx || queueSongs.isEmpty()) return
+        val reordered = queueSongs.toMutableList()
+        val moved = reordered.removeAt(fromIdx)
+        reordered.add(toIdx, moved)
+        queueSongs = reordered
+        queueIdx = reordered.indexOfFirst { it.id == selectedSong?.id }.coerceAtLeast(0)
+        // Keep activeSetlist in sync if present
+        val current = activeSetlist
+        if (current != null) {
+            val setlistSongs = current.songs.toMutableList()
+            if (fromIdx in setlistSongs.indices && toIdx in setlistSongs.indices) {
+                val movedSls = setlistSongs.removeAt(fromIdx)
+                setlistSongs.add(toIdx, movedSls)
+                activeSetlist = current.copy(songs = setlistSongs)
+                activeSetlistIdx = queueIdx
+            }
+        }
     }
 
     fun jumpToSong(idx: Int) {
-        val list = activeSetlist?.songs ?: return
-        if (idx in list.indices) {
-            activeSetlistIdx = idx
-            list[idx].songs?.let { selectSong(it) }
+        if (idx in queueSongs.indices) {
+            queueIdx = idx
+            activeSetlist?.let { activeSetlistIdx = idx }
+            selectSong(queueSongs[idx])
         }
     }
 
@@ -754,7 +828,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     } catch (_: Exception) { }
                                     nudgeOffsetMs       = 0f
                                     appliedBeatOffsetMs = detectedOffsetMs
-                                    showBeatBanner      = true
+                                    applyDetectedBeat() // D-167: auto-save, no manual tap
                                 }
                                 applied = true
                                 android.util.Log.i("GigBooks", "Server beat map applied: ${beatsArr.size} beats, ${beatMap.bpm} BPM")
@@ -781,7 +855,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             } catch (_: Exception) { }
                             nudgeOffsetMs       = 0f
                             appliedBeatOffsetMs = detectedOffsetMs
-                            showBeatBanner      = true
+                            applyDetectedBeat() // D-167: auto-save, no manual tap
                         }
                     }
                 }

@@ -156,6 +156,12 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeLoadTrack(
 }
 
 JNIEXPORT void JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeResetTrack(
+        JNIEnv*, jclass) {
+    AudioEngine::getInstance().resetTrack();
+}
+
+JNIEXPORT void JNICALL
 Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativePlayTrack(
         JNIEnv*, jclass) {
     AudioEngine::getInstance().playTrack();

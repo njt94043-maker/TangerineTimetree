@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -63,6 +64,7 @@ fun PlayerHeader(
     setlistName: String? = null,
     setlistPosition: String? = null,
     onBackClick: () -> Unit,
+    onClose: (() -> Unit)? = null,
     modeBadgeLabel: String? = null,
     modeBadgeColor: Color? = null,
     onSwitchMode: ((String) -> Unit)? = null,
@@ -73,17 +75,29 @@ fun PlayerHeader(
         modifier = Modifier
             .fillMaxWidth()
             .background(GigColors.background)
-            .padding(top = 48.dp, start = 8.dp, end = 14.dp, bottom = 6.dp),
+            .padding(start = 8.dp, end = 14.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Back / menu button
+        // Menu button — open drawer to browse Calendar/Settings (session stays alive)
         IconButton(onClick = onBackClick, modifier = Modifier.size(36.dp)) {
             Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                Icons.Default.Menu,
+                contentDescription = "Menu",
                 tint = GigColors.textDim,
                 modifier = Modifier.size(20.dp),
             )
+        }
+
+        // Close button — exits player session (D-166)
+        if (onClose != null) {
+            IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Close player",
+                    tint = GigColors.textMuted,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
 
         // Song info (center)

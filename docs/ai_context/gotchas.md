@@ -399,7 +399,28 @@
 - **Impact**: User had to re-explain the same locked decisions repeatedly within one session. Each "fix" broke something else. Trust eroded.
 - **Fix**: Before modifying ANY behavioral code: (1) Read decisions_log.md for related decisions. (2) If code has a comment explaining WHY something is a certain way, DO NOT CHANGE IT without asking. (3) Log every new decision IMMEDIATELY in decisions_log.md before writing code. (4) When user says "X was working before", the first action is `git log` + `git diff` to find what changed, not to theorize about what's wrong.
 
+### Library parity failure — web and Android diverged AGAIN (S45, 2026-03-11)
+- **What happened**: S45 todo listed Web Library fixes (badge restructure, filter labels, etc.) that refined web's EXISTING layout. But the web layout was wrong — it didn't match Android. Android Library (NeuCard cards, big BPM, tap-to-expand, badges) was the correct design all along. The todo was making web "better" but in the wrong direction.
+- **Root cause**: Same as player divergence — improvements made to one platform without checking if the other platform already had the correct version. No "which is the reference?" check before writing tasks.
+- **Impact**: S45 Web Library todo items are INVALID as written. Need to be rewritten to target "match Android Library layout" instead.
+- **Fix**: D-163 (Android Library is reference), D-164 (every UI change must specify both platforms). Before writing any screen-level todo, screenshot BOTH platforms and explicitly declare which is correct.
+
 ### Beat sync: polling vs event-driven (S45, 2026-03-11)
 - **What happened**: C++ metronome stored `currentBeat_` as 0-indexed (0,1,2,3). UI used 0 as "idle". So beat 0 (first beat of every bar) was invisible — no flash, no dot. Additionally, raw 40ms polling caused visual drift from the click sound.
 - **Root cause**: No change-detection mechanism. UI polled raw `currentBeat_` which had dual meaning (0 = idle AND 0 = first beat). No way to distinguish "no beat fired yet" from "beat 0 just fired".
 - **Fix**: Added `beatTick_` atomic counter in C++ that only increments when a beat fires in the audio thread. Kotlin polls every 16ms but only updates UI when `beatTick` changes AND > 0. `currentBeat` converted to 1-indexed (1..N) at the single Kotlin conversion point. 0 = idle only. See D-161.
+
+### AI editing files without user approval (S46, 2026-03-11)
+- **What happened**: System notifications said a file was "modified by a linter". AI treated this as confirmation to proceed without checking with the user. The user had to call it out.
+- **Root cause**: AI assumed linter changes = automatic approval. But ANY file modification notification should prompt a check-in with the user, not silent continuation.
+- **Rule**: When a file is flagged as externally modified, ALWAYS ask the user before continuing edits. Never assume silent approval.
+
+### AI narrowing entry points without user approval (S46, 2026-03-11)
+- **What happened**: AI changed the player screens so the ONLY way to enter them was through Library → song selection. Original design had players as standalone navigable destinations. User lost the ability to return to a running player from the drawer.
+- **Root cause**: AI optimised for one flow (fresh song launch) and removed the ability to return to an existing session. Didn't consider the user's original design where players are always accessible.
+- **Rule**: Never remove entry points or navigation paths without explicitly confirming the change with the user. If the original design supports multiple ways to reach a screen, preserve ALL of them.
+
+### AI replacing functionality instead of adding to it (S46, 2026-03-11)
+- **What happened**: User asked for a close/exit button on the player. AI replaced the existing menu/hamburger button with the close button, removing the ability to open the drawer from within the player. User had to point out they need BOTH — menu to browse mid-session, close to end session.
+- **Root cause**: AI treated "add X" as "replace existing with X". This is the same pattern as narrowing entry points — removing existing functionality when adding new functionality.
+- **Rule**: When adding a new button/action, NEVER remove or replace existing ones unless explicitly told to. Always ADD alongside. Ask "does the existing button stay?" if unsure. Think about what the user could do BEFORE the change and make sure they can still do ALL of it AFTER.

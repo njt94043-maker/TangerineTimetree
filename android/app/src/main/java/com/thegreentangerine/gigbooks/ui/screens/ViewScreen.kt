@@ -77,7 +77,7 @@ import kotlin.math.sin
  * Record button for layering (D-144).
  */
 @Composable
-fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onSwitchMode: (String) -> Unit = {}) {
+fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onClose: () -> Unit = {}, onSwitchMode: (String) -> Unit = {}) {
     val song = vm.selectedSong
 
     // Display toggles (local state)
@@ -138,7 +138,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(GigColors.background)
-                    .padding(top = 48.dp, start = 8.dp, end = 16.dp, bottom = 12.dp),
+                    .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onMenuClick) {
@@ -158,6 +158,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 bpm = vm.effectiveBpm.toInt(),
                 isLiveMode = false,
                 onBackClick = onMenuClick,
+                onClose = onClose,
                 onSwitchMode = { mode -> vm.stop(); onSwitchMode(mode) },
                 currentMode = "view",
             )
@@ -284,21 +285,17 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 RecordingBanner(vm)
             }
 
-            // Nav Row (prev/next song) — all modes
+            // Nav Row (prev/next song) — all modes (D-168: generalized queue)
             run {
-                val setlist = vm.activeSetlist
-                if (setlist != null) {
-                    val prevName = if (vm.activeSetlistIdx > 0) {
-                        setlist.songs.getOrNull(vm.activeSetlistIdx - 1)?.songs?.name
-                    } else null
-                    val nextName = if (vm.activeSetlistIdx < setlist.songs.size - 1) {
-                        setlist.songs.getOrNull(vm.activeSetlistIdx + 1)?.songs?.name
-                    } else null
+                val queue = vm.queueSongs
+                if (queue.size > 1) {
+                    val prevName = queue.getOrNull(vm.queueIdx - 1)?.name
+                    val nextName = queue.getOrNull(vm.queueIdx + 1)?.name
 
                     PlayerNavRow(
                         prevSongName = prevName,
                         nextSongName = nextName,
-                        queueLabel = "${vm.activeSetlistIdx + 1}/${setlist.songs.size}",
+                        queueLabel = "${vm.queueIdx + 1}/${queue.size}",
                         onPrev = { vm.prevSong() },
                         onNext = { vm.nextSong() },
                         onQueue = { showQueue = true },

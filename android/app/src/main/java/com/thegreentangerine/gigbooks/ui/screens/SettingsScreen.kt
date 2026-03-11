@@ -59,7 +59,7 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(GigColors.surface)
-                .padding(top = 48.dp, start = 8.dp, end = 16.dp, bottom = 12.dp),
+                .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onMenuClick) {

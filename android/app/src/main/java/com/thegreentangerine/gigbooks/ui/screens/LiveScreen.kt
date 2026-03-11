@@ -64,7 +64,7 @@ import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
 @Composable
-fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onSwitchMode: (String) -> Unit = {}) {
+fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onClose: () -> Unit = {}, onSwitchMode: (String) -> Unit = {}) {
     val song = vm.selectedSong
     var showQueue by remember { mutableStateOf(false) }
     var showSpeedConfirm by remember { mutableStateOf(false) }
@@ -82,10 +82,10 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     var drawerOpen by remember { mutableStateOf(false) }
 
     // Set complete overlay
-    if (vm.isSetComplete && vm.activeSetlist != null) {
+    if (vm.isSetComplete && vm.queueSongs.isNotEmpty()) {
         SetCompleteScreen(
-            setlistName = vm.activeSetlist!!.setlist.name,
-            songCount = vm.activeSetlist!!.songs.size,
+            setlistName = vm.queueLabel,
+            songCount = vm.queueSongs.size,
             onRestart = { vm.restartSetlist() },
             onGoToLibrary = { vm.dismissSetComplete(); onGoToLibrary() },
         )
@@ -100,7 +100,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(GigColors.background)
-                        .padding(top = 48.dp, start = 8.dp, end = 16.dp, bottom = 12.dp),
+                        .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onMenuClick) {
@@ -113,8 +113,8 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     onGoToLibrary = onGoToLibrary,
                 )
             } else {
-                val setlist = vm.activeSetlist
-                val setlistPos = if (setlist != null) "${vm.activeSetlistIdx + 1} of ${setlist.songs.size}" else null
+                val queue = vm.queueSongs
+                val setlistPos = if (queue.size > 1) "${vm.queueIdx + 1} of ${queue.size}" else null
 
                 // V4 Header
                 PlayerHeader(
@@ -122,9 +122,10 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     songArtist = song.artist,
                     bpm = vm.effectiveBpm.toInt(),
                     isLiveMode = true,
-                    setlistName = setlist?.setlist?.name,
+                    setlistName = if (queue.size > 1) vm.queueLabel else null,
                     setlistPosition = setlistPos,
                     onBackClick = onMenuClick,
+                    onClose = onClose,
                     onSwitchMode = { mode -> vm.stopClick(); onSwitchMode(mode) },
                     currentMode = "live",
                 )
@@ -166,19 +167,15 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     )
                 }
 
-                // Nav Row (prev/next song) — above transport
-                if (setlist != null) {
-                    val prevName = if (vm.activeSetlistIdx > 0) {
-                        setlist.songs.getOrNull(vm.activeSetlistIdx - 1)?.songs?.name
-                    } else null
-                    val nextName = if (vm.activeSetlistIdx < setlist.songs.size - 1) {
-                        setlist.songs.getOrNull(vm.activeSetlistIdx + 1)?.songs?.name
-                    } else null
+                // Nav Row (prev/next song) — above transport (D-168: generalized queue)
+                if (queue.size > 1) {
+                    val prevName = queue.getOrNull(vm.queueIdx - 1)?.name
+                    val nextName = queue.getOrNull(vm.queueIdx + 1)?.name
 
                     PlayerNavRow(
                         prevSongName = prevName,
                         nextSongName = nextName,
-                        queueLabel = "${vm.activeSetlistIdx + 1}/${setlist.songs.size}",
+                        queueLabel = "${vm.queueIdx + 1}/${queue.size}",
                         onPrev = { vm.prevSong() },
                         onNext = { vm.nextSong() },
                         onQueue = { showQueue = true },
@@ -420,24 +417,23 @@ private fun QueueTab(label: String, idx: Int, activeTab: Int, onClick: () -> Uni
 
 @Composable
 private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
-    val setlist = vm.activeSetlist
-    if (setlist == null) {
+    val queue = vm.queueSongs
+    if (queue.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No active queue", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
         }
         return
     }
-    val currentIdx = vm.activeSetlistIdx
+    val currentIdx = vm.queueIdx
 
-    // Setlist name subtitle
-    Text(setlist.setlist.name, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    // Queue label subtitle (D-168)
+    Text(vm.queueLabel, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
     Spacer(Modifier.height(8.dp))
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        itemsIndexed(setlist.songs, key = { _, row -> row.id }) { idx, row ->
+        itemsIndexed(queue, key = { _, s -> s.id }) { idx, song ->
             val isCurrent = idx == currentIdx
             val isPlayed = idx < currentIdx
-            val song = row.songs
 
             Column(
                 modifier = Modifier
@@ -468,7 +464,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            song?.name ?: "",
+                            song.name,
                             fontFamily = Karla,
                             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 14.sp,
@@ -478,7 +474,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                                 else -> GigColors.textDim
                             },
                         )
-                        if (song != null && song.artist.isNotBlank()) {
+                        if (song.artist.isNotBlank()) {
                             Text(
                                 song.artist,
                                 fontFamily = Karla, fontSize = 11.sp,
@@ -488,7 +484,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     }
 
                     Text(
-                        "${song?.bpm?.toInt() ?: ""}",
+                        "${song.bpm.toInt()}",
                         fontFamily = JetBrainsMono, fontSize = 12.sp,
                         color = if (isCurrent) GigColors.orange else GigColors.textMuted,
                     )
@@ -509,13 +505,13 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         }
                         IconButton(
                             onClick = { vm.reorderSetlistSong(idx, idx + 1) },
-                            enabled = idx < setlist.songs.size - 1,
+                            enabled = idx < queue.size - 1,
                             modifier = Modifier.size(24.dp),
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Move down",
-                                tint = if (idx < setlist.songs.size - 1) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
+                                tint = if (idx < queue.size - 1) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -531,7 +527,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     )
                 }
             }
-            if (!isCurrent && idx < setlist.songs.size - 1) {
+            if (!isCurrent && idx < queue.size - 1) {
                 androidx.compose.material3.HorizontalDivider(
                     color = GigColors.textMuted.copy(alpha = 0.1f),
                     modifier = Modifier.padding(horizontal = 4.dp),
@@ -570,6 +566,7 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         else Modifier
                     )
                     .clickable {
+                        vm.setQueue(songs, song, "All Songs")  // D-168
                         vm.selectSong(song)
                         onDismiss()
                     }
