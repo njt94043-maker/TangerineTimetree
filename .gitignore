@@ -30,6 +30,9 @@ native/modules/**/android/.cxx/
 .DS_Store
 *.sw?
 
+# Claude Code settings (may contain secret-bearing permissions)
+.claude/settings.json
+
 # TGT Capture
 capture/storage/
 capture/capture.db

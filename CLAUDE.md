@@ -66,10 +66,12 @@ All in `docs/ai_context/` (project root level):
 | `NATHAN_VERBATIM.md` | Nathan's exact words, by topic — check before overriding decisions | Every user message |
 
 ## Session Start Protocol
+0. Read `NATHAN_VERBATIM.md` — **CRITICAL**: you MUST append every single Nathan message to this file immediately as it comes in, organized by topic. Not at session end — IMMEDIATELY. This is non-negotiable rule #10. The UserPromptSubmit hook auto-logs raw messages, but you must also organize them by topic. Check the file now to confirm you understand the format.
 1. Read `STATUS.md` — instant context
 2. Read `IMPACT_MAP.md` — coupling awareness
 3. Read `todo.md` — current priorities
-4. Only read deeper docs if the task requires it
+4. Read `decisions_log.md` — check locked decisions BEFORE modifying any behavioral code
+5. Only read deeper docs if the task requires it
 
 ## Session End Protocol
 1. Verify `npx tsc -b` (web) passes clean
