@@ -6,15 +6,15 @@
 ---
 
 ## Current State
-- **Phase**: S47 — Web parity. Library rebuilt, Player polished.
-- **What works**: Web (full, V4 player + **rebuilt Library** matching Android layout — NeuCard cards, left accent border, big BPM, tap-to-expand launch buttons, key/time sig/duration/TRACK badges + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S49)**: Android mixer + mode dropdown + LiveScreen visual fill fix.
-  1. **Android mode dropdown pill**: Replaced 3 small tab buttons with a dropdown pill (tap to open, shows Live/Practice/View). Matches web's pill-style mode switcher.
-  2. **Android draggable mixer faders**: Mixer tracks now wider (44dp), taller (80dp), with vertical drag gesture for gain control. Mute state dims the fill bar.
-  3. **Android track/stem mute toggles**: Added `isTrackMuted`, `stemMutes` state + `toggleTrackMute()`, `toggleStemMute()` in AppViewModel. Muting silences channel (gain→0) while preserving stored gain.
-  4. **LiveScreen visual fill fix**: When no text content (no chords/lyrics/notes/drums), the visual hero now fills the full screen (Modifier.weight(1f)) instead of being capped at 180.dp. Matches PracticeScreen/ViewScreen behaviour.
-  5. **Benchmarks captured**: Screenshots saved for all 3 modes (Live, Practice, View) in their perfected state.
-- **Next action**: Port mixer interactivity to web (track mute handler, draggable faders). Then: Web Settings sections, Android Library dropdowns (D-128), Burst vis option. Full cross-platform parity audit.
+- **Phase**: S50 — Cross-platform parity. Mixer interactive on both, vis switcher wired.
+- **What works**: Web (full, V4 player + **interactive mixer** with draggable faders + mute dim + rebuilt Library with bigger action buttons + matching Android layout), Android (full, V4 player with **3 vis modes** Spectrum/Rings/Burst + interactive mixer + queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item + Library dropdowns), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session (S50)**: Web mixer parity + Android vis switcher + Library button upgrade.
+  1. **Web mixer interactive**: Draggable faders (pointer events), wider channels (50px), taller faders (80px). Mute dims fill to 15% opacity, value text to 40%. Added setClickGain/setTrackGain/toggleTrackMute to hook.
+  2. **Android vis switcher**: VisType enum (Spectrum/Rings/Burst) wired to state. Rings = concentric pulsing circles. Burst = radial expanding rings with center flash. Buttons now clickable.
+  3. **Web Library buttons**: New Song/New Idea/Import upgraded from 32px icon buttons to 36px labeled action buttons with accent colours.
+  4. **D-165/D-166 confirmed fixed**: Track loading and player persistence both working — marked done.
+  5. **Web Settings + Android Library dropdowns**: Already implemented in prior sessions, confirmed and marked done.
+- **Next action**: Android Library header gap bug. Between-songs screen completeness check. Full cross-platform parity audit. Android APK on phone (deployed S50).
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 

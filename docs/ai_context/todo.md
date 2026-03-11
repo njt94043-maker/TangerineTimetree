@@ -55,26 +55,23 @@
 - [x] Songs tab rebuilds queue on pick (D-168) — DONE (S47)
 - [x] **BLOCKER: Fix Vercel deploy failure** — FIXED (S48). Unused `getSong` import + `setStandaloneSong` setter caused TS6133. All S47 changes now live.
 
-### Web — Settings (match mockup screen 17)
-- [ ] Add Account section
-- [ ] Add Audio Engine status section
-- [ ] Add About section
-- [ ] Fix form structure classes
+### Web — Settings — DONE (already implemented)
+> Account, Audio Engine status, About sections all exist with correct neumorphic classes.
 
-### Android — Library (match mockup screens 5-6)
-- [ ] Filter pills → dropdowns (D-128)
+### Android — Library — DONE (S50 confirmed)
+- [x] Filter pills → dropdowns (D-128) — already converted with generic FilterDropdown<T>
 - [ ] Queue items: NeuCard → flat rows
 
-### Android — Player (match mockups/player-live.html + mockups/practice-redesign.html)
+### Android — Player
 - [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
 - [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
 - [x] Browse Songs button when no setlist active — DONE (S45)
 - [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
-- [ ] Add "Burst" option to vis switcher
+- [x] Vis switcher: Spectrum/Rings/Burst — wired + animated — DONE (S50)
 - [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
 - [ ] Practice: waveform strip with loop region + playhead
 - [x] Mixer rebuilt: wider channels (44dp), taller faders (80dp), draggable gain, mute toggles
-- [ ] Web mixer: wire track mute onClick, add draggable faders (parity with Android)
+- [x] Web mixer: draggable faders + mute dim visuals + gain control — DONE (S50)
 - [ ] Verify between-songs screen completeness
 
 ### Android — Settings + Calendar
