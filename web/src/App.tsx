@@ -267,7 +267,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       )}
 
       {/* Main content area */}
-      <main className="main-content">
+      <main className={`main-content${view === 'player' ? ' player-fullscreen' : ''}`}>
         {/* Offline banner */}
         {isOffline && (
           <div className="offline-banner" role="status">

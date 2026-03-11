@@ -111,3 +111,59 @@
 - Screen edge strobe (fullscreen glow as primary)
 
 Nathan's response: redirected to fixing the existing implementation first.
+
+## This Session (S47 continued — 2026-03-11)
+
+> "stop doing what you want. do what i tell you"
+
+> "take the screenshot!"
+
+> "padding is the issue, whats that random empty card, why have i got to scroll to the bottom this is a fullscreen mode"
+
+> "why??" [re: rebuilding APK when task was web app]
+
+> "but why are you rebuilding the apk? we're fixing the webapp!"
+
+> "you aint supposed to change stuff without confirming what your doing! thats exactly why"
+
+> "but the visual is ment to own most of the screen when nothing else is displayed? i have already instructed not to display empty cards that decision should have carried over to the webapp seing as we're building matching apps. dont do anything i need to check what youve bulldozed thru again"
+
+> "whats this? didnt the apk already have these things sorted from the previous session? you need to check your work with the history of everything ive written, that document exists for this reason"
+
+> "did you confirm what you thinbk you can see with what i actually said?"
+
+> "then the ai isnt doing what its supposed to be doing again (logging my every message for quoting back) you'll have to go back thru the json files of previous conversations. dont tell me you cant do it i know you can."
+
+> "no your bringing back things that have been solved and passed off as accepted done - we do still have a side drawer apk tweeking fixed all that webapp should mirror this. the rest sound correct"
+
+> "the screenshot is the webapp, both apps are on my phone for testing. how could you confuse that? how can i have explained that any clearer this is getting stupid now realy"
+
+> "and the apk you just changed"
+
+> "i asked you to screenshot my phone. i was on the correct screen. take the screenshot, tell me what you see, its the same problem we had with the apk before we tweaked it"
+
+> "have you logged my every message"
+
+> "will every message from every future session be logged?"
+
+> "yes, that should have been done already"
+
+> "no you wont and neither will any other session. how do i fix that"
+
+> "all 3" [re: hooks + session protocol + auto-memory to enforce verbatim logging]
+
+> "and i want checks throughout sessions"
+
+> "ok. where are we"
+
+> "nope, webapp still has the big gap at the top forcing the rest off the bottom of the screen"
+
+> "ok" [re: player-fullscreen class to remove 52px margin-top]
+
+> "stop"
+
+> "why would secrets be in a folder to be commited, your supposed to protect them"
+
+> "have i gotta change my keys again. i will stop this project right now and cancel my subscribtion if this is the case. these problems we're facing cannot be solved the way i see things"
+
+> "yes fix it"
