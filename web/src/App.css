@@ -6532,6 +6532,24 @@ select.ps-form-input {
 }
 .player-queue-arrow:disabled { color: rgba(255,255,255,0.1); cursor: default; }
 .player-queue-arrow:not(:disabled):hover { color: var(--color-text); }
+.player-queue-subtitle {
+  font-family: 'Karla', sans-serif;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  padding: 0 12px 8px;
+}
+.player-queue-item.songs-active {
+  background: rgba(0,188,212,0.06);
+  border-color: rgba(0,188,212,0.25);
+}
+.player-queue-now-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--color-teal, #00bcd4);
+  text-shadow: 0 0 6px rgba(0,188,212,0.3);
+  margin-left: 6px;
+}
 .player-queue-pos {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
