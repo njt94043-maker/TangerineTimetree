@@ -28,33 +28,27 @@
 ### Web — Library — REBUILD to match Android (D-163)
 > **NOTE: Previous Web Library tasks are INVALID.** Web Library must be rebuilt to match Android's layout (NeuCard cards, big BPM right-aligned, badges inline, tap-to-expand with Live/Practice/View buttons). Not a refinement of the current web layout.
 
-### Web — Calendar (match mockup screens 16-17)
-- [ ] Cell min-height 48→44px
-- [ ] Cell border-radius 6→4px (var(--r-xs))
-- [ ] Cell font-size 14→11px
-- [ ] Day-num font-size 13→11px
-- [ ] Day-header font-size 11→10px
-- [ ] Today button: font 10→12px, padding 3px 14px→4px 10px, radius 10→8px, add background fill rgba(243,156,18,0.08)
-- [ ] Cell background token correction
+### Web — Calendar
+> **Web calendar IS the benchmark.** Android matches web, not the other way around. No changes needed.
 
-### Web — Library — DETAILED (D-163: match Android)
-- [ ] Rebuild song cards as NeuCard raised style (not flat rows)
-- [ ] Big BPM right-aligned on card
-- [ ] Badges inline: scope (TGT/Personal) + type (Cover/Original) + TRACK indicator
-- [ ] Tap-to-expand card → reveal Live/Practice/View launch buttons
-- [ ] Filter dropdowns with labels above (Scope / Type) — match Android (D-128)
-- [ ] Setlists: dropdown filter (D-128) + type badge + song count + duration + action buttons
+### Web — Library (D-163: match Android) — DONE (S47)
+- [x] Rebuild song cards: NeuCard + left accent border (teal/orange) + big BPM right-aligned
+- [x] Badges inline: scope (TGT/Personal) + type (Cover/Original) + key + time sig + duration + TRACK
+- [x] Tap-to-expand card → reveal Live/Practice/View launch buttons + Edit
+- [x] Filter dropdowns with labels above (Scope / Type) — already had these
+- [x] Setlists: tap-to-expand with Live/Practice/View + Edit buttons, left accent border
+- [x] Tab bar accent colours (teal for Songs, orange for Setlists)
 
-### Web — Player (match mockups/player-live.html + mockups/practice-redesign.html)
+### Web — Player — DONE (S47)
 - [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
 - [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
 - [x] Browse Songs button when no setlist active — DONE (S45)
 - [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
 - [x] Wire up settings pills — DONE (S45)
-- [ ] Vis button label "Bars"→"Spectrum"
-- [ ] Text panel max-height 200→120px
-- [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
-- [ ] Practice: waveform strip (72px, loop region overlay, playhead)
+- [x] Vis button label already "Spectrum" — verified
+- [x] Text panel max-height 200→120px — DONE (S47)
+- [x] Practice transport: speed + A-B loop layout already correct — verified
+- [x] Waveform strip height 56→72px — DONE (S47)
 
 ### Web — Settings (match mockup screen 17)
 - [ ] Add Account section

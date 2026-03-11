@@ -6,18 +6,17 @@
 ---
 
 ## Current State
-- **Phase**: S46 — Stabilization. Critical bugs fixed. Player persistence + queue + auto-save.
-- **What works**: Web (full, V4 player with queue tabs + glow toggle + browse songs, Library + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S46)**: Stabilization sprint — fix everything before new features:
-  1. **System bar padding**: Replaced hardcoded/per-screen `statusBarsPadding()` with single `systemBarsPadding()` on NavHost. All 7 screens cleaned up. Gap above headers FIXED.
-  2. **Android 12+ splash**: Added `values-v31/themes.xml` with dark splash background. No more white flash.
-  3. **D-165 Track auto-load/release**: Added `resetTrack()` through C++→JNI→Kotlin chain. `selectSong()` now stops old track, resets engine, auto-loads new song's audio.
-  4. **D-167 Auto-save beat analysis**: Analysis results saved to Supabase automatically on completion. No manual "Save" banner tap needed.
-  5. **D-168 Queue = source list**: Generalized queue system. Selecting a song from any list (filtered songs, setlist) makes that list the queue for next/prev navigation. Queue overlay Songs/Setlists tabs update the queue on selection.
-  6. **D-166 Player persistence**: Auth flicker protection (wasAuthenticated flag), splash skip on resume (splashDone in ViewModel), "Now Playing" drawer item to return to active player.
-  7. **Close button**: X button on player header ends session (stops engine, clears state, navigates to Library). Menu hamburger button preserved alongside for drawer access.
-  8. **Builds**: Android assembleDebug SUCCESSFUL.
-- **Next action**: Web parity for D-165/D-166/D-167/D-168. Remaining cosmetic gaps (see todo.md). Full cross-platform parity audit.
+- **Phase**: S47 — Web parity. Library rebuilt, Player polished.
+- **What works**: Web (full, V4 player + **rebuilt Library** matching Android layout — NeuCard cards, left accent border, big BPM, tap-to-expand launch buttons, key/time sig/duration/TRACK badges + sharing + recording + takes + View Mode + re-analyse + import from Capture), Android (full, V4 player with queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item, Library + SongForm + recording + takes + View Mode + processing triggers + splash + aligned calendar/library), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
+- **Last session (S47)**: Web parity — Library + Player alignment:
+  1. **Library song cards rebuilt**: NeuCard + left accent border (teal/orange) + big BPM right-aligned + tap-to-expand (Live/Practice/View/Edit). Added key, time sig, duration, TRACK badges.
+  2. **Library setlist cards rebuilt**: Left accent border + tap-to-expand + chevron.
+  3. **Library tab accent colours**: Songs=teal, Setlists=orange.
+  4. **Player text panel**: max-height 120px. **Waveform**: height 56→72px.
+  5. **Verified**: Vis button already "Spectrum", practice transport already correct.
+  6. **Clarification**: Web calendar IS the benchmark — invalid calendar tasks removed.
+  7. **TypeScript**: `npx tsc -b` clean.
+- **Next action**: Remaining cosmetic gaps (Settings sections, Android Library dropdowns D-128). Full cross-platform parity audit.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 - **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
@@ -36,28 +35,13 @@
 ## Gaps Remaining (S45 Audit)
 
 ### Web — Calendar
-- Cell min-height 48→44px, border-radius 6→4px, font-size 14→11px
-- Day-num 13→11px, day-header 11→10px
-- Today button: 10→12px font, 3px 14px→4px 10px padding, 10→8px radius, add background fill
-- Cell background using wrong token
+> Web calendar IS the benchmark. No changes needed.
 
-### Web — Library
-- Missing filter labels above dropdowns
-- Badges wrong structure (combined vs separate scope+type)
-- Missing Cover/Original type badges
-- Owner tag wrong styling
-- Setlists using pills instead of dropdown
-- Setlists missing type badge on cards
-- Setlists missing song count + duration
-- Setlists missing conditional action buttons
+### Web — Library — DONE (S47)
+> Rebuilt to match Android. NeuCard cards, left accent border, big BPM, tap-to-expand, full badge set.
 
-### Web — Player
-- Vis button "Bars"→"Spectrum"
-- Text panel 200→120px max-height
-- Live transport: duplicate stop / missing restart
-- Practice speed: 4→2 buttons
-- A-B loop button placement
-- Settings pills non-functional
+### Web — Player — DONE (S47)
+> Text panel max-height 120px, waveform 72px. Transport/vis already correct.
 
 ### Web — Settings
 - Missing Account section, Audio Engine status, About section
