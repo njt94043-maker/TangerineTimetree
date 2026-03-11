@@ -5853,7 +5853,7 @@ select.ps-form-input {
   padding: max(4px, env(safe-area-inset-top, 4px)) 14px 6px;
   gap: 10px;
 }
-.v4-hdr-back {
+.v4-hdr-menu {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -5861,6 +5861,19 @@ select.ps-form-input {
   border: none;
   color: var(--color-text-dim);
   font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.v4-hdr-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
