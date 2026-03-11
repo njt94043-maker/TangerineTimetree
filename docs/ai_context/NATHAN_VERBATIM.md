@@ -43,6 +43,39 @@
 **2026-03-11** (from previous session context):
 > "are you taking shortcuts again?"
 
+**Previous sessions** (recovered from conversation logs):
+> "live / practice / view are fullscreen modes that wont have the side drawer. users need to exit the mode. this mode has bottom drawer with everything contained hidden out of sign until drawer is open"
+
+> "we're getting closer, the drawer when opened was suppoed to move everything up so everything is still visiable and the same but the visual screen shrinks to allow for the rest to slide up this was original spec for all 3 modes. fullscreen modes with no headings or side drawers."
+
+> "the drawer should drag up from the bottom shrinking the size of the visuals area and moving the transport up so the drawer is displayed below the transport"
+
+> "we dont need full screen wave form, it would look better if iwas as tall as the mixer is now, in plkace of the mixer, and the mixer goes in the drawer plz, not perminantly visible"
+
+> "ok its better, we dont need full screen wave form, it would look better if iwas as tall as the mixer is now, in plkace of the mixer, and the mixer goes in the drawer plz, not perminantly visible"
+
+> "ok, the drawer yes thats better, the drawer should drag up from the bottom shrinking the size of the visuals area and moving the transport up tso the drawer is displayed below the transport"
+
+> "ok their great, i may add some more later, but im happy with those for now. altho when the drawer is open the centre of the visuals needs to move up (and shrink down) so that it fills the visual screen and is properly centred"
+
+## Padding / Device Standards
+
+**Previous sessions** (recovered from conversation logs):
+> "why cant you just sort the padding so it uses the correct padding for the device? there are standars you can follow? why do you always overlook this?"
+
+**2026-03-11**:
+> "padding is the issue, whats that random empty card, why have i got to scroll to the bottom this is a fullscreen mode"
+
+> "but the visual is ment to own most of the screen when nothing else is displayed? i have already instructed not to display empty cards that decision should have carried over to the webapp seing as we're building matching apps."
+
+## Empty Cards / Text Panel
+
+**2026-03-11**:
+> "i have already instructed not to display empty cards that decision should have carried over to the webapp seing as we're building matching apps."
+
+**Previous sessions** (confirmed from audit):
+> "Text panel 200->120px max-height" [Nathan confirmed with "rest yes"]
+
 ## Cross-Platform Parity (ONE APP, TWO PLATFORMS)
 
 **2026-03-11**:
