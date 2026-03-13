@@ -799,7 +799,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
         <span>GAIN: {state.clickGain.toFixed(2)}</span>
         <span>BPM: {state.song?.bpm ?? '?'}</span>
         <span>ENG: {state.engineState}</span>
-        <span style={{ color: '#888' }}>S55 debug</span>
+        <span style={{ color: '#0ff' }}>BUILD: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__.replace('T', ' ').slice(0, 19) : '?'}</span>
         <button
           style={{ background: '#336', color: '#fff', border: '1px solid #558', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '11px' }}
           onClick={() => {
