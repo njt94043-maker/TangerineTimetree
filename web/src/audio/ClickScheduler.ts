@@ -172,9 +172,11 @@ export class ClickScheduler {
     const timeUntilNextBeat = (nextBeatInTrackTime - trackPositionSec) / this.speed;
     const correctedNextBeatTime = now + timeUntilNextBeat + offsetSec;
 
-    // Only resync if drift exceeds 30ms (avoid constant micro-corrections)
+    // Only resync if drift exceeds 150ms — must be larger than SoundTouch's
+    // ~93ms position reporting latency (4096 samples / 44100Hz).
+    // Previous 30ms threshold was within the uncertainty window, triggering on noise.
     const drift = Math.abs(this.nextBeatTime - correctedNextBeatTime);
-    if (drift > 0.030) {
+    if (drift > 0.150) {
       this.nextBeatTime = correctedNextBeatTime;
       this.beatMapIndex = newIdx;
     }
@@ -185,6 +187,7 @@ export class ClickScheduler {
     this.isPlaying = true;
     this.currentBeat = 0;
     this.currentBar = 0;
+    this.beatsScheduled = 0;
 
     const now = startTime ?? ctx.currentTime;
     const offsetSec = this.config.beatOffsetMs / 1000;
@@ -270,13 +273,21 @@ export class ClickScheduler {
 
   // S60 diagnostic counter — remove after click confirmed working
   private debugClickCount = 0;
+  // Count of beats naturally scheduled — resync only after scheduler establishes rhythm
+  private beatsScheduled = 0;
 
   private schedule(): void {
     if (!this.isPlaying) return;
 
     // Drift correction — runs in the SAME timer as scheduling (no race condition).
     // Only when we have a beat map AND a track position source.
-    if (this.trackPositionGetter && this.beatMap && this.beatMap.length > 0) {
+    // S60 FIX: Skip resync until at least 4 beats have been naturally scheduled.
+    // SoundTouch's ScriptProcessorNode has ~93ms position reporting latency (4096/44100).
+    // Before the scheduler establishes a rhythm, resync sees the track "past" each beat
+    // (due to the 93ms offset) and pushes nextBeatTime to the NEXT beat — the scheduler
+    // chases the beat map forward but never catches up. The 30ms drift threshold was
+    // within the 93ms uncertainty window, triggering on noise not actual drift.
+    if (this.beatsScheduled >= 4 && this.trackPositionGetter && this.beatMap && this.beatMap.length > 0) {
       const trackPos = this.trackPositionGetter();
       if (trackPos > 0) {
         this.resyncToPosition(trackPos);
@@ -303,6 +314,7 @@ export class ClickScheduler {
 
     while (this.nextBeatTime < deadline) {
       this.scheduleClick(this.nextBeatTime);
+      this.beatsScheduled++;
       // S60 diagnostic — log first 5 clicks then every 20th
       this.debugClickCount++;
       if (this.debugClickCount <= 5 || this.debugClickCount % 20 === 0) {
@@ -315,7 +327,6 @@ export class ClickScheduler {
           muted: this.muted,
           gain: this.config.gain,
           bpm: this.config.bpm,
-          accentLen: this.config.accentPattern.length,
         });
       }
       this.advanceBeat();
