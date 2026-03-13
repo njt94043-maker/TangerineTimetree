@@ -5,33 +5,25 @@
 
 ---
 
-## S53 — Web Click Fix + Mobile Black Screen
+## S55 — Web Click Fix (Top Priority)
 
-### Web Click — Rewritten to OscillatorNode
-- [x] Code fix: getPlayerPrefs() null fallback to defaults (S52)
-- [x] Code fix: BPM/time-sig/click-sound config fallbacks for 0/null (S52)
-- [x] Code fix: ClickScheduler.getSecondsPerBeat() safety for BPM=0 (S52)
-- [x] Code fix: Full ClickScheduler rewrite — OscillatorNode + gain envelope replaces AudioBuffer (S53)
-- [ ] **STILL BROKEN**: OscillatorNode rewrite did not fix click. Problem is upstream of ClickScheduler. Needs DevTools debugging next session.
+### Web Click — STILL BROKEN (since S51)
+- [x] S52: getPlayerPrefs() null fallback, BPM/time-sig fallbacks, getSecondsPerBeat() safety
+- [x] S53: OscillatorNode rewrite (did not fix, reverted in S54)
+- [x] S54: Reverted AudioEngine.ts + ClickScheduler.ts to S51 baseline (c95537b) — fixed stems
+- [x] S54: Removed Player Settings from Settings.tsx (D-171)
+- [x] S54: Added debug logging + BPM fallbacks to useAudioEngine.ts
+- [ ] **Check console [TGT-CLICK-DEBUG] logs** — is ClickScheduler.start() being called?
+- [ ] **Diff useAudioEngine.ts** current vs S51 (c95537b) — find what broke click path
+- [ ] **Consider full useAudioEngine.ts revert** to S51 as clean baseline
+- [ ] **Remove debug banner + console.log** after click fixed
 
-### Mobile Black Screen — FIXED
-- [x] Root cause: stale SW cache from before skipWaiting/clientsClaim deploy
-- [x] Fix: Cleared Chrome data on phone. SW auto-update prevents recurrence.
-
-### Visualisers — Reworked (D-169)
-- [x] Code fix: All 3 modes beat-synced (quick attack, slow release), NOT FFT. Both platforms.
-- [x] APK confirmed "ok for now" by Nathan.
-- [ ] Web vis not yet tested by user (was blocked by click/cache issue).
-
-### PWA Standalone Import (D-170)
-- [x] Standalone detection + orange warning banner.
-- [x] Nathan accepts limitation — use Chrome browser for import.
-
-### SW Auto-Update
-- [x] skipWaiting + clientsClaim + cleanupOutdatedCaches
-- [x] controllerchange listener auto-reloads page
-- [x] 5-minute update check interval
-- [x] Verified: mobile black screen was the last stale-cache user. Auto-update now active.
+### Completed (S51-S54)
+- [x] Mobile black screen: stale SW cache, cleared Chrome data
+- [x] Visualisers: beat-synced (D-169), APK confirmed OK
+- [x] PWA standalone import: orange warning (D-170)
+- [x] SW auto-update: skipWaiting + clientsClaim + 5min poll
+- [x] Stems/mixer: restored by reverting to S51 audio files
 
 ---
 

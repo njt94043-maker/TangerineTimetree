@@ -308,3 +308,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "no click, no drum track now. drum track had been muted from last time i tested, i just unmuted it and no drums are audible.. something wrong with the mixer again now. debug says mut / unmute correctly i just cant hear a click"
 > "CLK: ✅ON CTX: running GAIN: 1.00 BPM: 90.9 ENG: playing"
 > "have you tried backtracking. then starting again. now you know the settings options shouldnt have been there? your just making things worse from what i can see"
+> "no, i still have no click and no drums? why did you blind guess without looking back when you knew the exact point what was working before stopped working. from what i have seen the last 4 or 5 sessions, this issue has been made worse. you havent made any changes that will affect the apks running? it reads the same database"
+> "wrap up plz. log all mistakes and wrong approach to fixing, why did i have to tell you to retrace steps?"
+> "drum track is back and all stems mute and control volume correctly. except click channel, there is no audible click track. is gain 1.00 correct? what are the rest of the stems gain when set to full volume in the mixer? stems function correctly again, click still not audible."

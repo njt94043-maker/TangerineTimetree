@@ -424,3 +424,19 @@
 - **What happened**: User asked for a close/exit button on the player. AI replaced the existing menu/hamburger button with the close button, removing the ability to open the drawer from within the player. User had to point out they need BOTH — menu to browse mid-session, close to end session.
 - **Root cause**: AI treated "add X" as "replace existing with X". This is the same pattern as narrowing entry points — removing existing functionality when adding new functionality.
 - **Rule**: When adding a new button/action, NEVER remove or replace existing ones unless explicitly told to. Always ADD alongside. Ask "does the existing button stay?" if unsure. Think about what the user could do BEFORE the change and make sure they can still do ALL of it AFTER.
+
+### S54 Click Debug — Wrong approach compounded the problem (2026-03-13)
+- **What happened**: Web click broken since S51. In S54, AI made 3 mistakes that made things worse:
+  1. **Assumed DB setting was the cause** without checking — guessed `player_click_enabled` might be false in DB. Nathan had to correct: "click on in settings" and "there shouldnt even be an option in the setting."
+  2. **Changed AnalyserNode routing** (moved analyser to parallel tap instead of inline) as a blind guess. AnalyserNode passes audio through by spec — this change was wrong and broke stem audio too. Nathan: "no, i still have no click and no drums?"
+  3. **Failed to backtrack** when the known-good S51 code was available. Nathan had to explicitly say "have you tried backtracking" before AI reverted to S51 files.
+- **Root cause**: AI guessed at causes and applied speculative fixes instead of using git history to find what changed. The S51 commit (c95537b) was the last known-good state — reverting to it should have been step 1, not step 3.
+- **Impact**: Stems broke (fixed by reverting AudioEngine.ts to S51). Click still broken — but now the audio files are back to S51 baseline, so the bug is isolated to useAudioEngine.ts S54 additions or the call path.
+- **Rule**: When user reports "X was working at time T and isn't now": (1) `git diff` from time T to find ALL changes. (2) Revert to known-good state FIRST. (3) Re-apply changes one at a time to isolate the break. Do NOT guess. Do NOT make speculative routing changes.
+- **Nathan's words**: "why did you blind guess without looking back when you knew the exact point what was working before stopped working" and "why did i have to tell you to retrace steps?"
+
+### S54 Settings page had Player prefs it shouldn't have (2026-03-13)
+- **What happened**: Web Settings.tsx had a "Player Settings" section with click/flash/lyrics toggles. APK didn't have this. D-118 already said display toggles belong in the drawer. AI had to be told AGAIN.
+- **Nathan's words**: "why was webapp still setup like that? apk isnt.. you shouldnt have needed to update what i said, ive said it before"
+- **Root cause**: D-118 was logged but never enforced on web. When building web Settings, the toggles were added there instead of only in the drawer.
+- **Fix**: Removed Player Settings section entirely from Settings.tsx (D-171). Player prefs are controlled exclusively from the drawer on both platforms.
