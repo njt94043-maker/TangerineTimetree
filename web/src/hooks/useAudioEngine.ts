@@ -352,12 +352,11 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56 ISOLATION COMPLETE — all features restored.
-    // pollBeats only = click works ✓
-    // + position + loop = click works ✓
-    // + setCurrentTime 60fps = click works ✓
-    // + resyncToPosition = click works ✓ (still drifts — separate issue)
-    // Step 2e: add FFT + beat intensity (last two features).
+    // S56 ISOLATION — FFT + beat intensity broke click. Splitting to find which.
+    // pollBeats = ✓, position = ✓, setCurrentTime = ✓, resync = ✓
+    // FFT + beat intensity = ✗ BROKE CLICK
+    // Step 2e-i: add ONLY beat intensity (ref mutations, no audio API).
+    // NO FFT (getByteFrequencyData is the stronger suspect).
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
@@ -377,15 +376,12 @@ export function useAudioEngine(
         clickRef.current.resyncToPosition(pos);
       }
 
-      // [2e] Beat intensity decay for metronome visualiser
+      // [2e-i] Beat intensity decay only (ref mutation, no audio API)
       if (beatIntensityRef.current > 0.01) {
         beatIntensityRef.current *= 0.9;
       } else {
         beatIntensityRef.current = 0;
       }
-
-      // [2e] FFT data for visualiser
-      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
