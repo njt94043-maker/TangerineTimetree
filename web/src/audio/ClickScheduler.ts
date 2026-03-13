@@ -80,10 +80,6 @@ export class ClickScheduler {
   private isCountingIn = false;
   private countInBeatsRemaining = 0;
 
-  // Pre-rendered click buffers (lazily created per AudioContext sample rate)
-  private clickBuffers: Map<string, AudioBuffer> = new Map();
-  private lastSampleRate = 0;
-
   configure(partial: Partial<ClickConfig>): void {
     Object.assign(this.config, partial);
   }
@@ -180,7 +176,6 @@ export class ClickScheduler {
       this.nextBeatTime = now + offsetSec;
     }
 
-    this.ensureClickBuffers(ctx);
     this.startScheduler();
   }
 
@@ -236,33 +231,25 @@ export class ClickScheduler {
       shouldSound = accentPattern[this.currentBeat] > 0;
     }
 
-    // Schedule primary click
+    // Schedule primary click — use OscillatorNode directly (S55 fix: BufferSource was silent)
     if (shouldSound) {
-      const buffer = this.getClickBuffer(ctx, false); // D-159: all beats identical, no accent
-      if (buffer) {
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        const gainNode = ctx.createGain();
-        gainNode.gain.value = this.config.gain;
-        source.connect(gainNode);
-        gainNode.connect(masterGain);
-        source.start(time);
-        // S55 debug: log first few clicks to confirm scheduling + buffer validity
-        if (this.currentBar < 2 && this.currentBeat < 2) {
-          console.log('[TGT-CLICK-DEBUG] scheduleClick', {
-            beat: this.currentBeat, bar: this.currentBar,
-            time: time.toFixed(3), ctxNow: ctx.currentTime.toFixed(3),
-            bufLen: buffer.length, bufDur: buffer.duration.toFixed(4),
-            configGain: this.config.gain, clickSound: this.config.clickSound,
-            mgGain: masterGain.gain.value,
-          });
-        }
-      } else {
-        console.error('[TGT-CLICK-DEBUG] NULL BUFFER! clickSound:', this.config.clickSound);
-      }
-    } else {
-      if (this.currentBar === 0) {
-        console.warn('[TGT-CLICK-DEBUG] shouldSound=false, beat:', this.currentBeat, 'accentPattern:', this.config.accentPattern);
+      const freq = CLICK_FREQS[this.config.clickSound]?.up ?? 440; // D-159: all beats identical (up pitch)
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq;
+      const envGain = ctx.createGain();
+      envGain.gain.setValueAtTime(this.config.gain * 0.7, time);
+      envGain.gain.exponentialRampToValueAtTime(0.001, time + CLICK_DURATION);
+      osc.connect(envGain);
+      envGain.connect(masterGain);
+      osc.start(time);
+      osc.stop(time + CLICK_DURATION);
+      // S55 debug
+      if (this.currentBar < 2 && this.currentBeat < 2) {
+        console.log('[TGT-CLICK-DEBUG] scheduleClick (osc)', {
+          beat: this.currentBeat, bar: this.currentBar, freq,
+          time: time.toFixed(3), ctxNow: ctx.currentTime.toFixed(3),
+          configGain: this.config.gain, clickSound: this.config.clickSound,
+        });
       }
     }
 
@@ -306,16 +293,16 @@ export class ClickScheduler {
         subTime = beatTime + (i * beatDuration) / divisor;
       }
 
-      const buffer = this.getClickBuffer(ctx, false);
-      if (buffer) {
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        const gainNode = ctx.createGain();
-        gainNode.gain.value = this.config.gain * 0.4; // Subdiv at 40% (matches C++ SUB_CLICK_GAIN)
-        source.connect(gainNode);
-        gainNode.connect(destination);
-        source.start(subTime);
-      }
+      const freq = CLICK_FREQS[this.config.clickSound]?.up ?? 440;
+      const osc = ctx.createOscillator();
+      osc.frequency.value = freq;
+      const envGain = ctx.createGain();
+      envGain.gain.setValueAtTime(this.config.gain * 0.4 * 0.7, subTime); // 40% of main (matches C++ SUB_CLICK_GAIN)
+      envGain.gain.exponentialRampToValueAtTime(0.001, subTime + CLICK_DURATION);
+      osc.connect(envGain);
+      envGain.connect(destination);
+      osc.start(subTime);
+      osc.stop(subTime + CLICK_DURATION);
     }
   }
 
@@ -368,79 +355,4 @@ export class ClickScheduler {
     return 60 / bpm;
   }
 
-  // --- Click sound generation ---
-
-  private ensureClickBuffers(ctx: AudioContext): void {
-    if (ctx.sampleRate === this.lastSampleRate && this.clickBuffers.size > 0) return;
-    this.lastSampleRate = ctx.sampleRate;
-    this.clickBuffers.clear();
-
-    // Pre-render all click types at both pitches
-    for (const [name, freqs] of Object.entries(CLICK_FREQS)) {
-      this.clickBuffers.set(`${name}-down`, this.renderClick(ctx, freqs.down, name as ClickSound, true));
-      this.clickBuffers.set(`${name}-up`, this.renderClick(ctx, freqs.up, name as ClickSound, false));
-    }
-  }
-
-  private renderClick(ctx: AudioContext, freq: number, type: ClickSound, _isDownbeat: boolean): AudioBuffer {
-    const sr = ctx.sampleRate;
-    const frames = Math.ceil(CLICK_DURATION * sr);
-    const buffer = ctx.createBuffer(1, frames, sr);
-    const data = buffer.getChannelData(0);
-    const twoPi = 2 * Math.PI;
-    const amplitude = 0.7;
-
-    for (let i = 0; i < frames; i++) {
-      const t = i / frames; // 0-1 progress
-      const si = i;
-
-      let sample: number;
-      switch (type) {
-        case 'wood': {
-          const f1 = freq;
-          const f2 = f1 * 1.63;
-          const f3 = f1 * 2.67;
-          const s1 = Math.sin(twoPi * f1 * si / sr);
-          const s2 = Math.sin(twoPi * f2 * si / sr) * 0.6;
-          const s3 = Math.sin(twoPi * f3 * si / sr) * 0.3;
-          sample = s1 + s2 + s3;
-          let env = Math.exp(-8 * t);
-          if (t < 0.02) env *= t / 0.02;
-          sample *= env * amplitude * 0.4;
-          break;
-        }
-        case 'rim': {
-          const f1 = freq;
-          const f2 = f1 * 2.4;
-          const tone = Math.sin(twoPi * f1 * si / sr) * 0.5
-                     + Math.sin(twoPi * f2 * si / sr) * 0.3;
-          const noise = Math.sin(twoPi * 3517 * si / sr) * 0.3
-                      + Math.sin(twoPi * 5471 * si / sr) * 0.2
-                      + Math.sin(twoPi * 7919 * si / sr) * 0.1;
-          sample = tone + noise;
-          let env = Math.exp(-12 * t);
-          if (t < 0.01) env *= t / 0.01;
-          sample *= env * amplitude * 0.5;
-          break;
-        }
-        default: {
-          // default, high, low — pure sine with envelope
-          sample = Math.sin(twoPi * freq * si / sr);
-          let env = 1.0;
-          if (t < 0.05) env = t / 0.05;
-          else if (t > 0.7) env = 1.0 - (t - 0.7) / 0.3;
-          sample *= env * amplitude;
-          break;
-        }
-      }
-      data[i] = sample;
-    }
-    return buffer;
-  }
-
-  private getClickBuffer(ctx: AudioContext, isDownbeat: boolean): AudioBuffer | null {
-    this.ensureClickBuffers(ctx);
-    const key = `${this.config.clickSound}-${isDownbeat ? 'down' : 'up'}`;
-    return this.clickBuffers.get(key) ?? null;
-  }
 }

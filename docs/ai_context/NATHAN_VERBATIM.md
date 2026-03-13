@@ -319,3 +319,9 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### After adding debug — no change on deployed site
 > "nothing has changed"
+> "? of course how can test otherwise" [re: need to push first]
+> "test beep works, click does not"
+> "the greentangerine.com on pc has just a black screen.. we cant crash the live website like this"
+
+### Click works in background — KEY diagnostic
+> "interesting. click works when i minimise the webapp on my phone (in the background, not foreground?) implications? (its not in time but we'll address that seperately)"
