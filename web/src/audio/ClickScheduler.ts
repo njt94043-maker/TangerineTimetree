@@ -80,6 +80,11 @@ export class ClickScheduler {
   private isCountingIn = false;
   private countInBeatsRemaining = 0;
 
+  // Track position callback — called inside schedule() for drift correction.
+  // Lives here (not in rAF) to avoid race condition between two timers writing nextBeatTime.
+  // Research: Chris Wilson + Tone.js both confirm scheduling writes must be in ONE timer.
+  private trackPositionGetter: (() => number) | null = null;
+
   configure(partial: Partial<ClickConfig>): void {
     Object.assign(this.config, partial);
   }
@@ -111,13 +116,26 @@ export class ClickScheduler {
   }
 
   /**
-   * Resync click to the track's actual position. Called periodically from
-   * the tick loop to correct drift between AudioContext clock and SoundTouchJS.
+   * Set a callback that returns the current track position in seconds.
+   * Called inside schedule() (25ms timer) for drift correction.
+   * This keeps all scheduling writes in ONE timer — no race conditions.
+   */
+  setTrackPositionGetter(getter: (() => number) | null): void {
+    this.trackPositionGetter = getter;
+  }
+
+  /**
+   * Resync click to the track's actual position. Called from schedule()
+   * (inside the 25ms setInterval) — NOT from rAF.
+   *
+   * Research finding: calling this from rAF (60fps) caused a race condition
+   * where nextBeatTime was written by rAF while read by setInterval,
+   * killing OscillatorNode audio. Moving it here eliminates the race.
    *
    * Finds the beat map entry closest to trackPositionSec and realigns
    * nextBeatTime so the next click fires at the correct moment.
    */
-  resyncToPosition(trackPositionSec: number): void {
+  private resyncToPosition(trackPositionSec: number): void {
     if (!this.beatMap || this.beatMap.length === 0 || !this.isPlaying) return;
 
     const ctx = AudioEngine.getContext();
@@ -182,6 +200,7 @@ export class ClickScheduler {
   stop(): void {
     this.isPlaying = false;
     this.stopScheduler();
+    this.trackPositionGetter = null;
   }
 
   isActive(): boolean {
@@ -210,6 +229,16 @@ export class ClickScheduler {
 
   private schedule(): void {
     if (!this.isPlaying) return;
+
+    // Drift correction — runs in the SAME timer as scheduling (no race condition).
+    // Only when we have a beat map AND a track position source.
+    if (this.trackPositionGetter && this.beatMap && this.beatMap.length > 0) {
+      const trackPos = this.trackPositionGetter();
+      if (trackPos > 0) {
+        this.resyncToPosition(trackPos);
+      }
+    }
+
     const ctx = AudioEngine.getContext();
     const deadline = ctx.currentTime + LOOKAHEAD_SEC;
 

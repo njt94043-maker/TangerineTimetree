@@ -396,3 +396,19 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Wrap up — no more guessing
 > "you've been stuck doing that research for a while. we'll try again in a new session. we need to completely rule out this guesswork. nothing from this point can be guessed. wrap up plz"
+
+## Session S58 (2026-03-13)
+
+### Session Start
+> [Nathan shared STATUS.md — reviewing current state for S58 research-first click drift fix]
+
+### Checking status
+> "status?"
+> "??"
+> "is something wronf?"
+> "no permissions were denied, you just hung there with no noficication"
+> "yes plz" [re: present proposed fix plan]
+
+### Approved fix plan
+> "yes" [re: proceed with research-backed drift fix — resync inside scheduler, beat intensity in rAF]
+> "yes" [re: commit and push]

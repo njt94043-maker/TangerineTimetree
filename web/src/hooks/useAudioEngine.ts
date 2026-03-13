@@ -337,6 +337,17 @@ export function useAudioEngine(
       mode,
     });
 
+    // Wire track position getter into click scheduler BEFORE starting.
+    // This runs inside the scheduler's 25ms setInterval (not rAF) to avoid
+    // the race condition that killed OscillatorNodes in S57.
+    if ((mode === 'practice' || mode === 'view') && hasStems) {
+      clickRef.current.setTrackPositionGetter(() => mixerRef.current.getPosition());
+    } else if ((mode === 'practice' || mode === 'view') && hasTrack) {
+      clickRef.current.setTrackPositionGetter(() => trackRef.current.getPosition());
+    } else {
+      clickRef.current.setTrackPositionGetter(null); // Live mode — no track to sync to
+    }
+
     if (clickEnabledRef.current) {
       clickRef.current.start();
       console.log('[TGT-CLICK-DEBUG] ClickScheduler.start() called, isActive:', clickRef.current.isActive());
@@ -352,8 +363,10 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S57: step 2c tick loop (last confirmed working).
-    // resyncToPosition, beat intensity, FFT NOT included — need research-backed approach.
+    // S58: Research-backed tick loop.
+    // rAF is READ-ONLY for audio — no scheduling writes here.
+    // Drift correction (resyncToPosition) runs inside ClickScheduler's 25ms setInterval.
+    // Beat intensity decay is safe — only reads beat events + writes to a ref.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
@@ -368,6 +381,12 @@ export function useAudioEngine(
 
       setCurrentTime(pos);
       AudioEngine.emitTimeUpdate(pos, duration);
+
+      // Beat intensity decay — ~500ms from 1→0 at 60fps (0.033 per frame).
+      // Quick attack (snaps to 1 on beat via onBeat listener), slow release here.
+      if (beatIntensityRef.current > 0) {
+        beatIntensityRef.current = Math.max(0, beatIntensityRef.current - 0.033);
+      }
     });
   }, [mode, hasStems, hasTrack, duration]);
 
