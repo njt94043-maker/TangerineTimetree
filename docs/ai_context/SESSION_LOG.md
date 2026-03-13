@@ -7,6 +7,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-13 | S53 — Web click rewrite + mobile black screen fix | ClickScheduler rewritten from pre-rendered AudioBuffer to real-time OscillatorNode + gain envelope. Mobile black screen fixed (stale SW cache, cleared Chrome data). Both deployed to Vercel. Web click needs user verification. |
 | 2026-03-13 | S52 — Beat-synced vis + web click debug + SW auto-update | Visualisers reworked: all 3 modes now beat-driven metronome flash (D-169), NOT FFT. Quick attack + slow release. APK confirmed OK by Nathan. Web click STILL BROKEN — null prefs fix + BPM fallbacks didn't resolve. PWA standalone import: orange warning (D-170). SW auto-update: skipWaiting + clientsClaim + controllerchange reload + 5min poll. Web click is top priority for next session — needs DevTools debugging. |
 | 2026-03-13 | S51 — 4 user-reported bug fixes | APK mixer (mute ch1 for stems), web click drift (speed-scaled beat map + resync), visualisers (FFT — later replaced by S52 beat-sync), Capture import (CORS + 0.0.0.0 bind). |
 | 2026-03-11 | S50 — Web mixer parity + Android vis + Library buttons | Web mixer: draggable faders (pointer events, 20px wide, 80px tall), mute dim (15% fill, 40% text), click/track gain control. Android vis: VisType enum (Spectrum/Rings/Burst) wired + animated. Web Library: bigger labeled action buttons (36px). D-165/D-166 confirmed fixed. Settings + Library dropdowns confirmed already done. APK deployed. |

@@ -6,35 +6,25 @@
 ---
 
 ## Current State
-- **Phase**: S52 — Bug fixes + stabilisation continued.
+- **Phase**: S53 — Web click fix + mobile black screen fix.
 - **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme).
-- **Last session (S52)**: Beat-synced visualisers (D-169), web click null-prefs fix, PWA standalone guidance (D-170), SW auto-update mechanism.
-- **CRITICAL OPEN BUG**: Web click sound not working. APK click works. Web click was working previously — something in S51 or S52 broke it. Null prefs fix + BPM fallbacks applied but didn't resolve. Needs deeper investigation next session.
-- **User testing feedback (S52)**:
-  1. **APK click**: Fixed, solid (confirmed S52)
-  2. **APK visualisers**: OK with beat-synced approach (confirmed S52)
-  3. **Web click**: NO AUDIBLE CLICK — top priority next session
-  4. **Web visualisers**: Not yet tested (blocked by click/cache issue)
-  5. **PWA standalone import**: Cannot connect to localhost (browser security). Nathan accepts this limitation (D-170). Use Chrome browser.
-  6. **PWA cache**: Users were getting stale code. Fixed with SW skipWaiting + clientsClaim + auto-reload on controllerchange + 5min update check.
+- **Last session (S53)**: Rewrote ClickScheduler from AudioBuffer to OscillatorNode approach. Fixed mobile black screen (stale SW cache). Deployed — needs user verification.
+- **Web click fix**: Rewrote ClickScheduler to use OscillatorNode + gain envelope instead of pre-rendered AudioBuffers. The buffer approach silently failed after S52 changes. Oscillator approach is fundamentally more reliable. **DEPLOYED but NOT YET VERIFIED by user.**
+- **Mobile black screen**: Was stale SW cache on phone from before skipWaiting/clientsClaim was deployed. Cleared Chrome data to fix. Future deploys auto-update via SW mechanism.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S52 Changes
-- **Visualisers (D-169)**: All 3 modes (Spectrum/Rings/Burst) now beat-driven metronome flash. Quick attack, slow release (~500ms). EQ bell-curve bar shape. Both platforms.
-- **Web click fix (partial)**: getPlayerPrefs() null fallback + BPM/config fallbacks. Did NOT fix the issue — deeper investigation needed.
-- **PWA standalone (D-170)**: Detects standalone mode, shows orange warning for import.
-- **SW auto-update**: skipWaiting + clientsClaim + controllerchange reload + 5min update poll. Future deploys auto-update all users.
+## S53 Changes
+- **ClickScheduler rewrite**: OscillatorNode per click (sine wave + gain envelope: 1ms attack, sustain, 30ms total). Removed pre-rendered buffer approach entirely. D-159 preserved (all beats identical, no accent).
+- **Mobile black screen fix**: Cleared stale Chrome SW cache via ADB. SW auto-update mechanism (S52) prevents recurrence.
 
-## NEXT SESSION PRIORITY: Web Click
-The web click worked before S51. Something in S51 or S52 broke it. Steps:
-1. Run local dev server, test click in Chrome DevTools with console open
-2. Check AudioContext state, ClickScheduler.isPlaying, BPM config
-3. Verify click buffers are created and scheduled
-4. Check if the issue is scheduling (clicks never fire) or audio routing (clicks fire but silent)
-5. Compare S50 code vs S51 diff for the breaking change
+## NEXT SESSION PRIORITY: Verify Web Click
+1. Nathan to test web click on live site (thegreentangerine.com) — does click produce audible sound now?
+2. If still broken: DevTools console debugging (AudioContext state, OscillatorNode creation, gain routing)
+3. Web visualisers still untested by user (were blocked by click issue)
 
 ## Remaining Items
-- [ ] **Web click — BROKEN** — top priority
+- [ ] **Verify web click fix** — deployed, needs user testing
+- [ ] Web visualisers: user testing (blocked by click issue until now)
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
 - [ ] Android Settings: verify display prefs not duplicated (D-118)
