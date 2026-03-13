@@ -278,6 +278,21 @@ export class ClickScheduler {
     const ctx = AudioEngine.getContext();
     const deadline = ctx.currentTime + LOOKAHEAD_SEC;
 
+    // S60 diagnostic — log schedule() entry to find why while loop never enters
+    if (this.debugClickCount === 0) {
+      console.log('[CLICK SCHEDULE ENTRY]', {
+        nextBeatTime: this.nextBeatTime,
+        deadline,
+        ctxTime: ctx.currentTime,
+        isNaN: isNaN(this.nextBeatTime),
+        willEnterLoop: this.nextBeatTime < deadline,
+        beatMap0: this.beatMap?.[0],
+        beatMapLen: this.beatMap?.length ?? 0,
+        offsetMs: this.config.beatOffsetMs,
+        speed: this.speed,
+      });
+    }
+
     while (this.nextBeatTime < deadline) {
       this.scheduleClick(this.nextBeatTime);
       // S60 diagnostic — log first 5 clicks then every 20th
