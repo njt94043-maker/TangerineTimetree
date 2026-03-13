@@ -250,7 +250,15 @@ export class ClickScheduler {
 
   private startScheduler(): void {
     this.stopScheduler();
-    this.schedulerTimer = setInterval(() => this.schedule(), SCHEDULE_INTERVAL);
+    this.debugClickCount = 0; // reset counter on each start
+    console.log('[CLICK TIMER START]', { interval: SCHEDULE_INTERVAL });
+    this.schedulerTimer = setInterval(() => {
+      // S60 diagnostic — log first call to confirm setInterval fires
+      if (this.debugClickCount === 0) {
+        console.log('[CLICK TIMER FIRE]', { isPlaying: this.isPlaying, timer: this.schedulerTimer });
+      }
+      this.schedule();
+    }, SCHEDULE_INTERVAL);
   }
 
   private stopScheduler(): void {
