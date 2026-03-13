@@ -352,36 +352,13 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // Start tick loop for time updates + beat polling
+    // S56 DIAGNOSTIC: Tick loop disabled to test if click plays in foreground.
+    // When backgrounded (rAF paused), click works. When foregrounded (rAF running), silent.
+    // If click now works in foreground, the tick loop is the culprit.
+    // UI updates (time, beat flash, visualisers) will NOT work while this is active.
     AudioEngine.startTick(() => {
-      // Poll queued beats — frame-accurate visual sync (D-161 pattern)
+      // MINIMAL tick: only poll beats for visual sync — everything else stripped
       AudioEngine.pollBeats();
-
-      let pos = 0;
-      if (hasStems) {
-        pos = mixerRef.current.getPosition();
-        mixerRef.current.checkLoop();
-      } else if (hasTrack) {
-        pos = trackRef.current.getPosition();
-        trackRef.current.checkLoop();
-      }
-      setCurrentTime(pos);
-      AudioEngine.emitTimeUpdate(pos, duration);
-
-      // Periodic resync: realign click to track position to correct SoundTouchJS drift
-      if (pos > 0) {
-        clickRef.current.resyncToPosition(pos);
-      }
-
-      // Beat intensity decay for metronome visualiser — slow release (~500ms)
-      if (beatIntensityRef.current > 0.01) {
-        beatIntensityRef.current *= 0.9;
-      } else {
-        beatIntensityRef.current = 0;
-      }
-
-      // FFT data for visualiser (updates every frame via ref, no re-render)
-      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
