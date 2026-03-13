@@ -14,7 +14,7 @@ import { AudioEngine, type EngineState, type BeatEvent } from '../audio/AudioEng
 import { ClickScheduler, type ClickConfig } from '../audio/ClickScheduler';
 import { TrackPlayer, type LoopRegion } from '../audio/TrackPlayer';
 import { StemMixer, type StemLabel } from '../audio/StemMixer';
-import { getSong, getBeatMap, getSongStems, getPlayerPrefs } from '@shared/supabase/queries';
+import { getSong, getBeatMap, getSongStems, getPlayerPrefs, updatePlayerPrefs } from '@shared/supabase/queries';
 import type { Song, BeatMap, SongStem } from '@shared/supabase/types';
 import type { PlayerPrefs } from '@shared/supabase/queries';
 
@@ -212,6 +212,13 @@ export function useAudioEngine(
         }
 
         clickEnabledRef.current = prefsData.player_click_enabled;
+        setClickMuted(!prefsData.player_click_enabled); // Sync UI with DB pref
+        console.log('[TGT-CLICK-DEBUG] Prefs loaded', {
+          player_click_enabled: prefsData.player_click_enabled,
+          clickEnabledRef: clickEnabledRef.current,
+          songBpm: songData.bpm,
+          songTimeSig: `${songData.time_signature_top}/${songData.time_signature_bottom}`,
+        });
         setSubdivisionState(songData.subdivision ?? 1);
         setCountInBarsState(songData.count_in_bars ?? 0);
 
@@ -320,8 +327,21 @@ export function useAudioEngine(
     setSongComplete(false);
     await AudioEngine.resume();
 
+    const ctx = AudioEngine.getContext();
+    const mg = AudioEngine.getMasterGain();
+    console.log('[TGT-CLICK-DEBUG] play() called', {
+      clickEnabled: clickEnabledRef.current,
+      audioCtxState: ctx.state,
+      masterGainValue: mg.gain.value,
+      clickConfig: clickRef.current.getConfig(),
+      mode,
+    });
+
     if (clickEnabledRef.current) {
       clickRef.current.start();
+      console.log('[TGT-CLICK-DEBUG] ClickScheduler.start() called, isActive:', clickRef.current.isActive());
+    } else {
+      console.warn('[TGT-CLICK-DEBUG] CLICK DISABLED — clickEnabledRef.current is false. Check player_click_enabled in user_settings.');
     }
 
     if ((mode === 'practice' || mode === 'view') && hasStems) {
@@ -428,6 +448,8 @@ export function useAudioEngine(
   const toggleClick = useCallback(() => {
     clickEnabledRef.current = !clickEnabledRef.current;
     setClickMuted(!clickEnabledRef.current);
+    // Persist to DB so drawer choice sticks across sessions (D-171)
+    updatePlayerPrefs({ player_click_enabled: clickEnabledRef.current });
     if (engineState === 'playing') {
       if (clickEnabledRef.current) {
         clickRef.current.start();

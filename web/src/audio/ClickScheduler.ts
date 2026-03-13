@@ -149,14 +149,28 @@ export class ClickScheduler {
     }
   }
 
+  // Debug counter — log first N clicks then stop spamming
+  private debugClickCount = 0;
+
   start(startTime?: number): void {
     const ctx = AudioEngine.getContext();
     this.isPlaying = true;
     this.currentBeat = 0;
     this.currentBar = 0;
+    this.debugClickCount = 0;
 
     const now = startTime ?? ctx.currentTime;
     const offsetSec = this.config.beatOffsetMs / 1000;
+    console.log('[TGT-CLICK-DEBUG] ClickScheduler.start()', {
+      ctxState: ctx.state,
+      ctxCurrentTime: ctx.currentTime,
+      now,
+      offsetSec,
+      bpm: this.config.bpm,
+      gain: this.config.gain,
+      hasBeatMap: !!(this.beatMap && this.beatMap.length > 0),
+      beatMapLength: this.beatMap?.length ?? 0,
+    });
 
     // Count-in
     if (this.config.countInBars > 0) {
@@ -267,6 +281,19 @@ export class ClickScheduler {
   ): void {
     const freqs = CLICK_FREQS[this.config.clickSound] ?? CLICK_FREQS.default;
     const freq = freqs.up; // D-159: all beats identical, no accent — always 'up'
+
+    if (this.debugClickCount < 5) {
+      console.log('[TGT-CLICK-DEBUG] scheduleOscClick()', {
+        clickNum: this.debugClickCount,
+        freq,
+        gain,
+        scheduledTime: time,
+        ctxCurrentTime: ctx.currentTime,
+        ctxState: ctx.state,
+        destinationChannelCount: destination.channelCount,
+      });
+      this.debugClickCount++;
+    }
 
     const osc = ctx.createOscillator();
     const envGain = ctx.createGain();
