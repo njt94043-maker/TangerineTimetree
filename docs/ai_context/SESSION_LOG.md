@@ -8,6 +8,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-13 | S60 — Click silence root cause + cleanup | resyncToPosition was preventing ALL clicks. SoundTouch 93ms latency. Click works, drifts after ~60s. |
 | 2026-03-13 | S59 — Click always-runs fix | Scheduler ALWAYS starts with track, muted flag controls audibility only. Deployed, untested. |
 | 2026-03-13 | S58 — Research-backed drift fix | Moved resyncToPosition into ClickScheduler's 25ms timer. Beat intensity in rAF (safe). |
 | 2026-03-13 | S57 — resyncToPosition breaks click | resyncToPosition in rAF kills click. Reverted. No more guessing — research required. |
@@ -90,3 +91,27 @@ S51: Click drift fixed with speed-scaled beat map + resync. S52: Visualisers rew
 
 ### Summary
 S57: resyncToPosition in rAF kills click (contradicts S56 step 2d — difference is parallel AnalyserNode). Reverted immediately. Nathan: "no more guessing." S58: Researched Chris Wilson + Tone.js. Root cause: race condition between rAF writes and setInterval reads. Fix: moved resyncToPosition into ClickScheduler's own 25ms timer via trackPositionGetter callback. S59: Click didn't start with track — scheduler was gated behind `player_click_enabled` DB pref (set false during S54 debug). Fix: scheduler ALWAYS starts, muted flag controls audibility only. Pain journal logged.
+
+---
+
+## S60 — Click Silence Root Cause + Cleanup (2026-03-13)
+
+### What Was Done
+1. **Removed debug UI** — debug banner (CLK/CTX/GAIN/BPM/ENG/BUILD), test beep button, console.logs from Player/useAudioEngine, __BUILD_TIME__ from vite config
+2. **Pruned SOT docs** — SESSION_LOG -95%, SPRINT_PROMPTS -98%, gotchas -26%. Created WEB_AUDIO_REFERENCE.md.
+3. **Found and fixed click silence root cause** — resyncToPosition() ran every 25ms and pushed nextBeatTime past the 100ms lookahead window. SoundTouch reports position ~93ms ahead (4096-sample buffer). Resync always saw the track "past" each beat → pushed to next beat → scheduler chased beat map forward but never caught up → while loop never entered → zero OscillatorNodes created.
+4. **Fix**: Disabled resyncToPosition entirely. Natural beat map scheduling (advanceBeat using madmom timestamps) works accurately.
+5. **Result**: Consistent click for ~60 seconds, then gradual drift. Drift correction needs re-enabling with latency compensation.
+6. **Added osc.onended cleanup** to prevent GainNode accumulation.
+
+### Debugging Approach (one change per push)
+- Commit 1: console.log in play() — all diagnostics green (ctx running, gain 1, enabled, not muted)
+- Commit 2: console.log in schedule() while loop — NO output (loop never entered)
+- Commit 3: console.log at schedule() entry — confirmed nextBeatTime > deadline always
+- Commit 4: console.log in startScheduler/setInterval — timer fires, isPlaying=true
+- Commit 5: SCHEDULE ENTRY diagnostic — nextBeatTime stayed ahead, resync was pushing it forward
+- Commit 6: Skip resync for first 4 beats — click plays! But resync still skips beats after grace period
+- Commit 7: Disable resync entirely — consistent click, drifts after ~60s
+
+### Key Learning
+SoundTouch's ScriptProcessorNode has ~93ms position reporting latency (4096/44100Hz). Any drift correction using SoundTouch position must compensate for this offset. The previous 30ms drift threshold was within the uncertainty window. Next session: re-enable resync with `trackPos - 0.093` compensation.

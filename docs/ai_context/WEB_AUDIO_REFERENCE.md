@@ -164,12 +164,15 @@ If you stop/start a timing engine mid-playback:
 - At 44.1kHz: 4096 / 44100 = ~93ms latency
 - Position reporting (`sourcePosition / sampleRate`) has this ~93ms offset
 
-### Implications
-- Click-to-track drift correction has inherent ~93ms uncertainty
-- The 30ms drift threshold in `resyncToPosition` is within this uncertainty window
+### Implications (S60 CONFIRMED)
+- **Position-based drift correction CANNOT use raw SoundTouch position.** The ~93ms offset makes resyncToPosition see the track "past" each beat, pushing nextBeatTime forward. At 166.7 BPM (360ms beats), resync pushes nextBeatTime ~300-350ms ahead — always past the 100ms lookahead window. Result: zero clicks ever scheduled.
+- Any future drift correction must subtract ~93ms from the reported position: `compensatedPos = trackPos - (4096 / sampleRate)`
+- The old 30ms drift threshold was within the 93ms uncertainty — triggered on noise, not real drift
 - Speed changes are applied via `PitchShifter.tempo` (not `playbackRate`)
 
-### Future
+### Current State (S60)
+- Drift correction is DISABLED. Natural beat map scheduling works for ~60s before drift.
+- To re-enable: compensate position, use 150ms+ threshold, skip first 4 beats.
 - `ScriptProcessorNode` is deprecated — may need AudioWorklet migration eventually
 - For now it works and SoundTouchJS doesn't offer an AudioWorklet version
 
@@ -182,6 +185,7 @@ If you stop/start a timing engine mid-playback:
 | AnalyserNode in series + getByteFrequencyData in rAF | Click permanently silent | S56 |
 | resyncToPosition in rAF + parallel AnalyserNode | Click silent in foreground | S57 |
 | ClickScheduler.start() gated by DB preference | Click never starts | S59 |
+| resyncToPosition using raw SoundTouch position | Zero clicks ever scheduled | S60 |
 | AudioBuffer click (vs OscillatorNode) | Silent in some contexts | S53 |
 | Full tick loop (all features) with series AnalyserNode | Click only in background | S55 |
 
@@ -198,9 +202,11 @@ When click is silent, check in this order:
 6. **AnalyserNode routing** — is it parallel (not series)?
 7. **rAF writes** — is anything in the tick loop modifying scheduler state?
 8. **Beat map** — does the song have one? If not, is manual BPM set?
+9. **resyncToPosition** — is it pushing nextBeatTime past the lookahead? (S60 root cause)
 
 When click drifts:
-1. **resyncToPosition** — is it running inside the scheduler timer (not rAF)?
-2. **trackPositionGetter** — is it wired before `start()`?
-3. **Speed scaling** — when speed changes, is BPM reconfigured too?
-4. **Beat map quality** — are madmom timestamps accurate for this song?
+1. **Drift correction** — is resyncToPosition enabled with latency compensation?
+2. **Latency compensation** — is ~93ms subtracted from SoundTouch position?
+3. **Drift threshold** — is it >150ms? (must exceed SoundTouch latency)
+4. **Speed scaling** — when speed changes, is BPM reconfigured too?
+5. **Beat map quality** — are madmom timestamps accurate for this song?
