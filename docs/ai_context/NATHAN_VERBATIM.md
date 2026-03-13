@@ -284,3 +284,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "not quite sure what youve done now, theres no click on webapp, and none of the vusuals look like they did in the mockups their all weird and glitchy. i can live with tgt capture imports needing in brower app.."
 > "no click = webapp"
 > "yeas" [re: push so webapp gets click fix + visuals]
+> "apk seems ok for now. webapp still doesnt have audible click or working visuals. something has taken the click away either this or last session"
+> "nope, how can we ensure the other users apps stray up to date with cache issue, that makes my app unusable for the whole job its got?"
+> "push everything and wrap up for now plz, pwa still no click"

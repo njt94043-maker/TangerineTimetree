@@ -6,68 +6,50 @@
 ---
 
 ## Current State
-- **Phase**: S51 — Bug fixes + stabilisation. User testing feedback.
-- **What works**: Web (full, V4 player + interactive mixer confirmed working + rebuilt Library + matching Android layout), Android (full, V4 player with 3 vis modes + interactive mixer + queue tabs + glow toggle + generalized queue + player persistence + auto-save beat analysis + close button + Now Playing drawer item + Library dropdowns), Cloud Run (beats + stems + CORS + skip_stems + re-analyse endpoint, revision beat-analysis-00009-th7), Capture (category field + badges with teal/orange parity + filter + theme).
-- **Last session (S50)**: Web mixer parity + Android vis switcher + Library button upgrade.
-- **User testing feedback (S51)**:
-  1. **Web mixer**: Works as intended (confirmed by Nathan)
-  2. **Click alignment**: Still falls out of sync on web (APK is fine)
-  3. **APK mixer bug**: Stem faders don't control the correct stems. Track fader should control master volume of all stems or not exist.
-  4. **Visualisers**: Neither app's visualisers function correctly
-  5. **PC webapp import**: Doesn't connect to TGT Capture (localhost:9123) — possible Windows permissions blocking. Nathan has allowed all permissions, testing if that fixes it.
-  6. **Windows PWA**: Webapp installed on PC may have restricted permissions vs Chrome browser
-- **Next action**: Deploy APK to device for testing. User to verify all 4 fixes. Then remaining parity items.
+- **Phase**: S52 — Bug fixes + stabilisation continued.
+- **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme).
+- **Last session (S52)**: Beat-synced visualisers (D-169), web click null-prefs fix, PWA standalone guidance (D-170), SW auto-update mechanism.
+- **CRITICAL OPEN BUG**: Web click sound not working. APK click works. Web click was working previously — something in S51 or S52 broke it. Null prefs fix + BPM fallbacks applied but didn't resolve. Needs deeper investigation next session.
+- **User testing feedback (S52)**:
+  1. **APK click**: Fixed, solid (confirmed S52)
+  2. **APK visualisers**: OK with beat-synced approach (confirmed S52)
+  3. **Web click**: NO AUDIBLE CLICK — top priority next session
+  4. **Web visualisers**: Not yet tested (blocked by click/cache issue)
+  5. **PWA standalone import**: Cannot connect to localhost (browser security). Nathan accepts this limitation (D-170). Use Chrome browser.
+  6. **PWA cache**: Users were getting stale code. Fixed with SW skipWaiting + clientsClaim + auto-reload on controllerchange + 5min update check.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
-- **Band roles**: All 4 profiles populated (Nathan=Drums, Neil=Bass, James=Lead Vocals, Adam=Guitar & Backing Vocals)
 
-## Sprint Roadmap (S38–S44+Audit) — Revised for Full Ecosystem
-| Sprint | Scope | Status |
-|--------|-------|--------|
-| S38 | **Visual Unification** — tokens + both player rebuilds to V4 | **Done** |
-| S39 | **Foundation** — migration + shared types/queries + Cloud Run beats-only code | **Done** |
-| S40 | **Library + SongForm (Both)** — dropdowns, categories, sharing | **Done** |
-| S41 | **Recording + Takes (Both)** — recording flow, takes list, post-recording | **Done** |
-| S42 | **View Mode (Both)** — 3rd player tab on both platforms | **Done** |
-| S43 | **Capture Alignment + Cloud Run** — Capture category field, Cloud Run deploy (beats-only + re-analyse), web skip_stems/re-analyse | **Done** |
-| S44 | **Import Pipeline + Android SongForm** — Capture→Web import, Android song editing + processing triggers | **Done** |
-| Audit | Cross-platform + cross-app surgical audit (ALL 3 apps) before user testing | **Done** |
+## S52 Changes
+- **Visualisers (D-169)**: All 3 modes (Spectrum/Rings/Burst) now beat-driven metronome flash. Quick attack, slow release (~500ms). EQ bell-curve bar shape. Both platforms.
+- **Web click fix (partial)**: getPlayerPrefs() null fallback + BPM/config fallbacks. Did NOT fix the issue — deeper investigation needed.
+- **PWA standalone (D-170)**: Detects standalone mode, shows orange warning for import.
+- **SW auto-update**: skipWaiting + clientsClaim + controllerchange reload + 5min update poll. Future deploys auto-update all users.
 
-## Completed (S45 Audit → S50)
-> Web Calendar (benchmark), Web Library (S47), Web Player (S47/S48), Web Settings (done), Android Library dropdowns (S50), Android header gap (fixed), Android vis switcher (S50), Android mixer rebuilt (S49/S50), Track loading + player persistence (D-165/D-166 confirmed).
+## NEXT SESSION PRIORITY: Web Click
+The web click worked before S51. Something in S51 or S52 broke it. Steps:
+1. Run local dev server, test click in Chrome DevTools with console open
+2. Check AudioContext state, ClickScheduler.isPlaying, BPM config
+3. Verify click buffers are created and scheduled
+4. Check if the issue is scheduling (clicks never fire) or audio routing (clicks fire but silent)
+5. Compare S50 code vs S51 diff for the breaking change
 
-## S51 Bug Fixes (All 4 addressed — PENDING USER TESTING)
-
-### APK stem mixer — PENDING TESTING
-- Root cause: C++ engine rendered both trackPlayer_ (ch1) AND stemPlayers_ (ch2+) simultaneously, doubling audio. Fix: mute ch1 gain when stems are loaded, hide TRK fader in PracticeScreen when stems present.
-
-### Web click alignment — PENDING TESTING
-- Root cause: 3 compounding issues — SoundTouchJS sourcePosition lag, setInterval jitter, beat map intervals not rescaled with speed changes. Fix: speed-scaled beat map intervals + periodic resync from track position with 30ms drift threshold.
-
-### Visualisers (both platforms) — PENDING TESTING
-- Root cause: Both platforms used hardcoded static bar heights with no real audio data. Fix: Web — AnalyserNode (fftSize=64) + FFT data driving bars. Android — RMS band energies computed in audio callback with smoothing, polled via JNI.
-
-### PC webapp → Capture import — PENDING TESTING
-- Root cause: Mixed content (HTTPS→HTTP) + CORS origin gaps. Fix: Capture server now binds 0.0.0.0 (was 127.0.0.1), added missing CORS origins, ImportPanel now tries both localhost and 127.0.0.1 as fallback with improved error message.
-
-### Remaining Items
+## Remaining Items
+- [ ] **Web click — BROKEN** — top priority
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
 - [ ] Android Settings: verify display prefs not duplicated (D-118)
 - [ ] Android Calendar: cell shadows verification
-- **Bulk import**: Single-track only. No batch import yet.
-- **Android signing**: Release keystore missing — debug APK only.
 
 ## Big Picture
-- **Vision**: 3 live apps + 1 future, all one family (D-156). Same theme, shared metadata. Each app takes what it needs.
-- **Pipeline**: Capture (entry point) → Web (import + manage) → Cloud Run (process) → Both apps (consume). Future: Capture → ClickTrack (practice tracks).
+- **Vision**: 3 live apps + 1 future, all one family (D-156). Same theme, shared metadata.
+- **Pipeline**: Capture → Web → Cloud Run → Both apps. Future: Capture → ClickTrack.
 - **Architecture**: Monorepo (`shared/` + `web/` + `android/` + `capture/` + `native/` [shelved])
-- **ClickTrack**: Future personal practice app. Not built yet but considered now (D-155). Capture's practice_category/instrument_focus/difficulty are ClickTrack-bound.
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
-- **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13)
+- **Web**: thegreentangerine.com (Vercel, auto-deploys from master, SW auto-update)
+- **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
-- **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7 (S43: beats-only + re-analyse deployed)
+- **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
 - **Capture**: localhost:5174 (UI) + localhost:9123 (backend). Flakey but functional.
 
 ## Session Protocol (Quick Reference)
