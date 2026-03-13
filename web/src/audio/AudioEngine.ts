@@ -49,20 +49,20 @@ class AudioEngineImpl {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 1.0;
 
-      // AnalyserNode for real-time FFT data (visualiser)
+      // Audio goes directly to speakers — never through analyser
+      this.masterGain.connect(this.ctx.destination);
+
+      // AnalyserNode taps audio for visualiser FFT — parallel branch, not inline
       this.analyser = this.ctx.createAnalyser();
-      this.analyser.fftSize = 64; // 32 frequency bins — enough for 16-bar spectrum
+      this.analyser.fftSize = 64; // 32 frequency bins
       this.analyser.smoothingTimeConstant = 0.7;
-      this.masterGain.connect(this.analyser);
-      this.analyser.connect(this.ctx.destination);
+      this.masterGain.connect(this.analyser); // tap only, analyser NOT connected to destination
 
       this.fftData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
       console.log('[TGT-CLICK-DEBUG] AudioContext created', {
         state: this.ctx.state,
         sampleRate: this.ctx.sampleRate,
-        baseLatency: this.ctx.baseLatency,
-        masterGainValue: this.masterGain.gain.value,
-        chain: 'masterGain → analyser → destination',
+        chain: 'masterGain → destination (direct) + masterGain → analyser (tap)',
       });
     }
     return this.ctx;

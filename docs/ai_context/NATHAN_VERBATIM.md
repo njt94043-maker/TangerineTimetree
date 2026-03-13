@@ -305,3 +305,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "click on in settings"
 > "there shouldnt even be an option in the setting. refer to controlled from the drawer for all users"
 > "why was webapp still setup like that? apk isnt.. you shouldnt have needed to update what i said, ive said it before"
+> "no click, no drum track now. drum track had been muted from last time i tested, i just unmuted it and no drums are audible.. something wrong with the mixer again now. debug says mut / unmute correctly i just cant hear a click"
+> "CLK: ✅ON CTX: running GAIN: 1.00 BPM: 90.9 ENG: playing"
+> "have you tried backtracking. then starting again. now you know the settings options shouldnt have been there? your just making things worse from what i can see"
