@@ -5,18 +5,17 @@
 
 ---
 
-## S59 — Verify Drift Fix + Cleanup (Top Priority)
+## S60 — Verify Click Timing + Cleanup (Top Priority)
 
-### Web Click — Drift fix deployed, needs testing
+### Web Click — Always-runs fix deployed, needs testing
 - [x] S52-S56: Click foreground silence diagnosed and fixed (AnalyserNode parallel, step 2c tick loop)
 - [x] S57: Tested resyncToPosition in rAF — BROKE click (reverted immediately)
 - [x] S58: Research (Chris Wilson + Tone.js) — root cause: race condition between rAF and setInterval
-- [x] S58: Presented plan to Nathan, approved
 - [x] S58: Moved resyncToPosition into ClickScheduler's 25ms schedule() timer
-- [x] S58: Restored beat intensity decay in rAF tick loop
-- [ ] **S59: User testing** — play song with beat map 60+ seconds, verify click stays in time
-- [ ] **S59: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
-- [ ] **S59: Remove debug banner + test beep + console.log** after click confirmed fixed
+- [x] S59: Fixed click not starting — scheduler was gated behind DB pref. Now always runs, mute = audibility only.
+- [ ] **S60: User testing** — play song with beat map 60+ seconds, verify click is in time from the start
+- [ ] **S60: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
+- [ ] **S60: Remove debug banner + test beep + console.log** after click confirmed fixed
 
 ### Completed (S51-S54)
 - [x] Mobile black screen: stale SW cache, cleared Chrome data

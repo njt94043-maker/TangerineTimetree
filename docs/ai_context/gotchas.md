@@ -4,6 +4,16 @@
 
 ---
 
+## Web Audio: Timing engines ALWAYS run (S59)
+
+**Never** conditionally start/stop the ClickScheduler based on UI state (mute, prefs, etc.). The scheduler must ALWAYS run when the track is playing. Mute/unmute controls audibility (skip OscillatorNode creation), not scheduling. Beat events and timing tracking continue regardless.
+
+**Why**: S54 debugging persisted `player_click_enabled=false` to DB. `play()` checked this and skipped `clickRef.start()`. Click was silent on play. Mute/unmute toggled start/stop mid-playback = out of time.
+
+**Rule**: If you're about to write `if (somePref) scheduler.start()` — it's wrong. Scheduler starts unconditionally. Pref controls `scheduler.setMuted()`.
+
+---
+
 ## Capture Tool (WASAPI Loopback)
 
 ### WASAPI doesn't fire callbacks during silence

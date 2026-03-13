@@ -6,34 +6,34 @@
 ---
 
 ## Current State
-- **Phase**: S58 complete — Research-backed drift fix deployed. Needs user testing.
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click WORKS IN FOREGROUND**. Beat intensity decay restored.
-- **What was fixed (S58)**: resyncToPosition moved from rAF (60fps) into ClickScheduler's own 25ms setInterval. Eliminates race condition that killed OscillatorNodes.
+- **Phase**: S59 complete — Click scheduler always-runs fix deployed. Needs user testing.
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click WORKS IN FOREGROUND**.
+- **What was fixed (S59)**: Click scheduler was gated behind `player_click_enabled` DB pref (set `false` during S54 debug). Scheduler now ALWAYS runs — mute controls audibility only, not scheduling. Follows established audio pattern: timing engines run, UI controls gain.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S58 Research Finding + Fix
-- **Root cause**: resyncToPosition was called from rAF (60fps) while ClickScheduler's setInterval (25ms) simultaneously read `nextBeatTime` — race condition between two timers writing/reading the same variable.
-- **Research**: Chris Wilson (A Tale of Two Clocks) + Tone.js both confirm: all scheduling writes MUST be in ONE timer. rAF is for visuals only.
-- **Fix**: ClickScheduler gets a `trackPositionGetter` callback. `schedule()` (25ms timer) calls `resyncToPosition()` internally — same timer that reads `nextBeatTime` for scheduling. No more race.
-- **Beat intensity**: decay restored in rAF tick loop (safe — only writes to a ref, no scheduling).
-- **Status**: Deployed to Vercel. **NOT YET TESTED BY USER** — results in next session.
+## S59 Fix
+- **Symptom**: Click didn't play on track start. Mute/unmute from mixer would start click, but out of time.
+- **Root cause**: `play()` conditionally called `clickRef.start()` based on `player_click_enabled` DB pref. Pref was `false` from S54 debug. `toggleClick` called `start()`/`stop()` instead of controlling gain — starting mid-playback with no position sync.
+- **Fix**: ClickScheduler gets `muted` flag. Scheduler ALWAYS starts with track. `setMuted()` controls whether OscillatorNodes are created. Beat events and timing always run. `toggleClick` calls `setMuted()` not `start()`/`stop()`.
+- **Principle**: Same research (Chris Wilson + Tone.js) — timing engines always run, mute is gain control.
+- **Status**: Deployed to Vercel. **NOT YET TESTED BY USER** — click timing accuracy still needs verification.
 
-## NEXT SESSION (S59): Test drift fix + evaluate remaining items
-1. **Test click-to-track sync** — play a song with beat map, 60+ seconds, check drift
+## NEXT SESSION (S60): Test click + evaluate remaining items
+1. **Test click-to-track sync** — play a song with beat map, 60+ seconds, check if click is in time
 2. **If click works**: remove debug banner + test beep + console.log
 3. **Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
 4. **If FFT not needed**: close that item, move on to remaining parity items
 
 ## Remaining Items
-- [ ] **Verify click drift fix** — user testing needed (S58 fix deployed, untested)
+- [ ] **Verify click timing** — user testing needed (S59 always-runs fix deployed, untested)
 - [ ] **Evaluate FFT necessity** — D-169 says vis is beat-synced only, may not need FFT
 - [ ] Remove debug banner + test beep + console.log after click confirmed fixed
-- [ ] Web visualisers: user testing (blocked by click drift fix verification)
+- [ ] Web visualisers: user testing (blocked by click verification)
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (S58 drift fix — resync inside scheduler timer)
+- **Web**: thegreentangerine.com (S59 — click scheduler always runs, mute = audibility only)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
