@@ -213,12 +213,6 @@ export function useAudioEngine(
 
         clickEnabledRef.current = prefsData.player_click_enabled;
         setClickMuted(!prefsData.player_click_enabled); // Sync UI with DB pref
-        console.log('[TGT-CLICK-DEBUG] Prefs loaded', {
-          player_click_enabled: prefsData.player_click_enabled,
-          clickEnabledRef: clickEnabledRef.current,
-          songBpm: songData.bpm,
-          songTimeSig: `${songData.time_signature_top}/${songData.time_signature_bottom}`,
-        });
         setSubdivisionState(songData.subdivision ?? 1);
         setCountInBarsState(songData.count_in_bars ?? 0);
 
@@ -326,16 +320,6 @@ export function useAudioEngine(
   const play = useCallback(async () => {
     setSongComplete(false);
     await AudioEngine.resume();
-
-    const ctx = AudioEngine.getContext();
-    const mg = AudioEngine.getMasterGain();
-    console.log('[TGT-CLICK-DEBUG] play() called', {
-      clickEnabled: clickEnabledRef.current,
-      audioCtxState: ctx.state,
-      masterGainValue: mg.gain.value,
-      clickConfig: clickRef.current.getConfig(),
-      mode,
-    });
 
     // Wire track position getter into click scheduler BEFORE starting.
     // This runs inside the scheduler's 25ms setInterval (not rAF) to avoid
