@@ -430,3 +430,18 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "with the ammount of research we should have logged already, plus the reseach just done, at this stage these shouldnt be fixes, the how and when has been figured out by developers allready it seems, we just have to apply their work to ours"
 > "ok. at this point i think we should wrap up."
 > "push everything and log"
+
+## Session S60 (2026-03-13)
+
+### Session Start
+> [Nathan shared STATUS.md — reviewing current state for S60 click testing + cleanup]
+
+### Click Still Broken + Full Project Assessment Request
+> "BUILD: 2026-03-13 18:51:29 no click audible, foreground or background."
+> "at this stage i think we need to step back assess everything, the projects purpose and the jobs it will be expected to do for its users. wheck our current codebase and sot docs and check how fit for purpose they currently are. do we have enough stored research to finish these builds so they are able to be relied upon for every day use once complete. are our sot docs hindering us at all? we do keep getting lost guess fixing over using suitable real world research."
+
+### Project Overview Request
+> "please also provide with me with a nice english project overview, all functions and why they are needed and their place in the big picture. a document plz or html"
+
+### Remove Debug UI + Prune SOT Docs
+> "my mistake, lets address points 2 and 3. dont delete anything backup to d:/ where needed"

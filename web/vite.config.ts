@@ -4,10 +4,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
-  define: {
-    // Inject build timestamp so deployed version can be verified in the UI
-    '__BUILD_TIME__': JSON.stringify(new Date().toISOString()),
-  },
   plugins: [
     react(),
     VitePWA({

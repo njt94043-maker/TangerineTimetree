@@ -62,16 +62,20 @@ All in `docs/ai_context/` (project root level):
 | `decisions_log.md` | Locked ADRs (append-only) | New decisions made |
 | `schema_map.md` | DB schema + TypeScript types | Data model changes |
 | `pain_journal.md` | Root cause analysis of real failures | After significant debugging |
-| `SPRINT_PROMPTS.md` | Sprint pickup prompts | New sprint planned |
+| `SPRINT_PROMPTS.md` | **ARCHIVED** — pointer to D:/tgt/sot-backup-s60/ | N/A |
 | `NATHAN_VERBATIM.md` | Nathan's exact words, by topic — check before overriding decisions | Every user message |
 
 ## Session Start Protocol
-0. Read `NATHAN_VERBATIM.md` — **CRITICAL**: you MUST append every single Nathan message to this file immediately as it comes in, organized by topic. Not at session end — IMMEDIATELY. This is non-negotiable rule #10. The UserPromptSubmit hook auto-logs raw messages, but you must also organize them by topic. Check the file now to confirm you understand the format.
-1. Read `STATUS.md` — instant context
-2. Read `IMPACT_MAP.md` — coupling awareness
-3. Read `todo.md` — current priorities
-4. Read `decisions_log.md` — check locked decisions BEFORE modifying any behavioral code
-5. Only read deeper docs if the task requires it
+0. **ALWAYS** append every Nathan message to `NATHAN_VERBATIM.md` immediately as it comes in, organized by topic. Not at session end — IMMEDIATELY. Non-negotiable rule #10.
+1. Read `STATUS.md` — instant context (mandatory)
+2. Read `todo.md` — current priorities (mandatory)
+3. Read other docs ON DEMAND when the task touches that domain:
+   - Touching behavioral code? → Read `decisions_log.md` first
+   - Touching audio engine? → Read `docs/ai_context/WEB_AUDIO_REFERENCE.md`
+   - Touching DB/schema? → Read `schema_map.md`
+   - Touching coupled systems? → Read `IMPACT_MAP.md`
+   - Overriding a past instruction? → Search `NATHAN_VERBATIM.md`
+   - Debugging a recurring issue? → Read `gotchas.md`
 
 ## Session End Protocol
 1. Verify `npx tsc -b` (web) passes clean

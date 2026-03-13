@@ -14,7 +14,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
-import { AudioEngine } from '../audio/AudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
 import { getSetlistWithSongs, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
 import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
@@ -780,41 +779,6 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
           <span className="v4-bpm-val">{Math.round(songBpm * state.speed)}</span>
           <span className="v4-bpm-unit">BPM</span>
         </div>
-      </div>
-
-      {/* ── TEMPORARY DEBUG BANNER — remove after click fix confirmed ── */}
-      <div style={{
-        background: state.clickMuted ? '#442222' : '#224422',
-        color: '#fff',
-        fontSize: '11px',
-        fontFamily: 'JetBrains Mono, monospace',
-        padding: '4px 8px',
-        display: 'flex',
-        gap: '12px',
-        flexWrap: 'wrap',
-        opacity: 0.85,
-      }}>
-        <span>CLK: {state.clickMuted ? '❌OFF' : '✅ON'}</span>
-        <span>CTX: {(() => { try { const c = (window as any).__tgtCtxState; return c || '?'; } catch { return '?'; } })()}</span>
-        <span>GAIN: {state.clickGain.toFixed(2)}</span>
-        <span>BPM: {state.song?.bpm ?? '?'}</span>
-        <span>ENG: {state.engineState}</span>
-        <span style={{ color: '#0ff' }}>BUILD: {typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__.replace('T', ' ').slice(0, 19) : '?'}</span>
-        <button
-          style={{ background: '#336', color: '#fff', border: '1px solid #558', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '11px' }}
-          onClick={() => {
-            try {
-              const ctx = AudioEngine.getContext();
-              const mg = AudioEngine.getMasterGain();
-              const osc = ctx.createOscillator();
-              osc.frequency.value = 880;
-              osc.connect(mg);
-              osc.start();
-              osc.stop(ctx.currentTime + 0.2);
-              console.log('[TGT-CLICK-DEBUG] TEST BEEP: osc→masterGain, ctx.state:', ctx.state, 'mg.gain:', mg.gain.value);
-            } catch (e) { console.error('[TGT-CLICK-DEBUG] TEST BEEP FAILED:', e); }
-          }}
-        >Test Beep</button>
       </div>
 
       {/* ── Content area — adaptive flex layout ── */}
