@@ -260,6 +260,9 @@ export class ClickScheduler {
     }
   }
 
+  // S60 diagnostic counter — remove after click confirmed working
+  private debugClickCount = 0;
+
   private schedule(): void {
     if (!this.isPlaying) return;
 
@@ -277,6 +280,21 @@ export class ClickScheduler {
 
     while (this.nextBeatTime < deadline) {
       this.scheduleClick(this.nextBeatTime);
+      // S60 diagnostic — log first 5 clicks then every 20th
+      this.debugClickCount++;
+      if (this.debugClickCount <= 5 || this.debugClickCount % 20 === 0) {
+        console.log('[CLICK SCHED]', {
+          n: this.debugClickCount,
+          time: this.nextBeatTime.toFixed(3),
+          ctxTime: ctx.currentTime.toFixed(3),
+          delta: (this.nextBeatTime - ctx.currentTime).toFixed(3),
+          beat: this.currentBeat,
+          muted: this.muted,
+          gain: this.config.gain,
+          bpm: this.config.bpm,
+          accentLen: this.config.accentPattern.length,
+        });
+      }
       this.advanceBeat();
     }
   }
