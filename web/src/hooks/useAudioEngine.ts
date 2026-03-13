@@ -352,11 +352,10 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56 ISOLATION — FFT + beat intensity broke click. Splitting to find which.
+    // S56 ISOLATION — reverting to step 2d (last confirmed working state).
     // pollBeats = ✓, position = ✓, setCurrentTime = ✓, resync = ✓
-    // FFT + beat intensity = ✗ BROKE CLICK
-    // Step 2e-i: add ONLY beat intensity (ref mutations, no audio API).
-    // NO FFT (getByteFrequencyData is the stronger suspect).
+    // Beat intensity + FFT = ✗ (both broke click independently??)
+    // Reverting to 2d to confirm it still works, rule out SW cache issue.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
@@ -374,13 +373,6 @@ export function useAudioEngine(
 
       if (pos > 0) {
         clickRef.current.resyncToPosition(pos);
-      }
-
-      // [2e-i] Beat intensity decay only (ref mutation, no audio API)
-      if (beatIntensityRef.current > 0.01) {
-        beatIntensityRef.current *= 0.9;
-      } else {
-        beatIntensityRef.current = 0;
       }
     });
   }, [mode, hasStems, hasTrack, duration]);
