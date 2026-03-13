@@ -49,12 +49,16 @@ class AudioEngineImpl {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 1.0;
 
-      // AnalyserNode for real-time FFT data (visualiser)
+      // Audio goes direct to destination (no analyser in the path)
+      this.masterGain.connect(this.ctx.destination);
+
+      // AnalyserNode as parallel observer — does NOT gate audio output.
+      // S56 finding: having analyser in series (masterGain → analyser → destination)
+      // caused scheduled OscillatorNodes to go silent in foreground.
       this.analyser = this.ctx.createAnalyser();
-      this.analyser.fftSize = 64; // 32 frequency bins — enough for 16-bar spectrum
+      this.analyser.fftSize = 64; // 32 frequency bins
       this.analyser.smoothingTimeConstant = 0.7;
-      this.masterGain.connect(this.analyser);
-      this.analyser.connect(this.ctx.destination);
+      this.masterGain.connect(this.analyser); // observe only, not in output path
 
       this.fftData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     }
