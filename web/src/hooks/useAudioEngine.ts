@@ -352,51 +352,21 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56 FIX: Tick loop was killing click audio (confirmed by diagnostic).
-    // Root cause: 60fps React re-renders (setCurrentTime) + 60fps resyncToPosition
-    // starved the scheduler / constantly pushed nextBeatTime forward.
-    // Fix: throttle expensive operations, keep rAF for beat polling + visualisers.
-    let lastTimeUpdate = 0;   // throttle setCurrentTime to ~4fps
-    let lastResync = 0;       // throttle resyncToPosition to ~2Hz
-
+    // S56 ISOLATION: Adding back tick features one at a time.
+    // Baseline (pollBeats only) = click works in foreground.
+    // Step 2b: add position reading + loop checking.
+    // NO setCurrentTime, NO resyncToPosition, NO FFT, NO beat intensity.
     AudioEngine.startTick(() => {
-      const now = performance.now();
-
-      // Poll queued beats — frame-accurate visual sync (D-161 pattern)
       AudioEngine.pollBeats();
 
-      // Position + loop checking (needed every frame for loop accuracy)
-      let pos = 0;
+      // [2b] Position + loop checking
       if (hasStems) {
-        pos = mixerRef.current.getPosition();
+        mixerRef.current.getPosition();
         mixerRef.current.checkLoop();
       } else if (hasTrack) {
-        pos = trackRef.current.getPosition();
+        trackRef.current.getPosition();
         trackRef.current.checkLoop();
       }
-
-      // Throttle React state update to ~4fps (250ms) — time display doesn't need 60fps
-      if (now - lastTimeUpdate > 250) {
-        setCurrentTime(pos);
-        AudioEngine.emitTimeUpdate(pos, duration);
-        lastTimeUpdate = now;
-      }
-
-      // Throttle resync to ~2Hz (500ms) — corrects drift without fighting scheduler
-      if (pos > 0 && now - lastResync > 500) {
-        clickRef.current.resyncToPosition(pos);
-        lastResync = now;
-      }
-
-      // Beat intensity decay for metronome visualiser — slow release (~500ms)
-      if (beatIntensityRef.current > 0.01) {
-        beatIntensityRef.current *= 0.9;
-      } else {
-        beatIntensityRef.current = 0;
-      }
-
-      // FFT data for visualiser (updates every frame via ref, no re-render)
-      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
