@@ -348,7 +348,8 @@ export class ClickScheduler {
   }
 
   private getSecondsPerBeat(): number {
-    return 60 / this.config.bpm;
+    const bpm = this.config.bpm || 120; // safety: avoid Infinity from 0/null
+    return 60 / bpm;
   }
 
   // --- Click sound generation ---

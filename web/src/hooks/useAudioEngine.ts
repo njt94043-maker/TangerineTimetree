@@ -194,14 +194,14 @@ export function useAudioEngine(
           : [];
 
         const clickConfig: Partial<ClickConfig> = {
-          bpm: songData.bpm,
-          timeSignatureTop: songData.time_signature_top,
-          timeSignatureBottom: songData.time_signature_bottom,
-          subdivision: songData.subdivision,
-          swingPercent: songData.swing_percent,
+          bpm: songData.bpm || 120, // fallback to 120 if 0/null/undefined
+          timeSignatureTop: songData.time_signature_top || 4,
+          timeSignatureBottom: songData.time_signature_bottom || 4,
+          subdivision: songData.subdivision ?? 1,
+          swingPercent: songData.swing_percent ?? 50,
           accentPattern,
-          clickSound: songData.click_sound,
-          countInBars: songData.count_in_bars,
+          clickSound: songData.click_sound || 'default',
+          countInBars: songData.count_in_bars ?? 0,
           beatOffsetMs: songData.beat_offset_ms ?? 0,
         };
         clickRef.current.configure(clickConfig);
