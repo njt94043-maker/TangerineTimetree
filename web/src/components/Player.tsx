@@ -318,6 +318,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   const [showNotes, setShowNotes] = useState(true);
   const [showDrums, setShowDrums] = useState(true);
   const [glowFullscreen, setGlowFullscreen] = useState(false);
+  const [visMode, setVisMode] = useState<'spectrum' | 'rings' | 'burst'>('spectrum');
 
   // Drawer open
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -786,27 +787,63 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
         {showVisuals && !isRecordMode && !isView && (
           <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
             <div className="v4-hero-vis">
-              <div className="v4-vis-bars">
-                {Array.from({ length: 16 }, (_, i) => {
-                  const fft = state.fftData;
-                  // Map 32 FFT bins down to 16 bars (average pairs), scale 0-255 → 0-1
-                  const val = fft && fft.length > 0
-                    ? ((fft[i * 2] ?? 0) + (fft[i * 2 + 1] ?? 0)) / 510
-                    : 0.1;
-                  return (
-                    <div key={i} className="v4-vis-bar" style={{
-                      height: `${Math.max(4, val * 60)}px`,
-                      transition: 'height 60ms linear',
-                    }} />
-                  );
-                })}
-              </div>
+              {visMode === 'spectrum' && (
+                <div className="v4-vis-bars">
+                  {Array.from({ length: 16 }, (_, i) => {
+                    const bi = state.beatIntensity;
+                    const target = state.barTargets[i] ?? 0.5;
+                    const idle = target * 0.15;
+                    const val = Math.max(idle, bi * target);
+                    return (
+                      <div key={i} className="v4-vis-bar" style={{
+                        height: `${Math.max(4, val * 60)}px`,
+                      }} />
+                    );
+                  })}
+                </div>
+              )}
+              {visMode === 'rings' && (
+                <svg viewBox="0 0 200 200" className="v4-vis-canvas">
+                  {[0, 1, 2, 3].map(i => {
+                    const bi = state.beatIntensity;
+                    const scale = 0.6 + bi * 0.4;
+                    const frac = ((i + 1) / 4) * scale;
+                    const r = 80 * frac;
+                    const alpha = 0.12 + 0.08 * (3 - i) + bi * 0.35;
+                    return <circle key={i} cx={100} cy={100} r={r} fill="none"
+                      stroke="var(--color-green)" strokeWidth={1.5 + bi * 2}
+                      opacity={alpha} />;
+                  })}
+                  <circle cx={100} cy={100} r={4 + state.beatIntensity * 8}
+                    fill="var(--color-green)" opacity={0.5 + state.beatIntensity * 0.5} />
+                </svg>
+              )}
+              {visMode === 'burst' && (
+                <svg viewBox="0 0 200 200" className="v4-vis-canvas">
+                  {[0, 1, 2].map(i => {
+                    const bi = state.beatIntensity;
+                    const burstR = 1 - bi; // expands as intensity decays
+                    const offset = i * 0.15;
+                    const r = ((burstR + offset) % 1) * 80;
+                    const alpha = bi * (1 - burstR - offset * 0.5) * 0.9;
+                    return alpha > 0.02 ? <circle key={i} cx={100} cy={100} r={Math.max(0, r)}
+                      fill="none" stroke="var(--color-green)"
+                      strokeWidth={Math.max(0.5, 3 - (r / 80) * 2)}
+                      opacity={Math.max(0, Math.min(1, alpha))} /> : null;
+                  })}
+                  <circle cx={100} cy={100} r={6 + state.beatIntensity * 10}
+                    fill="var(--color-green)" opacity={state.beatIntensity * 0.7} />
+                </svg>
+              )}
             </div>
             {state.beatFlash && !glowFullscreen && <div className="v4-beat-glow" />}
             <div className="v4-vis-switcher">
-              <button className="v4-vis-btn on">Spectrum</button>
-              <button className="v4-vis-btn">Rings</button>
-              <button className="v4-vis-btn">Burst</button>
+              <button className={`v4-vis-btn${visMode === 'spectrum' ? ' on' : ''}`}
+                onClick={() => setVisMode('spectrum')}>Spectrum</button>
+              <button className={`v4-vis-btn${visMode === 'rings' ? ' on' : ''}`}
+                onClick={() => setVisMode('rings')}>Rings</button>
+              <button className={`v4-vis-btn${visMode === 'burst' ? ' on' : ''}`}
+                onClick={() => setVisMode('burst')}>Burst</button>
             </div>
           </div>
         )}
@@ -824,15 +861,14 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             ) : (
               <div className="v4-view-visualizer">
                 {Array.from({ length: 21 }, (_, i) => {
-                  const fft = state.fftData;
-                  const binIdx = Math.floor(i * (fft?.length ?? 32) / 21);
-                  const val = fft && fft.length > 0 ? (fft[binIdx] ?? 0) / 255 : 0;
+                  const bi = state.beatIntensity;
+                  // Use barTargets for first 16, generate deterministic values for 17-21
+                  const target = i < 16 ? (state.barTargets[i] ?? 0.5) : (0.4 + ((i * 7) % 10) / 16);
                   const h = isPlaying
-                    ? Math.max(8, val * 70)
+                    ? Math.max(8, bi * target * 70)
                     : 8 + Math.sin(i * 0.3) * 4;
                   return <div key={i} className="v4-view-bar" style={{
                     height: `${h}%`,
-                    transition: 'height 60ms linear',
                   }} />;
                 })}
               </div>

@@ -6004,6 +6004,12 @@ select.ps-form-input {
   background: linear-gradient(to top, var(--color-green), rgba(0,230,118,0.3));
   box-shadow: 0 0 4px rgba(0,230,118,0.15);
 }
+.v4-vis-canvas {
+  width: 100%;
+  height: 100%;
+  max-width: 200px;
+  max-height: 200px;
+}
 .v4-vis-switcher {
   position: absolute;
   top: 8px;

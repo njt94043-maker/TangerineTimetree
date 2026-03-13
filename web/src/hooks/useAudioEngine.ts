@@ -88,6 +88,10 @@ export interface AudioEngineState {
 
   // FFT frequency data for visualiser (32 bins, 0-255 each)
   fftData: Uint8Array | null;
+
+  // Beat-driven metronome visualiser (quick attack, slow release)
+  beatIntensity: number;    // 0-1, snaps to 1 on beat, decays each frame
+  barTargets: Float32Array; // 16 random bar heights, regenerated each beat
 }
 
 export interface AudioEngineActions {
@@ -139,6 +143,8 @@ export function useAudioEngine(
   const [songComplete, setSongComplete] = useState(false);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
   const fftDataRef = useRef<Uint8Array | null>(null);
+  const beatIntensityRef = useRef(0);
+  const barTargetsRef = useRef(new Float32Array(16));
   const [subdivision, setSubdivisionState] = useState(1);
   const [clickGain, setClickGainState] = useState(0.8);
   const [clickMuted, setClickMuted] = useState(false);
@@ -265,6 +271,14 @@ export function useAudioEngine(
       onBeat(event: BeatEvent) {
         setCurrentBeat(event.beat);
         setCurrentBar(event.bar);
+        // Beat intensity for metronome visualiser — quick attack
+        beatIntensityRef.current = 1.0;
+        // EQ-shaped bar heights — bell curve (center tall, edges short) + slight variation
+        for (let i = 0; i < 16; i++) {
+          const dist = Math.abs(i - 7.5) / 7.5;
+          const base = 0.45 + 0.55 * (1 - dist * dist);
+          barTargetsRef.current[i] = base * (0.85 + Math.random() * 0.15);
+        }
         if (prefs?.player_flash_enabled) {
           setBeatFlash(true);
           setTimeout(() => setBeatFlash(false), 80);
@@ -337,6 +351,13 @@ export function useAudioEngine(
       // Periodic resync: realign click to track position to correct SoundTouchJS drift
       if (pos > 0) {
         clickRef.current.resyncToPosition(pos);
+      }
+
+      // Beat intensity decay for metronome visualiser — slow release (~500ms)
+      if (beatIntensityRef.current > 0.01) {
+        beatIntensityRef.current *= 0.9;
+      } else {
+        beatIntensityRef.current = 0;
       }
 
       // FFT data for visualiser (updates every frame via ref, no re-render)
@@ -471,6 +492,8 @@ export function useAudioEngine(
     trackGain,
     trackMuted,
     fftData: fftDataRef.current,
+    beatIntensity: beatIntensityRef.current,
+    barTargets: barTargetsRef.current,
   };
 
   const actions: AudioEngineActions = {
