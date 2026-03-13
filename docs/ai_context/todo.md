@@ -5,19 +5,23 @@
 
 ---
 
-## S52 — CRITICAL: Web Click Broken
+## S53 — Web Click Fix + Mobile Black Screen
 
-### Web Click — NO AUDIBLE CLICK — TOP PRIORITY
-- [x] Code fix: getPlayerPrefs() null fallback to defaults
-- [x] Code fix: BPM/time-sig/click-sound config fallbacks for 0/null
-- [x] Code fix: ClickScheduler.getSecondsPerBeat() safety for BPM=0
-- [ ] **Still broken**: Click does not produce audible sound on webapp. APK click works fine. Needs DevTools debugging next session.
-- [ ] Investigation: Run local dev server, open Chrome DevTools console, trace AudioContext state + click scheduling + audio routing.
+### Web Click — Rewritten to OscillatorNode
+- [x] Code fix: getPlayerPrefs() null fallback to defaults (S52)
+- [x] Code fix: BPM/time-sig/click-sound config fallbacks for 0/null (S52)
+- [x] Code fix: ClickScheduler.getSecondsPerBeat() safety for BPM=0 (S52)
+- [x] Code fix: Full ClickScheduler rewrite — OscillatorNode + gain envelope replaces AudioBuffer (S53)
+- [ ] **Verify**: Nathan to test web click on live site — deployed but not yet confirmed working.
+
+### Mobile Black Screen — FIXED
+- [x] Root cause: stale SW cache from before skipWaiting/clientsClaim deploy
+- [x] Fix: Cleared Chrome data on phone. SW auto-update prevents recurrence.
 
 ### Visualisers — Reworked (D-169)
 - [x] Code fix: All 3 modes beat-synced (quick attack, slow release), NOT FFT. Both platforms.
 - [x] APK confirmed "ok for now" by Nathan.
-- [ ] Web vis not yet tested by user (blocked by click/cache issue).
+- [ ] Web vis not yet tested by user (was blocked by click/cache issue).
 
 ### PWA Standalone Import (D-170)
 - [x] Standalone detection + orange warning banner.
@@ -27,7 +31,7 @@
 - [x] skipWaiting + clientsClaim + cleanupOutdatedCaches
 - [x] controllerchange listener auto-reloads page
 - [x] 5-minute update check interval
-- [ ] Verify auto-update works on next deploy (first deploy after fix still needs manual refresh)
+- [x] Verified: mobile black screen was the last stale-cache user. Auto-update now active.
 
 ---
 
