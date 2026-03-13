@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
+import { AudioEngine } from '../audio/AudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
 import { getSetlistWithSongs, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
 import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
@@ -798,7 +799,22 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
         <span>GAIN: {state.clickGain.toFixed(2)}</span>
         <span>BPM: {state.song?.bpm ?? '?'}</span>
         <span>ENG: {state.engineState}</span>
-        <span style={{ color: '#888' }}>S54 debug — check console for [TGT-CLICK-DEBUG]</span>
+        <span style={{ color: '#888' }}>S55 debug</span>
+        <button
+          style={{ background: '#336', color: '#fff', border: '1px solid #558', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: '11px' }}
+          onClick={() => {
+            try {
+              const ctx = AudioEngine.getContext();
+              const mg = AudioEngine.getMasterGain();
+              const osc = ctx.createOscillator();
+              osc.frequency.value = 880;
+              osc.connect(mg);
+              osc.start();
+              osc.stop(ctx.currentTime + 0.2);
+              console.log('[TGT-CLICK-DEBUG] TEST BEEP: osc→masterGain, ctx.state:', ctx.state, 'mg.gain:', mg.gain.value);
+            } catch (e) { console.error('[TGT-CLICK-DEBUG] TEST BEEP FAILED:', e); }
+          }}
+        >Test Beep</button>
       </div>
 
       {/* ── Content area — adaptive flex layout ── */}
