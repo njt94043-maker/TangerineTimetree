@@ -5,25 +5,16 @@
 
 ---
 
-## S56 — Web Click Foreground Fix (Top Priority)
+## S58 — Web Click Drift Fix (Top Priority)
 
-### Web Click — PLAYS IN BACKGROUND ONLY (since S51)
-- [x] S52: getPlayerPrefs() null fallback, BPM/time-sig fallbacks, getSecondsPerBeat() safety
-- [x] S53: OscillatorNode rewrite (did not fix, reverted in S54)
-- [x] S54: Reverted AudioEngine.ts + ClickScheduler.ts to S51 baseline (c95537b) — fixed stems
-- [x] S54: Removed Player Settings from Settings.tsx (D-171)
-- [x] S54: Added debug logging + BPM fallbacks to useAudioEngine.ts
-- [x] S55: Diffed useAudioEngine.ts vs S51 — additions are all additive, shouldn't break click
-- [x] S55: Test beep (OscillatorNode → masterGain) works in foreground — confirms audio chain OK
-- [x] S55: Replaced AudioBuffer with OscillatorNode in ClickScheduler — click now audible in background
-- [x] S56: Disabled rAF tick loop — click played in foreground, CONFIRMED tick loop is culprit
-- [x] S56: Isolation steps 2b-2d — pollBeats, position, setCurrentTime, resync all safe individually
-- [x] S56: Step 2e (FFT + beat intensity) broke click PERMANENTLY — even reverting didn't fix
-- [x] S56: Moved AnalyserNode from series to parallel branch in AudioEngine.ts
-- [ ] **S57: Audit testing methodology** — one change per push, version hash in UI, close-all-tabs protocol
-- [ ] **S57: Test current deploy** — parallel analyser + step 2c tick loop. Close ALL tabs first, fresh open
-- [ ] **S57: If click works, continue isolation** — add resync → test → beat intensity → test → FFT → test
-- [ ] **S57: If still broken, clear site data** — nuclear reset to get fresh AudioContext
+### Web Click — Foreground WORKS, drift NOT fixed
+- [x] S52-S56: Click foreground silence diagnosed and fixed (AnalyserNode parallel, step 2c tick loop)
+- [x] S57: Tested resyncToPosition in rAF — BROKE click (reverted immediately)
+- [ ] **S58: Research proper Web Audio sync patterns** — Chris Wilson lookahead article, Tone.js Transport, reference implementations. NO GUESSING.
+- [ ] **S58: Present research findings + proposed approach to Nathan BEFORE coding**
+- [ ] **S58: Implement research-backed drift correction**
+- [ ] **S58: Restore beat intensity** (drives metronome vis per D-169)
+- [ ] **S58: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
 - [ ] **Remove debug banner + test beep + console.log** after click fixed
 
 ### Completed (S51-S54)

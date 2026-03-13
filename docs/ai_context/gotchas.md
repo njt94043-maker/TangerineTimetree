@@ -455,6 +455,13 @@
 - **Root cause**: AI prioritised speed over discipline. Bundled changes to save pushes instead of strictly one-at-a-time.
 - **Fix**: NEVER change more than one thing per push during debugging. If the plan says "one at a time", that means ONE. Trust user test results — don't suggest caching issues when user confirms hard refresh. Add version hash to UI so deployed version can be verified.
 
+### S57 resyncToPosition in rAF kills click with parallel AnalyserNode (2026-03-13)
+- **What happened**: Adding `clickRef.current.resyncToPosition(pos)` to the rAF tick loop killed click audio. OscillatorNodes went silent in foreground — same symptom as S55/S56.
+- **Contradicts S56**: Step 2d in S56 showed resyncToPosition was safe. But S56 2d had AnalyserNode in SERIES (inactive). S57 has AnalyserNode in PARALLEL. The combination of parallel AnalyserNode + resyncToPosition in rAF is the problem.
+- **What resyncToPosition does**: Scans entire beat map array, modifies `nextBeatTime` on the ClickScheduler. At 60fps this fights with the scheduler's own 25ms `setInterval` timing loop.
+- **AI attempted to guess at fix** (500ms setInterval) without research. Nathan called it out.
+- **Rule**: NO speculative fixes for audio scheduling. Every change must be backed by reference research (Chris Wilson, Tone.js, MDN Web Audio best practices). Present approach to user BEFORE coding.
+
 ### S56 AnalyserNode in series may permanently damage AudioContext (2026-03-13)
 - **What happened**: Adding `getByteFrequencyData()` to the tick loop broke click audio permanently. Even reverting to previously-working code didn't fix it. The AnalyserNode was wired in series (masterGain → analyser → destination), meaning all audio flowed through it.
 - **Root cause theory**: Once the AnalyserNode was activated by `getByteFrequencyData()`, it entered a state that interfered with scheduled OscillatorNode playback. Since AudioContext is a singleton that persists across code reloads, the damage survived.

@@ -373,3 +373,26 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Wrap up
 > "safest option wrap up?"
+
+## Session S57 (2026-03-13)
+
+### Session Start
+> [Nathan shared STATUS.md — reviewing current state for S57 tick loop restoration]
+
+### Step 1 — resyncToPosition added, click BROKEN
+> "BUILD: 2026-03-13 15:59:51: no"
+
+### Revert confirmed, questioning approach
+> "BUILD: 2026-03-13 16:01:20 click is back.. what are we trying to fix? is it also an issue in the apk?"
+
+### Wants it fixed, asks if drift + silence are same issue
+> "no it needs fixing. are they not the same isse?"
+
+### Challenging approach — are we guessing or using research?
+> "yes but are we guessing now or do we have reference research? we did alot of research on these topics and got our best practices from reliable sources. are we using those same sources now or just guessing?"
+
+### Checking status
+> "whats happening now?"
+
+### Wrap up — no more guessing
+> "you've been stuck doing that research for a while. we'll try again in a new session. we need to completely rule out this guesswork. nothing from this point can be guessed. wrap up plz"
