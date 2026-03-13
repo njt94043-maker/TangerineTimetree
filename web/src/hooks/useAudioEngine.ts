@@ -352,28 +352,10 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56 ISOLATION — reverting to step 2d (last confirmed working state).
-    // pollBeats = ✓, position = ✓, setCurrentTime = ✓, resync = ✓
-    // Beat intensity + FFT = ✗ (both broke click independently??)
-    // Reverting to 2d to confirm it still works, rule out SW cache issue.
+    // S56: Back to pollBeats-only baseline — confirm this still works.
+    // Previous isolation results may have been SW-cache contaminated.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
-
-      let pos = 0;
-      if (hasStems) {
-        pos = mixerRef.current.getPosition();
-        mixerRef.current.checkLoop();
-      } else if (hasTrack) {
-        pos = trackRef.current.getPosition();
-        trackRef.current.checkLoop();
-      }
-
-      setCurrentTime(pos);
-      AudioEngine.emitTimeUpdate(pos, duration);
-
-      if (pos > 0) {
-        clickRef.current.resyncToPosition(pos);
-      }
     });
   }, [mode, hasStems, hasTrack, duration]);
 
