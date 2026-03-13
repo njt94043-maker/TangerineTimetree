@@ -353,20 +353,26 @@ export function useAudioEngine(
     AudioEngine.setState('playing');
 
     // S56 ISOLATION: Adding back tick features one at a time.
-    // Baseline (pollBeats only) = click works in foreground.
-    // Step 2b: add position reading + loop checking.
-    // NO setCurrentTime, NO resyncToPosition, NO FFT, NO beat intensity.
+    // Baseline (pollBeats only) = click works ✓
+    // Step 2b (position + loop) = click works ✓
+    // Step 2c: add setCurrentTime + emitTimeUpdate (React re-renders 60fps).
+    // NO resyncToPosition, NO FFT, NO beat intensity.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
-      // [2b] Position + loop checking
+      // [2b] Position + loop checking ✓
+      let pos = 0;
       if (hasStems) {
-        mixerRef.current.getPosition();
+        pos = mixerRef.current.getPosition();
         mixerRef.current.checkLoop();
       } else if (hasTrack) {
-        trackRef.current.getPosition();
+        pos = trackRef.current.getPosition();
         trackRef.current.checkLoop();
       }
+
+      // [2c] React state update — time display (60fps setState)
+      setCurrentTime(pos);
+      AudioEngine.emitTimeUpdate(pos, duration);
     });
   }, [mode, hasStems, hasTrack, duration]);
 
