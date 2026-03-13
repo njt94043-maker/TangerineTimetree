@@ -352,10 +352,36 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56: Back to pollBeats-only baseline — confirm this still works.
-    // Previous isolation results may have been SW-cache contaminated.
+    // S56: Full tick loop restored. Root cause was AnalyserNode in series
+    // (masterGain → analyser → destination) — moved to parallel branch in AudioEngine.ts.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
+
+      let pos = 0;
+      if (hasStems) {
+        pos = mixerRef.current.getPosition();
+        mixerRef.current.checkLoop();
+      } else if (hasTrack) {
+        pos = trackRef.current.getPosition();
+        trackRef.current.checkLoop();
+      }
+
+      setCurrentTime(pos);
+      AudioEngine.emitTimeUpdate(pos, duration);
+
+      if (pos > 0) {
+        clickRef.current.resyncToPosition(pos);
+      }
+
+      // Beat intensity decay for metronome visualiser — slow release (~500ms)
+      if (beatIntensityRef.current > 0.01) {
+        beatIntensityRef.current *= 0.9;
+      } else {
+        beatIntensityRef.current = 0;
+      }
+
+      // FFT data for visualiser (updates every frame via ref, no re-render)
+      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
