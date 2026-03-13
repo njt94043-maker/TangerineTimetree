@@ -5,17 +5,20 @@
 
 ---
 
-## S60 — Verify Click Timing + Cleanup (Top Priority)
+## S61 — Drift Correction + Remaining Items (Top Priority)
 
-### Web Click — Always-runs fix deployed, needs testing
+### Web Click — Working but drifts after ~60s
 - [x] S52-S56: Click foreground silence diagnosed and fixed (AnalyserNode parallel, step 2c tick loop)
 - [x] S57: Tested resyncToPosition in rAF — BROKE click (reverted immediately)
 - [x] S58: Research (Chris Wilson + Tone.js) — root cause: race condition between rAF and setInterval
 - [x] S58: Moved resyncToPosition into ClickScheduler's 25ms schedule() timer
 - [x] S59: Fixed click not starting — scheduler was gated behind DB pref. Now always runs, mute = audibility only.
-- [ ] **S60: User testing** — play song with beat map 60+ seconds, verify click is in time from the start
-- [ ] **S60: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
-- [ ] **S60: Remove debug banner + test beep + console.log** after click confirmed fixed
+- [x] S60: Found root cause of total click silence — resyncToPosition pushed nextBeatTime past lookahead window due to SoundTouch ~93ms position latency. Disabled resync, natural scheduling works.
+- [x] S60: Removed debug UI (banner, test beep, console.logs, __BUILD_TIME__)
+- [x] S60: Pruned SOT docs, created WEB_AUDIO_REFERENCE.md
+- [ ] **S61: Re-enable resyncToPosition with latency compensation** — subtract ~93ms from SoundTouch position
+- [ ] **S61: Test 3+ minutes** — verify click stays in time after drift fix
+- [ ] **S61: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
 
 ### Completed (S51-S54)
 - [x] Mobile black screen: stale SW cache, cleared Chrome data
@@ -26,33 +29,16 @@
 
 ---
 
-## Previously Completed (S45–S51)
-
-### S51 Bug Fixes
-- [x] APK stem mixer: mute ch1 when stems loaded, hide TRK fader
-- [x] Web click alignment: speed-scaled beat map intervals + resync
-- [x] Visualisers: reworked to beat-synced (S52 replaced S51 FFT approach)
-- [x] PC webapp import: CORS + bind 0.0.0.0 + fallback URLs
-
-### S45–S50
-- [x] Track Loading (D-165), Player Persistence (D-166)
-- [x] Android Library Header Gap, Web Library (D-163)
-- [x] Web Player (S47/S48), Web Settings
-- [x] Android Library Dropdowns (D-128), Android Vis Switcher
-- [x] Android Mixer Rebuild (S49/S50), Web Mixer Interactive (S50)
-
----
-
 ## Remaining Parity Items
-- [ ] Queue items: NeuCard → flat rows (Android)
-- [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
-- [ ] Practice: waveform strip with loop region + playhead
+- [x] Queue items: NeuCard → flat rows (Android) — already done per S60 audit
+- [x] Practice transport: speed + A-B loop — already done both platforms per S60 audit
+- [x] Display prefs not duplicated in Settings — confirmed correct per D-171
+- [ ] Web set-complete modal (Android has it at LiveScreen.kt:691-775, web doesn't)
+- [ ] Web waveform strip with loop region + playhead (Android has it)
 - [ ] Verify between-songs screen completeness
-- [ ] Verify display prefs not duplicated in Settings (should be drawer-only per D-118)
 - [ ] Verify calendar cell shadows match mockup
 
 ### Existing Backlog
-- [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
 - [ ] Add more songs via web app (currently 4)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 

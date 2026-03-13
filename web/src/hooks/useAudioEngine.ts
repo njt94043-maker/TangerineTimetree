@@ -345,23 +345,6 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S60 diagnostic — remove after click confirmed working
-    const ctx = AudioEngine.getContext();
-    console.log('[CLICK DEBUG]', {
-      audioContextState: ctx.state,
-      masterGainValue: AudioEngine.getMasterGain().gain.value,
-      clickEnabled: clickEnabledRef.current,
-      clickMuted: clickRef.current.isMuted(),
-      schedulerActive: clickRef.current.isActive(),
-      songBpm: song?.bpm,
-      hasBeatMap: !!beatMap?.beats?.length,
-      mode,
-      hasStems,
-      hasTrack,
-      configGain: clickRef.current.getConfig().gain,
-      configBpm: clickRef.current.getConfig().bpm,
-    });
-
     // S58: Research-backed tick loop.
     // rAF is READ-ONLY for audio — no scheduling writes here.
     // Drift correction (resyncToPosition) runs inside ClickScheduler's 25ms setInterval.

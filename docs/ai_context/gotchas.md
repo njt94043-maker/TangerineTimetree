@@ -14,6 +14,16 @@
 
 ---
 
+## Web Audio: SoundTouch position has ~93ms latency (S60)
+
+**Never** use raw SoundTouch position for drift correction without compensating for the ~93ms ScriptProcessorNode buffer latency (4096 samples / 44100Hz).
+
+**Why**: `resyncToPosition()` used raw `mixer.getPosition()` to find the "next beat after current position" in the beat map. But the reported position was ~93ms ahead of actual audio. This made resync see the track past each beat, pushing `nextBeatTime` to the NEXT beat. With a 100ms lookahead and ~350ms beat intervals (166.7 BPM), the scheduler could never catch up — zero clicks were ever created.
+
+**Rule**: Any position-based calculation using SoundTouch must use `compensatedPos = trackPos - (4096 / sampleRate)`. Drift threshold must be >150ms (not 30ms). Currently disabled — natural scheduling works without drift correction for ~60s.
+
+---
+
 ## Capture Tool (WASAPI Loopback)
 
 ### WASAPI doesn't fire callbacks during silence

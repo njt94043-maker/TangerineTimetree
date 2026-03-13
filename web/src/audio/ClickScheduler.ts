@@ -14,6 +14,12 @@
  *   - Beat offset (click-to-track alignment)
  *
  * Does NOT handle track playback — that's TrackPlayer's job.
+ *
+ * S60 NOTE: Drift correction (resyncToPosition) is disabled. SoundTouch's
+ * ~93ms position reporting latency makes position-based resync unreliable —
+ * it pushes nextBeatTime forward, preventing beats from scheduling or
+ * skipping beats. Natural beat map scheduling via advanceBeat() is accurate.
+ * See WEB_AUDIO_REFERENCE.md section 7 for full analysis.
  */
 
 import { AudioEngine, type BeatEvent } from './AudioEngine';
@@ -81,9 +87,7 @@ export class ClickScheduler {
   private isCountingIn = false;
   private countInBeatsRemaining = 0;
 
-  // Track position callback — called inside schedule() for drift correction.
-  // Lives here (not in rAF) to avoid race condition between two timers writing nextBeatTime.
-  // Research: Chris Wilson + Tone.js both confirm scheduling writes must be in ONE timer.
+  // Track position callback — kept for future drift correction with latency compensation.
   private trackPositionGetter: (() => number) | null = null;
 
   configure(partial: Partial<ClickConfig>): void {
@@ -130,59 +134,18 @@ export class ClickScheduler {
 
   /**
    * Set a callback that returns the current track position in seconds.
-   * Called inside schedule() (25ms timer) for drift correction.
-   * This keeps all scheduling writes in ONE timer — no race conditions.
+   * Kept for future drift correction (needs latency compensation for
+   * SoundTouch's ~93ms ScriptProcessorNode buffer offset).
    */
   setTrackPositionGetter(getter: (() => number) | null): void {
     this.trackPositionGetter = getter;
   }
-
-  /**
-   * Resync click to the track's actual position. Called from schedule()
-   * (inside the 25ms setInterval) — NOT from rAF.
-   *
-   * Research finding: calling this from rAF (60fps) caused a race condition
-   * where nextBeatTime was written by rAF while read by setInterval,
-   * killing OscillatorNode audio. Moving it here eliminates the race.
-   *
-   * Finds the beat map entry closest to trackPositionSec and realigns
-   * nextBeatTime so the next click fires at the correct moment.
-   */
-  /*
-   * S60: resyncToPosition DISABLED — SoundTouch's ~93ms position reporting
-   * latency makes this function push nextBeatTime forward on every call,
-   * either preventing beats from scheduling (original bug) or skipping beats
-   * (after grace period fix). Natural beat map scheduling via advanceBeat()
-   * is accurate without drift correction. Re-enable with latency compensation
-   * if drift is observed in extended testing (subtract ~93ms from reported pos).
-   *
-  private resyncToPosition(trackPositionSec: number): void {
-    if (!this.beatMap || this.beatMap.length === 0 || !this.isPlaying) return;
-    const ctx = AudioEngine.getContext();
-    const now = ctx.currentTime;
-    const offsetSec = this.config.beatOffsetMs / 1000;
-    let newIdx = this.beatMapIndex;
-    for (let i = 0; i < this.beatMap.length; i++) {
-      if (this.beatMap[i] > trackPositionSec) { newIdx = i; break; }
-      if (i === this.beatMap.length - 1) newIdx = i;
-    }
-    const nextBeatInTrackTime = this.beatMap[newIdx] ?? this.beatMap[this.beatMap.length - 1];
-    const timeUntilNextBeat = (nextBeatInTrackTime - trackPositionSec) / this.speed;
-    const correctedNextBeatTime = now + timeUntilNextBeat + offsetSec;
-    const drift = Math.abs(this.nextBeatTime - correctedNextBeatTime);
-    if (drift > 0.150) {
-      this.nextBeatTime = correctedNextBeatTime;
-      this.beatMapIndex = newIdx;
-    }
-  }
-  */
 
   start(startTime?: number): void {
     const ctx = AudioEngine.getContext();
     this.isPlaying = true;
     this.currentBeat = 0;
     this.currentBar = 0;
-    this.beatsScheduled = 0;
 
     const now = startTime ?? ctx.currentTime;
     const offsetSec = this.config.beatOffsetMs / 1000;
@@ -248,15 +211,7 @@ export class ClickScheduler {
 
   private startScheduler(): void {
     this.stopScheduler();
-    this.debugClickCount = 0; // reset counter on each start
-    console.log('[CLICK TIMER START]', { interval: SCHEDULE_INTERVAL });
-    this.schedulerTimer = setInterval(() => {
-      // S60 diagnostic — log first call to confirm setInterval fires
-      if (this.debugClickCount === 0) {
-        console.log('[CLICK TIMER FIRE]', { isPlaying: this.isPlaying, timer: this.schedulerTimer });
-      }
-      this.schedule();
-    }, SCHEDULE_INTERVAL);
+    this.schedulerTimer = setInterval(() => this.schedule(), SCHEDULE_INTERVAL);
   }
 
   private stopScheduler(): void {
@@ -266,59 +221,19 @@ export class ClickScheduler {
     }
   }
 
-  // S60 diagnostic counter — remove after click confirmed working
-  private debugClickCount = 0;
-  // Count of beats naturally scheduled — resync only after scheduler establishes rhythm
-  private beatsScheduled = 0;
-
   private schedule(): void {
     if (!this.isPlaying) return;
 
-    // S60: Drift correction DISABLED.
-    // resyncToPosition() cannot work reliably with SoundTouch's ~93ms position
-    // reporting latency. It consistently pushes nextBeatTime forward, either
-    // preventing beats from scheduling entirely (S60 root cause) or skipping
-    // beats after the grace period. The natural beat map scheduling via
-    // advanceBeat() is accurate — madmom timestamps + Chris Wilson lookahead
-    // pattern don't accumulate drift. If drift is observed in testing,
-    // re-enable with latency compensation (subtract ~93ms from reported position).
-    // See WEB_AUDIO_REFERENCE.md section 7.
+    // S60: Drift correction disabled. See file-level comment for rationale.
+    // Natural beat map scheduling via advanceBeat() is accurate without it.
+    // Future: re-enable with latency compensation (subtract ~93ms from
+    // SoundTouch position) if drift is observed in extended testing.
 
     const ctx = AudioEngine.getContext();
     const deadline = ctx.currentTime + LOOKAHEAD_SEC;
 
-    // S60 diagnostic — log schedule() entry to find why while loop never enters
-    if (this.debugClickCount === 0) {
-      console.log('[CLICK SCHEDULE ENTRY]', {
-        nextBeatTime: this.nextBeatTime,
-        deadline,
-        ctxTime: ctx.currentTime,
-        isNaN: isNaN(this.nextBeatTime),
-        willEnterLoop: this.nextBeatTime < deadline,
-        beatMap0: this.beatMap?.[0],
-        beatMapLen: this.beatMap?.length ?? 0,
-        offsetMs: this.config.beatOffsetMs,
-        speed: this.speed,
-      });
-    }
-
     while (this.nextBeatTime < deadline) {
       this.scheduleClick(this.nextBeatTime);
-      this.beatsScheduled++;
-      // S60 diagnostic — log first 5 clicks then every 20th
-      this.debugClickCount++;
-      if (this.debugClickCount <= 5 || this.debugClickCount % 20 === 0) {
-        console.log('[CLICK SCHED]', {
-          n: this.debugClickCount,
-          time: this.nextBeatTime.toFixed(3),
-          ctxTime: ctx.currentTime.toFixed(3),
-          delta: (this.nextBeatTime - ctx.currentTime).toFixed(3),
-          beat: this.currentBeat,
-          muted: this.muted,
-          gain: this.config.gain,
-          bpm: this.config.bpm,
-        });
-      }
       this.advanceBeat();
     }
   }
@@ -348,12 +263,10 @@ export class ClickScheduler {
       envGain.connect(masterGain);
       osc.start(time);
       osc.stop(time + CLICK_DURATION);
+      osc.onended = () => envGain.disconnect(); // Prevent GainNode accumulation
     }
 
     // Queue beat event for frame-accurate UI sync (D-161 pattern)
-    // Instead of setTimeout (4-8ms jitter), queue the event with its scheduled time.
-    // The rAF tick loop polls and emits when ctx.currentTime passes the beat time,
-    // giving 0-16ms visual jitter (one frame) — same as Android's atomic counter polling.
     const beatEvent: BeatEvent = {
       beat: this.currentBeat,
       bar: this.currentBar,
@@ -400,6 +313,7 @@ export class ClickScheduler {
       envGain.connect(destination);
       osc.start(subTime);
       osc.stop(subTime + CLICK_DURATION);
+      osc.onended = () => envGain.disconnect();
     }
   }
 
