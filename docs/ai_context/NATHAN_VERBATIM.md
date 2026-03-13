@@ -415,3 +415,18 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Wrap up
 > "wrap up plz, results and next stepos in next session"
+
+## Session S59 (2026-03-13)
+
+### Session Start
+> [Nathan shared STATUS.md — reviewing current state for S59 drift fix testing]
+
+### Click Testing
+> "BUILD: 2026-03-13 18:24:28: track plays with no click. if i mute click then unmute from mixer, click starts. click is not in time"
+> "no i didnt say drift click. its not in time to start with"
+> "yes. if user turns off it remains that way until turned back on" [re: persist behavior is correct]
+> "in this case it needs to default on until user changes, then persist from there"
+> "the click need to start same time as the track reguardless of what its volume or mute status is.. i didnt turn the click on halfway through the track, it was on from the begining and showing full volume in mixer. it wasnt producing click audio, then i muted and unmuted, click started. there was no turning off or on, there was already supposed to be on - muted - unmuted. is anything unclear?"
+> "with the ammount of research we should have logged already, plus the reseach just done, at this stage these shouldnt be fixes, the how and when has been figured out by developers allready it seems, we just have to apply their work to ours"
+> "ok. at this point i think we should wrap up."
+> "push everything and log"
