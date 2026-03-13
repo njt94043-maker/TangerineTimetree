@@ -5,17 +5,18 @@
 
 ---
 
-## S58 — Web Click Drift Fix (Top Priority)
+## S59 — Verify Drift Fix + Cleanup (Top Priority)
 
-### Web Click — Foreground WORKS, drift NOT fixed
+### Web Click — Drift fix deployed, needs testing
 - [x] S52-S56: Click foreground silence diagnosed and fixed (AnalyserNode parallel, step 2c tick loop)
 - [x] S57: Tested resyncToPosition in rAF — BROKE click (reverted immediately)
-- [ ] **S58: Research proper Web Audio sync patterns** — Chris Wilson lookahead article, Tone.js Transport, reference implementations. NO GUESSING.
-- [ ] **S58: Present research findings + proposed approach to Nathan BEFORE coding**
-- [ ] **S58: Implement research-backed drift correction**
-- [ ] **S58: Restore beat intensity** (drives metronome vis per D-169)
-- [ ] **S58: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
-- [ ] **Remove debug banner + test beep + console.log** after click fixed
+- [x] S58: Research (Chris Wilson + Tone.js) — root cause: race condition between rAF and setInterval
+- [x] S58: Presented plan to Nathan, approved
+- [x] S58: Moved resyncToPosition into ClickScheduler's 25ms schedule() timer
+- [x] S58: Restored beat intensity decay in rAF tick loop
+- [ ] **S59: User testing** — play song with beat map 60+ seconds, verify click stays in time
+- [ ] **S59: Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
+- [ ] **S59: Remove debug banner + test beep + console.log** after click confirmed fixed
 
 ### Completed (S51-S54)
 - [x] Mobile black screen: stale SW cache, cleared Chrome data

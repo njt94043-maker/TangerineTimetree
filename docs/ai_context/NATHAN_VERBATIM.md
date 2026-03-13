@@ -412,3 +412,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 ### Approved fix plan
 > "yes" [re: proceed with research-backed drift fix — resync inside scheduler, beat intensity in rAF]
 > "yes" [re: commit and push]
+
+### Wrap up
+> "wrap up plz, results and next stepos in next session"
