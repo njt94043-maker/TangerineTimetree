@@ -6,30 +6,32 @@
 ---
 
 ## Current State
-- **Phase**: S54 — Web click debug (still broken).
-- **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme). Web stems/mixer RESTORED (S54 reverted AudioEngine.ts + ClickScheduler.ts to S51 baseline).
-- **Last session (S54)**: Removed Player Settings from Settings.tsx (D-171). Reverted AudioEngine.ts + ClickScheduler.ts to S51 (c95537b) — fixed broken stems but click still silent. Added debug logging + BPM fallbacks to useAudioEngine.ts. Debug banner on Player.tsx.
-- **Web click**: STILL BROKEN. Audio files (AudioEngine.ts, ClickScheduler.ts) are now exact S51 code (last known working). Debug banner shows CLK:✅ON, CTX:running, GAIN:1.00, BPM:90.9, ENG:playing — everything looks correct but no click sound. The problem is likely in useAudioEngine.ts (S54 additions on top of S51) or the call path to ClickScheduler.start().
+- **Phase**: S55 — Web click debug (partially fixed — audible in background only).
+- **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme). Web stems/mixer work. Web click NOW AUDIBLE but only when app is backgrounded/minimised — silent when foregrounded.
+- **Last session (S55)**: Diagnosed click issue. Test beep (OscillatorNode → masterGain) works in foreground. Pre-rendered AudioBuffer clicks were silent in foreground but played in background. Switched ClickScheduler from AudioBuffer to OscillatorNode approach — click now plays in background (somewhat in time) but still silent in foreground on both PC and mobile.
+- **KEY FINDING**: Click plays when app is minimised/backgrounded, silent when foregrounded. This is true for BOTH AudioBuffer and OscillatorNode approaches. The test beep button (user-gesture-triggered OscillatorNode) works in foreground. Something in the foreground tick loop (rAF) may be interfering with scheduled audio.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S54 Changes
-- **Settings.tsx**: Removed Player Settings section (D-171 — prefs controlled from drawer only).
-- **AudioEngine.ts + ClickScheduler.ts**: Reverted to S51 (c95537b). Restored inline AnalyserNode chain (masterGain → analyser → destination). Pre-rendered AudioBuffer click sounds (not OscillatorNode).
-- **useAudioEngine.ts**: Added debug logging, BPM fallbacks, clickMuted sync from DB, updatePlayerPrefs persist on drawer toggle, beatIntensity/barTargets for visualisers.
-- **Player.tsx**: Debug banner showing click state (temporary).
-- **gotchas.md**: Logged S54 mistakes (blind guessing, failing to backtrack, Settings parity).
+## S55 Changes
+- **ClickScheduler.ts**: Replaced pre-rendered AudioBuffer approach with OscillatorNode + envelope gain (same pattern as working test beep). Removed all buffer rendering code. Subdivisions also switched to OscillatorNode.
+- **Player.tsx**: Added "Test Beep" button in debug banner (direct OscillatorNode → masterGain). Added AudioEngine import.
+- **NATHAN_VERBATIM.md**: Logged all session messages.
 
-## NEXT SESSION PRIORITY: Web Click — Isolate useAudioEngine.ts
-The audio core (AudioEngine.ts, ClickScheduler.ts) is S51 code that was confirmed working. The bug is in how useAudioEngine.ts calls the scheduler. Debug approach:
-1. Check browser console for [TGT-CLICK-DEBUG] logs — confirm ClickScheduler.start() is actually called
-2. Compare useAudioEngine.ts current vs S51 (c95537b) — diff S54 additions to find what broke the click path
-3. If ClickScheduler.start() IS being called but no sound, add a test: manually create an OscillatorNode and play it to confirm AudioContext can produce sound at all
-4. If ClickScheduler.start() is NOT being called, trace the clickEnabledRef → play() path in useAudioEngine.ts
-5. Consider restoring useAudioEngine.ts to S51 state as a clean baseline, then re-add S54 features one at a time
+## NEXT SESSION PRIORITY: Why does click only play in background?
+The critical diagnostic: scheduled audio (both AudioBuffer and OscillatorNode) is audible when app is backgrounded but silent when foregrounded. Test beep (user-gesture-triggered) works in foreground. This points to the rAF tick loop interfering.
+
+**Debug approach — MUST do in order:**
+1. **Disable rAF tick loop entirely** — in `play()`, comment out `AudioEngine.startTick(...)`. If click plays in foreground, the tick loop is the culprit.
+2. **If tick loop is culprit, isolate which part**: strip tick callback to just `AudioEngine.pollBeats()` (remove setCurrentTime, resyncToPosition, FFT, beat intensity). Add back one at a time.
+3. **Top suspects in tick loop**:
+   - `setCurrentTime(pos)` — triggers React re-render 60x/sec, may starve main thread
+   - `clickRef.current.resyncToPosition(pos)` — modifies scheduler's nextBeatTime every frame, may prevent clicks from being scheduled
+   - `fftDataRef.current = AudioEngine.getFrequencyData()` — AnalyserNode read every frame
+4. **If tick loop is NOT the culprit**, investigate Chrome's scheduled audio policy (gesture scope, node GC).
 
 ## Remaining Items
-- [ ] **Fix web click** — #1 priority
-- [ ] Remove debug banner + console.log after click fixed
+- [ ] **Fix web click foreground playback** — #1 priority
+- [ ] Remove debug banner + test beep + console.log after click fixed
 - [ ] Web visualisers: user testing (blocked by click issue)
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
