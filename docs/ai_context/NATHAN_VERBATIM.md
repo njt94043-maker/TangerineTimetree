@@ -219,3 +219,51 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "this screenshot is our current benchmark for both apps players, shall we screen shot the other 2 just to be extra safe?"
 
 > "just as i was about to send this i noticed the live screen card layout is wrong (with there being no other notes etc visual should fill screen), fix that then all 3 screens are ready to capture in their 'perfect current state'"
+
+## Session S51 (2026-03-13)
+
+> "please check back thru what i've said.. some of that is finished"
+
+## Pipeline / Import Issues (S51)
+
+> "i still have some pipeline issues, #possible windows blocking the webapp from operating as freely as it does in chrome browser (i have just allowed all permissions, see if that fixes)"
+> "web app multitrack mixer works as intended (quick test via practice mode) (clicks falls out of alignment still)"
+> "apk multitrack mixer doesnt control the correct stems (track should either control master volume of all stems or not exists. each stem doesnt control the correct stems volume)"
+> "neither apps visualisors function correctly"
+> "import from webapp running on pc doesnt connect to tpt capture to import songs directly"
+
+## Web Mixer (S51)
+
+> "web app multitrack mixer works as intended (quick test via practice mode)"
+
+## Click Alignment (S51)
+
+> "(clicks falls out of alignment still)"
+
+## APK Mixer Bug (S51)
+
+> "apk multitrack mixer doesnt control the correct stems (track should either control master volume of all stems or not exists. each stem doesnt control the correct stems volume)"
+
+## Visualisers (S51)
+
+> "neither apps visualisors function correctly"
+
+## Capture Import (S51)
+
+> "import from webapp running on pc doesnt connect to tpt capture to import songs directly"
+
+## APK Mixer Clarification (S51)
+
+> "ok, but the mixer appers to be functional in the webapp, would that not be the same tables? (yes, mixer tested via webapp playing good times bad times in practice mode. mixer adjusts its intended stem correctly, there is no track master so hide it in apk also for stems. ) webapp mixer = works webapp click = drifts."
+
+## Click Alignment Approach (S51)
+
+> "yes apk click locks on quite solid so i trust your approach if you think its correct."
+
+## Visualisers Approach (S51)
+
+> "again i trust your judgment"
+
+> "all are equaly important to me, please make sure we dont bulldoze to fix. any questions?"
+
+> "yes plz" [re: real audio-reactive visualisers on both platforms]

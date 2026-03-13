@@ -157,6 +157,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                             suppressBeatGlow = glowFullscreen,
                             selectedVis = selectedVis,
                             onVisChange = { selectedVis = it },
+                            visBands = vm.visBands,
                         )
                     }
 

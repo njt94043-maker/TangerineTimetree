@@ -29,6 +29,8 @@ export type EngineListener = {
 class AudioEngineImpl {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private fftData: Uint8Array<ArrayBuffer> | null = null;
   private state: EngineState = 'idle';
   private listeners: Set<EngineListener> = new Set();
 
@@ -46,7 +48,15 @@ class AudioEngineImpl {
       this.ctx = new AudioContext();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 1.0;
-      this.masterGain.connect(this.ctx.destination);
+
+      // AnalyserNode for real-time FFT data (visualiser)
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 64; // 32 frequency bins — enough for 16-bar spectrum
+      this.analyser.smoothingTimeConstant = 0.7;
+      this.masterGain.connect(this.analyser);
+      this.analyser.connect(this.ctx.destination);
+
+      this.fftData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
     }
     return this.ctx;
   }
@@ -54,6 +64,16 @@ class AudioEngineImpl {
   getMasterGain(): GainNode {
     this.getContext();
     return this.masterGain!;
+  }
+
+  /**
+   * Get current FFT frequency data (0-255 per bin).
+   * Returns null if no audio context exists.
+   */
+  getFrequencyData(): Uint8Array | null {
+    if (!this.analyser || !this.fftData) return null;
+    this.analyser.getByteFrequencyData(this.fftData);
+    return this.fftData;
   }
 
   getState(): EngineState {

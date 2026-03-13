@@ -1,5 +1,6 @@
 #include "audio_engine.h"
 #include <android/log.h>
+#include <cmath>
 
 #define LOG_TAG "GigBooks"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -457,6 +458,28 @@ oboe::DataCallbackResult AudioEngine::onAudioReady(
     if (masterGain != 1.0f) {
         for (int32_t i = 0; i < totalSamples; i++) {
             output[i] *= masterGain;
+        }
+    }
+
+    // Compute visualiser band energies from the mixed output (mono-summed RMS per band)
+    {
+        const int32_t framesPerBand = numFrames / VIS_BANDS;
+        if (framesPerBand > 0) {
+            for (int32_t b = 0; b < VIS_BANDS; b++) {
+                float sum = 0.0f;
+                const int32_t start = b * framesPerBand * channelCount_;
+                const int32_t end = start + framesPerBand * channelCount_;
+                for (int32_t i = start; i < end; i++) {
+                    sum += output[i] * output[i];
+                }
+                float rms = sqrtf(sum / (float)(framesPerBand * channelCount_));
+                // Scale to 0-1 range (typical audio RMS is 0-0.3)
+                float level = fminf(1.0f, rms * 3.3f);
+                // Smooth with previous value (decay)
+                float prev = visBands_[b].load(std::memory_order_relaxed);
+                float smoothed = (level > prev) ? level : prev * 0.85f + level * 0.15f;
+                visBands_[b].store(smoothed, std::memory_order_relaxed);
+            }
         }
     }
 

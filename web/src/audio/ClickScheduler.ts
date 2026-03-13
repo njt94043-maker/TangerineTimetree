@@ -73,6 +73,9 @@ export class ClickScheduler {
   private beatMap: number[] | null = null; // seconds (float array from Supabase)
   private beatMapIndex = 0;
 
+  // Speed tracking — beat map intervals must be scaled by 1/speed
+  private speed = 1.0;
+
   // Count-in tracking
   private isCountingIn = false;
   private countInBeatsRemaining = 0;
@@ -101,6 +104,53 @@ export class ClickScheduler {
   clearBeatMap(): void {
     this.beatMap = null;
     this.beatMapIndex = 0;
+  }
+
+  /**
+   * Set playback speed. Beat map intervals are scaled by 1/speed.
+   * Mirrors C++ Metronome::resyncBeatMap — rescales remaining beat times.
+   */
+  setSpeed(speed: number): void {
+    this.speed = speed;
+  }
+
+  /**
+   * Resync click to the track's actual position. Called periodically from
+   * the tick loop to correct drift between AudioContext clock and SoundTouchJS.
+   *
+   * Finds the beat map entry closest to trackPositionSec and realigns
+   * nextBeatTime so the next click fires at the correct moment.
+   */
+  resyncToPosition(trackPositionSec: number): void {
+    if (!this.beatMap || this.beatMap.length === 0 || !this.isPlaying) return;
+
+    const ctx = AudioEngine.getContext();
+    const now = ctx.currentTime;
+    const offsetSec = this.config.beatOffsetMs / 1000;
+
+    // Find the beat map entry just ahead of the current track position
+    let newIdx = this.beatMapIndex;
+    for (let i = 0; i < this.beatMap.length; i++) {
+      if (this.beatMap[i] > trackPositionSec) {
+        newIdx = i;
+        break;
+      }
+      if (i === this.beatMap.length - 1) {
+        newIdx = i; // past end
+      }
+    }
+
+    // Compute where the next beat should fire based on track position + speed
+    const nextBeatInTrackTime = this.beatMap[newIdx] ?? this.beatMap[this.beatMap.length - 1];
+    const timeUntilNextBeat = (nextBeatInTrackTime - trackPositionSec) / this.speed;
+    const correctedNextBeatTime = now + timeUntilNextBeat + offsetSec;
+
+    // Only resync if drift exceeds 30ms (avoid constant micro-corrections)
+    const drift = Math.abs(this.nextBeatTime - correctedNextBeatTime);
+    if (drift > 0.030) {
+      this.nextBeatTime = correctedNextBeatTime;
+      this.beatMapIndex = newIdx;
+    }
   }
 
   start(startTime?: number): void {
@@ -276,12 +326,12 @@ export class ClickScheduler {
 
     // Compute next beat time
     if (this.beatMap && this.beatMapIndex < this.beatMap.length - 1) {
-      // Beat map mode
+      // Beat map mode — scale intervals by 1/speed (mirrors C++ resyncBeatMap)
       this.beatMapIndex++;
       if (this.beatMapIndex < this.beatMap.length) {
         const prevBeatSec = this.beatMap[this.beatMapIndex - 1];
         const nextBeatSec = this.beatMap[this.beatMapIndex];
-        this.nextBeatTime += (nextBeatSec - prevBeatSec);
+        this.nextBeatTime += (nextBeatSec - prevBeatSec) / this.speed;
       } else {
         // Beat map exhausted — fall back to constant BPM
         this.beatMap = null;

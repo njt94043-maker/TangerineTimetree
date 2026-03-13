@@ -787,9 +787,19 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
           <div className={`v4-hero ${isLive ? '' : 'practice'}`}>
             <div className="v4-hero-vis">
               <div className="v4-vis-bars">
-                {[0.3, 0.5, 0.7, 0.9, 1, 0.85, 0.65, 0.8, 0.95, 0.7, 0.55, 0.4, 0.6, 0.75, 0.5, 0.35].map((h, i) => (
-                  <div key={i} className="v4-vis-bar" style={{ height: `${h * 50}px` }} />
-                ))}
+                {Array.from({ length: 16 }, (_, i) => {
+                  const fft = state.fftData;
+                  // Map 32 FFT bins down to 16 bars (average pairs), scale 0-255 → 0-1
+                  const val = fft && fft.length > 0
+                    ? ((fft[i * 2] ?? 0) + (fft[i * 2 + 1] ?? 0)) / 510
+                    : 0.1;
+                  return (
+                    <div key={i} className="v4-vis-bar" style={{
+                      height: `${Math.max(4, val * 60)}px`,
+                      transition: 'height 60ms linear',
+                    }} />
+                  );
+                })}
               </div>
             </div>
             {state.beatFlash && !glowFullscreen && <div className="v4-beat-glow" />}
@@ -814,10 +824,16 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             ) : (
               <div className="v4-view-visualizer">
                 {Array.from({ length: 21 }, (_, i) => {
+                  const fft = state.fftData;
+                  const binIdx = Math.floor(i * (fft?.length ?? 32) / 21);
+                  const val = fft && fft.length > 0 ? (fft[binIdx] ?? 0) / 255 : 0;
                   const h = isPlaying
-                    ? Math.max(8, 30 + Math.sin(i * 0.5 + Date.now() / 300) * 25)
+                    ? Math.max(8, val * 70)
                     : 8 + Math.sin(i * 0.3) * 4;
-                  return <div key={i} className="v4-view-bar" style={{ height: `${h}%` }} />;
+                  return <div key={i} className="v4-view-bar" style={{
+                    height: `${h}%`,
+                    transition: 'height 60ms linear',
+                  }} />;
                 })}
               </div>
             )}

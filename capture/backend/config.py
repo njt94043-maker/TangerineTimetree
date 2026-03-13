@@ -14,13 +14,16 @@ THUMBNAILS_DIR = STORAGE_DIR / "thumbnails"
 DB_PATH = CAPTURE_ROOT / "capture.db"
 
 # Server
-HOST = "127.0.0.1"
+HOST = "0.0.0.0"
 PORT = 9123
 CORS_ORIGINS = [
     "http://localhost:5174",
     "http://127.0.0.1:5174",
     "http://localhost:5173",       # web app dev server
-    "https://thegreentangerine.com",  # deployed PWA
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",       # vite preview
+    "https://thegreentangerine.com",  # deployed PWA / installed PWA
+    "https://www.thegreentangerine.com",
     "chrome-extension://*",
 ]
 

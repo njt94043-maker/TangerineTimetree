@@ -268,6 +268,7 @@ fun VisualHero(
     suppressBeatGlow: Boolean = false,
     selectedVis: VisType = VisType.Spectrum,
     onVisChange: (VisType) -> Unit = {},
+    visBands: FloatArray = FloatArray(16),
 ) {
     val beatGlowAlpha = remember { Animatable(0f) }
     LaunchedEffect(currentBeat, isPlaying) {
@@ -311,18 +312,18 @@ fun VisualHero(
     ) {
         when (selectedVis) {
             VisType.Spectrum -> {
-                // Spectrum bars (static visual)
+                // Spectrum bars — driven by real audio band energies from C++ engine
                 Row(
                     modifier = Modifier.padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
-                    val barHeights = listOf(0.3f, 0.5f, 0.7f, 0.9f, 1.0f, 0.85f, 0.65f, 0.8f, 0.95f, 0.7f, 0.55f, 0.4f, 0.6f, 0.75f, 0.5f, 0.35f)
-                    barHeights.forEach { h ->
+                    for (i in 0 until 16) {
+                        val h = if (isPlaying && i < visBands.size) visBands[i].coerceIn(0f, 1f) else 0.05f
                         Box(
                             modifier = Modifier
                                 .width(4.dp)
-                                .height((h * 50).dp)
+                                .height(maxOf(4f, h * 60f).dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(
                                     Brush.verticalGradient(
@@ -335,31 +336,38 @@ fun VisualHero(
             }
 
             VisType.Rings -> {
-                // Concentric rings that pulse on beat
+                // Concentric rings that pulse on beat + react to audio energy
+                val avgEnergy = if (isPlaying && visBands.isNotEmpty())
+                    visBands.average().toFloat().coerceIn(0f, 1f)
+                else 0f
                 Canvas(modifier = Modifier.size(100.dp)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val maxR = size.minDimension / 2f
                     for (i in 3 downTo 0) {
-                        val frac = (i + 1) / 4f * ringScale.value
+                        val energyScale = 0.7f + avgEnergy * 0.3f
+                        val frac = (i + 1) / 4f * ringScale.value * energyScale
                         drawCircle(
-                            color = accent.copy(alpha = 0.15f + 0.1f * (3 - i)),
+                            color = accent.copy(alpha = (0.15f + 0.1f * (3 - i)) + avgEnergy * 0.2f),
                             radius = maxR * frac,
                             center = Offset(cx, cy),
-                            style = Stroke(width = 2f),
+                            style = Stroke(width = 2f + avgEnergy * 2f),
                         )
                     }
-                    // Center dot
+                    // Center dot — size reacts to energy
                     drawCircle(
                         color = accent.copy(alpha = ringScale.value),
-                        radius = 6f,
+                        radius = 6f + avgEnergy * 6f,
                         center = Offset(cx, cy),
                     )
                 }
             }
 
             VisType.Burst -> {
-                // Radial burst expanding outward on each beat
+                // Radial burst expanding outward on each beat + audio energy
+                val avgEnergy = if (isPlaying && visBands.isNotEmpty())
+                    visBands.average().toFloat().coerceIn(0f, 1f)
+                else 0f
                 Canvas(modifier = Modifier.size(100.dp)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
@@ -368,21 +376,22 @@ fun VisualHero(
                     for (i in 0 until 3) {
                         val offset = i * 0.15f
                         val r = ((burstRadius.value + offset) % 1f)
-                        val alpha = burstAlpha.value * (1f - r) * 0.8f
+                        val alpha = burstAlpha.value * (1f - r) * 0.8f + avgEnergy * 0.15f
                         if (alpha > 0f) {
                             drawCircle(
-                                color = accent.copy(alpha = alpha),
-                                radius = maxR * r,
+                                color = accent.copy(alpha = alpha.coerceIn(0f, 1f)),
+                                radius = maxR * r * (0.8f + avgEnergy * 0.2f),
                                 center = Offset(cx, cy),
-                                style = Stroke(width = 3f - r * 2f),
+                                style = Stroke(width = 3f - r * 2f + avgEnergy * 2f),
                             )
                         }
                     }
-                    // Center flash
-                    if (burstAlpha.value > 0.1f) {
+                    // Center flash — intensity from audio
+                    val centerAlpha = maxOf(burstAlpha.value * 0.6f, avgEnergy * 0.4f)
+                    if (centerAlpha > 0.05f) {
                         drawCircle(
-                            color = accent.copy(alpha = burstAlpha.value * 0.6f),
-                            radius = 10f,
+                            color = accent.copy(alpha = centerAlpha.coerceIn(0f, 1f)),
+                            radius = 10f + avgEnergy * 8f,
                             center = Offset(cx, cy),
                         )
                     }

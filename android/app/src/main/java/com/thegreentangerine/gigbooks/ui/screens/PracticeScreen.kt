@@ -180,6 +180,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                         suppressBeatGlow = glowFullscreen,
                         selectedVis = selectedVis,
                         onVisChange = { selectedVis = it },
+                        visBands = vm.visBands,
                     )
                 }
 
@@ -681,8 +682,8 @@ private fun PracticeMixer(vm: AppViewModel) {
         )
     )
 
-    // Track channel
-    if (vm.trackLoaded) {
+    // Track channel — hidden when stems are loaded (stems replace the mixed track)
+    if (vm.trackLoaded && vm.loadedStems.isEmpty()) {
         channels.add(
             MixerChannel(
                 label = "TRK",

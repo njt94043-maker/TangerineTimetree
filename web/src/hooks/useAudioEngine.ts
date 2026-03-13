@@ -85,6 +85,9 @@ export interface AudioEngineState {
   clickMuted: boolean;
   trackGain: number;
   trackMuted: boolean;
+
+  // FFT frequency data for visualiser (32 bins, 0-255 each)
+  fftData: Uint8Array | null;
 }
 
 export interface AudioEngineActions {
@@ -135,6 +138,7 @@ export function useAudioEngine(
   const [stemChannels, setStemChannels] = useState<AudioEngineState['stemChannels']>([]);
   const [songComplete, setSongComplete] = useState(false);
   const [waveformData, setWaveformData] = useState<Float32Array | null>(null);
+  const fftDataRef = useRef<Uint8Array | null>(null);
   const [subdivision, setSubdivisionState] = useState(1);
   const [clickGain, setClickGainState] = useState(0.8);
   const [clickMuted, setClickMuted] = useState(false);
@@ -329,6 +333,14 @@ export function useAudioEngine(
       }
       setCurrentTime(pos);
       AudioEngine.emitTimeUpdate(pos, duration);
+
+      // Periodic resync: realign click to track position to correct SoundTouchJS drift
+      if (pos > 0) {
+        clickRef.current.resyncToPosition(pos);
+      }
+
+      // FFT data for visualiser (updates every frame via ref, no re-render)
+      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
@@ -361,10 +373,11 @@ export function useAudioEngine(
     const clamped = Math.max(0.25, Math.min(2.0, newSpeed));
     setSpeedState(clamped);
 
-    // Update click BPM proportionally
+    // Update click BPM proportionally + set speed for beat map scaling
     if (song) {
       clickRef.current.configure({ bpm: song.bpm * clamped });
     }
+    clickRef.current.setSpeed(clamped);
 
     if (hasStems) mixerRef.current.setSpeed(clamped);
     else if (hasTrack) trackRef.current.setSpeed(clamped);
@@ -457,6 +470,7 @@ export function useAudioEngine(
     clickMuted,
     trackGain,
     trackMuted,
+    fftData: fftDataRef.current,
   };
 
   const actions: AudioEngineActions = {

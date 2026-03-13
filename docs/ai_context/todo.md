@@ -5,82 +5,52 @@
 
 ---
 
-## CRITICAL BUGS — Must Fix Before Cosmetics
+## S51 Bug Fixes — PENDING USER TESTING
 
-### Track Loading — Both Platforms (D-165) — DONE
-> Confirmed working by Nathan (2026-03-11). No issues reported.
+### APK Mixer — Pending Testing
+- [x] Code fix: mute ch1 when stems loaded, hide TRK fader when stems present.
+- [ ] **User verify**: Play a song with stems in Practice mode. Each stem fader controls the correct stem. No audio doubling.
 
-### Player Persistence — Both Platforms (D-166) — DONE
-> Confirmed working by Nathan (2026-03-11). No issues reported.
+### Web Click Alignment — Pending Testing
+- [x] Code fix: speed-scaled beat map intervals + periodic resync (30ms drift threshold).
+- [ ] **User verify**: Play a song with click on web. Click stays in sync throughout. Test at different speeds.
 
-### Android Library — Header Gap Bug
-- [ ] **Fix gap between header ("Library" / "New Idea") and Songs/Setlists tabs**
+### Visualisers — Pending Testing (Both Platforms)
+- [x] Code fix: Web AnalyserNode FFT bars. Android RMS bands in audio callback.
+- [ ] **User verify**: Spectrum/rings/burst react to actual audio on both APK and web.
+
+### PC Webapp → Capture — Pending Testing
+- [x] Code fix: Capture binds 0.0.0.0, CORS origins expanded, ImportPanel tries localhost + 127.0.0.1.
+- [ ] **User verify**: Open Import panel from web app on PC, confirm it connects to Capture.
 
 ---
 
-## Immediate Actions — S45 Screen-for-Screen Lockdown
+## Previously Completed (S45–S50)
 
-### Web — Library — REBUILD to match Android (D-163)
-> **NOTE: Previous Web Library tasks are INVALID.** Web Library must be rebuilt to match Android's layout (NeuCard cards, big BPM right-aligned, badges inline, tap-to-expand with Live/Practice/View buttons). Not a refinement of the current web layout.
+### Track Loading (D-165) — DONE
+### Player Persistence (D-166) — DONE
+### Android Library Header Gap — DONE (confirmed by Nathan S51)
+### Web Library (D-163) — DONE (S47)
+### Web Player — DONE (S47, deployed S48)
+### Web Settings — DONE
+### Android Library Dropdowns (D-128) — DONE (S50)
+### Android Vis Switcher — DONE (S50)
+### Android Mixer Rebuild — DONE (S49/S50)
+### Web Mixer Interactive — DONE (S50, confirmed working S51)
 
-### Web — Calendar
-> **Web calendar IS the benchmark.** Android matches web, not the other way around. No changes needed.
+---
 
-### Web — Library (D-163: match Android) — DONE (S47)
-- [x] Rebuild song cards: NeuCard + left accent border (teal/orange) + big BPM right-aligned
-- [x] Badges inline: scope (TGT/Personal) + type (Cover/Original) + key + time sig + duration + TRACK
-- [x] Tap-to-expand card → reveal Live/Practice/View launch buttons + Edit
-- [x] Filter dropdowns with labels above (Scope / Type) — already had these
-- [x] Setlists: tap-to-expand with Live/Practice/View + Edit buttons, left accent border
-- [x] Tab bar accent colours (teal for Songs, orange for Setlists)
-
-### Web — Player — BLOCKED (Vercel deploy failing)
-- [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
-- [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
-- [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
-- [x] Wire up settings pills — DONE (S45)
-- [x] Vis button label already "Spectrum" — verified
-- [x] Text panel max-height 200→120px — DONE (S47)
-- [x] Practice transport: speed + A-B loop layout already correct — verified
-- [x] Waveform strip height 56→72px — DONE (S47)
-- [x] Fullscreen gap fixed (margin-top + padding zeroed) — DONE (S47)
-- [x] Empty text panel hidden when no content — DONE (S47)
-- [x] Safe-area insets (top/bottom) — DONE (S47)
-- [x] Menu ☰ + Close ✕ buttons in header (D-166) — DONE (S47)
-- [x] Side drawer available in player view — DONE (S47)
-- [x] Live BPM adjustment (-5/+5) with safety modal — DONE (S47)
-- [x] Queue reorder arrows (D-115) — DONE (S47)
-- [x] Always-active queue (D-168) — no standalone mode — DONE (S47)
-- [x] Queue overlay fullscreen + teal theme — DONE (S47)
-- [x] Songs tab rebuilds queue on pick (D-168) — DONE (S47)
-- [x] **BLOCKER: Fix Vercel deploy failure** — FIXED (S48). Unused `getSong` import + `setStandaloneSong` setter caused TS6133. All S47 changes now live.
-
-### Web — Settings — DONE (already implemented)
-> Account, Audio Engine status, About sections all exist with correct neumorphic classes.
-
-### Android — Library — DONE (S50 confirmed)
-- [x] Filter pills → dropdowns (D-128) — already converted with generic FilterDropdown<T>
-- [ ] Queue items: NeuCard → flat rows
-
-### Android — Player
-- [x] Live transport: nav row (prev song / queue / next song) — DONE (S45)
-- [x] Queue overlay with 3 tabs (Queue/Songs/Setlists) — DONE (S45)
-- [x] Browse Songs button when no setlist active — DONE (S45)
-- [x] Glow toggle (card=default, fullscreen=experimental) — DONE (S45)
-- [x] Vis switcher: Spectrum/Rings/Burst — wired + animated — DONE (S50)
+## Remaining Parity Items
+- [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Practice transport: top row = speed (-5/100%/+5) left + A-B loop (A/B/Clear) right
 - [ ] Practice: waveform strip with loop region + playhead
-- [x] Mixer rebuilt: wider channels (44dp), taller faders (80dp), draggable gain, mute toggles
-- [x] Web mixer: draggable faders + mute dim visuals + gain control — DONE (S50)
 - [ ] Verify between-songs screen completeness
-
-### Android — Settings + Calendar
 - [ ] Verify display prefs not duplicated in Settings (should be drawer-only per D-118)
 - [ ] Verify calendar cell shadows match mockup
 
 ### Existing Backlog
 - [ ] **S31C: On-device testing** — Test Android practice with server beat maps + stems, verify BTrack offline fallback (airplane mode), test web UI visually at thegreentangerine.com.
-- [ ] Add more songs via web app (currently only 3: Sultans, Cissy Strut, War Pigs)
+- [ ] Add more songs via web app (currently 4)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
 ## Capture — Alignment + Pipeline (OVERDUE)
