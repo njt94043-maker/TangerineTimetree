@@ -323,4 +323,17 @@ Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeGetSampleRate(
     return static_cast<jint>(AudioEngine::getInstance().getSampleRate());
 }
 
+// --- Visualiser ---
+
+JNIEXPORT jfloatArray JNICALL
+Java_com_thegreentangerine_gigbooks_audio_AudioEngineBridge_nativeGetVisBands(
+        JNIEnv* env, jclass) {
+    constexpr int32_t N = AudioEngine::VIS_BANDS;
+    float bands[N];
+    AudioEngine::getInstance().getVisBands(bands, N);
+    jfloatArray result = env->NewFloatArray(N);
+    env->SetFloatArrayRegion(result, 0, N, bands);
+    return result;
+}
+
 } // extern "C"

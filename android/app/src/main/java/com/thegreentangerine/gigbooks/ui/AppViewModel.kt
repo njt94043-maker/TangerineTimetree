@@ -146,6 +146,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // processingStatus: non-null while server is processing stems (pending/analysing/separating)
     var processingStatus by mutableStateOf<String?>(null);                       private set
 
+    // ── Visualiser ─────────────────────────────────────────────────────────
+    // 16 band energies (0-1) from the C++ audio callback, polled on each frame
+    var visBands by mutableStateOf(FloatArray(16)); private set
+
     // ── Takes (S41) ─────────────────────────────────────────────────────────
     var cloudTakes by mutableStateOf<List<SongStem>>(emptyList());              private set
     var localTakes by mutableStateOf<List<com.thegreentangerine.gigbooks.data.audio.LocalTakesStore.LocalTake>>(emptyList()); private set
@@ -516,6 +520,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         stemErrors      = emptyMap()
         stemGains       = emptyMap()
         stemMutes       = emptyMap()
+        // Restore track gain after stems cleared (was muted when stems were active)
+        if (engineAvailable) try { AudioEngineBridge.nativeSetChannelGain(1, trackGain) } catch (_: Exception) { }
 
         selectedSong        = song
         bpmOffset           = 0f
@@ -659,6 +665,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         val r = AudioEngineBridge.nativeGetCurrentBar()
                         withContext(Dispatchers.Main) { currentBeat = b; currentBar = r }
                     }
+                    // Poll visualiser band energies (~60fps)
+                    val bands = AudioEngineBridge.nativeGetVisBands()
+                    withContext(Dispatchers.Main) { visBands = bands }
                 } catch (_: Exception) { }
                 delay(16L)
             }
@@ -943,6 +952,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 loadedStems = loaded.sortedBy { it.first }
                 stemErrors  = errors
                 stemGains   = loaded.associate { (idx, _) -> idx to 1.0f }
+
+                // When stems are loaded, mute the main mixed track (ch1) so we
+                // only hear individual stems — otherwise audio doubles up.
+                if (loaded.isNotEmpty() && engineAvailable) {
+                    try { AudioEngineBridge.nativeSetChannelGain(1, 0f) } catch (_: Exception) { }
+                }
 
                 // If no stems loaded, check if server is still processing
                 if (loaded.isEmpty()) {

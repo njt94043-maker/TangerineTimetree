@@ -8,7 +8,9 @@ import { createSong, uploadPracticeTrack } from '@shared/supabase/queries';
 import type { SongCategory } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 
-const CAPTURE_URL = 'http://localhost:9123';
+// Try localhost first, fall back to 127.0.0.1 (some browsers treat them differently
+// for mixed-content exceptions when loaded from HTTPS)
+const CAPTURE_URLS = ['http://localhost:9123', 'http://127.0.0.1:9123'];
 const BEAT_ANALYSIS_URL = import.meta.env.VITE_BEAT_ANALYSIS_URL as string | undefined;
 
 interface CaptureTrack {
@@ -53,26 +55,40 @@ export function ImportPanel({ onClose, onImported }: Props) {
   const [importing, setImporting] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState('');
 
+  // Track which Capture URL is working
+  const [captureUrl, setCaptureUrl] = useState('');
+
   const fetchTracks = useCallback(async () => {
     try {
       const params = new URLSearchParams({ limit: '100', sort_by: 'capture_date', sort_dir: 'desc' });
       if (search) params.set('search', search);
       if (category) params.set('category', category);
 
-      const resp = await fetch(`${CAPTURE_URL}/api/library/tracks?${params}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
-      setTracks(data);
-      setConnected(true);
-      setError('');
+      // Try each URL — browsers differ on which localhost variant allows mixed content
+      const urlsToTry = captureUrl ? [captureUrl] : CAPTURE_URLS;
+      let lastErr: unknown;
+      for (const url of urlsToTry) {
+        try {
+          const resp = await fetch(`${url}/api/library/tracks?${params}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
+          setTracks(data);
+          setConnected(true);
+          setCaptureUrl(url);
+          setError('');
+          return;
+        } catch (e) { lastErr = e; }
+      }
+      throw lastErr;
     } catch {
       setConnected(false);
       setTracks([]);
-      setError('Cannot connect to Capture server at localhost:9123. Is it running?');
+      setCaptureUrl('');
+      setError('Cannot connect to Capture server. Is it running? (capture/start-silent.vbs) If using an installed PWA, try opening in Chrome — some browsers block HTTP requests from HTTPS pages.');
     } finally {
       setLoading(false);
     }
-  }, [search, category]);
+  }, [search, category, captureUrl]);
 
   useEffect(() => {
     setLoading(true);
@@ -109,7 +125,7 @@ export function ImportPanel({ onClose, onImported }: Props) {
 
       // 2. Download MP3 from Capture
       setImportStatus('Downloading audio...');
-      const audioResp = await fetch(`${CAPTURE_URL}/api/library/tracks/${track.id}/file`);
+      const audioResp = await fetch(`${captureUrl}/api/library/tracks/${track.id}/file`);
       if (!audioResp.ok) throw new Error('Failed to download audio from Capture');
       const audioBuffer = await audioResp.arrayBuffer();
 
@@ -141,7 +157,7 @@ export function ImportPanel({ onClose, onImported }: Props) {
 
       // 5. Mark as imported in Capture (update song_id FK)
       setImportStatus('Marking imported...');
-      await fetch(`${CAPTURE_URL}/api/library/tracks/${track.id}`, {
+      await fetch(`${captureUrl}/api/library/tracks/${track.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ song_id: song.id }),

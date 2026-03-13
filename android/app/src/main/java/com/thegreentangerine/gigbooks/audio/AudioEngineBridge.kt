@@ -78,4 +78,8 @@ object AudioEngineBridge {
 
     // --- Engine info ---
     external fun nativeGetSampleRate(): Int
+
+    // --- Visualiser ---
+    // Returns 16 band energies (0.0–1.0) computed from the mixed audio output.
+    external fun nativeGetVisBands(): FloatArray
 }

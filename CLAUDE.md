@@ -20,7 +20,7 @@ Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps 
 ## Architecture
 - **Android navigation**: Compose ModalNavigationDrawer (3 items: Calendar, Library, Settings)
 - **Web navigation**: Collapsible drawer — ViewContext state machine, no router library
-- **Database**: 25 Supabase tables, 4 storage buckets (see schema_map.md)
+- **Database**: 26 Supabase tables, 4 storage buckets (see schema_map.md)
 - **PDF**: HTML templates in `shared/templates/` (28 styles: 7 invoice + 7 receipt + 7 quote + 7 formal invoice), rendered on-demand (web only)
 - **Audio**: Android = C++ AudioEngine (Oboe + SoundTouch) via JNI. Web = Web Audio API + SoundTouchJS (S36, built).
 - **State**: Android = AppViewModel (single ViewModel). Web = hooks + realtime subscriptions.
@@ -155,8 +155,8 @@ node --max-old-space-size=512 web/scripts/fix-venue-text.cjs
 ## What's Deployed
 - **Web**: thegreentangerine.com (Vercel, auto-deploys from master)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (25 tables, 4 storage buckets)
-- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1), revision beat-analysis-00008-dn2 (with CORS)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
+- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1), revision beat-analysis-00009-th7 (beats-only + re-analyse + CORS)
 - **Capture**: localhost only — backend :9123, UI :5174. Launch via `capture/start-silent.vbs` or `capture/start.ps1`
 
 ## File Map

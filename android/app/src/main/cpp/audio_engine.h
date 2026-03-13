@@ -82,6 +82,7 @@ public:
     // --- Stem Players (ch2..ch2+MAX_STEMS-1) ---
     // idx: 0=DRUMS, 1=BASS, 2=GUITAR, 3=KEYS, 4=VOCALS, 5=BACKING, 6=OTHER
     static constexpr int32_t MAX_STEMS = 7;
+    static constexpr int32_t VIS_BANDS = 16;
     void loadStem(int32_t idx, std::vector<float>&& pcmData, int32_t numFrames,
                   int32_t sampleRate, int32_t channels);
     void clearStem(int32_t idx);
@@ -142,10 +143,22 @@ private:
     // Last beat analysis result — stored so applyBeatMap() can use it
     BeatAnalysisResult lastAnalysis_;
 
+    // Visualiser — band energies updated each audio callback (constant is public)
+    std::atomic<float> visBands_[VIS_BANDS]{};
+
     Metronome metronome_;
     Mixer mixer_;
     TrackPlayer trackPlayer_;
     TrackPlayer stemPlayers_[MAX_STEMS]; // ch2..ch7
+
+public:
+    /** Get current visualiser band levels (0.0–1.0). */
+    void getVisBands(float* out, int32_t count) const {
+        int32_t n = (count < VIS_BANDS) ? count : VIS_BANDS;
+        for (int32_t i = 0; i < n; i++) {
+            out[i] = visBands_[i].load(std::memory_order_relaxed);
+        }
+    }
 };
 
 } // namespace gigbooks

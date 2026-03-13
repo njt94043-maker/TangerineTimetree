@@ -9,7 +9,7 @@ echo.
 :: Start backend (Python FastAPI)
 echo   [1/2] Starting backend on port 9123...
 cd /d "%~dp0backend"
-start "TGT Capture Backend" cmd /k ".venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 9123 --reload"
+start "TGT Capture Backend" cmd /k ".venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 9123 --reload"
 
 :: Wait a moment for backend to initialize
 timeout /t 2 /nobreak > nul
