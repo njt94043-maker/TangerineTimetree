@@ -6,31 +6,41 @@
 ---
 
 ## Current State
-- **Phase**: S55 — Web click debug (partially fixed — audible in background only).
-- **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme). Web stems/mixer work. Web click NOW AUDIBLE but only when app is backgrounded/minimised — silent when foregrounded.
-- **Last session (S55)**: Diagnosed click issue. Test beep (OscillatorNode → masterGain) works in foreground. Pre-rendered AudioBuffer clicks were silent in foreground but played in background. Switched ClickScheduler from AudioBuffer to OscillatorNode approach — click now plays in background (somewhat in time) but still silent in foreground on both PC and mobile.
-- **KEY FINDING**: Click plays when app is minimised/backgrounded, silent when foregrounded. This is true for BOTH AudioBuffer and OscillatorNode approaches. The test beep button (user-gesture-triggered OscillatorNode) works in foreground. Something in the foreground tick loop (rAF) may be interfering with scheduled audio.
+- **Phase**: S56 — Web click debug (partial progress, needs methodology overhaul).
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works.
+- **Web click**: Still foreground-silent, background-audible. S56 made progress on isolation but AI kept changing multiple things at once, contaminating results.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S55 Changes
-- **ClickScheduler.ts**: Replaced pre-rendered AudioBuffer approach with OscillatorNode + envelope gain (same pattern as working test beep). Removed all buffer rendering code. Subdivisions also switched to OscillatorNode.
-- **Player.tsx**: Added "Test Beep" button in debug banner (direct OscillatorNode → masterGain). Added AudioEngine import.
-- **NATHAN_VERBATIM.md**: Logged all session messages.
+## S56 Changes
+- **AudioEngine.ts**: AnalyserNode moved from series (masterGain → analyser → destination) to parallel branch (masterGain → destination, masterGain → analyser). NOT YET CONFIRMED if this helps — was pushed alongside full tick loop restore.
+- **useAudioEngine.ts**: Tick loop currently at step 2c level (pollBeats + position + loop + setCurrentTime). resync/FFT/beat intensity excluded.
 
-## NEXT SESSION PRIORITY: Why does click only play in background?
-The critical diagnostic: scheduled audio (both AudioBuffer and OscillatorNode) is audible when app is backgrounded but silent when foregrounded. Test beep (user-gesture-triggered) works in foreground. This points to the rAF tick loop interfering.
+## S56 Isolation Results (CONFIRMED by Nathan, hard refresh each step)
+| Step | Added to tick loop | Click? |
+|------|--------------------|--------|
+| Baseline | pollBeats only | **WORKS** ✓ |
+| 2b | + position + loop checking | **WORKS** ✓ |
+| 2c | + setCurrentTime + emitTimeUpdate | **WORKS** ✓ |
+| 2d | + resyncToPosition | **WORKS** ✓ (still drifts) |
+| 2e | + FFT + beat intensity | **BROKE** ✗ |
+| 2e-i | remove FFT, keep beat intensity | **BROKE** ✗ |
+| revert 2d | back to step 2d code | **BROKE** ✗ (permanent) |
+| AnalyserNode fix + full restore | parallel analyser + all features | **BROKE** ✗ |
+| revert 2c + analyser fix | step 2c + parallel analyser | **NOT YET TESTED** |
 
-**Debug approach — MUST do in order:**
-1. **Disable rAF tick loop entirely** — in `play()`, comment out `AudioEngine.startTick(...)`. If click plays in foreground, the tick loop is the culprit.
-2. **If tick loop is culprit, isolate which part**: strip tick callback to just `AudioEngine.pollBeats()` (remove setCurrentTime, resyncToPosition, FFT, beat intensity). Add back one at a time.
-3. **Top suspects in tick loop**:
-   - `setCurrentTime(pos)` — triggers React re-render 60x/sec, may starve main thread
-   - `clickRef.current.resyncToPosition(pos)` — modifies scheduler's nextBeatTime every frame, may prevent clicks from being scheduled
-   - `fftDataRef.current = AudioEngine.getFrequencyData()` — AnalyserNode read every frame
-4. **If tick loop is NOT the culprit**, investigate Chrome's scheduled audio policy (gesture scope, node GC).
+## KEY INSIGHT: The break at step 2e was PERMANENT
+Reverting to previously-working code did NOT fix the click. This means something persistent (likely AnalyserNode/AudioContext state) was damaged and survived code reloads. The AnalyserNode parallel fix may address this but hasn't been tested in isolation.
+
+## NEXT SESSION PRIORITY: Audit methodology, then continue isolation
+**CRITICAL**: AI kept making multiple changes per push. Next session MUST:
+1. **Establish testing protocol**: one change per push, hard refresh + close tab, confirm version hash visible in UI
+2. **Test AnalyserNode fix in isolation**: current deploy has parallel analyser + step 2c tick loop — Nathan needs to close all tabs, reopen, test
+3. **If click works**: add back resync → test → add back beat intensity → test → add back FFT → test
+4. **If click still broken**: the permanent damage theory is wrong — need fresh AudioContext (clear site data)
+5. **Click timing/drift is a SEPARATE issue** — don't conflate with foreground silence
 
 ## Remaining Items
-- [ ] **Fix web click foreground playback** — #1 priority
+- [ ] **Fix web click foreground playback** — #1 priority (in progress)
 - [ ] Remove debug banner + test beep + console.log after click fixed
 - [ ] Web visualisers: user testing (blocked by click issue)
 - [ ] Queue items: NeuCard → flat rows (Android)

@@ -16,9 +16,14 @@
 - [x] S55: Diffed useAudioEngine.ts vs S51 — additions are all additive, shouldn't break click
 - [x] S55: Test beep (OscillatorNode → masterGain) works in foreground — confirms audio chain OK
 - [x] S55: Replaced AudioBuffer with OscillatorNode in ClickScheduler — click now audible in background
-- [ ] **Disable rAF tick loop** — comment out `AudioEngine.startTick(...)` in play(), test if click plays in foreground
-- [ ] **If tick loop is culprit** — strip to just `AudioEngine.pollBeats()`, add back parts one at a time
-- [ ] **Top suspects**: `setCurrentTime(pos)` (60fps re-renders), `resyncToPosition()` (modifies scheduler timing), `getFrequencyData()` (analyser read)
+- [x] S56: Disabled rAF tick loop — click played in foreground, CONFIRMED tick loop is culprit
+- [x] S56: Isolation steps 2b-2d — pollBeats, position, setCurrentTime, resync all safe individually
+- [x] S56: Step 2e (FFT + beat intensity) broke click PERMANENTLY — even reverting didn't fix
+- [x] S56: Moved AnalyserNode from series to parallel branch in AudioEngine.ts
+- [ ] **S57: Audit testing methodology** — one change per push, version hash in UI, close-all-tabs protocol
+- [ ] **S57: Test current deploy** — parallel analyser + step 2c tick loop. Close ALL tabs first, fresh open
+- [ ] **S57: If click works, continue isolation** — add resync → test → beat intensity → test → FFT → test
+- [ ] **S57: If still broken, clear site data** — nuclear reset to get fresh AudioContext
 - [ ] **Remove debug banner + test beep + console.log** after click fixed
 
 ### Completed (S51-S54)

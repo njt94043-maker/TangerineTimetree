@@ -448,3 +448,15 @@
 - **Nathan's words**: "why was webapp still setup like that? apk isnt.. you shouldnt have needed to update what i said, ive said it before"
 - **Root cause**: D-118 was logged but never enforced on web. When building web Settings, the toggles were added there instead of only in the drawer.
 - **Fix**: Removed Player Settings section entirely from Settings.tsx (D-171). Player prefs are controlled exclusively from the drawer on both platforms.
+
+### S56 Multiple changes per push contaminated isolation testing (2026-03-13)
+- **What happened**: Debugging web click (foreground-silent). Had a clear step-by-step plan. AI kept skipping steps — jumped from diagnostic straight to throttled full restore (2 changes), then later pushed AnalyserNode fix + full tick loop together (2 changes). When results were unclear, AI doubted user's testing instead of trusting the data.
+- **Nathan's words**: "are we just doing random things now? instead of following strict guided instructions from our research and work so far?" / "you've broke something by not listening to me again"
+- **Root cause**: AI prioritised speed over discipline. Bundled changes to save pushes instead of strictly one-at-a-time.
+- **Fix**: NEVER change more than one thing per push during debugging. If the plan says "one at a time", that means ONE. Trust user test results — don't suggest caching issues when user confirms hard refresh. Add version hash to UI so deployed version can be verified.
+
+### S56 AnalyserNode in series may permanently damage AudioContext (2026-03-13)
+- **What happened**: Adding `getByteFrequencyData()` to the tick loop broke click audio permanently. Even reverting to previously-working code didn't fix it. The AnalyserNode was wired in series (masterGain → analyser → destination), meaning all audio flowed through it.
+- **Root cause theory**: Once the AnalyserNode was activated by `getByteFrequencyData()`, it entered a state that interfered with scheduled OscillatorNode playback. Since AudioContext is a singleton that persists across code reloads, the damage survived.
+- **Fix attempted**: Moved AnalyserNode to parallel branch (masterGain → destination + masterGain → analyser). NOT YET CONFIRMED — was pushed alongside other changes.
+- **Lesson**: AnalyserNode should NEVER be in the audio output path. Always connect it as a parallel observer branch.
