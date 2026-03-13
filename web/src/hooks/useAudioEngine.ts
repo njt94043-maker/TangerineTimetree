@@ -352,16 +352,15 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S56 ISOLATION: Adding back tick features one at a time.
+    // S56 ISOLATION COMPLETE — all features restored.
     // pollBeats only = click works ✓
     // + position + loop = click works ✓
     // + setCurrentTime 60fps = click works ✓
-    // Step 2d: add resyncToPosition (modifies scheduler nextBeatTime every frame).
-    // NO FFT, NO beat intensity.
+    // + resyncToPosition = click works ✓ (still drifts — separate issue)
+    // Step 2e: add FFT + beat intensity (last two features).
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
-      // [2b] Position + loop checking ✓
       let pos = 0;
       if (hasStems) {
         pos = mixerRef.current.getPosition();
@@ -371,14 +370,22 @@ export function useAudioEngine(
         trackRef.current.checkLoop();
       }
 
-      // [2c] React state update ✓
       setCurrentTime(pos);
       AudioEngine.emitTimeUpdate(pos, duration);
 
-      // [2d] Resync click to track position (corrects SoundTouchJS drift)
       if (pos > 0) {
         clickRef.current.resyncToPosition(pos);
       }
+
+      // [2e] Beat intensity decay for metronome visualiser
+      if (beatIntensityRef.current > 0.01) {
+        beatIntensityRef.current *= 0.9;
+      } else {
+        beatIntensityRef.current = 0;
+      }
+
+      // [2e] FFT data for visualiser
+      fftDataRef.current = AudioEngine.getFrequencyData();
     });
   }, [mode, hasStems, hasTrack, duration]);
 
