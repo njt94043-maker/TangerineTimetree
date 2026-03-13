@@ -367,3 +367,9 @@ Nathan's response: redirected to fixing the existing implementation first.
 ### Testing methodology question
 > "i need a foolproof method of ensuring all relevant cahes have been cleared and we are running the most up to date possible version of the code every time we test a fix. how do we do this?"
 > "yes plz" [re: save testing protocol to project docs]
+
+### After clear site data + fresh tab — click works in foreground
+> "ok, well it seems like click is working in foreground again now. (but not in time) 2026-03-13 15:50:40"
+
+### Wrap up
+> "safest option wrap up?"
