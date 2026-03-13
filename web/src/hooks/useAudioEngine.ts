@@ -352,8 +352,8 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S57: Reverted to step 2c (last confirmed working).
-    // resyncToPosition BROKE click in foreground — needs investigation.
+    // S57: step 2c tick loop (last confirmed working).
+    // resyncToPosition, beat intensity, FFT NOT included — need research-backed approach.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 

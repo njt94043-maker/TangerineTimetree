@@ -6,47 +6,46 @@
 ---
 
 ## Current State
-- **Phase**: S56 complete — Web click foreground fix partially done, needs remaining isolation.
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click NOW WORKS IN FOREGROUND** (confirmed with build hash `2026-03-13 15:50:40`).
-- **What's missing from tick loop**: resyncToPosition, beat intensity, FFT — not yet re-added after isolation.
+- **Phase**: S57 complete — Web click works in foreground. Tick loop restoration blocked by resyncToPosition.
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click WORKS IN FOREGROUND** at step 2c tick loop.
+- **What's missing from tick loop**: resyncToPosition, beat intensity, FFT — cannot add without research.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S56 Confirmed Fixes
-- **AudioEngine.ts**: AnalyserNode moved from series to parallel branch — **CONFIRMED working** after clear site data + fresh tab.
-- **useAudioEngine.ts**: Tick loop at step 2c (pollBeats + position + loop + setCurrentTime). Click works in foreground.
-- **Testing infrastructure**: BUILD timestamp visible in debug banner, testing protocol in gotchas.md.
+## S57 Finding: resyncToPosition breaks click
+- Adding `resyncToPosition` to rAF tick loop (60fps) kills click audio — OscillatorNodes go silent in foreground.
+- This contradicts S56 step 2d where resyncToPosition appeared safe — but S56 2d had AnalyserNode in series (inactive). Now AnalyserNode is parallel. Something about the combination kills audio.
+- **Guessing at fixes is NOT acceptable.** Next session MUST research proper Web Audio sync patterns (Chris Wilson, Tone.js, etc.) before writing any code.
 
-## S56 Isolation Results (CLEAN — build-hash verified)
+## S56 Isolation Results + S57 Update
 | Step | Tick loop contents | Click? |
 |------|--------------------|--------|
 | Baseline | pollBeats only | **WORKS** ✓ |
 | 2b | + position + loop | **WORKS** ✓ |
 | 2c | + setCurrentTime + emitTimeUpdate | **WORKS** ✓ |
-| 2d | + resyncToPosition | **WORKS** ✓ (drifts) |
-| 2e | + FFT + beat intensity | **BROKE** ✗ (permanent until clear site data) |
-| **Current** | **2c + parallel AnalyserNode** | **WORKS** ✓ (build-hash confirmed) |
+| 2d (S56) | + resyncToPosition (series analyser) | **WORKS** ✓ (drifts) |
+| 2d (S57) | + resyncToPosition (parallel analyser) | **BROKE** ✗ |
+| 2e (S56) | + FFT + beat intensity | **BROKE** ✗ |
+| **Current** | **2c + parallel AnalyserNode** | **WORKS** ✓ |
 
-## ROOT CAUSE: AnalyserNode in series killed scheduled audio
-AnalyserNode was wired masterGain → analyser → destination. Once `getByteFrequencyData()` activated it, scheduled OscillatorNodes went silent. Persisted across code reloads (AudioContext singleton). Fixed by wiring analyser as parallel observer. Clearing site data resets AudioContext.
-
-## NEXT SESSION (S57): Continue tick loop restoration
-**Testing protocol**: Clear site data → close tab → fresh tab → verify BUILD timestamp. One change per push.
-1. Add back `resyncToPosition` → push → test (was safe at step 2d)
-2. Add back beat intensity decay → push → test
-3. Add back `getFrequencyData()` → push → test (this is the risky one — with parallel analyser it should be safe now)
-4. If all pass: full tick loop restored. Move to click timing/drift fix.
-5. **Click timing/drift is SEPARATE** — don't conflate with foreground silence.
+## NEXT SESSION (S58): Research-first approach
+**MANDATORY**: Research proper Web Audio metronome-to-track sync before writing ANY code.
+1. Study Chris Wilson's lookahead scheduling article — how does it handle drift with external sources?
+2. Study Tone.js Transport sync — how does it align scheduled events to track playback?
+3. Understand WHY resyncToPosition in rAF kills OscillatorNodes — is it the frequency of nextBeatTime modification?
+4. Design a researched solution. Present to Nathan BEFORE coding.
+5. Then: beat intensity + FFT (separate from resync).
 
 ## Remaining Items
-- [ ] **Restore remaining tick loop features** (resync, beat intensity, FFT) — 3 isolated pushes
-- [ ] **Fix click timing/drift** — separate from foreground silence
+- [ ] **Fix click drift** — research-backed sync approach (resyncToPosition in rAF kills click)
+- [ ] **Restore beat intensity** — drives metronome visualisers (D-169)
+- [ ] **Restore FFT** — may not be needed if vis is beat-synced only (D-169)
 - [ ] Remove debug banner + test beep + console.log after click fixed
-- [ ] Web visualisers: user testing (blocked by click timing)
+- [ ] Web visualisers: user testing (blocked by click drift fix)
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (Vercel, BUILD timestamp in debug banner)
+- **Web**: thegreentangerine.com (click works, drifts without resync)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
@@ -56,3 +55,4 @@ AnalyserNode was wired masterGain → analyser → destination. Once `getByteFre
 **End**: Update STATUS.md → todo.md → SESSION_LOG.md. Commit + push.
 **TESTING**: Clear site data → close tab → fresh tab → verify BUILD timestamp. One change per push.
 **EVERY CHANGE**: Ask "what else does this affect?" across ALL apps (D-156).
+**NO GUESSING**: Every code change must be backed by research or reference implementation.
