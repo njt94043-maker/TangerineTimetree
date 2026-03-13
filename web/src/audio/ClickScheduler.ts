@@ -148,39 +148,34 @@ export class ClickScheduler {
    * Finds the beat map entry closest to trackPositionSec and realigns
    * nextBeatTime so the next click fires at the correct moment.
    */
+  /*
+   * S60: resyncToPosition DISABLED — SoundTouch's ~93ms position reporting
+   * latency makes this function push nextBeatTime forward on every call,
+   * either preventing beats from scheduling (original bug) or skipping beats
+   * (after grace period fix). Natural beat map scheduling via advanceBeat()
+   * is accurate without drift correction. Re-enable with latency compensation
+   * if drift is observed in extended testing (subtract ~93ms from reported pos).
+   *
   private resyncToPosition(trackPositionSec: number): void {
     if (!this.beatMap || this.beatMap.length === 0 || !this.isPlaying) return;
-
     const ctx = AudioEngine.getContext();
     const now = ctx.currentTime;
     const offsetSec = this.config.beatOffsetMs / 1000;
-
-    // Find the beat map entry just ahead of the current track position
     let newIdx = this.beatMapIndex;
     for (let i = 0; i < this.beatMap.length; i++) {
-      if (this.beatMap[i] > trackPositionSec) {
-        newIdx = i;
-        break;
-      }
-      if (i === this.beatMap.length - 1) {
-        newIdx = i; // past end
-      }
+      if (this.beatMap[i] > trackPositionSec) { newIdx = i; break; }
+      if (i === this.beatMap.length - 1) newIdx = i;
     }
-
-    // Compute where the next beat should fire based on track position + speed
     const nextBeatInTrackTime = this.beatMap[newIdx] ?? this.beatMap[this.beatMap.length - 1];
     const timeUntilNextBeat = (nextBeatInTrackTime - trackPositionSec) / this.speed;
     const correctedNextBeatTime = now + timeUntilNextBeat + offsetSec;
-
-    // Only resync if drift exceeds 150ms — must be larger than SoundTouch's
-    // ~93ms position reporting latency (4096 samples / 44100Hz).
-    // Previous 30ms threshold was within the uncertainty window, triggering on noise.
     const drift = Math.abs(this.nextBeatTime - correctedNextBeatTime);
     if (drift > 0.150) {
       this.nextBeatTime = correctedNextBeatTime;
       this.beatMapIndex = newIdx;
     }
   }
+  */
 
   start(startTime?: number): void {
     const ctx = AudioEngine.getContext();
@@ -279,20 +274,15 @@ export class ClickScheduler {
   private schedule(): void {
     if (!this.isPlaying) return;
 
-    // Drift correction — runs in the SAME timer as scheduling (no race condition).
-    // Only when we have a beat map AND a track position source.
-    // S60 FIX: Skip resync until at least 4 beats have been naturally scheduled.
-    // SoundTouch's ScriptProcessorNode has ~93ms position reporting latency (4096/44100).
-    // Before the scheduler establishes a rhythm, resync sees the track "past" each beat
-    // (due to the 93ms offset) and pushes nextBeatTime to the NEXT beat — the scheduler
-    // chases the beat map forward but never catches up. The 30ms drift threshold was
-    // within the 93ms uncertainty window, triggering on noise not actual drift.
-    if (this.beatsScheduled >= 4 && this.trackPositionGetter && this.beatMap && this.beatMap.length > 0) {
-      const trackPos = this.trackPositionGetter();
-      if (trackPos > 0) {
-        this.resyncToPosition(trackPos);
-      }
-    }
+    // S60: Drift correction DISABLED.
+    // resyncToPosition() cannot work reliably with SoundTouch's ~93ms position
+    // reporting latency. It consistently pushes nextBeatTime forward, either
+    // preventing beats from scheduling entirely (S60 root cause) or skipping
+    // beats after the grace period. The natural beat map scheduling via
+    // advanceBeat() is accurate — madmom timestamps + Chris Wilson lookahead
+    // pattern don't accumulate drift. If drift is observed in testing,
+    // re-enable with latency compensation (subtract ~93ms from reported position).
+    // See WEB_AUDIO_REFERENCE.md section 7.
 
     const ctx = AudioEngine.getContext();
     const deadline = ctx.currentTime + LOOKAHEAD_SEC;
