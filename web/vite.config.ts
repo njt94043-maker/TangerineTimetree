@@ -10,6 +10,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: false, // Using public/manifest.json
       workbox: {
+        // Force new SW to activate immediately, don't wait for old tabs to close
+        skipWaiting: true,
+        clientsClaim: true,
+        // Purge old caches from previous builds
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
