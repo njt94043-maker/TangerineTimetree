@@ -12,7 +12,7 @@
 - [x] Code fix: BPM/time-sig/click-sound config fallbacks for 0/null (S52)
 - [x] Code fix: ClickScheduler.getSecondsPerBeat() safety for BPM=0 (S52)
 - [x] Code fix: Full ClickScheduler rewrite — OscillatorNode + gain envelope replaces AudioBuffer (S53)
-- [ ] **Verify**: Nathan to test web click on live site — deployed but not yet confirmed working.
+- [ ] **STILL BROKEN**: OscillatorNode rewrite did not fix click. Problem is upstream of ClickScheduler. Needs DevTools debugging next session.
 
 ### Mobile Black Screen — FIXED
 - [x] Root cause: stale SW cache from before skipWaiting/clientsClaim deploy

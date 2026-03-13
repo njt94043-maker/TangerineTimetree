@@ -295,3 +295,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "my messages say exactly when the click broke"
 > "visuals and click drift we were working on"
 > "this is a live app btw, you cant allow it to just crash like this"
+
+### Click Still Broken After OscillatorNode Rewrite
+> "ok, wrap up plz. webapp still no click.."

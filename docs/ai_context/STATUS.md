@@ -9,7 +9,7 @@
 - **Phase**: S53 — Web click fix + mobile black screen fix.
 - **What works**: Android (full, V4 player with beat-synced visualisers + interactive mixer + all S51 fixes confirmed by Nathan), Cloud Run (beats + stems + CORS + skip_stems + re-analyse), Capture (category field + badges + filter + theme).
 - **Last session (S53)**: Rewrote ClickScheduler from AudioBuffer to OscillatorNode approach. Fixed mobile black screen (stale SW cache). Deployed — needs user verification.
-- **Web click fix**: Rewrote ClickScheduler to use OscillatorNode + gain envelope instead of pre-rendered AudioBuffers. The buffer approach silently failed after S52 changes. Oscillator approach is fundamentally more reliable. **DEPLOYED but NOT YET VERIFIED by user.**
+- **Web click fix**: Rewrote ClickScheduler to OscillatorNode (S53) — **STILL NO CLICK per Nathan**. The issue is NOT in ClickScheduler's sound generation. Must be upstream: either clicks aren't being scheduled (ClickScheduler.start() never called, or isPlaying=false), or audio routing is broken (masterGain→analyser→destination chain, or AudioContext suspended). Next session MUST use DevTools console debugging.
 - **Mobile black screen**: Was stale SW cache on phone from before skipWaiting/clientsClaim was deployed. Cleared Chrome data to fix. Future deploys auto-update via SW mechanism.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
@@ -17,10 +17,14 @@
 - **ClickScheduler rewrite**: OscillatorNode per click (sine wave + gain envelope: 1ms attack, sustain, 30ms total). Removed pre-rendered buffer approach entirely. D-159 preserved (all beats identical, no accent).
 - **Mobile black screen fix**: Cleared stale Chrome SW cache via ADB. SW auto-update mechanism (S52) prevents recurrence.
 
-## NEXT SESSION PRIORITY: Verify Web Click
-1. Nathan to test web click on live site (thegreentangerine.com) — does click produce audible sound now?
-2. If still broken: DevTools console debugging (AudioContext state, OscillatorNode creation, gain routing)
-3. Web visualisers still untested by user (were blocked by click issue)
+## NEXT SESSION PRIORITY: Web Click — DevTools Debug Required
+The OscillatorNode rewrite (S53) did NOT fix the click. The problem is NOT in click sound generation — it's upstream. Debug approach:
+1. Add temporary console.log in useAudioEngine play() to confirm ClickScheduler.start() is called
+2. Check AudioContext.state (must be 'running', not 'suspended')
+3. Check masterGain.gain.value (must be >0)
+4. Check if click config has player_click_enabled=true reaching the scheduler
+5. Trace the full chain: useAudioEngine → ClickScheduler.start() → schedule() → scheduleOscClick() → OscillatorNode → masterGain → analyser → destination
+6. The S51 AnalyserNode insertion (masterGain → analyser → destination) is a suspect — verify analyser isn't blocking audio
 
 ## Remaining Items
 - [ ] **Verify web click fix** — deployed, needs user testing
