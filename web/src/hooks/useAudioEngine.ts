@@ -352,8 +352,8 @@ export function useAudioEngine(
 
     AudioEngine.setState('playing');
 
-    // S57 step 1: step 2c + resyncToPosition (was safe at S56 step 2d).
-    // AnalyserNode is parallel branch (S56 fix). Beat intensity + FFT NOT yet added.
+    // S57: Reverted to step 2c (last confirmed working).
+    // resyncToPosition BROKE click in foreground — needs investigation.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
@@ -368,11 +368,6 @@ export function useAudioEngine(
 
       setCurrentTime(pos);
       AudioEngine.emitTimeUpdate(pos, duration);
-
-      // S57 step 1: resync click to track position (corrects drift >30ms)
-      if (pos > 0) {
-        clickRef.current.resyncToPosition(pos);
-      }
     });
   }, [mode, hasStems, hasTrack, duration]);
 
