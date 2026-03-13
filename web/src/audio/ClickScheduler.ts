@@ -247,6 +247,22 @@ export class ClickScheduler {
         source.connect(gainNode);
         gainNode.connect(masterGain);
         source.start(time);
+        // S55 debug: log first few clicks to confirm scheduling + buffer validity
+        if (this.currentBar < 2 && this.currentBeat < 2) {
+          console.log('[TGT-CLICK-DEBUG] scheduleClick', {
+            beat: this.currentBeat, bar: this.currentBar,
+            time: time.toFixed(3), ctxNow: ctx.currentTime.toFixed(3),
+            bufLen: buffer.length, bufDur: buffer.duration.toFixed(4),
+            configGain: this.config.gain, clickSound: this.config.clickSound,
+            mgGain: masterGain.gain.value,
+          });
+        }
+      } else {
+        console.error('[TGT-CLICK-DEBUG] NULL BUFFER! clickSound:', this.config.clickSound);
+      }
+    } else {
+      if (this.currentBar === 0) {
+        console.warn('[TGT-CLICK-DEBUG] shouldSound=false, beat:', this.currentBeat, 'accentPattern:', this.config.accentPattern);
       }
     }
 
