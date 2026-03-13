@@ -271,10 +271,26 @@ fun VisualHero(
     visBands: FloatArray = FloatArray(16),
 ) {
     val beatGlowAlpha = remember { Animatable(0f) }
+    // Beat intensity for metronome visualiser — quick attack, slow release (~500ms)
+    val beatIntensity = remember { Animatable(0f) }
+    // EQ-shaped bar targets — bell curve (center tall, edges short) + slight variation
+    val barTargets = remember { mutableStateOf(FloatArray(16) { i ->
+        val dist = Math.abs(i - 7.5f) / 7.5f
+        0.45f + 0.55f * (1f - dist * dist)
+    }) }
     LaunchedEffect(currentBeat, isPlaying) {
         if (isPlaying && currentBeat > 0) {
             beatGlowAlpha.snapTo(0.7f)
             beatGlowAlpha.animateTo(0f, animationSpec = tween(200))
+            // Quick attack: snap to 1, slow release: ease out over 500ms
+            beatIntensity.snapTo(1f)
+            // Regenerate EQ-shaped bar heights with slight variation
+            barTargets.value = FloatArray(16) { i ->
+                val dist = Math.abs(i - 7.5f) / 7.5f
+                val base = 0.45f + 0.55f * (1f - dist * dist)
+                base * (0.85f + Math.random().toFloat() * 0.15f)
+            }
+            beatIntensity.animateTo(0f, animationSpec = tween(500, easing = FastOutSlowInEasing))
         }
     }
 
@@ -312,14 +328,18 @@ fun VisualHero(
     ) {
         when (selectedVis) {
             VisType.Spectrum -> {
-                // Spectrum bars — driven by real audio band energies from C++ engine
+                // Spectrum bars — beat-driven metronome visualisation (quick attack, slow release)
                 Row(
                     modifier = Modifier.padding(horizontal = 20.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
+                    val bi = beatIntensity.value
+                    val targets = barTargets.value
                     for (i in 0 until 16) {
-                        val h = if (isPlaying && i < visBands.size) visBands[i].coerceIn(0f, 1f) else 0.05f
+                        // Idle: subtle EQ shape at 15%. Playing: beat-driven with decay
+                        val idle = targets[i] * 0.15f
+                        val h = if (isPlaying && i < targets.size) maxOf(idle, bi * targets[i]).coerceIn(0f, 1f) else idle
                         Box(
                             modifier = Modifier
                                 .width(4.dp)
@@ -336,38 +356,33 @@ fun VisualHero(
             }
 
             VisType.Rings -> {
-                // Concentric rings that pulse on beat + react to audio energy
-                val avgEnergy = if (isPlaying && visBands.isNotEmpty())
-                    visBands.average().toFloat().coerceIn(0f, 1f)
-                else 0f
+                // Concentric rings that pulse on beat — metronome visualisation
+                val bi = beatIntensity.value
                 Canvas(modifier = Modifier.size(100.dp)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
                     val maxR = size.minDimension / 2f
                     for (i in 3 downTo 0) {
-                        val energyScale = 0.7f + avgEnergy * 0.3f
-                        val frac = (i + 1) / 4f * ringScale.value * energyScale
+                        val frac = (i + 1) / 4f * ringScale.value * (0.7f + bi * 0.3f)
                         drawCircle(
-                            color = accent.copy(alpha = (0.15f + 0.1f * (3 - i)) + avgEnergy * 0.2f),
+                            color = accent.copy(alpha = (0.12f + 0.08f * (3 - i)) + bi * 0.35f),
                             radius = maxR * frac,
                             center = Offset(cx, cy),
-                            style = Stroke(width = 2f + avgEnergy * 2f),
+                            style = Stroke(width = 1.5f + bi * 2f),
                         )
                     }
-                    // Center dot — size reacts to energy
+                    // Center dot — pulses with beat
                     drawCircle(
-                        color = accent.copy(alpha = ringScale.value),
-                        radius = 6f + avgEnergy * 6f,
+                        color = accent.copy(alpha = 0.5f + bi * 0.5f),
+                        radius = 4f + bi * 8f,
                         center = Offset(cx, cy),
                     )
                 }
             }
 
             VisType.Burst -> {
-                // Radial burst expanding outward on each beat + audio energy
-                val avgEnergy = if (isPlaying && visBands.isNotEmpty())
-                    visBands.average().toFloat().coerceIn(0f, 1f)
-                else 0f
+                // Radial burst expanding outward on each beat — metronome visualisation
+                val bi = beatIntensity.value
                 Canvas(modifier = Modifier.size(100.dp)) {
                     val cx = size.width / 2f
                     val cy = size.height / 2f
@@ -376,22 +391,21 @@ fun VisualHero(
                     for (i in 0 until 3) {
                         val offset = i * 0.15f
                         val r = ((burstRadius.value + offset) % 1f)
-                        val alpha = burstAlpha.value * (1f - r) * 0.8f + avgEnergy * 0.15f
-                        if (alpha > 0f) {
+                        val alpha = burstAlpha.value * (1f - r) * 0.9f
+                        if (alpha > 0.02f) {
                             drawCircle(
                                 color = accent.copy(alpha = alpha.coerceIn(0f, 1f)),
-                                radius = maxR * r * (0.8f + avgEnergy * 0.2f),
+                                radius = maxR * r,
                                 center = Offset(cx, cy),
-                                style = Stroke(width = 3f - r * 2f + avgEnergy * 2f),
+                                style = Stroke(width = maxOf(0.5f, 3f - r * 2f)),
                             )
                         }
                     }
-                    // Center flash — intensity from audio
-                    val centerAlpha = maxOf(burstAlpha.value * 0.6f, avgEnergy * 0.4f)
-                    if (centerAlpha > 0.05f) {
+                    // Center flash — pulses with beat
+                    if (bi > 0.05f) {
                         drawCircle(
-                            color = accent.copy(alpha = centerAlpha.coerceIn(0f, 1f)),
-                            radius = 10f + avgEnergy * 8f,
+                            color = accent.copy(alpha = (bi * 0.7f).coerceIn(0f, 1f)),
+                            radius = 6f + bi * 10f,
                             center = Offset(cx, cy),
                         )
                     }

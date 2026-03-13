@@ -2581,13 +2581,13 @@ export async function getPlayerPrefs(): Promise<PlayerPrefs> {
   const settings = await getUserSettings();
   if (!settings) return PLAYER_PREFS_DEFAULTS;
   return {
-    player_click_enabled: settings.player_click_enabled,
-    player_flash_enabled: settings.player_flash_enabled,
-    player_lyrics_enabled: settings.player_lyrics_enabled,
-    player_chords_enabled: settings.player_chords_enabled,
-    player_notes_enabled: settings.player_notes_enabled,
-    player_drums_enabled: settings.player_drums_enabled,
-    player_vis_enabled: settings.player_vis_enabled,
+    player_click_enabled: settings.player_click_enabled ?? PLAYER_PREFS_DEFAULTS.player_click_enabled,
+    player_flash_enabled: settings.player_flash_enabled ?? PLAYER_PREFS_DEFAULTS.player_flash_enabled,
+    player_lyrics_enabled: settings.player_lyrics_enabled ?? PLAYER_PREFS_DEFAULTS.player_lyrics_enabled,
+    player_chords_enabled: settings.player_chords_enabled ?? PLAYER_PREFS_DEFAULTS.player_chords_enabled,
+    player_notes_enabled: settings.player_notes_enabled ?? PLAYER_PREFS_DEFAULTS.player_notes_enabled,
+    player_drums_enabled: settings.player_drums_enabled ?? PLAYER_PREFS_DEFAULTS.player_drums_enabled,
+    player_vis_enabled: settings.player_vis_enabled ?? PLAYER_PREFS_DEFAULTS.player_vis_enabled,
   };
 }
 

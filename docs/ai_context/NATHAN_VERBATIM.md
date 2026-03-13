@@ -267,3 +267,20 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "all are equaly important to me, please make sure we dont bulldoze to fix. any questions?"
 
 > "yes plz" [re: real audio-reactive visualisers on both platforms]
+
+## Session S52 (2026-03-13)
+
+### Click Status
+> "click issues seem to be fixed.."
+
+### PWA Standalone Issues
+> "pc webapp is still having usses where mobile webapp seems to be working, does it check it has all required permissions on each opening?"
+> "import works on webapp in broswer. not webapp in standalone"
+
+### Visualisers — CRITICAL CLARIFICATION
+> "the visuals are supposed to flash in time with the click. visuals are metronome visualisations. (only exception is if there is no beatmatch assigned) quick attack slow release? so they seem less jumpy?"
+
+### Feedback on Changes
+> "not quite sure what youve done now, theres no click on webapp, and none of the vusuals look like they did in the mockups their all weird and glitchy. i can live with tgt capture imports needing in brower app.."
+> "no click = webapp"
+> "yeas" [re: push so webapp gets click fix + visuals]

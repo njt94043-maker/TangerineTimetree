@@ -45,6 +45,12 @@ function formatDate(iso: string): string {
   } catch { return iso; }
 }
 
+// Detect if running as installed PWA (standalone mode)
+function isStandaloneMode(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as unknown as { standalone?: boolean }).standalone === true;
+}
+
 export function ImportPanel({ onClose, onImported }: Props) {
   const [tracks, setTracks] = useState<CaptureTrack[]>([]);
   const [search, setSearch] = useState('');
@@ -54,6 +60,7 @@ export function ImportPanel({ onClose, onImported }: Props) {
   const [connected, setConnected] = useState(false);
   const [importing, setImporting] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState('');
+  const standalone = isStandaloneMode();
 
   // Track which Capture URL is working
   const [captureUrl, setCaptureUrl] = useState('');
@@ -84,7 +91,9 @@ export function ImportPanel({ onClose, onImported }: Props) {
       setConnected(false);
       setTracks([]);
       setCaptureUrl('');
-      setError('Cannot connect to Capture server. Is it running? (capture/start-silent.vbs) If using an installed PWA, try opening in Chrome — some browsers block HTTP requests from HTTPS pages.');
+      setError(standalone
+        ? 'Cannot connect — installed PWAs block connections to local servers (browser security). Open thegreentangerine.com in Chrome browser instead to use Import.'
+        : 'Cannot connect to Capture server. Is it running? (capture/start-silent.vbs)');
     } finally {
       setLoading(false);
     }
@@ -191,6 +200,13 @@ export function ImportPanel({ onClose, onImported }: Props) {
           </div>
           <button className="btn btn-small" onClick={onClose}>Close</button>
         </div>
+
+        {/* Standalone PWA warning */}
+        {standalone && !connected && (
+          <div style={{ padding: '10px 20px', background: 'rgba(243,156,18,0.1)', borderBottom: '1px solid rgba(243,156,18,0.2)', fontSize: 12, color: 'var(--color-orange)', lineHeight: 1.5 }}>
+            Installed PWAs cannot connect to local servers (browser security policy). For Capture import, open <strong>thegreentangerine.com</strong> in Chrome browser.
+          </div>
+        )}
 
         {/* Search + filter */}
         <div style={{ padding: '12px 20px', display: 'flex', gap: 8 }}>
