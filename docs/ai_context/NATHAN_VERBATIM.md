@@ -298,3 +298,10 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Click Still Broken After OscillatorNode Rewrite
 > "ok, wrap up plz. webapp still no click.."
+
+## Session S54 (2026-03-13)
+
+### Player Settings — Click Not a Setting
+> "click on in settings"
+> "there shouldnt even be an option in the setting. refer to controlled from the drawer for all users"
+> "why was webapp still setup like that? apk isnt.. you shouldnt have needed to update what i said, ive said it before"

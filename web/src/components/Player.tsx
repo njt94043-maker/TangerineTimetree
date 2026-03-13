@@ -781,6 +781,26 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
         </div>
       </div>
 
+      {/* ── TEMPORARY DEBUG BANNER — remove after click fix confirmed ── */}
+      <div style={{
+        background: state.clickMuted ? '#442222' : '#224422',
+        color: '#fff',
+        fontSize: '11px',
+        fontFamily: 'JetBrains Mono, monospace',
+        padding: '4px 8px',
+        display: 'flex',
+        gap: '12px',
+        flexWrap: 'wrap',
+        opacity: 0.85,
+      }}>
+        <span>CLK: {state.clickMuted ? '❌OFF' : '✅ON'}</span>
+        <span>CTX: {(() => { try { const c = (window as any).__tgtCtxState; return c || '?'; } catch { return '?'; } })()}</span>
+        <span>GAIN: {state.clickGain.toFixed(2)}</span>
+        <span>BPM: {state.song?.bpm ?? '?'}</span>
+        <span>ENG: {state.engineState}</span>
+        <span style={{ color: '#888' }}>S54 debug — check console for [TGT-CLICK-DEBUG]</span>
+      </div>
+
       {/* ── Content area — adaptive flex layout ── */}
       <div className={`v4-content${(showVisuals || isView || isRecordMode) && (showChords || showLyrics || showNotes || showDrums) && !!(songChords || songLyrics || songNotes || songDrums) ? ' both-visible' : ''}`}>
         {/* Visual Hero — normal, view mode, or recording mode */}

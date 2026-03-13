@@ -57,6 +57,13 @@ class AudioEngineImpl {
       this.analyser.connect(this.ctx.destination);
 
       this.fftData = new Uint8Array(this.analyser.frequencyBinCount) as Uint8Array<ArrayBuffer>;
+      console.log('[TGT-CLICK-DEBUG] AudioContext created', {
+        state: this.ctx.state,
+        sampleRate: this.ctx.sampleRate,
+        baseLatency: this.ctx.baseLatency,
+        masterGainValue: this.masterGain.gain.value,
+        chain: 'masterGain → analyser → destination',
+      });
     }
     return this.ctx;
   }
@@ -127,8 +134,12 @@ class AudioEngineImpl {
 
   async resume(): Promise<void> {
     const ctx = this.getContext();
+    console.log('[TGT-CLICK-DEBUG] AudioEngine.resume() — ctx.state before:', ctx.state);
+    (window as any).__tgtCtxState = ctx.state;
     if (ctx.state === 'suspended') {
       await ctx.resume();
+      console.log('[TGT-CLICK-DEBUG] AudioEngine.resume() — ctx.state after:', ctx.state);
+      (window as any).__tgtCtxState = ctx.state;
     }
   }
 
