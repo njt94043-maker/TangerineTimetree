@@ -68,6 +68,7 @@ export class ClickScheduler {
   private currentBeat = 0;
   private currentBar = 0;
   private isPlaying = false;
+  private muted = false; // Mute controls audibility, NOT scheduling. Scheduler always runs.
 
   // Beat map mode
   private beatMap: number[] | null = null; // seconds (float array from Supabase)
@@ -91,6 +92,18 @@ export class ClickScheduler {
 
   getConfig(): Readonly<ClickConfig> {
     return this.config;
+  }
+
+  /**
+   * Mute/unmute click audio. Scheduler keeps running (beat events still fire).
+   * Click always starts with the track — mute just silences the oscillator.
+   */
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+  }
+
+  isMuted(): boolean {
+    return this.muted;
   }
 
   /**
@@ -185,10 +198,30 @@ export class ClickScheduler {
       this.countInBeatsRemaining = 0;
     }
 
+    // If we have a track position getter and beat map, start from current track position
+    // (e.g. click enabled mid-playback via mixer toggle)
+    const trackPos = this.trackPositionGetter?.() ?? 0;
+
     if (this.beatMap && this.beatMap.length > 0) {
-      // Beat map mode: first beat at beatMap[0] + offset
-      this.beatMapIndex = 0;
-      this.nextBeatTime = now + this.beatMap[0] + offsetSec;
+      if (trackPos > 0) {
+        // Mid-playback start: find the next beat after current track position
+        let idx = 0;
+        for (let i = 0; i < this.beatMap.length; i++) {
+          if (this.beatMap[i] > trackPos) {
+            idx = i;
+            break;
+          }
+          if (i === this.beatMap.length - 1) idx = i;
+        }
+        this.beatMapIndex = idx;
+        const nextBeatInTrackTime = this.beatMap[idx];
+        const timeUntilNextBeat = (nextBeatInTrackTime - trackPos) / this.speed;
+        this.nextBeatTime = now + timeUntilNextBeat + offsetSec;
+      } else {
+        // Start from beginning: first beat at beatMap[0] + offset
+        this.beatMapIndex = 0;
+        this.nextBeatTime = now + this.beatMap[0] + offsetSec;
+      }
     } else {
       // Constant BPM mode
       this.nextBeatTime = now + offsetSec;
@@ -261,7 +294,8 @@ export class ClickScheduler {
     }
 
     // Schedule primary click — use OscillatorNode directly (S55 fix: BufferSource was silent)
-    if (shouldSound) {
+    // Muted = skip audio but still fire beat events (scheduler always runs)
+    if (shouldSound && !this.muted) {
       const freq = CLICK_FREQS[this.config.clickSound]?.up ?? 440; // D-159: all beats identical (up pitch)
       const osc = ctx.createOscillator();
       osc.frequency.value = freq;
@@ -272,14 +306,6 @@ export class ClickScheduler {
       envGain.connect(masterGain);
       osc.start(time);
       osc.stop(time + CLICK_DURATION);
-      // S55 debug
-      if (this.currentBar < 2 && this.currentBeat < 2) {
-        console.log('[TGT-CLICK-DEBUG] scheduleClick (osc)', {
-          beat: this.currentBeat, bar: this.currentBar, freq,
-          time: time.toFixed(3), ctxNow: ctx.currentTime.toFixed(3),
-          configGain: this.config.gain, clickSound: this.config.clickSound,
-        });
-      }
     }
 
     // Queue beat event for frame-accurate UI sync (D-161 pattern)
@@ -294,8 +320,8 @@ export class ClickScheduler {
     };
     AudioEngine.queueBeat(time, beatEvent);
 
-    // Schedule subdivision clicks
-    if (subdivision > 1) {
+    // Schedule subdivision clicks (skip when muted)
+    if (subdivision > 1 && !this.muted) {
       this.scheduleSubdivisions(time, subdivision, swingPercent, masterGain);
     }
   }

@@ -348,12 +348,10 @@ export function useAudioEngine(
       clickRef.current.setTrackPositionGetter(null); // Live mode — no track to sync to
     }
 
-    if (clickEnabledRef.current) {
-      clickRef.current.start();
-      console.log('[TGT-CLICK-DEBUG] ClickScheduler.start() called, isActive:', clickRef.current.isActive());
-    } else {
-      console.warn('[TGT-CLICK-DEBUG] CLICK DISABLED — clickEnabledRef.current is false. Check player_click_enabled in user_settings.');
-    }
+    // Click scheduler ALWAYS starts with the track. Mute controls audibility, not scheduling.
+    // This ensures click timing stays synced even when muted — unmuting produces immediate correct timing.
+    clickRef.current.setMuted(!clickEnabledRef.current);
+    clickRef.current.start();
 
     if ((mode === 'practice' || mode === 'view') && hasStems) {
       mixerRef.current.play();
@@ -455,14 +453,9 @@ export function useAudioEngine(
     setClickMuted(!clickEnabledRef.current);
     // Persist to DB so drawer choice sticks across sessions (D-171)
     updatePlayerPrefs({ player_click_enabled: clickEnabledRef.current });
-    if (engineState === 'playing') {
-      if (clickEnabledRef.current) {
-        clickRef.current.start();
-      } else {
-        clickRef.current.stop();
-      }
-    }
-  }, [engineState]);
+    // Scheduler is always running — just toggle mute (audibility only)
+    clickRef.current.setMuted(!clickEnabledRef.current);
+  }, []);
 
   const setClickGain = useCallback((gain: number) => {
     const clamped = Math.max(0, Math.min(1, gain));
