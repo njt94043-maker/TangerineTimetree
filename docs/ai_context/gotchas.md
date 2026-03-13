@@ -460,3 +460,46 @@
 - **Root cause theory**: Once the AnalyserNode was activated by `getByteFrequencyData()`, it entered a state that interfered with scheduled OscillatorNode playback. Since AudioContext is a singleton that persists across code reloads, the damage survived.
 - **Fix attempted**: Moved AnalyserNode to parallel branch (masterGain → destination + masterGain → analyser). NOT YET CONFIRMED — was pushed alongside other changes.
 - **Lesson**: AnalyserNode should NEVER be in the audio output path. Always connect it as a parallel observer branch.
+
+---
+
+## Web App Testing Protocol (S56)
+
+> Foolproof method for verifying deployed code during debugging.
+> Three cache layers can serve stale code: Vercel CDN, Service Worker, Browser HTTP cache.
+> Hard refresh alone does NOT clear the Service Worker cache.
+
+### Build Verification
+- A `__BUILD_TIME__` timestamp is injected by Vite at build time (vite.config.ts `define`)
+- Displayed as cyan `BUILD: YYYY-MM-DD HH:MM:SS` in the Player debug banner
+- AI will provide expected timestamp after each push — if it doesn't match, cache is stale
+
+### Before Every Test (Mandatory)
+
+**PC Chrome:**
+1. Wait ~2 min after AI pushes (Vercel build + deploy time)
+2. Open DevTools (F12) → Application tab → Storage section
+3. Tick ALL boxes → click "Clear site data"
+4. Close the tab completely (not just refresh)
+5. Open a NEW tab → navigate to thegreentangerine.com
+6. Open a song → check BUILD timestamp in debug banner matches expected
+
+**Mobile Chrome:**
+1. Wait ~2 min after AI pushes
+2. Go to Chrome → Settings → Site settings → thegreentangerine.com → Clear & reset
+   (OR: long-press PWA icon → App info → Storage → Clear storage)
+3. Close the app completely (swipe away from recents)
+4. Reopen the app
+5. Open a song → check BUILD timestamp in debug banner matches expected
+
+### Why This Works
+- "Clear site data" removes: Service Worker registration, SW cache, HTTP cache, localStorage, IndexedDB
+- Closing the tab ensures no in-memory AudioContext persists from the old version
+- New tab creates a fresh AudioContext, downloads fresh JS, registers fresh SW
+- BUILD timestamp proves the exact version running
+
+### Quick Version (Same Session, Subsequent Tests)
+If you've already done the full clear once and just need to test the next push:
+1. DevTools → Application → Clear site data (all boxes)
+2. Close tab, open new tab
+3. Verify BUILD timestamp changed

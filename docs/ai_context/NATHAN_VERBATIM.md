@@ -363,3 +363,7 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### AnalyserNode parallel fix — STILL BROKE, full tick loop restored too early
 > "click only in background. you've broke something by not listening to me again. please wrap up next session needs to audit our testing and fixing methods they are not good. we need guidence!"
+
+### Testing methodology question
+> "i need a foolproof method of ensuring all relevant cahes have been cleared and we are running the most up to date possible version of the code every time we test a fix. how do we do this?"
+> "yes plz" [re: save testing protocol to project docs]
