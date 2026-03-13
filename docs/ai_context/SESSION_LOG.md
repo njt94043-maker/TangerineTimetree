@@ -1734,3 +1734,42 @@ User directive: STOP all new features. Fix everything to current specs. Both pla
 ### Next Session
 - Web parity for D-165/D-166/D-167/D-168
 - Cross-platform visual audit (screenshot every screen on both platforms)
+
+---
+
+## S56 — Web Click Foreground Fix (Isolation) — 2026-03-13
+
+### Goal
+Fix web click silence in foreground. Follow STATUS.md debug plan step by step.
+
+### What Was Done
+1. Confirmed rAF tick loop is the culprit (pollBeats-only = click works in foreground)
+2. Isolated tick loop features one at a time:
+   - pollBeats → position/loop → setCurrentTime → resyncToPosition: all SAFE
+   - FFT + beat intensity: BROKE click permanently (even reverting didn't recover)
+3. Moved AnalyserNode from series (masterGain → analyser → destination) to parallel branch
+4. Current deploy: parallel analyser + step 2c tick loop (no resync/FFT/beat intensity)
+
+### Mistakes Made (MUST FIX NEXT SESSION)
+- **Changed multiple things at once** repeatedly: jumped from diagnostic to full throttled restore; pushed AnalyserNode fix + full tick loop together
+- **Doubted user's testing** instead of trusting the data (suggested SW cache when Nathan confirmed hard refresh)
+- **Didn't follow the plan strictly**: STATUS.md said "add back one at a time" but AI kept bundling changes
+- **No version verification**: no way to confirm which version the deployed site is running
+
+### Key Finding
+Step 2e broke click PERMANENTLY — reverting to previously-working code didn't recover. This means something in the AudioContext/AnalyserNode state persists across code reloads. The parallel AnalyserNode fix may address this but was pushed alongside full tick loop (two changes at once), so it's unconfirmed.
+
+### What's NOT Done
+- AnalyserNode fix not tested in isolation
+- resync, beat intensity, FFT not individually re-tested with parallel analyser
+- Debug banner + test beep still present
+- Click timing/drift unfixed (separate from foreground silence)
+
+### What's Blocked
+- Need methodology overhaul before continuing isolation
+
+### Next Session (S57)
+- **FIRST**: Establish strict testing protocol (one change per push, version hash in UI, close-all-tabs)
+- Test current deploy (close ALL tabs, fresh open, hard refresh)
+- If click works: continue isolation one feature at a time
+- If still broken: clear site data for fresh AudioContext, then re-test
