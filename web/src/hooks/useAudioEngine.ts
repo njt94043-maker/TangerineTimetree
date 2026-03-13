@@ -353,10 +353,11 @@ export function useAudioEngine(
     AudioEngine.setState('playing');
 
     // S56 ISOLATION: Adding back tick features one at a time.
-    // Baseline (pollBeats only) = click works ✓
-    // Step 2b (position + loop) = click works ✓
-    // Step 2c: add setCurrentTime + emitTimeUpdate (React re-renders 60fps).
-    // NO resyncToPosition, NO FFT, NO beat intensity.
+    // pollBeats only = click works ✓
+    // + position + loop = click works ✓
+    // + setCurrentTime 60fps = click works ✓
+    // Step 2d: add resyncToPosition (modifies scheduler nextBeatTime every frame).
+    // NO FFT, NO beat intensity.
     AudioEngine.startTick(() => {
       AudioEngine.pollBeats();
 
@@ -370,9 +371,14 @@ export function useAudioEngine(
         trackRef.current.checkLoop();
       }
 
-      // [2c] React state update — time display (60fps setState)
+      // [2c] React state update ✓
       setCurrentTime(pos);
       AudioEngine.emitTimeUpdate(pos, duration);
+
+      // [2d] Resync click to track position (corrects SoundTouchJS drift)
+      if (pos > 0) {
+        clickRef.current.resyncToPosition(pos);
+      }
     });
   }, [mode, hasStems, hasTrack, duration]);
 
