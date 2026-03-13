@@ -80,6 +80,10 @@ export class ClickScheduler {
   private isCountingIn = false;
   private countInBeatsRemaining = 0;
 
+  // Pre-rendered click buffers (lazily created per AudioContext sample rate)
+  private clickBuffers: Map<string, AudioBuffer> = new Map();
+  private lastSampleRate = 0;
+
   configure(partial: Partial<ClickConfig>): void {
     Object.assign(this.config, partial);
   }
@@ -149,28 +153,14 @@ export class ClickScheduler {
     }
   }
 
-  // Debug counter — log first N clicks then stop spamming
-  private debugClickCount = 0;
-
   start(startTime?: number): void {
     const ctx = AudioEngine.getContext();
     this.isPlaying = true;
     this.currentBeat = 0;
     this.currentBar = 0;
-    this.debugClickCount = 0;
 
     const now = startTime ?? ctx.currentTime;
     const offsetSec = this.config.beatOffsetMs / 1000;
-    console.log('[TGT-CLICK-DEBUG] ClickScheduler.start()', {
-      ctxState: ctx.state,
-      ctxCurrentTime: ctx.currentTime,
-      now,
-      offsetSec,
-      bpm: this.config.bpm,
-      gain: this.config.gain,
-      hasBeatMap: !!(this.beatMap && this.beatMap.length > 0),
-      beatMapLength: this.beatMap?.length ?? 0,
-    });
 
     // Count-in
     if (this.config.countInBars > 0) {
@@ -190,6 +180,7 @@ export class ClickScheduler {
       this.nextBeatTime = now + offsetSec;
     }
 
+    this.ensureClickBuffers(ctx);
     this.startScheduler();
   }
 
@@ -233,10 +224,6 @@ export class ClickScheduler {
     }
   }
 
-  /**
-   * Schedule a click at the given AudioContext time using OscillatorNode.
-   * Uses real-time oscillator + gain envelope — more reliable than pre-rendered buffers.
-   */
   private scheduleClick(time: number): void {
     const ctx = AudioEngine.getContext();
     const masterGain = AudioEngine.getMasterGain();
@@ -251,10 +238,22 @@ export class ClickScheduler {
 
     // Schedule primary click
     if (shouldSound) {
-      this.scheduleOscClick(ctx, masterGain, time, this.config.gain);
+      const buffer = this.getClickBuffer(ctx, false); // D-159: all beats identical, no accent
+      if (buffer) {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = this.config.gain;
+        source.connect(gainNode);
+        gainNode.connect(masterGain);
+        source.start(time);
+      }
     }
 
     // Queue beat event for frame-accurate UI sync (D-161 pattern)
+    // Instead of setTimeout (4-8ms jitter), queue the event with its scheduled time.
+    // The rAF tick loop polls and emits when ctx.currentTime passes the beat time,
+    // giving 0-16ms visual jitter (one frame) — same as Android's atomic counter polling.
     const beatEvent: BeatEvent = {
       beat: this.currentBeat,
       bar: this.currentBar,
@@ -267,51 +266,6 @@ export class ClickScheduler {
     if (subdivision > 1) {
       this.scheduleSubdivisions(time, subdivision, swingPercent, masterGain);
     }
-  }
-
-  /**
-   * Schedule a single click using OscillatorNode + gain envelope.
-   * D-159: All beats identical (no accent), always uses 'up' frequency.
-   */
-  private scheduleOscClick(
-    ctx: AudioContext,
-    destination: AudioNode,
-    time: number,
-    gain: number,
-  ): void {
-    const freqs = CLICK_FREQS[this.config.clickSound] ?? CLICK_FREQS.default;
-    const freq = freqs.up; // D-159: all beats identical, no accent — always 'up'
-
-    if (this.debugClickCount < 5) {
-      console.log('[TGT-CLICK-DEBUG] scheduleOscClick()', {
-        clickNum: this.debugClickCount,
-        freq,
-        gain,
-        scheduledTime: time,
-        ctxCurrentTime: ctx.currentTime,
-        ctxState: ctx.state,
-        destinationChannelCount: destination.channelCount,
-      });
-      this.debugClickCount++;
-    }
-
-    const osc = ctx.createOscillator();
-    const envGain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = freq;
-
-    // Envelope: quick attack (1ms), sustain, quick release
-    envGain.gain.setValueAtTime(0, time);
-    envGain.gain.linearRampToValueAtTime(gain, time + 0.001); // 1ms attack
-    envGain.gain.setValueAtTime(gain, time + CLICK_DURATION * 0.7); // sustain
-    envGain.gain.linearRampToValueAtTime(0, time + CLICK_DURATION); // release
-
-    osc.connect(envGain);
-    envGain.connect(destination);
-
-    osc.start(time);
-    osc.stop(time + CLICK_DURATION + 0.005); // small buffer past envelope end
   }
 
   private scheduleSubdivisions(
@@ -336,7 +290,16 @@ export class ClickScheduler {
         subTime = beatTime + (i * beatDuration) / divisor;
       }
 
-      this.scheduleOscClick(ctx, destination, subTime, this.config.gain * 0.4);
+      const buffer = this.getClickBuffer(ctx, false);
+      if (buffer) {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = this.config.gain * 0.4; // Subdiv at 40% (matches C++ SUB_CLICK_GAIN)
+        source.connect(gainNode);
+        gainNode.connect(destination);
+        source.start(subTime);
+      }
     }
   }
 
@@ -387,5 +350,81 @@ export class ClickScheduler {
   private getSecondsPerBeat(): number {
     const bpm = this.config.bpm || 120; // safety: avoid Infinity from 0/null
     return 60 / bpm;
+  }
+
+  // --- Click sound generation ---
+
+  private ensureClickBuffers(ctx: AudioContext): void {
+    if (ctx.sampleRate === this.lastSampleRate && this.clickBuffers.size > 0) return;
+    this.lastSampleRate = ctx.sampleRate;
+    this.clickBuffers.clear();
+
+    // Pre-render all click types at both pitches
+    for (const [name, freqs] of Object.entries(CLICK_FREQS)) {
+      this.clickBuffers.set(`${name}-down`, this.renderClick(ctx, freqs.down, name as ClickSound, true));
+      this.clickBuffers.set(`${name}-up`, this.renderClick(ctx, freqs.up, name as ClickSound, false));
+    }
+  }
+
+  private renderClick(ctx: AudioContext, freq: number, type: ClickSound, _isDownbeat: boolean): AudioBuffer {
+    const sr = ctx.sampleRate;
+    const frames = Math.ceil(CLICK_DURATION * sr);
+    const buffer = ctx.createBuffer(1, frames, sr);
+    const data = buffer.getChannelData(0);
+    const twoPi = 2 * Math.PI;
+    const amplitude = 0.7;
+
+    for (let i = 0; i < frames; i++) {
+      const t = i / frames; // 0-1 progress
+      const si = i;
+
+      let sample: number;
+      switch (type) {
+        case 'wood': {
+          const f1 = freq;
+          const f2 = f1 * 1.63;
+          const f3 = f1 * 2.67;
+          const s1 = Math.sin(twoPi * f1 * si / sr);
+          const s2 = Math.sin(twoPi * f2 * si / sr) * 0.6;
+          const s3 = Math.sin(twoPi * f3 * si / sr) * 0.3;
+          sample = s1 + s2 + s3;
+          let env = Math.exp(-8 * t);
+          if (t < 0.02) env *= t / 0.02;
+          sample *= env * amplitude * 0.4;
+          break;
+        }
+        case 'rim': {
+          const f1 = freq;
+          const f2 = f1 * 2.4;
+          const tone = Math.sin(twoPi * f1 * si / sr) * 0.5
+                     + Math.sin(twoPi * f2 * si / sr) * 0.3;
+          const noise = Math.sin(twoPi * 3517 * si / sr) * 0.3
+                      + Math.sin(twoPi * 5471 * si / sr) * 0.2
+                      + Math.sin(twoPi * 7919 * si / sr) * 0.1;
+          sample = tone + noise;
+          let env = Math.exp(-12 * t);
+          if (t < 0.01) env *= t / 0.01;
+          sample *= env * amplitude * 0.5;
+          break;
+        }
+        default: {
+          // default, high, low — pure sine with envelope
+          sample = Math.sin(twoPi * freq * si / sr);
+          let env = 1.0;
+          if (t < 0.05) env = t / 0.05;
+          else if (t > 0.7) env = 1.0 - (t - 0.7) / 0.3;
+          sample *= env * amplitude;
+          break;
+        }
+      }
+      data[i] = sample;
+    }
+    return buffer;
+  }
+
+  private getClickBuffer(ctx: AudioContext, isDownbeat: boolean): AudioBuffer | null {
+    this.ensureClickBuffers(ctx);
+    const key = `${this.config.clickSound}-${isDownbeat ? 'down' : 'up'}`;
+    return this.clickBuffers.get(key) ?? null;
   }
 }
