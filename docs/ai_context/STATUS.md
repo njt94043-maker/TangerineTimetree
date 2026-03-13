@@ -6,46 +6,34 @@
 ---
 
 ## Current State
-- **Phase**: S57 complete — Web click works in foreground. Tick loop restoration blocked by resyncToPosition.
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click WORKS IN FOREGROUND** at step 2c tick loop.
-- **What's missing from tick loop**: resyncToPosition, beat intensity, FFT — cannot add without research.
+- **Phase**: S58 complete — Research-backed drift fix deployed. Needs user testing.
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click WORKS IN FOREGROUND**. Beat intensity decay restored.
+- **What was fixed (S58)**: resyncToPosition moved from rAF (60fps) into ClickScheduler's own 25ms setInterval. Eliminates race condition that killed OscillatorNodes.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S57 Finding: resyncToPosition breaks click
-- Adding `resyncToPosition` to rAF tick loop (60fps) kills click audio — OscillatorNodes go silent in foreground.
-- This contradicts S56 step 2d where resyncToPosition appeared safe — but S56 2d had AnalyserNode in series (inactive). Now AnalyserNode is parallel. Something about the combination kills audio.
-- **Guessing at fixes is NOT acceptable.** Next session MUST research proper Web Audio sync patterns (Chris Wilson, Tone.js, etc.) before writing any code.
+## S58 Research Finding + Fix
+- **Root cause**: resyncToPosition was called from rAF (60fps) while ClickScheduler's setInterval (25ms) simultaneously read `nextBeatTime` — race condition between two timers writing/reading the same variable.
+- **Research**: Chris Wilson (A Tale of Two Clocks) + Tone.js both confirm: all scheduling writes MUST be in ONE timer. rAF is for visuals only.
+- **Fix**: ClickScheduler gets a `trackPositionGetter` callback. `schedule()` (25ms timer) calls `resyncToPosition()` internally — same timer that reads `nextBeatTime` for scheduling. No more race.
+- **Beat intensity**: decay restored in rAF tick loop (safe — only writes to a ref, no scheduling).
+- **Status**: Deployed to Vercel. **NOT YET TESTED BY USER** — results in next session.
 
-## S56 Isolation Results + S57 Update
-| Step | Tick loop contents | Click? |
-|------|--------------------|--------|
-| Baseline | pollBeats only | **WORKS** ✓ |
-| 2b | + position + loop | **WORKS** ✓ |
-| 2c | + setCurrentTime + emitTimeUpdate | **WORKS** ✓ |
-| 2d (S56) | + resyncToPosition (series analyser) | **WORKS** ✓ (drifts) |
-| 2d (S57) | + resyncToPosition (parallel analyser) | **BROKE** ✗ |
-| 2e (S56) | + FFT + beat intensity | **BROKE** ✗ |
-| **Current** | **2c + parallel AnalyserNode** | **WORKS** ✓ |
-
-## NEXT SESSION (S58): Research-first approach
-**MANDATORY**: Research proper Web Audio metronome-to-track sync before writing ANY code.
-1. Study Chris Wilson's lookahead scheduling article — how does it handle drift with external sources?
-2. Study Tone.js Transport sync — how does it align scheduled events to track playback?
-3. Understand WHY resyncToPosition in rAF kills OscillatorNodes — is it the frequency of nextBeatTime modification?
-4. Design a researched solution. Present to Nathan BEFORE coding.
-5. Then: beat intensity + FFT (separate from resync).
+## NEXT SESSION (S59): Test drift fix + evaluate remaining items
+1. **Test click-to-track sync** — play a song with beat map, 60+ seconds, check drift
+2. **If click works**: remove debug banner + test beep + console.log
+3. **Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT at all
+4. **If FFT not needed**: close that item, move on to remaining parity items
 
 ## Remaining Items
-- [ ] **Fix click drift** — research-backed sync approach (resyncToPosition in rAF kills click)
-- [ ] **Restore beat intensity** — drives metronome visualisers (D-169)
-- [ ] **Restore FFT** — may not be needed if vis is beat-synced only (D-169)
-- [ ] Remove debug banner + test beep + console.log after click fixed
-- [ ] Web visualisers: user testing (blocked by click drift fix)
+- [ ] **Verify click drift fix** — user testing needed (S58 fix deployed, untested)
+- [ ] **Evaluate FFT necessity** — D-169 says vis is beat-synced only, may not need FFT
+- [ ] Remove debug banner + test beep + console.log after click confirmed fixed
+- [ ] Web visualisers: user testing (blocked by click drift fix verification)
 - [ ] Queue items: NeuCard → flat rows (Android)
 - [ ] Between-songs screen completeness check
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (click works, drifts without resync)
+- **Web**: thegreentangerine.com (S58 drift fix — resync inside scheduler timer)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
