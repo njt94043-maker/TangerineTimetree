@@ -435,6 +435,14 @@
 - **Rule**: When user reports "X was working at time T and isn't now": (1) `git diff` from time T to find ALL changes. (2) Revert to known-good state FIRST. (3) Re-apply changes one at a time to isolate the break. Do NOT guess. Do NOT make speculative routing changes.
 - **Nathan's words**: "why did you blind guess without looking back when you knew the exact point what was working before stopped working" and "why did i have to tell you to retrace steps?"
 
+### S55 Web click: audible in background, silent in foreground (2026-03-13)
+- **What happened**: Web click has been broken since S51. Through S52-S55, both AudioBuffer and OscillatorNode approaches produce click sound when the app is minimised/backgrounded, but are completely silent when foregrounded. Test beep button (OscillatorNode triggered by user click gesture) works fine in foreground.
+- **Key diagnostic**: Background = click audible. Foreground = click silent. User gesture sound = always works.
+- **What this tells us**: The AudioContext and audio output chain (masterGain → analyser → destination) work. The issue is specific to sounds scheduled from `setInterval` in the ClickScheduler while the rAF tick loop is active.
+- **Leading theory**: The rAF tick loop (running at 60fps when foregrounded, stopped when backgrounded) is interfering with scheduled audio. Suspects: (1) `setCurrentTime(pos)` triggering 60 React re-renders/sec, (2) `resyncToPosition()` modifying the scheduler's `nextBeatTime` every frame, (3) `getFrequencyData()` locking the AnalyserNode every frame.
+- **Next step**: Comment out `AudioEngine.startTick(...)` in `play()`. If click plays in foreground, the tick loop is confirmed as the culprit. Then isolate which callback is the problem by stripping the tick to just `pollBeats()` and adding back parts one at a time.
+- **Root cause NOT yet confirmed** — the above is the strongest hypothesis based on S55 testing.
+
 ### S54 Settings page had Player prefs it shouldn't have (2026-03-13)
 - **What happened**: Web Settings.tsx had a "Player Settings" section with click/flash/lyrics toggles. APK didn't have this. D-118 already said display toggles belong in the drawer. AI had to be told AGAIN.
 - **Nathan's words**: "why was webapp still setup like that? apk isnt.. you shouldnt have needed to update what i said, ive said it before"

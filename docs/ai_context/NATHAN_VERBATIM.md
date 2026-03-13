@@ -325,3 +325,6 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Click works in background — KEY diagnostic
 > "interesting. click works when i minimise the webapp on my phone (in the background, not foreground?) implications? (its not in time but we'll address that seperately)"
+
+### After OscillatorNode push — still background only
+> "ok. that seems to have put the click somewhat in time (i cant realy tell yet, because it only plays in the background still) so webapp on pc click works when deskton is shown (chrome minimised) webapp on mobile = click works in background (only when app is minimised) neither play click when the apps are in the foreground"

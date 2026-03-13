@@ -5,18 +5,21 @@
 
 ---
 
-## S55 — Web Click Fix (Top Priority)
+## S56 — Web Click Foreground Fix (Top Priority)
 
-### Web Click — STILL BROKEN (since S51)
+### Web Click — PLAYS IN BACKGROUND ONLY (since S51)
 - [x] S52: getPlayerPrefs() null fallback, BPM/time-sig fallbacks, getSecondsPerBeat() safety
 - [x] S53: OscillatorNode rewrite (did not fix, reverted in S54)
 - [x] S54: Reverted AudioEngine.ts + ClickScheduler.ts to S51 baseline (c95537b) — fixed stems
 - [x] S54: Removed Player Settings from Settings.tsx (D-171)
 - [x] S54: Added debug logging + BPM fallbacks to useAudioEngine.ts
-- [ ] **Check console [TGT-CLICK-DEBUG] logs** — is ClickScheduler.start() being called?
-- [ ] **Diff useAudioEngine.ts** current vs S51 (c95537b) — find what broke click path
-- [ ] **Consider full useAudioEngine.ts revert** to S51 as clean baseline
-- [ ] **Remove debug banner + console.log** after click fixed
+- [x] S55: Diffed useAudioEngine.ts vs S51 — additions are all additive, shouldn't break click
+- [x] S55: Test beep (OscillatorNode → masterGain) works in foreground — confirms audio chain OK
+- [x] S55: Replaced AudioBuffer with OscillatorNode in ClickScheduler — click now audible in background
+- [ ] **Disable rAF tick loop** — comment out `AudioEngine.startTick(...)` in play(), test if click plays in foreground
+- [ ] **If tick loop is culprit** — strip to just `AudioEngine.pollBeats()`, add back parts one at a time
+- [ ] **Top suspects**: `setCurrentTime(pos)` (60fps re-renders), `resyncToPosition()` (modifies scheduler timing), `getFrequencyData()` (analyser read)
+- [ ] **Remove debug banner + test beep + console.log** after click fixed
 
 ### Completed (S51-S54)
 - [x] Mobile black screen: stale SW cache, cleared Chrome data
