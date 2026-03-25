@@ -458,3 +458,12 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "yes, then test flow end to end to ensure it is running as per spec, expect more errors along the way that effect other areas i suspect this is a knock on of other changes elsewhere"
 
 > [shared PDF of TGT-0003 after first fix push — BILL TO now populated, backgrounds printing, title tag working. Still 2 pages (footer overflows to page 2). Chrome headers/footers showing. Filename still parent page title.]
+
+> "ok, better. could all the text be any clearer do you think? like bank details especially, if their being manually copied by eye and hand the numbers need to be very clear but still pretty and in style"
+
+> "ok wrap up. next session we need to look at simplifying some screens and flows without loosing absolutely any thing.. im talking about things like the way gig days have multiple 'home screens' or landing pages, rather than 1 'do all' screen see if you get what i mean?"
+
+## UX Simplification (Next Session)
+
+> "next session we need to look at simplifying some screens and flows without loosing absolutely any thing.. im talking about things like the way gig days have multiple 'home screens' or landing pages, rather than 1 'do all' screen see if you get what i mean?"
+> — Nathan wants to consolidate gig day screens into fewer, more capable views. NO features removed — just fewer navigation hops. Example: clicking a gig day currently goes to DayDetail → then GigHub → then Invoice/Quote — should be one unified screen.

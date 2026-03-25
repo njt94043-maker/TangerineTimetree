@@ -6,9 +6,9 @@
 ---
 
 ## Current State
-- **Phase**: S60 complete — Click WORKS. Consistent beat for ~60s, then drifts. Drift correction needs latency-compensated resync (next session).
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click plays consistently**.
-- **What was fixed (S60)**: `resyncToPosition()` was preventing ALL clicks from ever scheduling. SoundTouch's ~93ms position latency made resync push `nextBeatTime` past the 100ms lookahead window every 25ms — zero OscillatorNodes were ever created. Fix: disabled resync, natural beat map scheduling works. Drift correction needs re-enabling with latency compensation.
+- **Phase**: PDF template fix session — Invoice PDF print flow diagnosed and fixed.
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click plays consistently**. **Invoice/receipt/quote PDF templates fixed for print**.
+- **What was fixed (this session)**: PDF print output was broken — missing BILL TO data (venue fallback), no print styles, Chrome headers/footers, 2-page overflow, wrong filename, dim bank details. All fixed across Premium Dark template. Bank details now use JetBrains Mono for digit clarity.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
 ## S60 Fix (Click Silence Root Cause)
@@ -23,11 +23,11 @@
 - Pruned SOT docs (SESSION_LOG -95%, SPRINT_PROMPTS -98%, gotchas -26%)
 - Created WEB_AUDIO_REFERENCE.md (stored 8 sessions of audio research)
 
-## NEXT SESSION (S61): Drift correction + remaining items
-1. **Re-enable resync with latency compensation** — subtract ~93ms from SoundTouch position before comparing to beat map
-2. **Test drift** — play 3+ minutes, verify click stays in time
-3. **Evaluate FFT necessity** — D-169 says vis is beat-synced, may not need FFT
-4. **Remaining parity items** — see todo.md
+## NEXT SESSION: UX Simplification — Screen/Flow Consolidation
+1. **Audit gig day navigation** — DayDetail → GigHub → Invoice/Quote has too many hops. Nathan wants ONE "do all" screen per gig day. No features removed — just fewer landing pages.
+2. **Map all multi-hop flows** across the app and identify consolidation opportunities.
+3. **Both platforms** — any screen simplification must apply to web AND Android (D-153).
+4. **Also remaining**: Drift correction (S61), parity items — see todo.md
 
 ## Remaining Items
 - [ ] **Drift correction** — re-enable resyncToPosition with ~93ms latency compensation
@@ -38,7 +38,7 @@
 - [ ] Queue items: NeuCard → flat rows (already done per audit)
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (S60 — click works, resync disabled, diagnostics removed)
+- **Web**: thegreentangerine.com (PDF print fixes + bank detail clarity deployed)
 - **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
 - **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
 - **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
