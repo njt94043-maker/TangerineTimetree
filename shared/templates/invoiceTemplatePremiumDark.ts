@@ -26,7 +26,7 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -58,7 +58,7 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
   }
 
   .header-area {
-    padding: 48px 48px 0 48px;
+    padding: 36px 48px 0 48px;
     position: relative;
   }
 
@@ -149,8 +149,8 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-top: 36px;
-    padding-bottom: 28px;
+    margin-top: 28px;
+    padding-bottom: 20px;
     border-bottom: 1px solid #1a1a1a;
   }
 
@@ -173,14 +173,14 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
   }
 
   .body-area {
-    padding: 28px 48px 48px 48px;
+    padding: 24px 48px 32px 48px;
     font-family: 'Cormorant Garamond', serif;
   }
 
   .dates-row {
     display: flex;
     gap: 32px;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     font-size: 13px;
   }
 
@@ -203,7 +203,7 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 48px;
-    margin-bottom: 40px;
+    margin-bottom: 28px;
   }
 
   .section-label {
@@ -290,7 +290,7 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
   .total-wrapper {
     display: flex;
     justify-content: flex-end;
-    margin-bottom: 40px;
+    margin-bottom: 24px;
   }
 
   .total-block {
@@ -319,15 +319,15 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
 
   .payment-section {
     border-top: 1px solid #1a1a1a;
-    padding-top: 24px;
+    padding-top: 20px;
   }
 
   .payment-label {
     font-size: 10px;
     letter-spacing: 3px;
-    color: #444;
+    color: #555;
     text-transform: uppercase;
-    margin: 0 0 14px 0;
+    margin: 0 0 12px 0;
     font-weight: 600;
   }
 
@@ -339,20 +339,30 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
 
   .payment-field-label {
     font-size: 9px;
-    color: #333;
-    margin: 0 0 4px 0;
+    color: #555;
+    margin: 0 0 5px 0;
     letter-spacing: 1px;
     text-transform: uppercase;
   }
 
   .payment-field-value {
-    font-size: 13px;
-    color: #888;
+    font-size: 15px;
+    color: #ccc;
     margin: 0;
+    font-weight: 400;
+  }
+
+  .payment-field-value-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: #ddd;
+    margin: 0;
+    font-weight: 500;
+    letter-spacing: 1.5px;
   }
 
   .footer {
-    margin-top: 36px;
+    margin-top: 20px;
     text-align: center;
   }
 
@@ -457,11 +467,11 @@ export function generatePremiumDarkHtml(data: InvoiceTemplateData): string {
         </div>
         <div>
           <p class="payment-field-label">Sort Code</p>
-          <p class="payment-field-value">${e.bankSortCode}</p>
+          <p class="payment-field-value-mono">${e.bankSortCode}</p>
         </div>
         <div>
           <p class="payment-field-label">Account No.</p>
-          <p class="payment-field-value">${e.bankAccountNumber}</p>
+          <p class="payment-field-value-mono">${e.bankAccountNumber}</p>
         </div>
       </div>
     </div>
