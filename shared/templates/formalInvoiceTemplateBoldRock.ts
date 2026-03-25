@@ -1,6 +1,7 @@
 import type { FormalInvoiceTemplateData } from './formalInvoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateFormalInvoiceBoldRockHtml(data: FormalInvoiceTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -46,6 +47,7 @@ export function generateFormalInvoiceBoldRockHtml(data: FormalInvoiceTemplateDat
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -427,6 +429,7 @@ export function generateFormalInvoiceBoldRockHtml(data: FormalInvoiceTemplateDat
     letter-spacing: 6px;
     margin-top: 6px;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

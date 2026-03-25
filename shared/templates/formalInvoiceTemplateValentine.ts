@@ -1,6 +1,7 @@
 import type { FormalInvoiceTemplateData } from './formalInvoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateFormalInvoiceValentineHtml(data: FormalInvoiceTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -40,11 +41,12 @@ export function generateFormalInvoiceValentineHtml(data: FormalInvoiceTemplateDa
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Lora', serif; color: #4a3040; font-size: 14px; line-height: 1.5; background: #fdf5f7; }
-  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .page { min-height: 100%; display: flex; flex-direction: column; }
   .header { background: linear-gradient(135deg, #8b1a4a, #a0274f); color: #fff; padding: 32px 40px; display: flex; justify-content: space-between; align-items: center; }
   .header h1 { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; letter-spacing: 4px; }
   .header .subtitle { font-size: 12px; letter-spacing: 2px; color: rgba(255,182,193,0.7); font-style: italic; }
@@ -94,6 +96,7 @@ export function generateFormalInvoiceValentineHtml(data: FormalInvoiceTemplateDa
   .footer .website { font-weight: 700; font-size: 13px; color: #ffb6c1; margin-bottom: 4px; }
   .footer .terms { color: rgba(255,255,255,0.7); }
   .footer .romantic { color: #ffb6c1; font-style: italic; margin-top: 4px; }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

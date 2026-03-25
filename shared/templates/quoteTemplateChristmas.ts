@@ -1,6 +1,7 @@
 import type { QuoteTemplateData } from './quoteTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateQuoteChristmasHtml(data: QuoteTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -69,11 +70,12 @@ export function generateQuoteChristmasHtml(data: QuoteTemplateData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quote ${data.quoteNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Crimson Text', serif; color: #2a2a2a; font-size: 14px; line-height: 1.5; background: #faf8f2; }
-  .page { min-height: 100vh; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .page { min-height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden; }
   .snowflakes { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
   .header { background: #1B4332; color: #fff; padding: 32px 40px; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1; }
   .header-left h1 { font-family: 'Cormorant Garamond', serif; font-size: 38px; font-weight: 700; letter-spacing: 4px; margin-bottom: 4px; }
@@ -129,6 +131,7 @@ export function generateQuoteChristmasHtml(data: QuoteTemplateData): string {
   .footer .website { font-weight: 700; font-size: 13px; margin-bottom: 4px; color: #c9a84c; }
   .footer .validity { color: rgba(255,255,255,0.7); }
   .footer .festive { color: #c9a84c; font-style: italic; margin-top: 4px; }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

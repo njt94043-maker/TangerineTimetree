@@ -445,3 +445,14 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 ### Remove Debug UI + Prune SOT Docs
 > "my mistake, lets address points 2 and 3. dont delete anything backup to d:/ where needed"
+
+## Session S61 (2026-03-14)
+
+### Full App Review Document Request
+> "please make me a document with every screen for all apps listed with text entry fields for each screen so i make notes on exactly what needs changing to each, mark whats finished, mark as functional but not finished etc. i will go over this document thoroughly marking everything im happy / unhappy with in its current state. and we can sork through the document small sections at a time ticking everything off as we complete"
+
+## Invoice / PDF Generation Issues (2026-03-25)
+
+> "whats wrong with this pdf? it was generated using our app flow but it doesnt match the pemplates we designed?"
+
+> "yes, then test flow end to end to ensure it is running as per spec, expect more errors along the way that effect other areas i suspect this is a knock on of other changes elsewhere"

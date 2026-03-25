@@ -1,6 +1,7 @@
 import type { InvoiceTemplateData } from './invoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateHalloweenHtml(data: InvoiceTemplateData): string {
   const amt = `\u00a3${data.amount.toFixed(2)}`;
@@ -24,6 +25,7 @@ export function generateHalloweenHtml(data: InvoiceTemplateData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -458,6 +460,7 @@ export function generateHalloweenHtml(data: InvoiceTemplateData): string {
     color: #3a3028;
     margin-top: 6px;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

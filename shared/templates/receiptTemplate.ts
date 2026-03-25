@@ -1,6 +1,7 @@
 import { PDF_COLORS } from './colors';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export interface ReceiptTemplateData {
   receiptDate: string;
@@ -30,10 +31,11 @@ export function generateReceiptHtml(data: ReceiptTemplateData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt for ${data.paidTo} — The Green Tangerine</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; color: ${PDF_COLORS.bodyText}; font-size: 14px; line-height: 1.5; }
-  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .page { min-height: 100%; display: flex; flex-direction: column; }
   .header { background: ${PDF_COLORS.headerBg}; color: ${PDF_COLORS.headerText}; padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
   .header h1 { font-size: 36px; font-weight: bold; letter-spacing: 4px; }
   .header .logo { width: 80px; height: 80px; }
@@ -48,6 +50,7 @@ export function generateReceiptHtml(data: ReceiptTemplateData): string {
   .spacer { flex: 1; }
   .footer { background: ${PDF_COLORS.footerBg}; color: ${PDF_COLORS.footerText}; padding: 20px 40px; text-align: center; font-size: 12px; }
   .footer .website { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

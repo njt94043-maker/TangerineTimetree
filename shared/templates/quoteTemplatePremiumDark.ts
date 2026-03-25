@@ -1,6 +1,7 @@
 import type { QuoteTemplateData } from './quoteTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateQuotePremiumDarkHtml(data: QuoteTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -69,6 +70,7 @@ export function generateQuotePremiumDarkHtml(data: QuoteTemplateData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quote ${data.quoteNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -461,6 +463,7 @@ export function generateQuotePremiumDarkHtml(data: QuoteTemplateData): string {
     letter-spacing: 2px;
     margin-top: 6px;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

@@ -1,6 +1,7 @@
 import type { InvoiceTemplateData } from './invoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string {
   const amt = `\u00a3${data.amount.toFixed(2)}`;
@@ -24,6 +25,7 @@ export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -349,6 +351,7 @@ export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string
     color: #c4b8a8;
     font-style: italic;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

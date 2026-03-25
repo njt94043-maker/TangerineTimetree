@@ -180,7 +180,7 @@ export function QuotePreview({ quoteId, onClose }: QuotePreviewProps) {
         className="invoice-iframe invoice-iframe-full"
         srcDoc={pages[currentPage]?.html || ''}
         title={pages[currentPage]?.label || 'Preview'}
-        sandbox="allow-same-origin allow-modals"
+        sandbox="allow-same-origin allow-modals allow-scripts"
       />
     </div>
   );
