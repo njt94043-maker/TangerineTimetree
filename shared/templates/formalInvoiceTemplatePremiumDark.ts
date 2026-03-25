@@ -48,7 +48,7 @@ export function generateFormalInvoicePremiumDarkHtml(data: FormalInvoiceTemplate
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -462,6 +462,7 @@ export function generateFormalInvoicePremiumDarkHtml(data: FormalInvoiceTemplate
     letter-spacing: 2px;
     margin-top: 6px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -565,11 +566,11 @@ export function generateFormalInvoicePremiumDarkHtml(data: FormalInvoiceTemplate
         </div>
         <div>
           <p class="payment-field-label">Sort Code</p>
-          <p class="payment-field-value">${e.bankSortCode}</p>
+          <p class="payment-field-value"><span class="payment-value-mono">${e.bankSortCode}</span></p>
         </div>
         <div>
           <p class="payment-field-label">Account No.</p>
-          <p class="payment-field-value">${e.bankAccountNumber}</p>
+          <p class="payment-field-value"><span class="payment-value-mono">${e.bankAccountNumber}</span></p>
         </div>
       </div>
     </div>

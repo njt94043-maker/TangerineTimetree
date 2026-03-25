@@ -26,7 +26,7 @@ export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -351,6 +351,7 @@ export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string
     color: #c4b8a8;
     font-style: italic;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -439,11 +440,11 @@ export function generateCleanProfessionalHtml(data: InvoiceTemplateData): string
         </div>
         <div>
           <p class="payment-field-label">Sort Code</p>
-          <p class="payment-field-value">${e.bankSortCode}</p>
+          <p class="payment-field-value payment-value-mono">${e.bankSortCode}</p>
         </div>
         <div>
           <p class="payment-field-label">Account No.</p>
-          <p class="payment-field-value">${e.bankAccountNumber}</p>
+          <p class="payment-field-value payment-value-mono">${e.bankAccountNumber}</p>
         </div>
       </div>
     </div>

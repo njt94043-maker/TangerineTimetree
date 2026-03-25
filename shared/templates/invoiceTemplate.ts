@@ -46,6 +46,7 @@ export function generateInvoiceHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; color: ${PDF_COLORS.bodyText}; font-size: 14px; line-height: 1.5; overflow-x: hidden; width: 100%; }
@@ -83,6 +84,7 @@ export function generateInvoiceHtml(data: InvoiceTemplateData): string {
   .footer .website { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
   .footer .terms-label { color: ${PDF_COLORS.totalBarBg}; font-weight: bold; }
   .footer .thanks { color: ${PDF_COLORS.totalBarBg}; font-style: italic; margin-top: 2px; }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -141,8 +143,8 @@ export function generateInvoiceHtml(data: InvoiceTemplateData): string {
     <h3>Payment Details:</h3>
     <div class="payment-row"><span class="payment-label">Account Name: </span>${e.bankAccountName}</div>
     <div class="payment-row"><span class="payment-label">Bank: </span>${e.bankName}</div>
-    <div class="payment-row"><span class="payment-label">Sort Code: </span>${e.bankSortCode}</div>
-    <div class="payment-row"><span class="payment-label">Account Number: </span>${e.bankAccountNumber}</div>
+    <div class="payment-row"><span class="payment-label">Sort Code: </span><span class="payment-value-mono">${e.bankSortCode}</span></div>
+    <div class="payment-row"><span class="payment-label">Account Number: </span><span class="payment-value-mono">${e.bankAccountNumber}</span></div>
   </div>
 
   <div class="spacer"></div>

@@ -26,7 +26,7 @@ export function generateValentineHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -426,6 +426,7 @@ export function generateValentineHtml(data: InvoiceTemplateData): string {
     color: #d4c4bc;
     margin-top: 6px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -587,11 +588,11 @@ export function generateValentineHtml(data: InvoiceTemplateData): string {
       </div>
       <div>
         <div class="bank-label">Sort Code</div>
-        <div class="bank-value">${e.bankSortCode}</div>
+        <div class="bank-value payment-value-mono">${e.bankSortCode}</div>
       </div>
       <div>
         <div class="bank-label">Account No.</div>
-        <div class="bank-value">${e.bankAccountNumber}</div>
+        <div class="bank-value payment-value-mono">${e.bankAccountNumber}</div>
       </div>
     </div>
   </div>

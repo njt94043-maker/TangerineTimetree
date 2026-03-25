@@ -26,7 +26,7 @@ export function generateHalloweenHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -460,6 +460,7 @@ export function generateHalloweenHtml(data: InvoiceTemplateData): string {
     color: #3a3028;
     margin-top: 6px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -681,11 +682,11 @@ export function generateHalloweenHtml(data: InvoiceTemplateData): string {
       </div>
       <div>
         <div class="payment-field-label">Sort Code</div>
-        <div class="payment-field-value">${e.bankSortCode}</div>
+        <div class="payment-field-value payment-value-mono">${e.bankSortCode}</div>
       </div>
       <div>
         <div class="payment-field-label">Account No.</div>
-        <div class="payment-field-value">${e.bankAccountNumber}</div>
+        <div class="payment-field-value payment-value-mono">${e.bankAccountNumber}</div>
       </div>
     </div>
   </div>

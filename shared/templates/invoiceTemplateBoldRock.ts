@@ -25,7 +25,7 @@ export function generateBoldRockHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -392,6 +392,7 @@ export function generateBoldRockHtml(data: InvoiceTemplateData): string {
     letter-spacing: 6px;
     margin-top: 6px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -487,11 +488,11 @@ export function generateBoldRockHtml(data: InvoiceTemplateData): string {
         </div>
         <div>
           <p class="payment-field-label">Sort Code</p>
-          <p class="payment-field-value">${e.bankSortCode}</p>
+          <p class="payment-field-value payment-value-mono">${e.bankSortCode}</p>
         </div>
         <div>
           <p class="payment-field-label">Account No.</p>
-          <p class="payment-field-value">${e.bankAccountNumber}</p>
+          <p class="payment-field-value payment-value-mono">${e.bankAccountNumber}</p>
         </div>
       </div>
     </div>
