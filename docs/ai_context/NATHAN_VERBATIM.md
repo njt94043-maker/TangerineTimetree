@@ -456,3 +456,5 @@ Nathan's response: redirected to fixing the existing implementation first.
 > "whats wrong with this pdf? it was generated using our app flow but it doesnt match the pemplates we designed?"
 
 > "yes, then test flow end to end to ensure it is running as per spec, expect more errors along the way that effect other areas i suspect this is a knock on of other changes elsewhere"
+
+> [shared PDF of TGT-0003 after first fix push — BILL TO now populated, backgrounds printing, title tag working. Still 2 pages (footer overflows to page 2). Chrome headers/footers showing. Filename still parent page title.]

@@ -19,6 +19,7 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const originalTitle = useRef(document.title);
 
   useEffect(() => {
     async function load() {
@@ -73,11 +74,13 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
         }
 
         setPages(htmlPages);
+        document.title = `Invoice ${inv.invoice_number} — The Green Tangerine`;
       } finally {
         setLoading(false);
       }
     }
     load();
+    return () => { document.title = originalTitle.current; };
   }, [invoiceId]);
 
   function handlePrint() {
