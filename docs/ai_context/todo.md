@@ -5,10 +5,12 @@
 
 ---
 
-## NEXT: UX Simplification — Screen/Flow Consolidation
-- [ ] **Audit gig day navigation** — too many hops (DayDetail → GigHub → Invoice). Consolidate into one "do all" screen. NO features removed.
-- [ ] **Map all multi-hop flows** across the app — identify other screens with redundant landing pages
-- [ ] **Apply to BOTH platforms** (D-153)
+## NEXT: UX Tweaks — Gig Day View Polish
+- [x] **Merge GigHub into DayDetail** — accordion cards, full-screen view, pipeline/deposit/docs inline (S63)
+- [x] **Remove gig-hub view** from ViewContext + App.tsx (S63)
+- [ ] **Nathan's UX tweaks** — testing deployed version, will list issues at start of next session
+- [ ] **Map other multi-hop flows** — identify remaining screens with redundant navigation
+- [ ] **Apply to BOTH platforms** (D-153) — Android calendar day detail doesn't have invoicing, but shared features should match
 
 ## PDF Templates — Fixed
 - [x] Print styles: @page margin 0, background preservation, compact spacing
