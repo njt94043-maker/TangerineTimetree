@@ -19,16 +19,10 @@
 - **Nathan chose**: Full-screen from the start (not bottom sheet). Deployed to Vercel.
 - **Nathan will test next session** and list UX tweaks needed.
 
-## NEXT SESSION: UX Tweaks + PDF Template Rollout
-**Part 1 — UX Tweaks (Nathan's list)**
-Nathan will provide specific issues/tweaks for the new Gig Day view after testing the deployed version.
+## NEXT SESSION: UX Tweaks
+Nathan will test the deployed Gig Day view and list issues/tweaks at start of next session.
 
-**Part 2 — PDF Template Rollout (Carried Over)**
-Apply the same print/clarity fixes from Premium Dark template to remaining 27 templates:
-- @page { margin: 0 } + background preservation
-- Bank details in JetBrains Mono, 15px, bright
-- Consistent BILL TO fallback (venue name + address when no client linked)
-- document.title set correctly on preview
+**PDF Templates — COMPLETE**: All 14 invoice + formal invoice templates now have JetBrains Mono bank details. PRINT_CSS, title tags, and BILL TO fallback were already in all 28 templates.
 
 **Also remaining**: Drift correction (S61), parity items — see todo.md
 
