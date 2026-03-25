@@ -5,7 +5,20 @@
 
 ---
 
-## S61 — Drift Correction + Remaining Items (Top Priority)
+## NEXT: UX Simplification — Screen/Flow Consolidation
+- [ ] **Audit gig day navigation** — too many hops (DayDetail → GigHub → Invoice). Consolidate into one "do all" screen. NO features removed.
+- [ ] **Map all multi-hop flows** across the app — identify other screens with redundant landing pages
+- [ ] **Apply to BOTH platforms** (D-153)
+
+## PDF Templates — Fixed
+- [x] Print styles: @page margin 0, background preservation, compact spacing
+- [x] BILL TO: venue name + address fallback when no client
+- [x] Title tag: "Invoice TGT-0003 — The Green Tangerine" (fixes PDF filename)
+- [x] Bank details: JetBrains Mono for sort code/account number, brighter, larger
+- [ ] Apply same fixes to ALL 7 styles (currently only Premium Dark fully updated)
+- [ ] Apply to receipt, quote, formal invoice templates
+
+## S61 — Drift Correction + Remaining Items
 
 ### Web Click — Working but drifts after ~60s
 - [x] S52-S56: Click foreground silence diagnosed and fixed (AnalyserNode parallel, step 2c tick loop)

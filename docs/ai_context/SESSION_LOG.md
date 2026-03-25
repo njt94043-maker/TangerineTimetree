@@ -8,6 +8,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-25 | PDF template fix | Invoice print: BILL TO fallback, print styles, @page margin 0, compact spacing, document.title for filename, JetBrains Mono bank details. Next: UX simplification. |
 | 2026-03-13 | S60 — Click silence root cause + cleanup | resyncToPosition was preventing ALL clicks. SoundTouch 93ms latency. Click works, drifts after ~60s. |
 | 2026-03-13 | S59 — Click always-runs fix | Scheduler ALWAYS starts with track, muted flag controls audibility only. Deployed, untested. |
 | 2026-03-13 | S58 — Research-backed drift fix | Moved resyncToPosition into ClickScheduler's 25ms timer. Beat intensity in rAF (safe). |
