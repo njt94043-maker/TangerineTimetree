@@ -12,13 +12,13 @@
 - [ ] **Map other multi-hop flows** — identify remaining screens with redundant navigation
 - [ ] **Apply to BOTH platforms** (D-153) — Android calendar day detail doesn't have invoicing, but shared features should match
 
-## PDF Templates — Fixed
-- [x] Print styles: @page margin 0, background preservation, compact spacing
+## PDF Templates — DONE
+- [x] Print styles: @page margin 0, background preservation, compact spacing (all 28 templates)
 - [x] BILL TO: venue name + address fallback when no client
 - [x] Title tag: "Invoice TGT-0003 — The Green Tangerine" (fixes PDF filename)
-- [x] Bank details: JetBrains Mono for sort code/account number, brighter, larger
-- [ ] Apply same fixes to ALL 7 styles (currently only Premium Dark fully updated)
-- [ ] Apply to receipt, quote, formal invoice templates
+- [x] Bank details: JetBrains Mono for sort code/account number — all 14 invoice + formal invoice templates
+- [x] Applied to ALL 7 invoice styles + ALL 7 formal invoice styles (S63)
+- [x] Receipts + quotes don't have bank details — no changes needed
 
 ## S61 — Drift Correction + Remaining Items
 
