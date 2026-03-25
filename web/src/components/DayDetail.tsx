@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import type { GigWithCreator, AwayDateWithUser, GigChangelogWithUser } from '@shared/supabase/types';
+import type { GigWithCreator, AwayDateWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getGigChangelog, deleteGig, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
-import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
+import { getGigsByDate, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
+import { isNetworkError } from '../hooks/useOfflineQueue';
 import { formatDisplayDate, fmt, fmtFee } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 import { LoadingSpinner } from './LoadingSpinner';
-import { ConfirmModal } from './ConfirmModal';
+import { GigCardExpanded } from './GigCardExpanded';
 
 interface DayDetailProps {
   date: string;
@@ -21,43 +21,35 @@ interface DayDetailProps {
   onGigDeleted?: () => void;
   onDateChange?: (date: string) => void;
   onCreateInvoice?: (gig: GigWithCreator) => void;
+  // New props for expanded card navigation
+  onViewQuote?: (quoteId: string) => void;
+  onViewInvoice?: (invoiceId: string) => void;
+  onGenerateQuote?: (gig: GigWithCreator) => void;
+  onEditBooking?: (gigId: string) => void;
 }
 
-export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig, onEditGig, onGigPress, onAddBooking, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice }: DayDetailProps) {
+export function DayDetail({
+  date, awayDates, eventDates = [], onClose, onAddGig, onEditGig,
+  onAddBooking, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice,
+  onViewQuote, onViewInvoice, onGenerateQuote, onEditBooking,
+}: DayDetailProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
-  const [changelog, setChangelog] = useState<Map<string, GigChangelogWithUser[]>>(new Map());
-  const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | null>(null);
   const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
   const [invoicedGigIds, setInvoicedGigIds] = useState<Set<string>>(new Set());
+  const [expandedGigId, setExpandedGigId] = useState<string | null>(null);
   const touchStartX = useRef(0);
 
   function fetchDayGigs() {
-    setExpandedLog(null);
+    setExpandedGigId(null);
     setLoading(true);
     setError(null);
     getGigsByDate(date)
       .then(setGigs)
       .catch((err) => setError(isNetworkError(err) ? 'You\'re offline — gigs can\'t be loaded right now' : 'Failed to load gigs for this day'))
       .finally(() => setLoading(false));
-  }
-
-  async function handleDelete(gigId: string) {
-    try {
-      await deleteGig(gigId);
-    } catch (err) {
-      if (isNetworkError(err)) {
-        queueMutation('deleteGig', { id: gigId });
-      } else {
-        setError('Failed to delete');
-        return;
-      }
-    }
-    setGigs(prev => prev.filter(g => g.id !== gigId));
-    onGigDeleted?.();
   }
 
   useEffect(() => {
@@ -93,17 +85,6 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
     }).catch(() => {});
   }, [gigs]);
 
-  async function toggleLog(gigId: string) {
-    if (expandedLog === gigId) { setExpandedLog(null); return; }
-    if (!changelog.has(gigId)) {
-      try {
-        const entries = await getGigChangelog(gigId);
-        setChangelog(prev => new Map(prev).set(gigId, entries));
-      } catch { return; }
-    }
-    setExpandedLog(gigId);
-  }
-
   // Swipe navigation between event dates
   const currentIdx = eventDates.indexOf(date);
   const hasPrev = currentIdx > 0;
@@ -118,7 +99,6 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   function goToPrevEvent() {
     if (hasPrev) navigateToDate(eventDates[currentIdx - 1], 'right');
   }
-
   function goToNextEvent() {
     if (hasNext) navigateToDate(eventDates[currentIdx + 1], 'left');
   }
@@ -126,7 +106,6 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
   }
-
   function handleTouchEnd(e: React.TouchEvent) {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     if (Math.abs(dx) < 50) return;
@@ -136,39 +115,56 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
 
   const awayOnDate = awayDates.filter(a => date >= a.start_date && date <= a.end_date);
 
-  return (
-    <div className="overlay">
-      <div className="overlay-dismiss" onClick={onClose} />
-      <div
-        className="day-sheet neu-card"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div className="sheet-handle" />
+  function handleGigCardClick(gig: GigWithCreator) {
+    const isPractice = gig.gig_type === 'practice';
+    if (isPractice) {
+      onEditGig(gig.id);
+      return;
+    }
+    // Toggle accordion expand/collapse
+    setExpandedGigId(prev => prev === gig.id ? null : gig.id);
+  }
 
-        {/* Navigation header */}
-        <div className="day-nav-row">
+  function handleGigUpdated() {
+    fetchDayGigs();
+    onGigDeleted?.(); // triggers calendar refresh
+  }
+
+  function handleGigDeleted() {
+    fetchDayGigs();
+    onGigDeleted?.();
+  }
+
+  return (
+    <div
+      className="gigday-fullscreen"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Header */}
+      <div className="gigday-header">
+        <button className="bw-back" onClick={onClose}>{'\u25C0'}</button>
+        <h2
+          key={date}
+          className={`gigday-title ${slideDir === 'left' ? 'slide-from-right' : slideDir === 'right' ? 'slide-from-left' : ''}`}
+          onAnimationEnd={() => setSlideDir(null)}
+        >{formatDisplayDate(date)}</h2>
+        <div className="gigday-nav-arrows">
           <button
             className={`day-nav-btn ${hasPrev ? '' : 'day-nav-btn-disabled'}`}
             onClick={goToPrevEvent}
             disabled={!hasPrev}
-            aria-label="Previous event"
           >&lsaquo;</button>
-          <h2
-            key={date}
-            className={`day-title ${slideDir === 'left' ? 'slide-from-right' : slideDir === 'right' ? 'slide-from-left' : ''}`}
-            onAnimationEnd={() => setSlideDir(null)}
-          >{formatDisplayDate(date)}</h2>
           <button
             className={`day-nav-btn ${hasNext ? '' : 'day-nav-btn-disabled'}`}
             onClick={goToNextEvent}
             disabled={!hasNext}
-            aria-label="Next event"
           >&rsaquo;</button>
         </div>
+      </div>
 
+      <div className="gigday-body">
         {loading && <LoadingSpinner skeleton />}
-
         {error && <ErrorAlert message={error} onRetry={fetchDayGigs} />}
 
         {!loading && !error && gigs.length === 0 && (
@@ -177,27 +173,26 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
 
         {/* Away warning banner */}
         {awayOnDate.length > 0 && (
-          <div className="bw-banner bw-banner-danger" style={{ margin: '0 16px 10px' }}>
+          <div className="bw-banner bw-banner-danger" style={{ marginBottom: 12 }}>
             <span>{'\u26A0\uFE0F'}</span>
             <span><strong>Band Unavailable</strong> — {awayOnDate.map(a => a.user_name).join(', ')} away</span>
           </div>
         )}
 
+        {/* Gig cards */}
         {gigs.map(gig => {
           const isPractice = gig.gig_type === 'practice';
           const isClient = !isPractice && gig.gig_subtype === 'client';
           const accentClass = isPractice ? 'gig-acc-practice' : isClient ? 'gig-acc-client' : 'gig-acc-pub';
           const isCancelled = gig.status === 'cancelled';
+          const isExpanded = expandedGigId === gig.id;
 
           return (
             <div
               key={gig.id}
-              className={`neu-inset gig-card-inset gig-card-accented${isCancelled ? ' gig-card-cancelled' : ''}`}
-              onClick={() => {
-                if (isPractice) onEditGig(gig.id);
-                else if (onGigPress) onGigPress(gig.id);
-                else onEditGig(gig.id);
-              }}
+              className={`neu-inset gig-card-inset gig-card-accented${isCancelled ? ' gig-card-cancelled' : ''}${isExpanded ? ' gig-card-expanded' : ''}`}
+              onClick={() => handleGigCardClick(gig)}
+              style={{ cursor: isPractice ? 'pointer' : 'pointer' }}
             >
               {/* Accent strip */}
               <div className={`gig-accent-strip ${accentClass}`} />
@@ -214,6 +209,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                   {isClient && <span className="badge badge-tangerine">CLIENT</span>}
                 </div>
 
+                {/* Venue + Navigate */}
                 <div className={`gig-venue-name ${isPractice ? 'gig-venue-practice' : ''}`}>
                   {isPractice ? (gig.venue || 'Practice') : (gig.venue || 'Venue TBC')}
                   {!isPractice && venueAddresses.has(gig.id) && (
@@ -238,6 +234,7 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                 </div>
                 {!isPractice && gig.client_name && <div className="gig-client-name">{gig.client_name}</div>}
 
+                {/* Detail grid */}
                 <div className="detail-grid">
                   {!isPractice && <div className="detail-row"><span className="detail-label">Fee</span><span className="detail-value">{fmtFee(gig.fee)}</span></div>}
                   {!isPractice && <div className="detail-row"><span className="detail-label">Payment</span><span className="detail-value">{gig.payment_type || '\u2014'}</span></div>}
@@ -246,41 +243,43 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
                   {gig.end_time && <div className="detail-row"><span className="detail-label">End</span><span className="detail-value">{fmt(gig.end_time)}</span></div>}
                 </div>
 
-                {gig.notes && <p className="gig-notes-text">{gig.notes}</p>}
+                {gig.notes && !isExpanded && <p className="gig-notes-text">{gig.notes}</p>}
                 <p className="gig-creator-text">Added by {gig.creator_name}</p>
 
-                <div className="gig-actions-row">
-                  <button className="changelog-toggle" onClick={(e) => { e.stopPropagation(); toggleLog(gig.id); }}>
-                    {expandedLog === gig.id ? 'Hide history' : 'Show history'}
-                  </button>
-                  {!isPractice && !invoicedGigIds.has(gig.id) && onCreateInvoice && (
-                    <button className="changelog-toggle gig-invoice-link" onClick={(e) => { e.stopPropagation(); onCreateInvoice(gig); }}>
-                      + Invoice
-                    </button>
-                  )}
-                  <button className="changelog-toggle changelog-toggle-danger" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(gig.id); }}>
-                    Delete
-                  </button>
-                </div>
-
-                {expandedLog === gig.id && (
-                  <div className="changelog-section">
-                    {(changelog.get(gig.id) ?? []).map(entry => (
-                      <div key={entry.id} className="changelog-entry">
-                        <div className="changelog-text">
-                          {entry.action === 'created'
-                            ? `${entry.user_name} created this`
-                            : entry.action === 'deleted'
-                              ? `${entry.user_name} deleted this`
-                              : `${entry.user_name} changed ${entry.field_changed} from "${entry.old_value}" to "${entry.new_value}"`}
-                        </div>
-                        <div className="changelog-time">
-                          {new Date(entry.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </div>
-                    ))}
-                    {(changelog.get(gig.id) ?? []).length === 0 && <div className="changelog-text">No history yet</div>}
+                {/* Collapsed: mini pipeline indicator for non-practice gigs */}
+                {!isPractice && !isExpanded && (
+                  <div className="gig-mini-pipeline">
+                    {['Enq', 'Conf', 'Quo', 'Inv', 'Paid'].map((label, i) => {
+                      const sIdx = gig.status === 'enquiry' || gig.status === 'pencilled' ? 0 : gig.status === 'confirmed' ? 1 : -1;
+                      const reached = i <= sIdx;
+                      const active = i === sIdx;
+                      return (
+                        <span key={label} className={`mini-pip-dot${reached ? ' reached' : ''}${active ? ' active' : ''}`} title={label} />
+                      );
+                    })}
+                    <span className="mini-pip-label">
+                      {gig.status === 'pencilled' ? 'enquiry' : gig.status}
+                    </span>
                   </div>
+                )}
+
+                {/* Collapsed hint */}
+                {!isPractice && !isExpanded && (
+                  <div className="gig-expand-hint">Tap for details</div>
+                )}
+
+                {/* EXPANDED: GigCardExpanded with full pipeline, docs, actions */}
+                {isExpanded && !isPractice && (
+                  <GigCardExpanded
+                    gigId={gig.id}
+                    onEdit={onEditBooking || onEditGig}
+                    onViewQuote={onViewQuote}
+                    onViewInvoice={onViewInvoice}
+                    onCreateInvoice={onCreateInvoice}
+                    onGenerateQuote={onGenerateQuote}
+                    onGigUpdated={handleGigUpdated}
+                    onGigDeleted={handleGigDeleted}
+                  />
                 )}
               </div>
             </div>
@@ -316,16 +315,6 @@ export function DayDetail({ date, awayDates, eventDates = [], onClose, onAddGig,
           </div>
         </div>
       </div>
-
-      {confirmDeleteId && (
-        <ConfirmModal
-          message="Delete this gig?"
-          confirmLabel="Delete"
-          danger
-          onConfirm={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null); }}
-          onCancel={() => setConfirmDeleteId(null)}
-        />
-      )}
     </div>
   );
 }

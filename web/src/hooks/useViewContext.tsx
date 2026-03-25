@@ -10,7 +10,7 @@ type View =
   | 'songs' | 'song-form'
   | 'setlists' | 'setlist-detail'
   | 'library' | 'player'
-  | 'booking-wizard' | 'gig-hub';
+  | 'booking-wizard';
 
 /* ── History entry: view name + relevant state snapshot ── */
 interface HistoryEntry {
@@ -25,7 +25,6 @@ interface HistoryEntry {
   venueId?: string | null;
   editSongId?: string | null;
   setlistId?: string | null;
-  gigHubGigId?: string | null;
   playerSongId?: string | null;
   playerSetlistId?: string | null;
   playerMode?: 'live' | 'practice' | 'view';
@@ -43,7 +42,6 @@ interface ViewState {
   venueId: string | null;
   editSongId: string | null;
   setlistId: string | null;
-  gigHubGigId: string | null;
   playerSongId: string | null;
   playerSetlistId: string | null;
   playerMode: 'live' | 'practice' | 'view';
@@ -88,7 +86,6 @@ interface ViewContextValue extends ViewState {
   // Booking wizard / Gig Hub navigation
   goToBookingWizard: (date: string) => void;
   goToEditBooking: (gigId: string) => void;
-  goToGigHub: (gigId: string) => void;
   // Post-save replace navigation (swaps current stack entry)
   goToAway: (date?: string) => void;
   replaceWithInvoiceDetail: (id: string) => void;
@@ -104,7 +101,6 @@ function entryKey(e: HistoryEntry): string {
   switch (e.view) {
     case 'day-detail': return `day-detail:${e.selectedDate ?? ''}`;
     case 'gig-form': return `gig-form:${e.editGigId ?? 'new'}:${e.selectedDate ?? ''}`;
-    case 'gig-hub': return `gig-hub:${e.gigHubGigId ?? ''}`;
     case 'booking-wizard': return `booking-wizard:${e.editGigId ?? 'new'}:${e.selectedDate ?? ''}`;
     case 'invoice-detail': return `invoice-detail:${e.invoiceId ?? ''}`;
     case 'invoice-form': return `invoice-form:${e.editInvoiceId ?? 'new'}`;
@@ -132,7 +128,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [venueId, setVenueId] = useState<string | null>(null);
   const [editSongId, setEditSongId] = useState<string | null>(null);
   const [setlistId, setSetlistId] = useState<string | null>(null);
-  const [gigHubGigId, setGigHubGigId] = useState<string | null>(null);
   const [playerSongId, setPlayerSongId] = useState<string | null>(null);
   const [playerSetlistId, setPlayerSetlistId] = useState<string | null>(null);
   const [playerMode, setPlayerMode] = useState<'live' | 'practice' | 'view'>('live');
@@ -154,7 +149,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (entry.venueId !== undefined) setVenueId(entry.venueId);
     if (entry.editSongId !== undefined) setEditSongId(entry.editSongId);
     if (entry.setlistId !== undefined) setSetlistId(entry.setlistId);
-    if (entry.gigHubGigId !== undefined) setGigHubGigId(entry.gigHubGigId);
     if (entry.playerSongId !== undefined) setPlayerSongId(entry.playerSongId);
     if (entry.playerSetlistId !== undefined) setPlayerSetlistId(entry.playerSetlistId);
     if (entry.playerMode !== undefined) setPlayerMode(entry.playerMode);
@@ -341,11 +335,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setEditGigId(gigId);
     pushEntry({ view: 'booking-wizard', editGigId: gigId });
   }, []);
-  const goToGigHub = useCallback((gigId: string) => {
-    setGigHubGigId(gigId);
-    pushEntry({ view: 'gig-hub', gigHubGigId: gigId });
-  }, []);
-
   // Away (push-based, preserves day-detail in stack)
   const goToAway = useCallback((date?: string) => {
     if (date) setSelectedDate(date);
@@ -409,7 +398,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         venueId,
         editSongId,
         setlistId,
-        gigHubGigId,
         playerSongId,
         playerSetlistId,
         playerMode,
@@ -423,7 +411,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToSongs, goToNewSong, goToEditSong,
         goToSetlists, goToSetlistDetail,
         goToLibrary, goToPlayer,
-        goToBookingWizard, goToEditBooking, goToGigHub,
+        goToBookingWizard, goToEditBooking,
         goToAway,
         replaceWithInvoiceDetail, replaceWithQuoteDetail,
         replaceWithNewQuote, replaceWithNewInvoice,

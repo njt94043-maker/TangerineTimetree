@@ -15,7 +15,6 @@ import { GigList } from './components/GigList';
 import { DayDetail } from './components/DayDetail';
 import { GigForm } from './components/GigForm';
 import { BookingWizard } from './components/BookingWizard';
-import { GigHub } from './components/GigHub';
 import { AwayManager } from './components/AwayManager';
 import { ProfilePage } from './components/ProfilePage';
 import { MediaManager } from './components/MediaManager';
@@ -94,7 +93,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
     setlistId, goToSetlistDetail,
     goToLibrary, goToPlayer,
     playerSongId, playerSetlistId, playerMode,
-    gigHubGigId, goToBookingWizard, goToEditBooking, goToGigHub,
+    goToBookingWizard, goToEditBooking,
     goToAway,
     replaceWithInvoiceDetail, replaceWithQuoteDetail,
     replaceWithNewQuote, replaceWithNewInvoice,
@@ -241,7 +240,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
       case 'day-detail': return 'Day Detail';
       case 'gig-form': return 'Gig Form';
       case 'booking-wizard': return 'New Booking';
-      case 'gig-hub': return 'Gig Details';
       default: return 'Timetree';
     }
   })();
@@ -371,12 +369,15 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onClose={goBack}
             onAddGig={goToAddGig}
             onEditGig={goToEditGig}
-            onGigPress={goToGigHub}
             onAddBooking={goToBookingWizard}
             onMarkAway={() => goToAway(selectedDate)}
             onGigDeleted={() => { refresh(); refreshQueueCount(); }}
             onDateChange={goToDay}
             onCreateInvoice={handleCreateInvoiceFromGig}
+            onViewQuote={(id) => goToQuoteDetail(id)}
+            onViewInvoice={(id) => goToInvoiceDetail(id)}
+            onGenerateQuote={(_gig) => { refresh(); goToNewQuote(); }}
+            onEditBooking={goToEditBooking}
           />
         )}
 
@@ -415,19 +416,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
                 replaceWithNewInvoice();
               }
             }}
-          />
-        )}
-
-        {view === 'gig-hub' && gigHubGigId && (
-          <GigHub
-            gigId={gigHubGigId}
-            onClose={goBack}
-            onEdit={goToEditBooking}
-            onViewQuote={(id) => goToQuoteDetail(id)}
-            onViewInvoice={(id) => goToInvoiceDetail(id)}
-            onCreateInvoice={handleCreateInvoiceFromGig}
-            onGenerateQuote={(_gig) => { refresh(); goToNewQuote(); }}
-            onGigUpdated={() => { refresh(); refreshQueueCount(); }}
           />
         )}
 
