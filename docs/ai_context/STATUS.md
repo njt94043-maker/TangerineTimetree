@@ -6,38 +6,29 @@
 ---
 
 ## Current State
-- **Phase**: PDF template fix session — Invoice PDF print flow diagnosed and fixed.
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click plays consistently**. **Invoice/receipt/quote PDF templates fixed for print**.
-- **What was fixed (this session)**: PDF print output was broken — missing BILL TO data (venue fallback), no print styles, Chrome headers/footers, 2-page overflow, wrong filename, dim bank details. All fixed across Premium Dark template. Bank details now use JetBrains Mono for digit clarity.
+- **Phase**: UX Simplification — GigHub merged into DayDetail as expandable accordion cards. Deployed.
+- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click plays consistently**. **Invoice/receipt/quote PDF templates fixed for print**. **Gig Day is now a full-screen unified view**.
+- **What was done (S63)**: Merged GigHub into DayDetail — gig cards expand in-place (accordion) to reveal pipeline tracker, deposit, linked docs, actions. Removed `gig-hub` as standalone view from ViewContext. Navigation reduced from 3-4 hops to 1-2.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
-## S60 Fix (Click Silence Root Cause)
-- **Symptom**: Zero clicks ever played despite scheduler being active.
-- **Root cause**: `resyncToPosition()` ran every 25ms in `schedule()`. SoundTouch reports position ~93ms ahead (4096-sample ScriptProcessorNode buffer). Resync saw the track "past" each beat and pushed `nextBeatTime` to the NEXT beat. The 100ms lookahead could never catch up → `while (nextBeatTime < deadline)` never entered → zero OscillatorNodes created.
-- **Fix**: Disabled resync entirely. Natural beat map scheduling (advanceBeat() using madmom timestamps + Chris Wilson pattern) works accurately without drift correction.
-- **Result**: Consistent click for ~60 seconds, then gradual drift. Drift correction needs re-enabling with SoundTouch latency compensation (~93ms subtracted from reported position).
-- **Also fixed**: Added `osc.onended` GainNode cleanup (was leaking).
+## S63 UX Consolidation
+- **New component**: `GigCardExpanded.tsx` — extracted from GigHub, renders inline in accordion cards
+- **DayDetail.tsx**: Full-screen view (was bottom sheet), accordion gig cards, mini pipeline dots on collapsed cards
+- **Removed**: `gig-hub` view from ViewContext, GigHub rendering from App.tsx, `goToGigHub`/`gigHubGigId` state
+- **Navigation**: Edit Booking, View Quote/Invoice, Create Invoice, Generate Quote all wired through DayDetail props
+- **Nathan chose**: Full-screen from the start (not bottom sheet). Deployed to Vercel.
+- **Nathan will test next session** and list UX tweaks needed.
 
-## S60 Cleanup
-- Removed debug UI (banner, test beep, console.logs, __BUILD_TIME__)
-- Pruned SOT docs (SESSION_LOG -95%, SPRINT_PROMPTS -98%, gotchas -26%)
-- Created WEB_AUDIO_REFERENCE.md (stored 8 sessions of audio research)
+## NEXT SESSION: UX Tweaks + PDF Template Rollout
+**Part 1 — UX Tweaks (Nathan's list)**
+Nathan will provide specific issues/tweaks for the new Gig Day view after testing the deployed version.
 
-## NEXT SESSION: PDF Clarity + UX Simplification
-**Part 1 — PDF Template Clarity (Quick)**
-Apply the same print/clarity fixes from Premium Dark template (Session S62) to the other 6 invoice styles + all receipts + quotes + formal invoices:
-- @page { margin: 0 } + background preservation (from shared printStyles.ts)
+**Part 2 — PDF Template Rollout (Carried Over)**
+Apply the same print/clarity fixes from Premium Dark template to remaining 27 templates:
+- @page { margin: 0 } + background preservation
 - Bank details in JetBrains Mono, 15px, bright
 - Consistent BILL TO fallback (venue name + address when no client linked)
 - document.title set correctly on preview
-- Test end-to-end flow (generate → preview → print) to ensure 1 page, clear bank details.
-
-**Part 2 — UX Simplification (Main Task)**
-Audit and consolidate multi-hop navigation flows without losing ANY features:
-1. **Map current flows** — DayDetail → GigHub → Invoice/Quote (3 screens), invoicing wizard steps, calendar → day view chains.
-2. **Identify consolidation** — "Gig day" screen should have ALL gig-related actions (create/edit gig, generate invoice/quote, manage clients/venue) in ONE unified view. No redundant navigation.
-3. **Both platforms** (D-153) — web and Android must match. Screenshot both before/after to declare which is correct reference.
-4. **Preserve every feature** — this is about reducing hops, not cutting scope. If uncertainty, ask first.
 
 **Also remaining**: Drift correction (S61), parity items — see todo.md
 

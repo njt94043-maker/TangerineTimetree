@@ -8,6 +8,7 @@
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|
+| 2026-03-25 | S63 — UX consolidation | Merged GigHub into DayDetail as expandable accordion cards. Full-screen Gig Day view. Removed gig-hub standalone view. 3-4 hops → 1-2. Nathan testing next session. |
 | 2026-03-25 | PDF template fix | Invoice print: BILL TO fallback, print styles, @page margin 0, compact spacing, document.title for filename, JetBrains Mono bank details. Next: UX simplification. |
 | 2026-03-13 | S60 — Click silence root cause + cleanup | resyncToPosition was preventing ALL clicks. SoundTouch 93ms latency. Click works, drifts after ~60s. |
 | 2026-03-13 | S59 — Click always-runs fix | Scheduler ALWAYS starts with track, muted flag controls audibility only. Deployed, untested. |
