@@ -15,7 +15,6 @@ interface DayDetailProps {
   onClose: () => void;
   onAddGig: (date: string, type: 'gig' | 'practice') => void;
   onEditGig: (gigId: string) => void;
-  onGigPress?: (gigId: string) => void;
   onAddBooking?: (date: string) => void;
   onMarkAway: () => void;
   onGigDeleted?: () => void;
