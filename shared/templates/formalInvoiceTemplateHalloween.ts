@@ -1,6 +1,7 @@
 import type { FormalInvoiceTemplateData } from './formalInvoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -40,11 +41,12 @@ export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateDa
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Nunito', sans-serif; color: #e0d6c8; font-size: 14px; line-height: 1.5; background: #1a1028; }
-  .page { min-height: 100vh; display: flex; flex-direction: column; background: #1a1028; }
+  .page { min-height: 100%; display: flex; flex-direction: column; background: #1a1028; }
   .header { background: linear-gradient(135deg, #2d1b4e, #1a1028); color: #fff; padding: 32px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid #e8940a; }
   .header h1 { font-family: 'Creepster', cursive; font-size: 42px; letter-spacing: 6px; color: #e8940a; }
   .header .subtitle { font-size: 12px; color: rgba(232,148,10,0.6); letter-spacing: 2px; }
@@ -92,6 +94,7 @@ export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateDa
   .footer .website { font-weight: 700; font-size: 13px; color: #e8940a; margin-bottom: 4px; }
   .footer .terms { color: rgba(224,214,200,0.6); }
   .footer .spooky { color: #e8940a; font-family: 'Creepster', cursive; font-size: 16px; margin-top: 4px; letter-spacing: 2px; }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

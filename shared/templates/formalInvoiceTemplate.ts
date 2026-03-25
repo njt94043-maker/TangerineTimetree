@@ -1,6 +1,7 @@
 import { PDF_COLORS } from './colors';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export interface FormalInvoiceTemplateData {
   invoiceNumber: string;
@@ -71,10 +72,11 @@ export function generateFormalInvoiceHtml(data: FormalInvoiceTemplateData): stri
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Helvetica Neue', Arial, sans-serif; color: ${PDF_COLORS.bodyText}; font-size: 14px; line-height: 1.5; overflow-x: hidden; width: 100%; }
-  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .page { min-height: 100%; display: flex; flex-direction: column; }
   .header { background: ${PDF_COLORS.headerBg}; color: ${PDF_COLORS.headerText}; padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
   .header h1 { font-size: 36px; font-weight: bold; letter-spacing: 4px; }
   .header .logo { width: 90px; height: 90px; }
@@ -118,6 +120,7 @@ export function generateFormalInvoiceHtml(data: FormalInvoiceTemplateData): stri
   .footer .website { font-weight: bold; font-size: 13px; margin-bottom: 4px; }
   .footer .terms-label { color: ${PDF_COLORS.totalBarBg}; font-weight: bold; }
   .footer .thanks { color: ${PDF_COLORS.totalBarBg}; font-style: italic; margin-top: 2px; }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

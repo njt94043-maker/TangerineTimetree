@@ -42,9 +42,9 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
           tradingAs: bs.trading_as,
           businessType: bs.business_type,
           website: bs.website,
-          toCompany: inv.client_company_name,
-          toContact: inv.client_contact_name,
-          toAddress: inv.client_address,
+          toCompany: inv.client_company_name || inv.venue_name || '',
+          toContact: inv.client_contact_name || inv.venue_contact_name || '',
+          toAddress: inv.client_address || inv.venue_address || '',
           description: inv.description,
           amount: inv.amount,
           bankAccountName: us.bank_account_name,
@@ -61,7 +61,7 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
           const receiptData: ReceiptTemplateData = {
             receiptDate: formatDateLong(r.date),
             paidTo: r.member_name,
-            paidBy: inv.client_company_name,
+            paidBy: inv.client_company_name || inv.venue_name || '',
             amount: r.amount,
             venue: inv.venue,
             gigDate: formatDateLong(inv.gig_date),
@@ -113,7 +113,7 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
         className="invoice-iframe invoice-iframe-full"
         srcDoc={pages[currentPage] || ''}
         title={currentPage === 0 ? 'Invoice' : `Receipt ${currentPage}`}
-        sandbox="allow-same-origin allow-modals"
+        sandbox="allow-same-origin allow-modals allow-scripts"
       />
     </div>
   );

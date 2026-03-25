@@ -1,6 +1,7 @@
 import type { ReceiptTemplateData } from './receiptTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateReceiptValentineHtml(data: ReceiptTemplateData): string {
   const amt = `\u00a3${data.amount.toFixed(2)}`;
@@ -17,6 +18,7 @@ export function generateReceiptValentineHtml(data: ReceiptTemplateData): string 
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt for ${data.paidTo} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -305,6 +307,7 @@ export function generateReceiptValentineHtml(data: ReceiptTemplateData): string 
     color: #d4c4bc;
     margin-top: 6px;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>

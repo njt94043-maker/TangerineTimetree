@@ -1,6 +1,7 @@
 import type { FormalInvoiceTemplateData } from './formalInvoiceTemplate';
 import { TGT_LOGO_SVG } from './logo';
 import { htmlEscape } from './htmlEscape';
+import { PRINT_CSS } from './printStyles';
 
 export function generateFormalInvoiceChristmasHtml(data: FormalInvoiceTemplateData): string {
   const addressHtml = htmlEscape(data.toAddress).replace(/\n/g, '<br>');
@@ -46,6 +47,7 @@ export function generateFormalInvoiceChristmasHtml(data: FormalInvoiceTemplateDa
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Cormorant+Garamond:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -59,7 +61,7 @@ export function generateFormalInvoiceChristmasHtml(data: FormalInvoiceTemplateDa
   }
 
   .page {
-    min-height: 100vh;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     background: #faf8f2;
@@ -371,6 +373,7 @@ export function generateFormalInvoiceChristmasHtml(data: FormalInvoiceTemplateDa
     font-style: italic;
     margin-top: 4px;
   }
+  ${PRINT_CSS}
 </style>
 </head>
 <body>
