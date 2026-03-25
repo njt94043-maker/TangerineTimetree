@@ -23,11 +23,23 @@
 - Pruned SOT docs (SESSION_LOG -95%, SPRINT_PROMPTS -98%, gotchas -26%)
 - Created WEB_AUDIO_REFERENCE.md (stored 8 sessions of audio research)
 
-## NEXT SESSION: UX Simplification — Screen/Flow Consolidation
-1. **Audit gig day navigation** — DayDetail → GigHub → Invoice/Quote has too many hops. Nathan wants ONE "do all" screen per gig day. No features removed — just fewer landing pages.
-2. **Map all multi-hop flows** across the app and identify consolidation opportunities.
-3. **Both platforms** — any screen simplification must apply to web AND Android (D-153).
-4. **Also remaining**: Drift correction (S61), parity items — see todo.md
+## NEXT SESSION: PDF Clarity + UX Simplification
+**Part 1 — PDF Template Clarity (Quick)**
+Apply the same print/clarity fixes from Premium Dark template (Session S62) to the other 6 invoice styles + all receipts + quotes + formal invoices:
+- @page { margin: 0 } + background preservation (from shared printStyles.ts)
+- Bank details in JetBrains Mono, 15px, bright
+- Consistent BILL TO fallback (venue name + address when no client linked)
+- document.title set correctly on preview
+- Test end-to-end flow (generate → preview → print) to ensure 1 page, clear bank details.
+
+**Part 2 — UX Simplification (Main Task)**
+Audit and consolidate multi-hop navigation flows without losing ANY features:
+1. **Map current flows** — DayDetail → GigHub → Invoice/Quote (3 screens), invoicing wizard steps, calendar → day view chains.
+2. **Identify consolidation** — "Gig day" screen should have ALL gig-related actions (create/edit gig, generate invoice/quote, manage clients/venue) in ONE unified view. No redundant navigation.
+3. **Both platforms** (D-153) — web and Android must match. Screenshot both before/after to declare which is correct reference.
+4. **Preserve every feature** — this is about reducing hops, not cutting scope. If uncertainty, ask first.
+
+**Also remaining**: Drift correction (S61), parity items — see todo.md
 
 ## Remaining Items
 - [ ] **Drift correction** — re-enable resyncToPosition with ~93ms latency compensation

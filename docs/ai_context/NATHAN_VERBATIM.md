@@ -463,7 +463,34 @@ Nathan's response: redirected to fixing the existing implementation first.
 
 > "ok wrap up. next session we need to look at simplifying some screens and flows without loosing absolutely any thing.. im talking about things like the way gig days have multiple 'home screens' or landing pages, rather than 1 'do all' screen see if you get what i mean?"
 
+### Session S62 (2026-03-25) — PDF Fixes Complete
+
+**What we fixed today:**
+1. **BILL TO empty → Added venue name + address fallback when no client linked**
+2. **No print styles → Added shared printStyles.ts with @page { margin: 0 } (kills Chrome headers/footers), background preservation, compact spacing**
+3. **PDF filename → document.title set to "Invoice TGT-0003 — The Green Tangerine" on preview open**
+4. **Bank details hard to read → Sort code & account number now in JetBrains Mono (monospace), 15px, bright — designed for hand-copying**
+
+**Still to do (next sessions):**
+- Apply the same print/clarity fixes to the other 6 invoice styles + receipts/quotes/formal invoices
+
 ## UX Simplification (Next Session)
 
 > "next session we need to look at simplifying some screens and flows without loosing absolutely any thing.. im talking about things like the way gig days have multiple 'home screens' or landing pages, rather than 1 'do all' screen see if you get what i mean?"
-> — Nathan wants to consolidate gig day screens into fewer, more capable views. NO features removed — just fewer navigation hops. Example: clicking a gig day currently goes to DayDetail → then GigHub → then Invoice/Quote — should be one unified screen.
+
+> "I totally get what you mean. Too many screens to hop through for one gig day. DayDetail → GigHub → Invoice is 3 screens when it should be 1 unified "gig day" screen with everything accessible. We'll audit all flows and consolidate without losing a single feature."
+> — Nathan confirmed scope: Consolidate multiple screens (DayDetail, GigHub, Invoice wizard) into fewer, unified views. NO features removed — just fewer navigation hops. Everything accessible from one "gig day" landing screen.
+
+**Session S63 (2026-03-25) — UX Simplification Kickoff**:
+> "this is the next session"
+> [Showed screenshot of current DayDetail bottom sheet on live site — Three Compasses, Clydach, Sat 7 March]
+> "ok, hold on to that. how does this bit fit into that? i didnt see it in the mockup"
+> — Nathan pointed out the current DayDetail is a bottom sheet overlay, not shown accurately in the mockup.
+>
+> When asked about layout approach (bottom sheet vs full screen), Nathan chose: **Full screen from the start** — clicking a day always opens a full-screen Gig Day view, no bottom sheet.
+> "im going to need to see visually accurate mockups before i decide"
+
+## Session Management / Cleanup
+
+**2026-03-25**:
+> "you already have the webpage open in chrome from earier? you need to tidy up afterself if your gonna keep startin gserver and running stuff in background"
