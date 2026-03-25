@@ -5,7 +5,7 @@
 export const PRINT_CSS = `
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 0;
   }
   @media print {
     html, body {
@@ -21,6 +21,35 @@ export const PRINT_CSS = `
       height: auto !important;
       overflow: visible !important;
       page-break-inside: avoid;
+    }
+    /* Compact spacing to fit A4 single page */
+    .content {
+      padding: 28px 36px !important;
+    }
+    .separator {
+      margin: 14px 0 !important;
+    }
+    .info-grid {
+      margin-bottom: 24px !important;
+    }
+    .items-table {
+      margin-bottom: 18px !important;
+    }
+    .payment-box, .payment {
+      margin-bottom: 16px !important;
+      padding: 14px 16px !important;
+    }
+    .header {
+      padding: 20px 36px !important;
+    }
+    .meta {
+      padding: 14px 36px !important;
+    }
+    .parties {
+      padding: 14px 36px !important;
+    }
+    .footer {
+      padding: 12px 36px !important;
     }
     /* Hide decorative overlays that don't print well */
     .scanlines, .grain, .ember-glow, .linen,

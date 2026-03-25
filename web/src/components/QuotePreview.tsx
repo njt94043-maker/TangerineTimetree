@@ -24,6 +24,7 @@ export function QuotePreview({ quoteId, onClose }: QuotePreviewProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const originalTitle = useRef(document.title);
 
   useEffect(() => {
     async function load() {
@@ -140,11 +141,13 @@ export function QuotePreview({ quoteId, onClose }: QuotePreviewProps) {
         }
 
         setPages(htmlPages);
+        document.title = `Quote ${quote.quote_number} — The Green Tangerine`;
       } finally {
         setLoading(false);
       }
     }
     load();
+    return () => { document.title = originalTitle.current; };
   }, [quoteId]);
 
   function handlePrint() {
