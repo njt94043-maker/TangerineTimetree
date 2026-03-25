@@ -48,7 +48,7 @@ export function generateFormalInvoiceCleanProfessionalHtml(data: FormalInvoiceTe
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,300;0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -335,6 +335,7 @@ export function generateFormalInvoiceCleanProfessionalHtml(data: FormalInvoiceTe
     font-style: italic;
     margin-top: 2px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -437,11 +438,11 @@ export function generateFormalInvoiceCleanProfessionalHtml(data: FormalInvoiceTe
       </div>
       <div>
         <div class="payment-field-label">Sort Code</div>
-        <div class="payment-field-value">${e.bankSortCode}</div>
+        <div class="payment-field-value"><span class="payment-value-mono">${e.bankSortCode}</span></div>
       </div>
       <div>
         <div class="payment-field-label">Account No.</div>
-        <div class="payment-field-value">${e.bankAccountNumber}</div>
+        <div class="payment-field-value"><span class="payment-value-mono">${e.bankAccountNumber}</span></div>
       </div>
     </div>
   </div>

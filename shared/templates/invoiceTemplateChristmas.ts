@@ -26,7 +26,7 @@ export function generateChristmasHtml(data: InvoiceTemplateData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -371,6 +371,7 @@ export function generateChristmasHtml(data: InvoiceTemplateData): string {
     color: #3d5a42;
     margin-top: 6px;
   }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -593,11 +594,11 @@ export function generateChristmasHtml(data: InvoiceTemplateData): string {
       </div>
       <div>
         <div class="bank-label">Sort Code</div>
-        <div class="bank-value">${e.bankSortCode}</div>
+        <div class="bank-value payment-value-mono">${e.bankSortCode}</div>
       </div>
       <div>
         <div class="bank-label">Account No.</div>
-        <div class="bank-value">${e.bankAccountNumber}</div>
+        <div class="bank-value payment-value-mono">${e.bankAccountNumber}</div>
       </div>
     </div>
   </div>

@@ -42,7 +42,7 @@ export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateDa
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Invoice ${data.invoiceNumber} — The Green Tangerine</title>
-<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Nunito', sans-serif; color: #e0d6c8; font-size: 14px; line-height: 1.5; background: #1a1028; }
@@ -94,6 +94,7 @@ export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateDa
   .footer .website { font-weight: 700; font-size: 13px; color: #e8940a; margin-bottom: 4px; }
   .footer .terms { color: rgba(224,214,200,0.6); }
   .footer .spooky { color: #e8940a; font-family: 'Creepster', cursive; font-size: 16px; margin-top: 4px; letter-spacing: 2px; }
+  .payment-value-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 1px; }
   ${PRINT_CSS}
 </style>
 </head>
@@ -156,8 +157,8 @@ export function generateFormalInvoiceHalloweenHtml(data: FormalInvoiceTemplateDa
     <div class="payment-grid">
       <div><div class="payment-field-label">Account Name</div><div class="payment-field-value">${e.bankAccountName}</div></div>
       <div><div class="payment-field-label">Bank</div><div class="payment-field-value">${e.bankName}</div></div>
-      <div><div class="payment-field-label">Sort Code</div><div class="payment-field-value">${e.bankSortCode}</div></div>
-      <div><div class="payment-field-label">Account No.</div><div class="payment-field-value">${e.bankAccountNumber}</div></div>
+      <div><div class="payment-field-label">Sort Code</div><div class="payment-field-value"><span class="payment-value-mono">${e.bankSortCode}</span></div></div>
+      <div><div class="payment-field-label">Account No.</div><div class="payment-field-value"><span class="payment-value-mono">${e.bankAccountNumber}</span></div></div>
     </div>
   </div>
 
