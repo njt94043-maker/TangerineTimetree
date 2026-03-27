@@ -38,6 +38,7 @@ import { SetlistList } from './components/SetlistList';
 import { SetlistDetail } from './components/SetlistDetail';
 import { Library } from './components/Library';
 import { Player } from './components/Player';
+import { XR18Camera } from './components/XR18Camera';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -582,6 +583,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             profiles={allProfiles}
           />
         )}
+
+        {view === 'xr18-camera' && <XR18Camera />}
 
         {/* Player persistence (D-166): stays mounted when navigating away, hidden with CSS.
             Audio keeps playing. Only unmounts on explicit close. */}
