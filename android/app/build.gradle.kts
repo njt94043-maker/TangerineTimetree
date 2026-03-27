@@ -113,6 +113,19 @@ dependencies {
     // Image loading
     implementation(libs.coil.compose)
 
+    // CameraX
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.video)
+    implementation(libs.camerax.view)
+
+    // ML Kit barcode scanning
+    implementation(libs.mlkit.barcode)
+
+    // Kotlin serialization
+    implementation(libs.serialization.json)
+
     // Core
     implementation(libs.core.ktx)
 }

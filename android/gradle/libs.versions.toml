@@ -10,6 +10,9 @@ oboe = "1.9.3"
 coroutines = "1.10.2"
 lifecycle = "2.9.0"
 coil = "3.1.0"
+camerax = "1.5.0-alpha06"
+mlkit-barcode = "17.3.0"
+serialization-json = "1.7.3"
 
 [libraries]
 # Compose BOM
@@ -45,6 +48,19 @@ oboe = { group = "com.google.oboe", name = "oboe", version.ref = "oboe" }
 
 # Image loading
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+
+# CameraX
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+camerax-video = { group = "androidx.camera", name = "camera-video", version.ref = "camerax" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+
+# ML Kit (barcode/QR scanning)
+mlkit-barcode = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkit-barcode" }
+
+# Kotlin serialization
+serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization-json" }
 
 # Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.16.0" }

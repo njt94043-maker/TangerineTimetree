@@ -41,6 +41,12 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'Recording',
+    items: [
+      { icon: '\uD83D\uDCF9', label: 'XR18 Camera', view: 'xr18-camera' },
+    ],
+  },
+  {
     title: 'Band',
     items: [
       { icon: '\uD83D\uDDBC\uFE0F', label: 'Media', view: 'media' },
@@ -85,6 +91,7 @@ const VIEW_TO_NAV: Record<string, View> = {
   'settings': 'settings',
   'day-detail': 'calendar',
   'gig-form': 'calendar',
+  'xr18-camera': 'xr18-camera',
 };
 
 interface DrawerProps {
@@ -94,7 +101,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
-  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary } = useView();
+  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, goToXR18Camera } = useView();
   const [showTutorial, setShowTutorial] = useState(false);
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
@@ -108,11 +115,12 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       case 'clients': goToClients(); break;
       case 'venues': goToVenues(); break;
       case 'library': goToLibrary(); break;
+      case 'xr18-camera': goToXR18Camera(); break;
       default: setView(targetView);
     }
     // Close on mobile
     if (window.innerWidth < 768) onClose();
-  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, onClose]);
+  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, goToXR18Camera, onClose]);
 
   // Close on Escape
   useEffect(() => {
