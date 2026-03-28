@@ -30,6 +30,9 @@ enum class PhoneMessageType {
     @SerialName("previewRequest") PreviewRequest,
     @SerialName("previewStart") PreviewStart,
     @SerialName("previewStop") PreviewStop,
+    @SerialName("syncPulse") SyncPulse,
+    @SerialName("syncPulseAck") SyncPulseAck,
+    @SerialName("qualityWarning") QualityWarning,
 }
 
 // ── Message envelope ──
@@ -60,6 +63,8 @@ data class StatusPayload(
     val framerate: Int = 30,
     val sampleRate: String = "48000",
     val isRecording: Boolean = false,
+    val actualFramerate: Double = 0.0,
+    val isConstantFrameRate: Boolean = true,
 )
 
 @Serializable
@@ -82,6 +87,21 @@ data class PhoneSettings(
 data class StartRecPayload(
     val sessionName: String = "",
     val timestamp: Long = 0,
+    val sessionId: String = "",
+)
+
+@Serializable
+data class SyncPulsePayload(
+    val serverTimestampMs: Long = 0,
+    val sessionId: String = "",
+)
+
+@Serializable
+data class QualityWarningPayload(
+    val warning: String = "",
+    val actualFramerate: Double = 0.0,
+    val requestedFramerate: Int = 0,
+    val isConstantFrameRate: Boolean = true,
 )
 
 // ── QR pairing URI ──

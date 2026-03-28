@@ -71,10 +71,24 @@ class PhoneCompanionManager(private val context: Context) {
         private set
 
     // Callbacks
-    var onStartRecording: ((sessionName: String) -> Unit)? = null
+    /** Called when StartRec is received. Parameters: sessionName, sessionId. */
+    var onStartRecording: ((sessionName: String, sessionId: String) -> Unit)? = null
     var onStopRecording: (() -> Unit)? = null
     var onSettingsChanged: ((PhoneSettings) -> Unit)? = null
     var capturePreviewFrame: (() -> ByteArray?)? = null
+
+    /** Called when a SyncPulse command is received. Should trigger screen flash + beep.
+     *  Returns the timestamp (ms) at which the pulse was executed. */
+    var onSyncPulse: (() -> Long)? = null
+
+    /** Provides the actual recording framerate for status reporting. */
+    var getActualFramerate: (() -> Double)? = null
+
+    /** Provides whether recording is using constant frame rate for status reporting. */
+    var getIsConstantFrameRate: (() -> Boolean)? = null
+
+    /** Provides quality warning info after recording starts, if device can't sustain CFR. */
+    var getQualityWarning: (() -> QualityWarningPayload?)? = null
 
     private var wifiLock: WifiManager.WifiLock? = null
     private var intentionalDisconnect = false
@@ -398,12 +412,27 @@ class PhoneCompanionManager(private val context: Context) {
 
             PhoneMessageType.StartRec -> {
                 val recPayload = PhoneProtocol.deserializePayload<StartRecPayload>(msg.payload)
+                val sessionName = recPayload?.sessionName ?: "recording"
+                val sessionId = recPayload?.sessionId ?: ""
                 _state.value = ConnectionState.Recording
-                onStartRecording?.invoke(recPayload?.sessionName ?: "recording")
+                onStartRecording?.invoke(sessionName, sessionId)
                 sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.RecStarted,
                     phoneId = _phoneId.value,
                 ))
+                // Check quality after 6 seconds and send warning if framerate is off
+                scope?.launch {
+                    delay(6000)
+                    val warning = getQualityWarning?.invoke()
+                    if (warning != null) {
+                        Log.w(TAG, "Quality warning: ${warning.warning}")
+                        sendCommand(PhoneProtocol.createMessage(
+                            type = PhoneMessageType.QualityWarning,
+                            phoneId = _phoneId.value,
+                            payload = PhoneProtocol.serializePayload(warning),
+                        ))
+                    }
+                }
             }
 
             PhoneMessageType.StopRec -> {
@@ -453,6 +482,18 @@ class PhoneCompanionManager(private val context: Context) {
             PhoneMessageType.PreviewStop -> {
                 livePreviewEnabled = false
                 Log.d(TAG, "Live preview paused")
+            }
+
+            PhoneMessageType.SyncPulse -> {
+                val pulsePayload = PhoneProtocol.deserializePayload<SyncPulsePayload>(msg.payload)
+                Log.d(TAG, "SyncPulse received: serverTs=${pulsePayload?.serverTimestampMs} sessionId=${pulsePayload?.sessionId}")
+                // Execute sync pulse (flash + beep) via callback; fall back to current time
+                val executedAtMs = onSyncPulse?.invoke() ?: System.currentTimeMillis()
+                sendCommand(PhoneProtocol.createMessage(
+                    type = PhoneMessageType.SyncPulseAck,
+                    phoneId = _phoneId.value,
+                    payload = PhoneProtocol.serializePayload(mapOf("executedAtMs" to executedAtMs)),
+                ))
             }
 
             else -> { /* Ignore unknown */ }
@@ -543,6 +584,8 @@ class PhoneCompanionManager(private val context: Context) {
                 resolution = settings.resolution,
                 framerate = settings.framerate,
                 isRecording = recording,
+                actualFramerate = getActualFramerate?.invoke() ?: settings.framerate.toDouble(),
+                isConstantFrameRate = getIsConstantFrameRate?.invoke() ?: true,
             )),
         ))
     }

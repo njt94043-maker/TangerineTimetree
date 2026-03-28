@@ -20,17 +20,41 @@ export function useXR18Camera() {
     cameraStream?.getTracks().forEach(t => t.stop());
 
     const facing = settings?.cameraFacing === 'front' ? 'user' : 'environment';
-    const constraints: MediaStreamConstraints = {
-      video: {
-        facingMode: { ideal: facing },
-        width: { ideal: settings?.resolution === '4K' ? 3840 : settings?.resolution === '720p' ? 1280 : 1920 },
-        height: { ideal: settings?.resolution === '4K' ? 2160 : settings?.resolution === '720p' ? 720 : 1080 },
-        frameRate: { ideal: Math.min(Math.max(settings?.framerate ?? 30, 15), 60) },
-      },
-      audio: true,
-    };
+    const targetFrameRate = Math.min(Math.max(settings?.framerate ?? 30, 15), 60);
 
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    // Try with exact framerate first (CFR enforcement), fall back to ideal
+    let stream: MediaStream;
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: settings?.resolution === '4K' ? 3840 : settings?.resolution === '720p' ? 1280 : 1920 },
+          height: { ideal: settings?.resolution === '4K' ? 2160 : settings?.resolution === '720p' ? 720 : 1080 },
+          frameRate: { exact: targetFrameRate },
+        },
+        audio: {
+          sampleRate: { ideal: 48000 },  // Match session sample rate
+          channelCount: { ideal: 1 },
+        },
+      };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch {
+      // exact framerate not supported — retry with ideal
+      const fallbackConstraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: settings?.resolution === '4K' ? 3840 : settings?.resolution === '720p' ? 1280 : 1920 },
+          height: { ideal: settings?.resolution === '4K' ? 2160 : settings?.resolution === '720p' ? 720 : 1080 },
+          frameRate: { ideal: targetFrameRate },
+        },
+        audio: {
+          sampleRate: { ideal: 48000 },
+          channelCount: { ideal: 1 },
+        },
+      };
+      stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+    }
+
     setCameraStream(stream);
 
     if (videoRef.current) {
@@ -53,7 +77,10 @@ export function useXR18Camera() {
         ? 'video/webm;codecs=vp8,opus'
         : 'video/webm';
 
-    const recorder = new MediaRecorder(cameraStream, { mimeType });
+    const recorder = new MediaRecorder(cameraStream, {
+      mimeType,
+      videoBitsPerSecond: 8_000_000,  // 8 Mbps for consistent quality
+    });
     mediaRecorderRef.current = recorder;
 
     recorder.ondataavailable = (e) => {

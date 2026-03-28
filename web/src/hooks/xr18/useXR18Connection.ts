@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  type PhoneMessage, type PairingInfo, type PhoneSettings, type SyncTimePayload, type StartRecPayload,
+  type PhoneMessage, type PairingInfo, type PhoneSettings, type SyncTimePayload,
+  type StartRecPayload, type SyncPulsePayload,
   createMessage, serializePayload, deserializePayload,
   getRelayChannelTopic, getRealtimeUrl,
 } from './protocol';
@@ -16,6 +17,33 @@ interface UseXR18ConnectionOptions {
   onSettingsChanged?: (settings: PhoneSettings) => void;
   /** Returns a base64 JPEG preview frame, or null */
   capturePreviewFrame?: () => string | null;
+}
+
+/** Flash screen white and play a 1kHz beep — sync cue for multi-camera alignment. */
+function executeSyncPulse(): number {
+  const timestamp = Date.now();
+
+  // Flash screen white for 66ms
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:white;z-index:99999;pointer-events:none';
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 66);
+
+  // Play 1kHz beep for 100ms
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 1000;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.value = 1.0;
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+    setTimeout(() => ctx.close(), 200);
+  } catch { /* AudioContext may not be available */ }
+
+  return timestamp;
 }
 
 export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
@@ -108,6 +136,15 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         break;
       }
 
+      case 'syncPulse': {
+        const pulsePayload = deserializePayload<SyncPulsePayload>(msg.payload);
+        void pulsePayload; // acknowledged but session ID not needed client-side
+        const executedAt = executeSyncPulse();
+        sendMessage(createMessage('syncPulseAck', phoneIdRef.current,
+          serializePayload({ executedAtMs: executedAt })));
+        break;
+      }
+
       case 'startRec': {
         const recPayload = deserializePayload<StartRecPayload>(msg.payload);
         setConnectionState('recording');
@@ -170,6 +207,8 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         battery, storageFree,
         resolution: '1080p', framerate: 30, sampleRate: '48000',
         isRecording: stateRef.current === 'recording',
+        actualFramerate: 30,  // Web can't easily measure this
+        isConstantFrameRate: true,
       })));
     }, 10_000);
   }, [sendMessage]);
