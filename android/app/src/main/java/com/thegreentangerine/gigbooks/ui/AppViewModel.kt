@@ -12,7 +12,11 @@ import androidx.lifecycle.viewModelScope
 import com.thegreentangerine.gigbooks.GigBooksApplication
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
+import com.thegreentangerine.gigbooks.data.supabase.CachedGigRepository
+import com.thegreentangerine.gigbooks.data.supabase.CachedSongRepository
+import com.thegreentangerine.gigbooks.data.supabase.CachedSetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.GigRepository
+import com.thegreentangerine.gigbooks.data.supabase.OfflineCache
 import com.thegreentangerine.gigbooks.data.supabase.SetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.SongRepository
 import com.thegreentangerine.gigbooks.data.supabase.StemRepository
@@ -34,6 +38,12 @@ import java.nio.ByteOrder
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     val engineAvailable: Boolean = GigBooksApplication.engineAvailable
+
+    // Offline-first cached repositories
+    private val offlineCache = OfflineCache(app)
+    private val cachedGigs = CachedGigRepository(offlineCache)
+    private val cachedSongs = CachedSongRepository(offlineCache)
+    private val cachedSetlists = CachedSetlistRepository(offlineCache)
 
     // D-166: Track splash completion so we skip it on Activity recreation / resume
     var splashDone by mutableStateOf(false)
@@ -434,7 +444,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 SongRepository.updateSong(songId, updates)
-                val refreshed = SongRepository.getSongs()
+                val refreshed = cachedSongs.getSongs()
                 withContext(Dispatchers.Main) {
                     songs = refreshed
                     // Update selectedSong if it's the one we just edited
@@ -456,10 +466,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             isLoading = true; loadError = null
             try {
-                songs    = SongRepository.getSongs()
+                songs    = cachedSongs.getSongs()
                 setlists = SetlistRepository.getAllSetlistsWithSongs()
                 // Load profile name map for owner tags
-                val profiles = GigRepository.getProfiles()
+                val profiles = cachedGigs.getProfiles()
                 profileNames = profiles.associate { it.id to it.name }
                 // Load shared song IDs for current user
                 val uid = currentUserId
@@ -485,8 +495,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             calLoading = true
             try {
-                calGigs      = GigRepository.getGigsForMonth(year, month)
-                calAwayDates = GigRepository.getAwayDatesForMonth(year, month)
+                calGigs      = cachedGigs.getGigsForMonth(year, month)
+                calAwayDates = cachedGigs.getAwayDatesForMonth(year, month)
             } catch (_: Exception) { /* non-fatal — calendar just shows empty */ }
             finally { calLoading = false }
         }

@@ -27,6 +27,9 @@ enum class PhoneMessageType {
     @SerialName("syncTimeRequest") SyncTimeRequest,
     @SerialName("syncTimeResponse") SyncTimeResponse,
     @SerialName("cameraPreview") CameraPreview,
+    @SerialName("previewRequest") PreviewRequest,
+    @SerialName("previewStart") PreviewStart,
+    @SerialName("previewStop") PreviewStop,
 }
 
 // ── Message envelope ──
@@ -72,6 +75,7 @@ data class PhoneSettings(
     val framerate: Int = 30,
     val exposure: String = "Auto",
     val stabilisation: String = "Off",
+    val cameraFacing: String = "back",  // "back" or "front"
 )
 
 @Serializable
@@ -83,11 +87,19 @@ data class StartRecPayload(
 // ── QR pairing URI ──
 
 data class PairingInfo(
-    val ip: String,
+    val ips: List<String>,
     val tcpPort: Int,
     val wsPort: Int,
     val secret: String,
-)
+    val btName: String? = null,
+) {
+    /** First IP (primary). */
+    val ip: String get() = ips.first()
+    /** Whether Bluetooth pairing is available. */
+    val hasBluetooth: Boolean get() = !btName.isNullOrBlank()
+    /** Relay channel name for Supabase Broadcast. */
+    val relayChannelName: String get() = "xr18-relay:$secret"
+}
 
 // ── JSON codec ──
 
@@ -145,7 +157,7 @@ object PhoneProtocol {
         return if (readExact(input, body, length)) body else null
     }
 
-    /** Parses QR code URI: xr18studio://<ip>:<tcpPort>/<wsPort>/<secret> */
+    /** Parses QR code URI: xr18studio://<ip1,ip2,...>:<tcpPort>/<wsPort>/<secret>[/<btName>] */
     fun parsePairingUri(uri: String): PairingInfo? {
         val prefix = "xr18studio://"
         if (!uri.startsWith(prefix)) return null
@@ -154,12 +166,18 @@ object PhoneProtocol {
         if (parts.size < 3) return null
         val hostPort = parts[0].split(":")
         if (hostPort.size != 2) return null
+        val ips = hostPort[0].split(",").filter { it.isNotBlank() }
+        if (ips.isEmpty()) return null
         return try {
+            val btName = if (parts.size >= 4 && parts[3].isNotBlank()) {
+                java.net.URLDecoder.decode(parts[3], "UTF-8")
+            } else null
             PairingInfo(
-                ip = hostPort[0],
+                ips = ips,
                 tcpPort = hostPort[1].toInt(),
                 wsPort = parts[1].toInt(),
                 secret = parts[2],
+                btName = btName,
             )
         } catch (_: NumberFormatException) { null }
     }

@@ -19,12 +19,13 @@ export function useXR18Camera() {
     // Stop any existing stream first
     cameraStream?.getTracks().forEach(t => t.stop());
 
+    const facing = settings?.cameraFacing === 'front' ? 'user' : 'environment';
     const constraints: MediaStreamConstraints = {
       video: {
-        facingMode: { ideal: 'environment' },
+        facingMode: { ideal: facing },
         width: { ideal: settings?.resolution === '4K' ? 3840 : settings?.resolution === '720p' ? 1280 : 1920 },
         height: { ideal: settings?.resolution === '4K' ? 2160 : settings?.resolution === '720p' ? 720 : 1080 },
-        frameRate: { ideal: settings?.framerate ?? 30 },
+        frameRate: { ideal: Math.min(Math.max(settings?.framerate ?? 30, 15), 60) },
       },
       audio: true,
     };

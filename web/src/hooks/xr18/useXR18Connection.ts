@@ -2,6 +2,7 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 import {
   type PhoneMessage, type PairingInfo, type PhoneSettings, type SyncTimePayload, type StartRecPayload,
   createMessage, serializePayload, deserializePayload,
+  getRelayChannelTopic, getRealtimeUrl,
 } from './protocol';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'pairing' | 'connected' | 'recording' | 'error';
@@ -22,12 +23,23 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
   const [phoneId, setPhoneId] = useState<string | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [currentSettings, setCurrentSettings] = useState<PhoneSettings>({
-    resolution: '1080p', framerate: 30, exposure: 'Auto', stabilisation: 'Off',
+    resolution: '1080p', framerate: 30, exposure: 'Auto', stabilisation: 'Off', cameraFacing: 'back',
   });
+  const [wsConnected, setWsConnected] = useState(false);
+  const [relayConnected, setRelayConnected] = useState(false);
 
+  // WebSocket (direct) transport
   const wsRef = useRef<WebSocket | null>(null);
+  // Supabase relay transport
+  const relayWsRef = useRef<WebSocket | null>(null);
+  const relayHeartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const relayRefCounter = useRef(0);
+  const relayChannelRef = useRef('');
+  const relayJoinedRef = useRef(false);
+
   const statusIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const previewIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const livePreviewEnabledRef = useRef(true);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backoffRef = useRef(1000);
   const intentionalRef = useRef(false);
@@ -37,10 +49,28 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
+  const nextRelayRef = () => String(++relayRefCounter.current);
+
+  /** Send via best available transport: WS direct first, relay fallback. */
   const sendMessage = useCallback((msg: PhoneMessage) => {
     const ws = wsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
+      return;
+    }
+    // Fallback to relay
+    const relay = relayWsRef.current;
+    if (relay && relay.readyState === WebSocket.OPEN) {
+      relay.send(JSON.stringify({
+        topic: relayChannelRef.current,
+        event: 'broadcast',
+        payload: {
+          type: 'broadcast',
+          event: 'phone_msg',
+          payload: msg,
+        },
+        ref: nextRelayRef(),
+      }));
     }
   }, []);
 
@@ -103,6 +133,23 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         sendMessage(createMessage('settingsAck', phoneIdRef.current));
         break;
       }
+
+      case 'previewRequest': {
+        // Server requests a single preview frame
+        const frame = optsRef.current.capturePreviewFrame?.();
+        if (frame) {
+          sendMessage(createMessage('cameraPreview', phoneIdRef.current, frame));
+        }
+        break;
+      }
+
+      case 'previewStart':
+        livePreviewEnabledRef.current = true;
+        break;
+
+      case 'previewStop':
+        livePreviewEnabledRef.current = false;
+        break;
     }
   }, [sendMessage]);
 
@@ -130,7 +177,8 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
   const startPreviewSender = useCallback(() => {
     if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
     previewIntervalRef.current = setInterval(() => {
-      if (stateRef.current === 'recording') return; // less frequent during recording
+      if (!livePreviewEnabledRef.current) return;
+      if (stateRef.current === 'recording') return;
       const frame = optsRef.current.capturePreviewFrame?.();
       if (frame) {
         sendMessage(createMessage('cameraPreview', phoneIdRef.current, frame));
@@ -138,17 +186,74 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
     }, 2000);
   }, [sendMessage]);
 
-  const connect = useCallback((info: PairingInfo) => {
-    pairingRef.current = info;
-    intentionalRef.current = false;
-    setLastError(null);
-    setConnectionState('connecting');
-    stateRef.current = 'connecting';
+  /** Connect relay (Supabase Broadcast) as a fallback transport. */
+  const connectRelay = useCallback((secret: string) => {
+    relayChannelRef.current = getRelayChannelTopic(secret);
+    relayJoinedRef.current = false;
+    relayRefCounter.current = 0;
 
-    const ws = new WebSocket(`ws://${info.ip}:${info.wsPort}`);
+    const ws = new WebSocket(getRealtimeUrl());
+    relayWsRef.current = ws;
+
+    ws.onopen = () => {
+      setRelayConnected(true);
+
+      // Phoenix join
+      ws.send(JSON.stringify({
+        topic: relayChannelRef.current,
+        event: 'phx_join',
+        payload: { config: { broadcast: { self: false } } },
+        ref: nextRelayRef(),
+      }));
+
+      // Heartbeat
+      relayHeartbeatRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            topic: 'phoenix',
+            event: 'heartbeat',
+            payload: {},
+            ref: nextRelayRef(),
+          }));
+        }
+      }, 30_000);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const frame = JSON.parse(event.data as string);
+        const evt = frame.event;
+        if (evt === 'phx_reply') {
+          if (frame.topic === relayChannelRef.current && frame.payload?.status === 'ok') {
+            relayJoinedRef.current = true;
+          }
+        } else if (evt === 'broadcast') {
+          if (frame.payload?.event === 'phone_msg' && frame.payload?.payload) {
+            handleMessage(frame.payload.payload as PhoneMessage);
+          }
+        }
+      } catch { /* bad JSON */ }
+    };
+
+    ws.onerror = () => { cleanupRelay(); };
+    ws.onclose = () => { cleanupRelay(); };
+  }, [handleMessage]);
+
+  const cleanupRelay = useCallback(() => {
+    if (relayHeartbeatRef.current) {
+      clearInterval(relayHeartbeatRef.current);
+      relayHeartbeatRef.current = null;
+    }
+    relayJoinedRef.current = false;
+    setRelayConnected(false);
+  }, []);
+
+  const tryConnectIp = useCallback((ip: string, info: PairingInfo) => {
+    const ws = new WebSocket(`ws://${ip}:${info.wsPort}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      setWsConnected(true);
       setConnectionState('pairing');
       stateRef.current = 'pairing';
       const pairPayload = serializePayload({
@@ -167,14 +272,37 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
     };
 
     ws.onerror = () => {
-      setLastError('WebSocket connection error');
-      setConnectionState('error');
-      stateRef.current = 'error';
+      // Try next IP if available
+      const idx = info.ips.indexOf(ip);
+      if (idx >= 0 && idx < info.ips.length - 1) {
+        tryConnectIp(info.ips[idx + 1], info);
+      } else {
+        // All IPs failed — try relay-only connection
+        setWsConnected(false);
+        if (relayWsRef.current?.readyState === WebSocket.OPEN) {
+          // Relay is already connected, pair via relay
+          setConnectionState('pairing');
+          stateRef.current = 'pairing';
+          const pairPayload = serializePayload({
+            deviceModel: navigator.userAgent.slice(0, 50),
+            platform: 'Web',
+            name: 'Camera',
+          });
+          sendMessage(createMessage('pair', null, pairPayload, info.secret));
+        } else {
+          setLastError('No connection — WebSocket and relay both failed');
+          setConnectionState('error');
+          stateRef.current = 'error';
+        }
+      }
     };
 
     ws.onclose = () => {
+      setWsConnected(false);
       cleanup();
       if (!intentionalRef.current) {
+        // If relay is still alive, keep going
+        if (relayWsRef.current?.readyState === WebSocket.OPEN) return;
         setConnectionState('error');
         stateRef.current = 'error';
         setLastError('Connection lost');
@@ -184,18 +312,49 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         stateRef.current = 'disconnected';
       }
     };
-  }, [sendMessage, handleMessage, startStatusSender, startPreviewSender]);
+  }, [sendMessage, handleMessage]);
+
+  const connect = useCallback((info: PairingInfo) => {
+    pairingRef.current = info;
+    intentionalRef.current = false;
+    setLastError(null);
+    setConnectionState('connecting');
+    stateRef.current = 'connecting';
+
+    // Start relay in background (always available as fallback)
+    connectRelay(info.secret);
+
+    // Try direct WebSocket connection
+    tryConnectIp(info.ips[0], info);
+  }, [tryConnectIp, connectRelay]);
 
   const disconnect = useCallback(() => {
     intentionalRef.current = true;
     cleanup();
     wsRef.current?.close();
     wsRef.current = null;
+    setWsConnected(false);
+    // Disconnect relay too
+    if (relayWsRef.current) {
+      try {
+        if (relayWsRef.current.readyState === WebSocket.OPEN) {
+          relayWsRef.current.send(JSON.stringify({
+            topic: relayChannelRef.current,
+            event: 'phx_leave',
+            payload: {},
+            ref: nextRelayRef(),
+          }));
+        }
+        relayWsRef.current.close();
+      } catch { /* ignore */ }
+      relayWsRef.current = null;
+    }
+    cleanupRelay();
     setConnectionState('disconnected');
     stateRef.current = 'disconnected';
     setPhoneId(null);
     phoneIdRef.current = null;
-  }, []);
+  }, [cleanupRelay]);
 
   const scheduleReconnect = useCallback(() => {
     if (intentionalRef.current || !pairingRef.current) return;
@@ -220,8 +379,14 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
       intentionalRef.current = true;
       cleanup();
       wsRef.current?.close();
+      relayWsRef.current?.close();
+      cleanupRelay();
     };
-  }, [cleanup]);
+  }, [cleanup, cleanupRelay]);
 
-  return { connectionState, phoneId, lastError, currentSettings, connect, disconnect, sendMessage };
+  return {
+    connectionState, phoneId, lastError, currentSettings,
+    wsConnected, relayConnected,
+    connect, disconnect, sendMessage,
+  };
 }
