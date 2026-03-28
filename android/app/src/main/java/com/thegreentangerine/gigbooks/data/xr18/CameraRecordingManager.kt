@@ -51,6 +51,21 @@ class CameraRecordingManager(private val context: Context) {
     private val _isBound = MutableStateFlow(false)
     val isBound: StateFlow<Boolean> = _isBound
 
+    private val _actualFramerate = MutableStateFlow(0.0)
+    val actualFramerate: StateFlow<Double> = _actualFramerate
+
+    private val _isConstantFrameRate = MutableStateFlow(true)
+    val isConstantFrameRate: StateFlow<Boolean> = _isConstantFrameRate
+
+    /** Session ID from StartRecPayload, used for file naming and sync correlation. */
+    private var currentSessionId: String? = null
+
+    // Frame rate monitoring state
+    private var requestedFramerate: Int = 30
+    private var framerateMonitorJob: Job? = null
+    private var frameEventCount = 0
+    private var frameMonitorStartMs = 0L
+
     /**
      * Bind CameraX to lifecycle with Preview + VideoCapture + ImageAnalysis.
      */
@@ -90,9 +105,11 @@ class CameraRecordingManager(private val context: Context) {
 
             // Clamp framerate to safe range (device may not support requested rate)
             val safeFramerate = settings.framerate.coerceIn(15, 60)
+            requestedFramerate = safeFramerate
 
             val recorder = Recorder.Builder()
                 .setQualitySelector(QualitySelector.from(quality, FallbackStrategy.higherQualityOrLowerThan(quality)))
+                .setAudioSource(AudioSource.DEFAULT)  // Ensure audio is always recorded
                 .build()
             videoCapture = VideoCapture.Builder(recorder)
                 .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))
@@ -159,18 +176,71 @@ class CameraRecordingManager(private val context: Context) {
     /**
      * Start video recording to the given output directory.
      * Returns the output file.
+     * @param sessionId Optional session ID from StartRecPayload for file naming and sync correlation.
      */
-    fun startRecording(outputDir: File, sessionName: String): File {
+    fun startRecording(outputDir: File, sessionName: String, sessionId: String? = null): File {
         val capture = videoCapture ?: throw IllegalStateException("Camera not bound")
+        currentSessionId = sessionId
         outputDir.mkdirs()
-        val file = File(outputDir, "${sessionName}_${System.currentTimeMillis()}.mp4")
+
+        // Include sessionId in filename if provided, for easy correlation with audio files
+        val namePart = if (!sessionId.isNullOrBlank()) {
+            "${sessionName}_${sessionId}_${System.currentTimeMillis()}"
+        } else {
+            "${sessionName}_${System.currentTimeMillis()}"
+        }
+        val file = File(outputDir, "$namePart.mp4")
         val outputOptions = FileOutputOptions.Builder(file).build()
+
+        // Reset frame rate monitoring state
+        _actualFramerate.value = 0.0
+        _isConstantFrameRate.value = true
+        frameEventCount = 0
+        frameMonitorStartMs = 0L
 
         activeRecording = capture.output
             .prepareRecording(context, outputOptions)
+            .withAudioEnabled()
             .start(ContextCompat.getMainExecutor(context)) { event ->
                 when (event) {
+                    is VideoRecordEvent.Status -> {
+                        // Count frames delivered to estimate actual framerate
+                        val stats = event.recordingStats
+                        val nowMs = System.currentTimeMillis()
+                        if (frameMonitorStartMs == 0L) {
+                            frameMonitorStartMs = nowMs
+                        }
+                        frameEventCount++
+                        val elapsedSec = (nowMs - frameMonitorStartMs) / 1000.0
+                        if (elapsedSec >= 5.0) {
+                            // We get Status events ~1Hz from CameraX; derive framerate from
+                            // the recorded duration vs the number of bytes/frames reported.
+                            // Use recordedDurationNanos for a more accurate measurement.
+                            val recordedSec = stats.recordedDurationNanos / 1_000_000_000.0
+                            if (recordedSec > 0) {
+                                // CameraX Status events fire once per second; use recorded duration
+                                // to estimate actual fps from the numBytesRecorded trend.
+                                // For a direct fps measurement, track Status event cadence
+                                // against the elapsed wall clock.
+                                val measuredFps = frameEventCount / elapsedSec
+                                // Status events fire ~1/sec, so measuredFps ≈ 1. Instead derive
+                                // from the encoder's reported duration: if duration is close to
+                                // wall time, CFR is working.
+                                val wallElapsedSec = (nowMs - frameMonitorStartMs) / 1000.0
+                                val durationRatio = if (wallElapsedSec > 0) recordedSec / wallElapsedSec else 1.0
+                                // Estimate actual fps as requestedFramerate * durationRatio
+                                val estimatedFps = requestedFramerate * durationRatio
+                                _actualFramerate.value = estimatedFps
+                                val diff = kotlin.math.abs(estimatedFps - requestedFramerate)
+                                if (diff > 0.5) {
+                                    _isConstantFrameRate.value = false
+                                    Log.w(TAG, "CFR deviation detected: requested=$requestedFramerate, estimated=%.2f".format(estimatedFps))
+                                }
+                            }
+                        }
+                    }
                     is VideoRecordEvent.Finalize -> {
+                        framerateMonitorJob?.cancel()
                         _isRecording.value = false
                     }
                 }
@@ -180,6 +250,7 @@ class CameraRecordingManager(private val context: Context) {
     }
 
     fun stopRecording() {
+        framerateMonitorJob?.cancel()
         activeRecording?.stop()
         activeRecording = null
     }
@@ -192,7 +263,83 @@ class CameraRecordingManager(private val context: Context) {
         rebind(provider, lifecycleOwner, previewView, settings)
     }
 
+    /**
+     * Execute a sync pulse: flash the screen white for 66ms and play a 1kHz beep for 100ms.
+     * Returns the timestamp (ms) at which the pulse was initiated, for sync correlation.
+     * Must be called from any thread; UI work is dispatched to the main thread internally.
+     */
+    fun executeSyncPulse(activity: android.app.Activity): Long {
+        val timestamp = System.currentTimeMillis()
+        // Flash screen white for 66ms (2 frames at 30fps)
+        activity.runOnUiThread {
+            val overlay = android.view.View(activity)
+            overlay.setBackgroundColor(android.graphics.Color.WHITE)
+            val decorView = activity.window.decorView as android.view.ViewGroup
+            decorView.addView(overlay, android.view.ViewGroup.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+            ))
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                decorView.removeView(overlay)
+            }, 66)
+        }
+        // Play 1kHz beep for 100ms at max volume
+        playBeep(1000, 100)
+        return timestamp
+    }
+
+    private fun playBeep(frequencyHz: Int, durationMs: Int) {
+        val sampleRate = 44100
+        val numSamples = (sampleRate * durationMs / 1000.0).toInt()
+        val samples = ShortArray(numSamples)
+        for (i in 0 until numSamples) {
+            samples[i] = (Short.MAX_VALUE * kotlin.math.sin(2.0 * Math.PI * frequencyHz * i / sampleRate)).toInt().toShort()
+        }
+        val track = android.media.AudioTrack.Builder()
+            .setAudioAttributes(android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build())
+            .setAudioFormat(android.media.AudioFormat.Builder()
+                .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(sampleRate)
+                .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO)
+                .build())
+            .setBufferSizeInBytes(samples.size * 2)
+            .setTransferMode(android.media.AudioTrack.MODE_STATIC)
+            .build()
+        track.write(samples, 0, samples.size)
+        track.play()
+        // Clean up after playback
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            track.stop()
+            track.release()
+        }, durationMs.toLong() + 50)
+    }
+
+    /**
+     * Validate current frame rate quality. Returns a QualityWarningPayload if the
+     * device cannot sustain the requested CFR, or null if quality is acceptable.
+     */
+    fun checkFramerateQuality(): QualityWarningPayload? {
+        val actual = _actualFramerate.value
+        val isCfr = _isConstantFrameRate.value
+        val requested = requestedFramerate
+        // Only report after monitoring has started (actual > 0)
+        if (actual <= 0.0) return null
+        val diff = kotlin.math.abs(actual - requested)
+        return if (diff > 0.5 || !isCfr) {
+            QualityWarningPayload(
+                warning = "Device cannot sustain ${requested}fps CFR. Actual: %.2f fps".format(actual),
+                actualFramerate = actual,
+                requestedFramerate = requested,
+                isConstantFrameRate = isCfr,
+            )
+        } else null
+    }
+
     fun release() {
+        framerateMonitorJob?.cancel()
         activeRecording?.stop()
         activeRecording = null
         cameraProvider?.unbindAll()

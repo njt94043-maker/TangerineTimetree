@@ -12,7 +12,8 @@ export type PhoneMessageType =
   | 'recStarted' | 'recStopped' | 'settingsAck'
   | 'syncTimeRequest' | 'syncTimeResponse'
   | 'cameraPreview'
-  | 'previewRequest' | 'previewStart' | 'previewStop';
+  | 'previewRequest' | 'previewStart' | 'previewStop'
+  | 'syncPulse' | 'syncPulseAck' | 'qualityWarning';
 
 // ── Message envelope ──
 
@@ -39,6 +40,8 @@ export interface StatusPayload {
   framerate: number;
   sampleRate: string;
   isRecording: boolean;
+  actualFramerate: number;
+  isConstantFrameRate: boolean;
 }
 
 export interface SyncTimePayload {
@@ -58,6 +61,19 @@ export interface PhoneSettings {
 export interface StartRecPayload {
   sessionName: string;
   timestamp: number;
+  sessionId: string;
+}
+
+export interface SyncPulsePayload {
+  serverTimestampMs: number;
+  sessionId: string;
+}
+
+export interface QualityWarningPayload {
+  warning: string;
+  actualFramerate: number;
+  requestedFramerate: number;
+  isConstantFrameRate: boolean;
 }
 
 // ── QR pairing URI ──
