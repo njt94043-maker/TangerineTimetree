@@ -17,6 +17,7 @@ export function XR18Camera() {
 
   const {
     connectionState, phoneId, lastError, currentSettings,
+    wsConnected, relayConnected,
     connect, disconnect,
   } = useXR18Connection({
     onStartRecording: () => startRecording(),
@@ -71,7 +72,7 @@ export function XR18Camera() {
 
   const handleManualConnect = () => {
     const wsPort = parseInt(manualPort, 10) || 8731;
-    const info: PairingInfo = { ip: manualIp, tcpPort: wsPort - 1, wsPort, secret: manualSecret };
+    const info: PairingInfo = { ips: [manualIp], ip: manualIp, tcpPort: wsPort - 1, wsPort, secret: manualSecret };
     connect(info);
   };
 
@@ -218,6 +219,20 @@ export function XR18Camera() {
               <div style={{ color: '#7a7a94', fontSize: 12 }}>ID: {phoneId ?? '—'}</div>
               <div style={{ color: '#7a7a94', fontSize: 12 }}>
                 {currentSettings.resolution} @ {currentSettings.framerate}fps
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: wsConnected ? '#00e676' : '#4a4a60' }}>
+                  WS <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                    background: wsConnected ? '#00e676' : '#4a4a60', marginLeft: 4, verticalAlign: 'middle',
+                  }} />
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: relayConnected ? '#00e676' : '#4a4a60' }}>
+                  RELAY <span style={{
+                    display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                    background: relayConnected ? '#00e676' : '#4a4a60', marginLeft: 4, verticalAlign: 'middle',
+                  }} />
+                </span>
               </div>
             </div>
             <button
