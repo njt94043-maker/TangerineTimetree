@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.YuvImage
+import android.util.Log
 import android.util.Size
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -12,6 +13,7 @@ import androidx.camera.video.*
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.ByteArrayOutputStream
@@ -24,6 +26,10 @@ import java.util.concurrent.Executors
  */
 class CameraRecordingManager(private val context: Context) {
 
+    companion object {
+        private const val TAG = "CameraRecording"
+    }
+
     private var cameraProvider: ProcessCameraProvider? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var imageAnalysis: ImageAnalysis? = null
@@ -31,6 +37,13 @@ class CameraRecordingManager(private val context: Context) {
     private var activeRecording: Recording? = null
     private var lastPreviewFrame: ByteArray? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private val scanScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+    /** When set, each camera frame is scanned for QR codes. Called with the result on detection. */
+    var onQrCodeScanned: ((PairingInfo) -> Unit)? = null
+
+    /** Enable/disable QR scanning on camera frames. */
+    var qrScanEnabled: Boolean = false
 
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
@@ -56,45 +69,91 @@ class CameraRecordingManager(private val context: Context) {
         previewView: PreviewView,
         settings: PhoneSettings,
     ) {
-        provider.unbindAll()
-
-        preview = Preview.Builder().build().also {
-            it.surfaceProvider = previewView.surfaceProvider
+        // Don't rebind during recording — it kills the active recording
+        if (_isRecording.value) {
+            Log.w(TAG, "Ignoring rebind during active recording")
+            return
         }
 
-        val quality = when (settings.resolution) {
-            "4K" -> Quality.UHD
-            "720p" -> Quality.HD
-            else -> Quality.FHD  // 1080p default
-        }
+        try {
+            provider.unbindAll()
 
-        val recorder = Recorder.Builder()
-            .setQualitySelector(QualitySelector.from(quality, FallbackStrategy.higherQualityOrLowerThan(quality)))
-            .build()
-        videoCapture = VideoCapture.withOutput(recorder)
-
-        // ImageAnalysis for preview frame capture (low-res JPEG for base64 preview)
-        imageAnalysis = ImageAnalysis.Builder()
-            .setTargetResolution(Size(320, 240))
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .build()
-            .also { analysis ->
-                analysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                    lastPreviewFrame = imageProxyToJpeg(imageProxy)
-                    imageProxy.close()
-                }
+            preview = Preview.Builder().build().also {
+                it.surfaceProvider = previewView.surfaceProvider
             }
 
-        val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            val quality = when (settings.resolution) {
+                "4K" -> Quality.UHD
+                "720p" -> Quality.HD
+                else -> Quality.FHD  // 1080p default
+            }
 
-        provider.bindToLifecycle(
-            lifecycleOwner,
-            cameraSelector,
-            preview,
-            videoCapture,
-            imageAnalysis,
-        )
-        _isBound.value = true
+            // Clamp framerate to safe range (device may not support requested rate)
+            val safeFramerate = settings.framerate.coerceIn(15, 60)
+
+            val recorder = Recorder.Builder()
+                .setQualitySelector(QualitySelector.from(quality, FallbackStrategy.higherQualityOrLowerThan(quality)))
+                .build()
+            videoCapture = VideoCapture.Builder(recorder)
+                .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))
+                .build()
+
+            // ImageAnalysis for preview frame capture + QR scanning
+            // Use 640x480 for reliable QR detection (320x240 is too low for ML Kit)
+            imageAnalysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(640, 480))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also { analysis ->
+                    @androidx.camera.core.ExperimentalGetImage
+                    analysis.setAnalyzer(analysisExecutor) { imageProxy ->
+                        // QR scanning: MUST run BEFORE imageProxyToJpeg because JPEG conversion
+                        // consumes YUV buffer positions, leaving empty data for ML Kit.
+                        // Also skip JPEG capture during scanning — we're not connected so no preview needed.
+                        if (qrScanEnabled && onQrCodeScanned != null) {
+                            scanScope.launch {
+                                try {
+                                    val info = QrScannerHelper.scanImageProxy(imageProxy)
+                                    if (info != null) {
+                                        qrScanEnabled = false
+                                        onQrCodeScanned?.invoke(info)
+                                    }
+                                } catch (_: Exception) {
+                                    // ML Kit can fail on some frames — ignore
+                                } finally {
+                                    imageProxy.close()
+                                }
+                            }
+                        } else {
+                            // Normal mode: capture preview frame as JPEG for companion protocol
+                            lastPreviewFrame = imageProxyToJpeg(imageProxy)
+                            imageProxy.close()
+                        }
+                    }
+                }
+
+            val cameraSelector = if (settings.cameraFacing == "front") {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            } else {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            }
+
+            provider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                preview,
+                videoCapture,
+                imageAnalysis,
+            )
+            _isBound.value = true
+        } catch (e: Exception) {
+            Log.e(TAG, "Camera rebind failed: ${e.message}", e)
+            // Try again with safe defaults if the requested settings failed
+            if (settings.framerate != 30 || settings.resolution != "1080p" || settings.cameraFacing != "back") {
+                Log.w(TAG, "Retrying with safe defaults")
+                rebind(provider, lifecycleOwner, previewView, PhoneSettings())
+            }
+        }
     }
 
     /**
@@ -138,6 +197,7 @@ class CameraRecordingManager(private val context: Context) {
         activeRecording = null
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()
+        scanScope.cancel()
         _isBound.value = false
     }
 

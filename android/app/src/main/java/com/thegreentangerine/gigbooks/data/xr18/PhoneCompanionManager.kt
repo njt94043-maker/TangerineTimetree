@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.util.Base64
+import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,16 +20,30 @@ enum class ConnectionState {
 
 /**
  * Client-side orchestrator for XR18Studio Phone Director connection.
- * Manages TCP connection, pairing, heartbeat ACK, time sync, recording commands,
- * status reporting, preview frames, and auto-reconnect.
+ * Supports triple BT+TCP+Relay transport: BT connects first (no WiFi needed),
+ * TCP connects as second channel for high-bandwidth preview,
+ * Supabase relay connects as internet fallback (phone on cellular, PC on WiFi).
+ *
+ * Routing:
+ *  - Commands (heartbeat, status, rec responses) → BT primary, TCP fallback, Relay fallback
+ *  - Preview frames → TCP primary, BT fallback, Relay fallback
+ *  - Messages received from any channel are handled identically
  */
 class PhoneCompanionManager(private val context: Context) {
 
+    companion object {
+        private const val TAG = "PhoneCompanion"
+    }
+
     private val tcpClient = TcpPhoneClient()
+    private val btClient = BluetoothPhoneClient(context)
+    private val relayClient = SupabaseBroadcastClient()
     private var scope: CoroutineScope? = null
     private var statusJob: Job? = null
     private var previewJob: Job? = null
     private var reconnectJob: Job? = null
+    private var tcpConnectJob: Job? = null
+    private var relayConnectJob: Job? = null
 
     private val _state = MutableStateFlow(ConnectionState.Disconnected)
     val state: StateFlow<ConnectionState> = _state
@@ -42,6 +57,16 @@ class PhoneCompanionManager(private val context: Context) {
     private val _currentSettings = MutableStateFlow(PhoneSettings())
     val currentSettings: StateFlow<PhoneSettings> = _currentSettings
 
+    /** Which transports are currently connected. */
+    private val _btConnected = MutableStateFlow(false)
+    val btConnected: StateFlow<Boolean> = _btConnected
+
+    private val _tcpConnected = MutableStateFlow(false)
+    val tcpConnected: StateFlow<Boolean> = _tcpConnected
+
+    private val _relayConnected = MutableStateFlow(false)
+    val relayConnected: StateFlow<Boolean> = _relayConnected
+
     var pairingInfo: PairingInfo? = null
         private set
 
@@ -53,10 +78,16 @@ class PhoneCompanionManager(private val context: Context) {
 
     private var wifiLock: WifiManager.WifiLock? = null
     private var intentionalDisconnect = false
+    private var btPaired = false
+    private var tcpPaired = false
+    private var relayPaired = false
+    private var livePreviewEnabled = true  // Server can pause/resume preview sending
 
     fun connect(info: PairingInfo) {
         pairingInfo = info
         intentionalDisconnect = false
+        btPaired = false
+        tcpPaired = false
         scope?.cancel()
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         scope?.launch { doConnect(info) }
@@ -71,11 +102,155 @@ class PhoneCompanionManager(private val context: Context) {
     private suspend fun doConnect(info: PairingInfo) {
         _state.value = ConnectionState.Connecting
         _error.value = null
-        try {
-            tcpClient.connect(info.ip, info.tcpPort)
-            _state.value = ConnectionState.Pairing
 
-            // Send Pair message
+        // Strategy: try BT first (instant, no WiFi needed), then TCP in background
+        var btOk = false
+        var tcpOk = false
+
+        // 1. Try Bluetooth first if btName is available
+        if (info.hasBluetooth) {
+            try {
+                Log.d(TAG, "Attempting BT connection to '${info.btName}'")
+                btClient.connect(info.btName!!, timeoutMs = 10000)
+                btOk = true
+                _btConnected.value = true
+                Log.d(TAG, "BT connected")
+            } catch (e: Exception) {
+                Log.w(TAG, "BT connect failed: ${e.message}")
+                // BT failed — fall through to TCP
+            }
+        }
+
+        // 2. Try TCP (needs same network as XR18 Studio)
+        if (!btOk) {
+            // If BT failed, TCP is our only hope — try it now
+            try {
+                connectTcp(info)
+                tcpOk = true
+            } catch (e: Exception) {
+                Log.w(TAG, "TCP connect failed: ${e.message}")
+            }
+        } else {
+            // BT succeeded — try TCP in background (non-blocking)
+            tcpConnectJob = scope?.launch {
+                try {
+                    connectTcp(info)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Background TCP connect failed: ${e.message}")
+                    // That's fine — BT is working
+                }
+            }
+        }
+
+        // 3. If neither BT nor TCP worked, try relay as last resort (synchronous)
+        var relayOk = false
+        if (!btOk && !tcpOk) {
+            try {
+                Log.d(TAG, "Attempting Supabase relay connection")
+                relayClient.connect(info.secret)
+                // Give WebSocket a moment to connect and join
+                delay(2000)
+                if (relayClient.isConnected.value) {
+                    relayOk = true
+                    _relayConnected.value = true
+                    Log.d(TAG, "Relay connected")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Relay connect failed: ${e.message}")
+            }
+        } else {
+            // BT or TCP succeeded — try relay in background (non-blocking fallback)
+            relayConnectJob = scope?.launch {
+                delay(2000) // Brief delay
+                try {
+                    relayClient.connect(info.secret)
+                    delay(2000) // Wait for WS handshake
+                    if (relayClient.isConnected.value) {
+                        _relayConnected.value = true
+                        Log.d(TAG, "Background relay connected")
+                        // Start handler for relay messages
+                        scope?.launch {
+                            relayClient.messages.collect { m -> handleMessage(m) }
+                        }
+                        scope?.launch {
+                            relayClient.disconnected.collect {
+                                _relayConnected.value = false
+                                Log.w(TAG, "Relay disconnected")
+                                onTransportLost()
+                            }
+                        }
+                        // If already paired, send Pair on relay too
+                        if (_phoneId.value != null) {
+                            val pairPayload = PhoneProtocol.serializePayload(
+                                PairPayload(
+                                    deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
+                                    platform = "Android",
+                                    name = "Camera",
+                                )
+                            )
+                            relayClient.send(PhoneProtocol.createMessage(
+                                type = PhoneMessageType.Pair,
+                                phoneId = _phoneId.value,
+                                payload = pairPayload,
+                                secret = info.secret,
+                            ))
+                            relayPaired = true
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Relay unavailable — that's fine
+                }
+            }
+        }
+
+        if (!btOk && !tcpOk && !relayOk) {
+            _state.value = ConnectionState.Error
+            _error.value = "No connection — check Bluetooth pairing, WiFi, or internet"
+            scheduleReconnect()
+            return
+        }
+
+        _state.value = ConnectionState.Pairing
+
+        // Send Pair on the connected transport (BT preferred, then TCP, then relay)
+        val pairPayload = PhoneProtocol.serializePayload(
+            PairPayload(
+                deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
+                platform = "Android",
+                name = "Camera",
+            )
+        )
+        val pairMsg = PhoneProtocol.createMessage(
+            type = PhoneMessageType.Pair,
+            payload = pairPayload,
+            secret = info.secret,
+        )
+        sendCommand(pairMsg)
+
+        // Start message handlers for whichever transports are connected
+        startMessageHandlers()
+        startDisconnectHandlers()
+        acquireWifiLock()
+    }
+
+    private suspend fun connectTcp(info: PairingInfo) {
+        var connected = false
+        var lastError: Exception? = null
+        for (ip in info.ips) {
+            try {
+                tcpClient.connect(ip, info.tcpPort, timeoutMs = 3000)
+                connected = true
+                _tcpConnected.value = true
+                Log.d(TAG, "TCP connected to $ip:${info.tcpPort}")
+                break
+            } catch (e: Exception) {
+                lastError = e
+            }
+        }
+        if (!connected) throw lastError ?: Exception("No reachable IP")
+
+        // If we're already paired via BT, pair on TCP too (dual-attach)
+        if (btPaired && _phoneId.value != null) {
             val pairPayload = PhoneProtocol.serializePayload(
                 PairPayload(
                     deviceModel = "${Build.MANUFACTURER} ${Build.MODEL}",
@@ -85,37 +260,76 @@ class PhoneCompanionManager(private val context: Context) {
             )
             tcpClient.send(PhoneProtocol.createMessage(
                 type = PhoneMessageType.Pair,
+                phoneId = _phoneId.value,
                 payload = pairPayload,
-                secret = info.secret,
+                secret = pairingInfo?.secret,
             ))
-
-            // Start message handling
-            startMessageHandler()
-            startDisconnectHandler()
-            acquireWifiLock()
-        } catch (e: Exception) {
-            _state.value = ConnectionState.Error
-            _error.value = e.message ?: "Connection failed"
-            scheduleReconnect()
+            tcpPaired = true
         }
     }
 
-    private fun startMessageHandler() {
-        scope?.launch {
-            tcpClient.messages.collect { msg -> handleMessage(msg) }
+    private fun startMessageHandlers() {
+        // BT messages
+        if (_btConnected.value) {
+            scope?.launch {
+                btClient.messages.collect { msg -> handleMessage(msg) }
+            }
+        }
+        // TCP messages
+        if (_tcpConnected.value) {
+            scope?.launch {
+                tcpClient.messages.collect { msg -> handleMessage(msg) }
+            }
+        }
+        // Relay messages
+        if (_relayConnected.value) {
+            scope?.launch {
+                relayClient.messages.collect { msg -> handleMessage(msg) }
+            }
         }
     }
 
-    private fun startDisconnectHandler() {
-        scope?.launch {
-            tcpClient.disconnected.collect {
-                if (!intentionalDisconnect) {
-                    _state.value = ConnectionState.Error
-                    _error.value = "Connection lost"
-                    scheduleReconnect()
+    private fun startDisconnectHandlers() {
+        if (_btConnected.value) {
+            scope?.launch {
+                btClient.disconnected.collect {
+                    _btConnected.value = false
+                    Log.w(TAG, "BT disconnected")
+                    onTransportLost()
                 }
             }
         }
+        if (_tcpConnected.value) {
+            scope?.launch {
+                tcpClient.disconnected.collect {
+                    _tcpConnected.value = false
+                    Log.w(TAG, "TCP disconnected")
+                    onTransportLost()
+                }
+            }
+        }
+        if (_relayConnected.value) {
+            scope?.launch {
+                relayClient.disconnected.collect {
+                    _relayConnected.value = false
+                    Log.w(TAG, "Relay disconnected")
+                    onTransportLost()
+                }
+            }
+        }
+    }
+
+    private fun onTransportLost() {
+        if (intentionalDisconnect) return
+        // If at least one transport is still alive, keep going
+        if (_btConnected.value || _tcpConnected.value || _relayConnected.value) {
+            Log.d(TAG, "One transport lost, but still have bt=${_btConnected.value} tcp=${_tcpConnected.value} relay=${_relayConnected.value}")
+            return
+        }
+        // All transports dead
+        _state.value = ConnectionState.Error
+        _error.value = "Connection lost"
+        scheduleReconnect()
     }
 
     private suspend fun handleMessage(msg: PhoneMessage) {
@@ -123,18 +337,48 @@ class PhoneCompanionManager(private val context: Context) {
             PhoneMessageType.PairAck -> {
                 _phoneId.value = msg.phoneId
                 _state.value = ConnectionState.Connected
+                // Track which transport just paired
+                if (_btConnected.value && !btPaired) btPaired = true
+                if (_tcpConnected.value && !tcpPaired) tcpPaired = true
                 startStatusSender()
                 startPreviewSender()
+
+                // If BT paired but TCP not yet connected, start background TCP connect
+                if (btPaired && !_tcpConnected.value && tcpConnectJob == null) {
+                    val info = pairingInfo ?: return
+                    tcpConnectJob = scope?.launch {
+                        delay(1000) // Brief delay before attempting TCP
+                        try {
+                            connectTcp(info)
+                            if (_tcpConnected.value) {
+                                // Start handler for the late-arriving TCP transport
+                                scope?.launch {
+                                    tcpClient.messages.collect { m -> handleMessage(m) }
+                                }
+                                scope?.launch {
+                                    tcpClient.disconnected.collect {
+                                        _tcpConnected.value = false
+                                        Log.w(TAG, "TCP disconnected (late)")
+                                        onTransportLost()
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {
+                            // TCP unavailable — BT-only is fine
+                        }
+                    }
+                }
             }
 
             PhoneMessageType.PairReject -> {
                 _error.value = "Pairing rejected — invalid secret"
                 _state.value = ConnectionState.Error
+                btClient.disconnect()
                 tcpClient.disconnect()
             }
 
             PhoneMessageType.Heartbeat -> {
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.HeartbeatAck,
                     phoneId = _phoneId.value,
                 ))
@@ -145,7 +389,7 @@ class PhoneCompanionManager(private val context: Context) {
                 val t1Payload = PhoneProtocol.deserializePayload<SyncTimePayload>(msg.payload)
                 val t1 = t1Payload?.t1 ?: 0
                 val t3 = System.currentTimeMillis()
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.SyncTimeResponse,
                     phoneId = _phoneId.value,
                     payload = PhoneProtocol.serializePayload(SyncTimePayload(t1 = t1, t2 = t2, t3 = t3)),
@@ -156,7 +400,7 @@ class PhoneCompanionManager(private val context: Context) {
                 val recPayload = PhoneProtocol.deserializePayload<StartRecPayload>(msg.payload)
                 _state.value = ConnectionState.Recording
                 onStartRecording?.invoke(recPayload?.sessionName ?: "recording")
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.RecStarted,
                     phoneId = _phoneId.value,
                 ))
@@ -165,7 +409,7 @@ class PhoneCompanionManager(private val context: Context) {
             PhoneMessageType.StopRec -> {
                 onStopRecording?.invoke()
                 _state.value = ConnectionState.Connected
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.RecStopped,
                     phoneId = _phoneId.value,
                 ))
@@ -175,15 +419,103 @@ class PhoneCompanionManager(private val context: Context) {
                 val settings = PhoneProtocol.deserializePayload<PhoneSettings>(msg.payload)
                 if (settings != null) {
                     _currentSettings.value = settings
-                    onSettingsChanged?.invoke(settings)
+                    try {
+                        onSettingsChanged?.invoke(settings)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Settings apply failed: ${e.message}", e)
+                        // Don't crash — keep running with previous settings
+                    }
                 }
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendCommand(PhoneProtocol.createMessage(
                     type = PhoneMessageType.SettingsAck,
                     phoneId = _phoneId.value,
                 ))
             }
 
+            PhoneMessageType.PreviewRequest -> {
+                // Server requests a single preview frame
+                val frame = capturePreviewFrame?.invoke()
+                if (frame != null) {
+                    val base64 = Base64.encodeToString(frame, Base64.NO_WRAP)
+                    sendPreview(PhoneProtocol.createMessage(
+                        type = PhoneMessageType.CameraPreview,
+                        phoneId = _phoneId.value,
+                        payload = base64,
+                    ))
+                }
+            }
+
+            PhoneMessageType.PreviewStart -> {
+                livePreviewEnabled = true
+                Log.d(TAG, "Live preview enabled")
+            }
+
+            PhoneMessageType.PreviewStop -> {
+                livePreviewEnabled = false
+                Log.d(TAG, "Live preview paused")
+            }
+
             else -> { /* Ignore unknown */ }
+        }
+    }
+
+    /**
+     * Send a command message: BT primary, TCP fallback, Relay fallback.
+     */
+    private suspend fun sendCommand(msg: PhoneMessage) {
+        try {
+            if (_btConnected.value) {
+                btClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "BT send failed, falling back to TCP: ${e.message}")
+        }
+        try {
+            if (_tcpConnected.value) {
+                tcpClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "TCP send failed, falling back to relay: ${e.message}")
+        }
+        try {
+            if (_relayConnected.value) {
+                relayClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Relay send also failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Send a preview frame: TCP primary (higher bandwidth), BT fallback, Relay fallback.
+     */
+    private suspend fun sendPreview(msg: PhoneMessage) {
+        try {
+            if (_tcpConnected.value) {
+                tcpClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "TCP preview send failed, falling back to BT: ${e.message}")
+        }
+        try {
+            if (_btConnected.value) {
+                btClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "BT preview send failed, falling back to relay: ${e.message}")
+        }
+        try {
+            if (_relayConnected.value) {
+                relayClient.send(msg)
+                return
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Relay preview send also failed: ${e.message}")
         }
     }
 
@@ -202,7 +534,7 @@ class PhoneCompanionManager(private val context: Context) {
         val storageFree = getStorageFree()
         val settings = _currentSettings.value
         val recording = _state.value == ConnectionState.Recording
-        tcpClient.send(PhoneProtocol.createMessage(
+        sendCommand(PhoneProtocol.createMessage(
             type = PhoneMessageType.Status,
             phoneId = _phoneId.value,
             payload = PhoneProtocol.serializePayload(StatusPayload(
@@ -220,13 +552,14 @@ class PhoneCompanionManager(private val context: Context) {
         previewJob = scope?.launch {
             while (isActive) {
                 delay(2000)
+                if (!livePreviewEnabled) continue  // Server paused preview
                 if (_state.value == ConnectionState.Recording) {
                     delay(3000) // Less frequent during recording
                     continue
                 }
                 val frame = capturePreviewFrame?.invoke() ?: continue
                 val base64 = Base64.encodeToString(frame, Base64.NO_WRAP)
-                tcpClient.send(PhoneProtocol.createMessage(
+                sendPreview(PhoneProtocol.createMessage(
                     type = PhoneMessageType.CameraPreview,
                     phoneId = _phoneId.value,
                     payload = base64,
@@ -282,7 +615,17 @@ class PhoneCompanionManager(private val context: Context) {
         statusJob?.cancel()
         previewJob?.cancel()
         reconnectJob?.cancel()
+        tcpConnectJob?.cancel()
+        relayConnectJob?.cancel()
+        btClient.disconnect()
         tcpClient.disconnect()
+        relayClient.disconnect()
+        _btConnected.value = false
+        _tcpConnected.value = false
+        _relayConnected.value = false
+        btPaired = false
+        tcpPaired = false
+        relayPaired = false
         releaseWifiLock()
         scope?.cancel()
         scope = null

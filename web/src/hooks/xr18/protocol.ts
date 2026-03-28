@@ -11,7 +11,8 @@ export type PhoneMessageType =
   | 'startRec' | 'stopRec' | 'settingsPush'
   | 'recStarted' | 'recStopped' | 'settingsAck'
   | 'syncTimeRequest' | 'syncTimeResponse'
-  | 'cameraPreview';
+  | 'cameraPreview'
+  | 'previewRequest' | 'previewStart' | 'previewStop';
 
 // ── Message envelope ──
 
@@ -51,6 +52,7 @@ export interface PhoneSettings {
   framerate: number;
   exposure: string;
   stabilisation: string;
+  cameraFacing: string;  // "back" or "front"
 }
 
 export interface StartRecPayload {
@@ -61,13 +63,14 @@ export interface StartRecPayload {
 // ── QR pairing URI ──
 
 export interface PairingInfo {
+  ips: string[];
   ip: string;
   tcpPort: number;
   wsPort: number;
   secret: string;
 }
 
-/** Parse QR URI: xr18studio://<ip>:<tcpPort>/<wsPort>/<secret> */
+/** Parse QR URI: xr18studio://<ip1,ip2,...>:<tcpPort>/<wsPort>/<secret> */
 export function parsePairingUri(uri: string): PairingInfo | null {
   const prefix = 'xr18studio://';
   if (!uri.startsWith(prefix)) return null;
@@ -76,10 +79,12 @@ export function parsePairingUri(uri: string): PairingInfo | null {
   if (parts.length < 3) return null;
   const hostPort = parts[0].split(':');
   if (hostPort.length !== 2) return null;
+  const ips = hostPort[0].split(',').filter(s => s.length > 0);
+  if (ips.length === 0) return null;
   const tcpPort = parseInt(hostPort[1], 10);
   const wsPort = parseInt(parts[1], 10);
   if (isNaN(tcpPort) || isNaN(wsPort)) return null;
-  return { ip: hostPort[0], tcpPort, wsPort, secret: parts[2] };
+  return { ips, ip: ips[0], tcpPort, wsPort, secret: parts[2] };
 }
 
 /** Create a message envelope. */
@@ -102,4 +107,19 @@ export function deserializePayload<T>(json: string | null | undefined): T | null
   if (!json) return null;
   try { return JSON.parse(json) as T; }
   catch { return null; }
+}
+
+// ── Supabase Relay Config ──
+
+export const SUPABASE_REALTIME_URL = 'wss://jlufqgslgjowfaqmqlds.supabase.co/realtime/v1/websocket';
+export const SUPABASE_ANON_KEY = '[REDACTED -- sb_publishable key]';
+
+/** Build the relay channel topic from a pairing secret. */
+export function getRelayChannelTopic(secret: string): string {
+  return `xr18-relay:${secret}`;
+}
+
+/** Build the full Supabase Realtime WebSocket URL. */
+export function getRealtimeUrl(): string {
+  return `${SUPABASE_REALTIME_URL}?apikey=${SUPABASE_ANON_KEY}&vsn=1.0.0`;
 }
