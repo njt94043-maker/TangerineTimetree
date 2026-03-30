@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Green Tangerine — Project Overview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --card: #111118;
+    --card-border: #1a1a24;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --orange: #f39c12;
+    --green: #00e676;
+    --teal: #1abc9c;
+    --red: #ff5252;
+    --purple: #bb86fc;
+    --blue: #64b5f6;
+    --pink: #f48fb1;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Karla', sans-serif;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 2.4rem;
+    color: var(--orange);
+    margin-bottom: 0.3rem;
+    letter-spacing: -0.5px;
+  }
+
+  h1 span { color: var(--teal); }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    color: var(--orange);
+    margin: 2.5rem 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  h2 .badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    vertical-align: middle;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    color: var(--teal);
+    margin: 1.5rem 0 0.6rem;
+  }
+
+  h4 {
+    font-size: 0.95rem;
+    color: var(--purple);
+    margin: 1rem 0 0.4rem;
+  }
+
+  p { margin-bottom: 0.8rem; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 1.2rem;
+  }
+
+  .app-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .app-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .app-card.android::before { background: var(--green); }
+  .app-card.web::before { background: var(--teal); }
+  .app-card.capture::before { background: var(--purple); }
+  .app-card.future::before { background: var(--text-dim); }
+
+  .app-card h3 { margin-top: 0; }
+  .app-card .tech { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.6rem; }
+  .app-card .users { font-size: 0.85rem; color: var(--orange); margin-bottom: 0.8rem; }
+
+  .status-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+  }
+
+  .status-live { background: rgba(0, 230, 118, 0.15); color: var(--green); }
+  .status-dev { background: rgba(187, 134, 252, 0.15); color: var(--purple); }
+  .status-broken { background: rgba(255, 82, 82, 0.15); color: var(--red); }
+  .status-future { background: rgba(136, 136, 136, 0.15); color: var(--text-dim); }
+  .status-ok { background: rgba(26, 188, 156, 0.15); color: var(--teal); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  th {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 2px solid var(--card-border);
+    color: var(--orange);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  td {
+    padding: 0.5rem 0.8rem;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+
+  .flow-diagram {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin: 1.5rem 0;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    line-height: 2;
+    overflow-x: auto;
+  }
+
+  .flow-diagram .arrow { color: var(--orange); }
+  .flow-diagram .node { color: var(--teal); }
+  .flow-diagram .store { color: var(--purple); }
+  .flow-diagram .dim { color: var(--text-dim); }
+
+  ul { padding-left: 1.3rem; margin-bottom: 0.8rem; }
+  li { margin-bottom: 0.3rem; }
+
+  .feature-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  .feature-list li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    gap: 0.6rem;
+    align-items: baseline;
+  }
+
+  .feature-list li:last-child { border-bottom: none; }
+
+  .feature-list .fname {
+    font-weight: 600;
+    min-width: 180px;
+    color: var(--teal);
+  }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--card-border);
+    margin: 3rem 0;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 1rem 1.4rem;
+    text-align: center;
+    flex: 1;
+    min-width: 140px;
+  }
+
+  .stat-box .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--orange);
+  }
+
+  .stat-box .label {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-top: 0.2rem;
+  }
+
+  .pipeline-step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 0.5rem 0;
+  }
+
+  .pipeline-num {
+    background: var(--orange);
+    color: var(--bg);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .health-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--card-border);
+    overflow: hidden;
+    margin: 0.3rem 0;
+  }
+
+  .health-fill {
+    height: 100%;
+    border-radius: 4px;
+  }
+
+  .health-good { background: var(--green); }
+  .health-warn { background: var(--orange); }
+  .health-bad { background: var(--red); }
+
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .toc h3 { margin-top: 0; color: var(--orange); }
+
+  .toc ol {
+    columns: 2;
+    column-gap: 2rem;
+    font-size: 0.9rem;
+  }
+
+  .toc li { margin-bottom: 0.3rem; }
+  .toc a { color: var(--teal); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  @media (max-width: 700px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.8rem; }
+    .card-grid { grid-template-columns: 1fr; }
+    .toc ol { columns: 1; }
+    .stats-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<h1>The Green <span>Tangerine</span></h1>
+<p class="subtitle">Complete project overview — what it is, what it does, and why every piece matters.<br>
+<span class="mono" style="font-size: 0.8rem; color: var(--text-dim);">Generated 2026-03-13 &middot; S60 Project Assessment</span></p>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#what">What Is This?</a></li>
+    <li><a href="#who">Who Is It For?</a></li>
+    <li><a href="#apps">The App Family</a></li>
+    <li><a href="#pipeline">How Data Flows</a></li>
+    <li><a href="#web-features">Web App — All Features</a></li>
+    <li><a href="#android-features">Android App — All Features</a></li>
+    <li><a href="#capture-features">Capture Tool — All Features</a></li>
+    <li><a href="#shared">Shared Infrastructure</a></li>
+    <li><a href="#health">Current Health</a></li>
+    <li><a href="#stats">Project Stats</a></li>
+    <li><a href="#assessment">Honest Assessment</a></li>
+  </ol>
+</div>
+
+<!-- 1. WHAT IS THIS -->
+<h2 id="what">1. What Is This?</h2>
+<div class="card">
+  <p>The Green Tangerine is a <strong>4-piece live music band</strong> based in the UK. Nathan Thomas (drums) is a sole trader who manages the business side — booking gigs, invoicing clients, and splitting payments between the four members.</p>
+  <p>This project is a <strong>monorepo containing four applications</strong> (plus one planned) that together handle everything the band needs: from booking a wedding gig and sending a professional invoice, to running a click track in Nathan's in-ear monitors on stage, to capturing YouTube audio for practice material.</p>
+  <p>All apps share one <strong>dark neumorphic visual identity</strong> — the same colours, fonts, and design language. They share one <strong>Supabase cloud database</strong> so that a song added on one platform appears on all others instantly. They are one family of tools, not four separate products.</p>
+</div>
+
+<!-- 2. WHO IS IT FOR -->
+<h2 id="who">2. Who Is It For?</h2>
+<div class="card">
+  <table>
+    <tr><th>Member</th><th>Role</th><th>Primary App</th><th>Main Use</th></tr>
+    <tr><td><strong>Nathan</strong></td><td>Drums + management</td><td>Android (GigBooks) + Web</td><td>Live click track on stage, practice with stems, invoicing, booking</td></tr>
+    <tr><td><strong>Neil</strong></td><td>Bass</td><td>Web (PWA on phone)</td><td>Calendar, practice mode, lyrics/chords reference</td></tr>
+    <tr><td><strong>James</strong></td><td>Lead vocals</td><td>Web (PWA on phone)</td><td>Calendar, invoicing (some gigs), lyrics prompter</td></tr>
+    <tr><td><strong>Adam</strong></td><td>Guitar + backing vocals</td><td>Web (PWA on phone)</td><td>Calendar, sharing invoices with venues via messenger</td></tr>
+  </table>
+  <p style="margin-top: 0.8rem; color: var(--text-dim);">All four members are admin. Everyone has full access to everything. There is no role-based restriction — this is by design.</p>
+</div>
+
+<!-- 3. THE APP FAMILY -->
+<h2 id="apps">3. The App Family</h2>
+<div class="card-grid">
+
+  <div class="app-card android">
+    <h3 style="color: var(--green);">GigBooks <span class="status-badge status-live">DEPLOYED</span></h3>
+    <div class="tech">Kotlin + Jetpack Compose + C++/Oboe &middot; android/</div>
+    <div class="users">Nathan only &middot; Sideloaded APK on Samsung</div>
+    <p>The <strong>stage performance app</strong>. Built natively because live click tracks need sub-millisecond audio latency that web browsers cannot achieve. The C++ audio engine runs in the Oboe audio callback — the same thread that feeds the speaker hardware.</p>
+    <p><strong>Why it exists:</strong> Nathan wears in-ear monitors on stage. He needs a rock-solid click track synced to each song's tempo map, with stem playback for practice. Web Audio API has 5-20ms latency — fine for practice, not for a live stage click in your ears.</p>
+  </div>
+
+  <div class="app-card web">
+    <h3 style="color: var(--teal);">Tangerine Timetree <span class="status-badge status-live">LIVE</span></h3>
+    <div class="tech">React + Vite PWA + Web Audio API &middot; web/</div>
+    <div class="users">All 4 members &middot; thegreentangerine.com</div>
+    <p>The <strong>everything app</strong>. Calendar, booking, invoicing, quotes, PDF generation, practice player, live mode, public website — all in one installable web app. This is the primary interface for the three non-Android members.</p>
+    <p><strong>Why it exists:</strong> Neil, James, and Adam are on iPhone. Rather than building a second native app, a PWA gives them a full app experience from a browser. It also runs on desktop for Nathan's office work (invoicing, booking management).</p>
+  </div>
+
+  <div class="app-card capture">
+    <h3 style="color: var(--purple);">TGT Capture <span class="status-badge status-dev">LOCAL</span></h3>
+    <div class="tech">Python FastAPI + React + Chrome Extension &middot; capture/</div>
+    <div class="users">Nathan only &middot; localhost:9123 + :5174</div>
+    <p>The <strong>audio capture entry point</strong> for the entire ecosystem. Captures audio from YouTube or system output, analyses BPM and musical key, encodes to MP3, and serves tracks for import into the web app.</p>
+    <p><strong>Why it exists:</strong> Nathan needs practice material. He finds a song on YouTube, Capture grabs the audio, detects its tempo, and makes it available to import as a song with a beat map — so the click track lines up automatically.</p>
+  </div>
+
+  <div class="app-card future">
+    <h3 style="color: var(--text-dim);">ClickTrack <span class="status-badge status-future">PLANNED</span></h3>
+    <div class="tech">Not yet built &middot; Will reuse C++ engine</div>
+    <div class="users">Nathan only</div>
+    <p>A <strong>personal drumming practice tool</strong>. Techniques, sticking patterns, rudiments, fills, polyrhythms, limb independence training. Separate from TGT but shares the same audio engine DNA and will import practice tracks from Capture.</p>
+    <p><strong>Why it matters now:</strong> Capture's metadata schema is designed to carry fields that ClickTrack will need (practice categories, instrument focus, difficulty levels). These integration points are being considered now so the future build is smooth.</p>
+  </div>
+
+</div>
+
+<!-- 4. DATA FLOW -->
+<h2 id="pipeline">4. How Data Flows</h2>
+
+<div class="card">
+  <h3>The Song Pipeline</h3>
+  <p>Getting a song from "I found this on YouTube" to "the click track is in my ears on stage" involves multiple steps across multiple apps:</p>
+
+  <div class="pipeline-step"><div class="pipeline-num">1</div><div><strong>Capture</strong> — Nathan records audio from YouTube (via Chrome extension or WASAPI system loopback). Capture analyses BPM and key using librosa, encodes to high-quality MP3 via FFmpeg, and stores it locally with metadata.</div></div>
+
+  <div class="pipeline-step"><div class="pipeline-num">2</div><div><strong>Import</strong> — From the web app, Nathan browses his Capture library and imports a track. The web app creates a Song record in Supabase, uploads the MP3 to cloud storage, and maps Capture's metadata (title, artist, BPM, category) to the Song schema.</div></div>
+
+  <div class="pipeline-step"><div class="pipeline-num">3</div><div><strong>Process</strong> — The web app triggers Google Cloud Run, which runs madmom (neural network beat detection) to generate a precise beat map — an array of timestamps for every beat in the song. Optionally, Demucs splits the audio into stems (drums, bass, vocals, other).</div></div>
+
+  <div class="pipeline-step"><div class="pipeline-num">4</div><div><strong>Play</strong> — The beat map and stems are stored in Supabase. Both the web app and Android app read them. When Nathan hits play, the click scheduler fires oscillator pulses at exactly the right moments, synced to the beat map. Stems load into the mixer for isolated practice.</div></div>
+
+  <div class="pipeline-step"><div class="pipeline-num">5</div><div><strong>Perform</strong> — On stage, Nathan loads a setlist. The Android app's C++ engine plays the click in his in-ear monitors with sub-millisecond accuracy. The web app does the same for practice sessions at a slightly higher latency.</div></div>
+</div>
+
+<div class="card">
+  <h3>The Business Pipeline</h3>
+  <div class="pipeline-step"><div class="pipeline-num">1</div><div><strong>Booking</strong> — A venue or client contacts the band. Any member opens the calendar, taps "Add Gig", and fills in the booking wizard (venue, client, date, fee, event type, timings).</div></div>
+  <div class="pipeline-step"><div class="pipeline-num">2</div><div><strong>Quote</strong> — For client gigs (weddings, corporate), a formal quote is generated from one of 7 professional PDF templates and shared with the client.</div></div>
+  <div class="pipeline-step"><div class="pipeline-num">3</div><div><strong>Invoice</strong> — After the gig, an invoice is generated (7 styles + 3 seasonal themes). The fee is automatically split four ways.</div></div>
+  <div class="pipeline-step"><div class="pipeline-num">4</div><div><strong>Payment</strong> — When marked paid, three receipts are generated (one per non-Nathan member — Nathan pays himself, so no self-receipt).</div></div>
+</div>
+
+<hr class="section-divider">
+
+<!-- 5. WEB APP FEATURES -->
+<h2 id="web-features">5. Web App — Every Feature and Why</h2>
+
+<div class="card">
+  <h3>Calendar &amp; Booking</h3>
+  <p><em>The band's shared diary. Every member needs to know when and where gigs are.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">Calendar</span> Month view with coloured day dots — green for gigs, purple for practice, red for member-away days. Swipe to change months. Tap a day to see details.</li>
+    <li><span class="fname">Day Detail</span> Shows all events for a day. "Add Gig", "Add Practice", and "I'm Away" buttons. Displays gig status (enquiry/confirmed), venue, fee, and an INCOMPLETE badge if data is missing.</li>
+    <li><span class="fname">Booking Wizard</span> Two flows: Quick Entry (pub gigs — minimal fields) and Full Booking (weddings/corporate — venue, client, fee, deposit, event type, timings, load-in details). Intentionally comprehensive — it trains members to capture everything Nathan needs for invoicing.</li>
+    <li><span class="fname">Away Dates</span> Any member can mark themselves unavailable. If one member is away, the band is unavailable — this shows as a red day on everyone's calendar.</li>
+    <li><span class="fname">Change Summary</span> On app open, a banner shows what changed since you last looked — gigs added, dates changed, members marked away. Prevents "I didn't know about that gig" problems.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Invoicing, Quotes &amp; Receipts</h3>
+  <p><em>Nathan is a sole trader. Professional invoicing is not optional — it's how the band gets paid.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">Invoice Wizard</span> 3-step flow: select client/venue, enter gig details, preview PDF. Seven visual styles (Classic, Premium, Clean, Bold, Elegant, Minimal, Modern) plus three seasonal themes (Christmas, Halloween, Valentine). Full A4 preview before generating.</li>
+    <li><span class="fname">Invoice List</span> Searchable, filterable list of all invoices. Filter by status (draft/sent/paid), date range. CSV export for accounting.</li>
+    <li><span class="fname">Quote Builder</span> Same quality as invoices but for pre-gig pricing. Sent to clients/venues to secure bookings. Seven matching visual styles.</li>
+    <li><span class="fname">Formal Invoices</span> A more structured invoice format for corporate clients who need specific formatting (PO numbers, VAT details).</li>
+    <li><span class="fname">Receipt Split</span> When an invoice is marked paid, three receipts are automatically generated — one for each non-Nathan member. The fee divides by 4, first receipt gets any rounding remainder. Nathan doesn't get a receipt because he pays himself.</li>
+    <li><span class="fname">Bill-To Resolution</span> Invoices can target a venue (pub pays directly) or a client (agency books the venue). The PDF template automatically pulls the correct name, address, and contact details.</li>
+    <li><span class="fname">PDF Sharing</span> Adam shares invoices with venues via WhatsApp/messenger on Nathan's behalf. The app generates the PDF so Adam just shares a file — no filling in details on the phone.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Library — Songs &amp; Setlists</h3>
+  <p><em>The launchpad for all music. Browse, search, and tap to enter Live, Practice, or View mode.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">Song Library</span> All songs the band has added. Four categories: TGT Cover, TGT Original, Personal Cover, Personal Original. Filter by scope (All / TGT / My Songs / Shared With Me) and type (Covers / Originals). Search by title or artist.</li>
+    <li><span class="fname">Song Cards</span> Raised neumorphic cards showing title, artist, BPM, key, and category badges. Tap to expand and reveal Live / Practice / View launch buttons.</li>
+    <li><span class="fname">Setlist Library</span> Ordered collections of songs for a gig. Types: TGT setlists and Other Band setlists (for dep gigs where Nathan sits in with another band).</li>
+    <li><span class="fname">Song Form</span> Edit metadata: name, artist, BPM, time signature, key, category, lyrics, chords, notes. Nathan (drums role) sees additional metronome settings: subdivision, swing, accent patterns, click sound, count-in bars. Upload practice tracks, manage stems, view/manage recorded takes.</li>
+    <li><span class="fname">Import from Capture</span> Browse Nathan's local Capture library, select a track, map its metadata to a Song, upload the MP3 to Supabase, and trigger Cloud Run processing for beat maps and stems.</li>
+    <li><span class="fname">Song Sharing</span> Personal originals (works in progress) are private by default. The owner can share with specific members. Personal covers are visible to all — "good to know what everybody already knows."</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Player — Live, Practice &amp; View Modes</h3>
+  <p><em>The performance engine. Three modes in one player shell — because a song is a song whether you're on stage, in the practice room, or reviewing a recording.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">Live Mode</span> For gigs. Click track + visual beat display + lyrics/chords reference. No backing tracks — just the click in your ears and the info on screen. Fullscreen, no navigation drawer. Queue = the setlist for this gig.</li>
+    <li><span class="fname">Practice Mode</span> For rehearsal. Everything Live Mode has, plus: backing track playback, stem mixer (isolate drums, bass, vocals, other), pitch-preserved speed control (slow down to learn, speed up to challenge), A-B section looping, waveform display.</li>
+    <li><span class="fname">View Mode</span> For reviewing recordings. Plays back your recorded takes with all stems. If you have a local video recording, it shows in the hero area. If not, a visualiser fills the space.</li>
+    <li><span class="fname">Click Track</span> A metronome that follows the song's beat map (generated by madmom from the audio). Every click sounds identical — no accent on beat 1, no downbeat distinction. Quick attack, slow release on visuals. If no beat map exists, click uses manual BPM.</li>
+    <li><span class="fname">Stem Mixer</span> Per-stem gain faders with mute and solo. Lives in the bottom drawer — not permanently visible. Keeps the main screen clean for the visual hero.</li>
+    <li><span class="fname">Visual Hero</span> Three visualiser modes (Spectrum, Rings, Burst) that flash in time with the click. Beat-synced, not audio-reactive. Card-level beat glow is the default. Fullscreen edge glow is an experimental opt-in toggle.</li>
+    <li><span class="fname">Recording</span> Record a take over the backing track. Camera optional (video stays local, audio uploads as a stem). Count-in, overdub mix via drawer, post-recording options: discard, save, save &amp; preview, save &amp; re-take.</li>
+    <li><span class="fname">Takes</span> Multiple takes per user per song. One "best take" per user promotes to the shared stem list — all members can hear it in their mixer. Non-best takes stay local.</li>
+    <li><span class="fname">Queue</span> The list of songs from wherever you launched. Tap a song from a setlist? That setlist is your queue. Tap from All Songs? All songs is your queue. Previous/Next navigate within the queue. You can switch to a different list from the queue overlay.</li>
+    <li><span class="fname">Display Toggles</span> In the bottom drawer: click, flash, lyrics, chords, notes, drums, visualiser — each member configures their own experience. Per-user preferences saved to the database.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Other Web Features</h3>
+  <ul class="feature-list">
+    <li><span class="fname">Dashboard</span> Stats overview: gigs this month/year, income totals, payment status breakdown. Tax year filtering. Quick glance at band activity.</li>
+    <li><span class="fname">Settings</span> User profile, band settings, bank details (for invoices — not hardcoded), public site configuration (service catalogue, reviews, gallery, background images).</li>
+    <li><span class="fname">Public Site</span> The band's website at thegreentangerine.com. Photo gallery, service descriptions, reviews, upcoming public gigs, booking contact form. Built into the same Vite app — no separate deployment.</li>
+    <li><span class="fname">Stage Prompter</span> Lyrics and chords display for a tablet on a music stand. Navigate through a setlist. Fullscreen dark mode. No auto-scroll — musicians glance at it between sections.</li>
+    <li><span class="fname">GigHub</span> Pipeline view for a gig: from booking to quote to invoice to payment. One screen to see where everything stands.</li>
+    <li><span class="fname">Offline Support</span> Mutations queue locally when offline, replay on reconnect. Calendar data cached. Not full offline-first, but graceful degradation.</li>
+    <li><span class="fname">PWA</span> Installable on phone and desktop. Service worker with auto-update (skipWaiting + clientsClaim + 5-minute poll for new versions).</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- 6. ANDROID FEATURES -->
+<h2 id="android-features">6. Android App (GigBooks) — Every Feature</h2>
+<div class="card">
+  <p><em>The native stage companion. Same features as the web player, but with a C++ audio engine for sub-millisecond click timing.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">Calendar</span> Same as web — month view with coloured dots, day detail panel, gig info. Reads from the same Supabase tables.</li>
+    <li><span class="fname">Library</span> Songs + Setlists tabs with filter dropdowns (Scope + Type), search, raised NeuCard song cards. Tap to expand, launch into Live / Practice / View.</li>
+    <li><span class="fname">Live Mode</span> C++ click track via Oboe (sub-ms latency). Visual beat display, lyrics/chords, queue navigation. Fullscreen with bottom drawer for mixer and display toggles.</li>
+    <li><span class="fname">Practice Mode</span> Same C++ engine plus: SoundTouch pitch-preserved speed control, waveform strip with A-B loop, stem mixer, recording with post-recording options.</li>
+    <li><span class="fname">View Mode</span> Take playback with stem mixer. Reuses Practice infrastructure.</li>
+    <li><span class="fname">Song Form</span> Full metadata editing, practice track management, beat analysis trigger.</li>
+    <li><span class="fname">Settings</span> Player preferences (click sound selection).</li>
+    <li><span class="fname">Navigation</span> Compose ModalNavigationDrawer with 3 items: Calendar, Library, Settings. Player is persistent — survives navigation.</li>
+  </ul>
+  <p style="margin-top: 0.8rem; color: var(--text-dim);">The Android app does NOT handle invoicing, quotes, PDF, clients, or venues. That stays on the web app.</p>
+</div>
+
+<hr class="section-divider">
+
+<!-- 7. CAPTURE FEATURES -->
+<h2 id="capture-features">7. Capture Tool — Every Feature</h2>
+<div class="card">
+  <p><em>The entry point for all audio in the ecosystem. Nathan's local tool for grabbing practice material.</em></p>
+  <ul class="feature-list">
+    <li><span class="fname">WASAPI Capture</span> Records system audio (anything playing through speakers/headphones) via Windows Audio Session API loopback. Armed mode waits for audio to start, then records automatically.</li>
+    <li><span class="fname">Chrome Extension</span> Side panel in Chrome for capturing audio from specific browser tabs. WebSocket connection to the backend. Useful for YouTube capture without grabbing other system sounds.</li>
+    <li><span class="fname">BPM &amp; Key Detection</span> librosa analyses the captured audio to detect tempo and musical key. Auto-populates metadata so Nathan doesn't have to enter it manually.</li>
+    <li><span class="fname">MP3 Encoding</span> FFmpeg encodes captured WAV/WebM to high-quality MP3 (LAME V0). ID3 tags embedded with metadata.</li>
+    <li><span class="fname">Waveform Generation</span> 800-point amplitude data + PNG thumbnail for visual display in the UI.</li>
+    <li><span class="fname">Track Library</span> Browse, search, favourite, and manage all captured tracks. Edit metadata (title, artist, tags). Local SQLite database.</li>
+    <li><span class="fname">Import Server</span> Serves tracks via REST API (localhost:9123) for the web app's import pipeline to consume.</li>
+  </ul>
+</div>
+
+<hr class="section-divider">
+
+<!-- 8. SHARED INFRASTRUCTURE -->
+<h2 id="shared">8. Shared Infrastructure</h2>
+
+<div class="card">
+  <h3>Supabase (Cloud Database)</h3>
+  <p>26 tables, 4 storage buckets, Row Level Security on every table. All apps read/write the same data.</p>
+  <table>
+    <tr><th>Table Group</th><th>Tables</th><th>Purpose</th></tr>
+    <tr><td>Calendar</td><td>gigs, away_dates, gig_changelog, away_date_changelog</td><td>Shared band calendar with change tracking</td></tr>
+    <tr><td>People</td><td>profiles, clients, venues</td><td>Band members, clients, venues with contact info</td></tr>
+    <tr><td>Finance</td><td>invoices, invoice_items, quotes, quote_items, formal_invoices, formal_invoice_items, receipts</td><td>Full invoicing pipeline with receipt split</td></tr>
+    <tr><td>Music</td><td>songs, setlists, setlist_songs, song_shares</td><td>Song library with sharing for personal originals</td></tr>
+    <tr><td>Audio</td><td>beat_maps, song_stems</td><td>Beat timestamps from madmom, stem audio files from Demucs, recorded takes</td></tr>
+    <tr><td>Settings</td><td>user_settings, band_settings</td><td>Per-user player prefs + band-wide config</td></tr>
+    <tr><td>Public</td><td>public_media, service_catalogue, reviews</td><td>Public website content</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Storage Buckets</h3>
+  <table>
+    <tr><th>Bucket</th><th>Contents</th></tr>
+    <tr><td class="mono">practice-tracks</td><td>Full-mix MP3 files uploaded for practice playback</td></tr>
+    <tr><td class="mono">song-stems</td><td>Demucs-separated stems (drums, bass, vocals, other) + recorded takes</td></tr>
+    <tr><td class="mono">public-media</td><td>Photos/videos for the public website</td></tr>
+    <tr><td class="mono">pdf-exports</td><td>Generated invoice/quote/receipt PDFs</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Google Cloud Run</h3>
+  <p>The <span class="mono">beat-analysis</span> service runs madmom (recurrent neural network beat detection) and Demucs (AI source separation) on uploaded tracks. Triggered asynchronously via Cloud Tasks after a practice track upload. Cold start ~90 seconds, hidden by the async pattern — user sees a "processing" indicator and can continue working.</p>
+  <p><strong>Why Cloud Run?</strong> madmom is Python + numpy — can't run in Supabase Edge Functions (Deno/JS only). Google's free tier (2M requests/month) covers band scale at zero cost.</p>
+</div>
+
+<div class="card">
+  <h3>Shared Code (shared/ directory)</h3>
+  <p>TypeScript types, Supabase query functions, configuration, and PDF templates shared between web and other consumers.</p>
+  <table>
+    <tr><th>File</th><th>Purpose</th></tr>
+    <tr><td class="mono">shared/supabase/types.ts</td><td>60+ TypeScript interfaces matching all 26 Supabase tables</td></tr>
+    <tr><td class="mono">shared/supabase/queries.ts</td><td>~100 CRUD functions (create, read, update, delete for every table)</td></tr>
+    <tr><td class="mono">shared/supabase/config.ts</td><td>Supabase URL + publishable API key</td></tr>
+    <tr><td class="mono">shared/supabase/clientRef.ts</td><td>SupabaseClientLike interface — avoids direct npm dependency</td></tr>
+    <tr><td class="mono">shared/templates/</td><td>28 HTML PDF templates (7 invoice + 7 receipt + 7 quote + 7 formal invoice styles)</td></tr>
+  </table>
+</div>
+
+<hr class="section-divider">
+
+<!-- 9. CURRENT HEALTH -->
+<h2 id="health">9. Current Health — What Works, What Doesn't</h2>
+
+<div class="card">
+  <h3>Production Ready</h3>
+  <table>
+    <tr><th>Feature</th><th>Platform</th><th>Status</th><th>Health</th></tr>
+    <tr><td>Calendar + Booking</td><td>Web</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:95%"></div></div></td></tr>
+    <tr><td>Invoicing + Quotes + PDF</td><td>Web</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:95%"></div></div></td></tr>
+    <tr><td>Dashboard + Settings</td><td>Web</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:90%"></div></div></td></tr>
+    <tr><td>Public Website</td><td>Web</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:90%"></div></div></td></tr>
+    <tr><td>Library (browse/search)</td><td>Both</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:85%"></div></div></td></tr>
+    <tr><td>Calendar</td><td>Android</td><td><span class="status-badge status-live">SOLID</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:85%"></div></div></td></tr>
+    <tr><td>Cloud Run Processing</td><td>Backend</td><td><span class="status-badge status-ok">WORKS</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:80%"></div></div></td></tr>
+    <tr><td>Supabase Backend</td><td>Cloud</td><td><span class="status-badge status-live">STABLE</span></td><td><div class="health-bar"><div class="health-fill health-good" style="width:95%"></div></div></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Needs Stabilisation</h3>
+  <table>
+    <tr><th>Feature</th><th>Platform</th><th>Status</th><th>Health</th></tr>
+    <tr><td>Track Playback + Stems</td><td>Web</td><td><span class="status-badge status-ok">WORKS</span></td><td><div class="health-bar"><div class="health-fill health-warn" style="width:70%"></div></div></td></tr>
+    <tr><td>Stem Mixer</td><td>Web</td><td><span class="status-badge status-ok">WORKS</span></td><td><div class="health-bar"><div class="health-fill health-warn" style="width:75%"></div></div></td></tr>
+    <tr><td>Live/Practice Player</td><td>Android</td><td><span class="status-badge status-ok">WORKS</span></td><td><div class="health-bar"><div class="health-fill health-warn" style="width:75%"></div></div></td></tr>
+    <tr><td>Capture Tool</td><td>Local</td><td><span class="status-badge status-dev">FLAKEY</span></td><td><div class="health-bar"><div class="health-fill health-warn" style="width:60%"></div></div></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3>Broken / Blocked</h3>
+  <table>
+    <tr><th>Feature</th><th>Platform</th><th>Status</th><th>Health</th></tr>
+    <tr><td><strong>Web Click Track</strong></td><td>Web</td><td><span class="status-badge status-broken">BROKEN</span></td><td><div class="health-bar"><div class="health-fill health-bad" style="width:15%"></div></div></td></tr>
+    <tr><td>Web Visualisers</td><td>Web</td><td><span class="status-badge status-broken">BLOCKED</span></td><td><div class="health-bar"><div class="health-fill health-bad" style="width:20%"></div></div></td></tr>
+    <tr><td>Debug UI on production site</td><td>Web</td><td><span class="status-badge status-broken">SHIPPED</span></td><td><div class="health-bar"><div class="health-fill health-bad" style="width:10%"></div></div></td></tr>
+  </table>
+  <p style="margin-top: 1rem; color: var(--red);">The web click track has been broken or unreliable since S51 — nine consecutive sprint sessions of fix/break/revert cycles. A debug banner and test beep button are currently deployed to the production website visible to all band members.</p>
+</div>
+
+<div class="card">
+  <h3>Not Started</h3>
+  <table>
+    <tr><th>Feature</th><th>Notes</th></tr>
+    <tr><td>Bulk Import (Capture &rarr; Web)</td><td>Single-track import works. Multi-track batch import not built.</td></tr>
+    <tr><td>Capture Diagnostics</td><td>Audio quality testing, armed mode E2E, encoding audit.</td></tr>
+    <tr><td>ClickTrack App</td><td>Planned but not started. Integration points designed into Capture.</td></tr>
+    <tr><td>Android Recording/Takes</td><td>Saves locally only. Cloud upload not wired.</td></tr>
+  </table>
+</div>
+
+<hr class="section-divider">
+
+<!-- 10. STATS -->
+<h2 id="stats">10. Project by the Numbers</h2>
+
+<div class="stats-row">
+  <div class="stat-box"><div class="num">45</div><div class="label">Web Components</div></div>
+  <div class="stat-box"><div class="num">14,046</div><div class="label">Lines (Web UI)</div></div>
+  <div class="stat-box"><div class="num">1,042</div><div class="label">Lines (Audio Engine)</div></div>
+  <div class="stat-box"><div class="num">35</div><div class="label">Kotlin Files</div></div>
+  <div class="stat-box"><div class="num">5,307</div><div class="label">Lines (Android)</div></div>
+</div>
+<div class="stats-row">
+  <div class="stat-box"><div class="num">26</div><div class="label">DB Tables</div></div>
+  <div class="stat-box"><div class="num">~100</div><div class="label">Query Functions</div></div>
+  <div class="stat-box"><div class="num">28</div><div class="label">PDF Templates</div></div>
+  <div class="stat-box"><div class="num">20</div><div class="label">Migrations</div></div>
+  <div class="stat-box"><div class="num">171</div><div class="label">Locked Decisions</div></div>
+</div>
+<div class="stats-row">
+  <div class="stat-box"><div class="num">117</div><div class="label">Gigs Seeded</div></div>
+  <div class="stat-box"><div class="num">65</div><div class="label">Venues</div></div>
+  <div class="stat-box"><div class="num">29</div><div class="label">Clients</div></div>
+  <div class="stat-box"><div class="num">4</div><div class="label">Songs</div></div>
+</div>
+
+<hr class="section-divider">
+
+<!-- 11. HONEST ASSESSMENT -->
+<h2 id="assessment">11. Honest Assessment</h2>
+
+<div class="card">
+  <h3>What's Working</h3>
+  <p>The <strong>business side of this project is solid</strong>. Calendar, booking, invoicing, quotes, PDF generation, public website — these features are production-ready. The whole band could start using them daily right now. The Supabase backend is stable, the data model is comprehensive (26 tables with proper relationships), and TypeScript compiles clean.</p>
+  <p>The Android app's C++ audio engine works reliably — click is tight, stems play, mixer controls the right channels.</p>
+</div>
+
+<div class="card">
+  <h3>What's Not Working</h3>
+  <p>The <strong>web click track has consumed 9 sprint sessions</strong> (S51-S59) in a fix/break/revert cycle. The root issues have been architectural: AnalyserNode wired in series (killed audio), rAF vs setInterval race conditions, scheduler gated behind a DB preference that got stuck at "off", foreground vs background AudioContext differences on mobile.</p>
+  <p>Each session has fixed one thing and broken another because <strong>there is no stored reference implementation to compare against</strong>. Research has been done (Chris Wilson's scheduling pattern, Tone.js source) but only the conclusions were recorded, not the full patterns. When a new symptom appears, the AI falls back to guessing because the underlying knowledge isn't stored anywhere retrievable.</p>
+  <p>The <strong>documentation system is part of the problem</strong>. Ten SOT files totalling ~5,000 lines consume a large portion of the AI's context window at session start. Information about the click is scattered across 5+ files. SESSION_LOG.md is 1,778 lines and has never been pruned. SPRINT_PROMPTS.md hasn't been updated since S45. The pain journal — designed specifically to prevent repeat failures — has only one entry.</p>
+</div>
+
+<div class="card">
+  <h3>What Needs to Change</h3>
+  <ul>
+    <li><strong>Fix the click once, properly.</strong> Check the database preference. Store a complete reference implementation document. No more guessing.</li>
+    <li><strong>Remove debug UI from production.</strong> The debug banner and test beep should not be on the live website.</li>
+    <li><strong>Prune the docs.</strong> Archive SESSION_LOG to last 5 sessions. Kill SPRINT_PROMPTS. Consolidate pain_journal into gotchas. Mark superseded decisions. This alone would cut AI context load by 40%.</li>
+    <li><strong>Store research properly.</strong> A "Web Audio Reference" document with the complete Chris Wilson pattern, AudioContext lifecycle rules, and OscillatorNode usage spec. Written once, used forever.</li>
+    <li><strong>Stop adding features until what exists is stable.</strong> The business half is ready for daily use. The audio half needs stabilisation, not more features.</li>
+  </ul>
+</div>
+
+<div class="card" style="border-color: var(--orange);">
+  <h3 style="color: var(--orange);">The Priority</h3>
+  <p style="font-size: 1.1rem;">Get the web click track working reliably. Everything else — visualisers, recording, import polish, ClickTrack — is downstream of that. A band tool that can't keep time is not a band tool.</p>
+</div>
+
+<p style="text-align: center; color: var(--text-dim); margin-top: 3rem; font-size: 0.85rem;">
+  The Green Tangerine &middot; thegreentangerine.com &middot; Project Overview S60
+</p>
+
+</body>
+</html>
