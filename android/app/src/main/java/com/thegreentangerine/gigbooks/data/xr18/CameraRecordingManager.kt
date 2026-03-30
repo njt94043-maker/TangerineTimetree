@@ -260,7 +260,16 @@ class CameraRecordingManager(private val context: Context) {
 
     fun applySettings(lifecycleOwner: LifecycleOwner, previewView: PreviewView, settings: PhoneSettings) {
         val provider = cameraProvider ?: return
-        rebind(provider, lifecycleOwner, previewView, settings)
+        // CameraX bindToLifecycle must run on the main thread. Settings pushes arrive
+        // from BT/TCP/relay handler threads — dispatch to main to avoid crashes.
+        ContextCompat.getMainExecutor(context).execute {
+            val state = lifecycleOwner.lifecycle.currentState
+            if (!state.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                Log.w(TAG, "Skipping applySettings — lifecycle is $state")
+                return@execute
+            }
+            rebind(provider, lifecycleOwner, previewView, settings)
+        }
     }
 
     /**

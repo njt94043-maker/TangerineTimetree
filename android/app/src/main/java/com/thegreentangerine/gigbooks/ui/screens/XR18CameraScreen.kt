@@ -2,6 +2,7 @@ package com.thegreentangerine.gigbooks.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,6 +57,18 @@ fun XR18CameraScreen(
         hasCameraPermission = granted
     }
 
+    // Bluetooth permission (Android 12+ requires BLUETOOTH_CONNECT)
+    var hasBtPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+            else true
+        )
+    }
+    val btPermLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        hasBtPermission = granted
+    }
+
     // Managers
     val manager = remember { PhoneCompanionManager(context) }
     val cameraManager = remember { CameraRecordingManager(context) }
@@ -64,6 +77,9 @@ fun XR18CameraScreen(
     val error by manager.error.collectAsState()
     val isRecording by cameraManager.isRecording.collectAsState()
     val settings by manager.currentSettings.collectAsState()
+    val isBtConnected by manager.btConnected.collectAsState()
+    val isTcpConnected by manager.tcpConnected.collectAsState()
+    val isRelayConnected by manager.relayConnected.collectAsState()
 
     // Scan mode state
     var showManualEntry by remember { mutableStateOf(false) }
@@ -79,9 +95,9 @@ fun XR18CameraScreen(
 
     // Wire callbacks
     DisposableEffect(manager) {
-        manager.onStartRecording = { sessionName ->
+        manager.onStartRecording = { sessionName, sessionId ->
             val dir = File(context.filesDir, "xr18_recordings")
-            cameraManager.startRecording(dir, sessionName)
+            cameraManager.startRecording(dir, sessionName, sessionId)
             recStartTime = System.currentTimeMillis()
         }
         manager.onStopRecording = {
@@ -93,10 +109,21 @@ fun XR18CameraScreen(
             }
         }
         manager.capturePreviewFrame = { cameraManager.capturePreviewFrame() }
+
+        // QR code scanning: auto-connect when a valid QR code is detected
+        cameraManager.onQrCodeScanned = { pairingInfo ->
+            manager.connect(pairingInfo)
+        }
+
         onDispose {
             manager.disconnect()
             cameraManager.release()
         }
+    }
+
+    // Enable QR scanning when disconnected
+    LaunchedEffect(connectionState) {
+        cameraManager.qrScanEnabled = connectionState == ConnectionState.Disconnected || connectionState == ConnectionState.Error
     }
 
     // Elapsed time ticker
@@ -111,10 +138,13 @@ fun XR18CameraScreen(
         }
     }
 
-    // Request camera permission on first compose
+    // Request camera + BT permissions on first compose
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             permLauncher.launch(Manifest.permission.CAMERA)
+        }
+        if (!hasBtPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            btPermLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
         }
     }
 
@@ -269,7 +299,7 @@ fun XR18CameraScreen(
                         Button(
                             onClick = {
                                 val port = manualPort.toIntOrNull() ?: 8730
-                                manager.connect(PairingInfo(manualIp, port, 0, manualSecret))
+                                manager.connect(PairingInfo(listOf(manualIp), port, 0, manualSecret))
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = GigColors.orange),
                             modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -286,6 +316,23 @@ fun XR18CameraScreen(
                             Text("Connected to XR18 Studio", color = GigColors.green, fontFamily = Karla, fontWeight = FontWeight.Bold)
                             Text("ID: ${phoneId ?: "—"}", color = GigColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
                             Text("${settings.resolution} @ ${settings.framerate}fps", color = GigColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
+                            // Transport indicators
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                val btColor = if (isBtConnected) GigColors.green else GigColors.textMuted
+                                val tcpColor = if (isTcpConnected) GigColors.green else GigColors.textMuted
+                                val relayColor = if (isRelayConnected) GigColors.green else GigColors.textMuted
+                                Text("BT", color = btColor, fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(4.dp))
+                                Box(Modifier.size(6.dp).clip(CircleShape).background(btColor))
+                                Spacer(Modifier.width(12.dp))
+                                Text("TCP", color = tcpColor, fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(4.dp))
+                                Box(Modifier.size(6.dp).clip(CircleShape).background(tcpColor))
+                                Spacer(Modifier.width(12.dp))
+                                Text("RELAY", color = relayColor, fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.width(4.dp))
+                                Box(Modifier.size(6.dp).clip(CircleShape).background(relayColor))
+                            }
                         }
                         OutlinedButton(
                             onClick = { manager.disconnect() },
