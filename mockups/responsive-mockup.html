@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tangerine Timetree — Unified Responsive Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --card: #111118;
+    --card-light: #1a1a24;
+    --text: #e8e8e8;
+    --text-dim: #a0a0b0;
+    --text-muted: #606070;
+    --green: #00e676;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --red: #ff5252;
+    --teal: #1abc9c;
+    --blue: #42a5f5;
+    --border: #2a2a3a;
+    --inset: #0a0a10;
+    --glow-green: 0 0 12px rgba(0,230,118,0.3);
+    --glow-orange: 0 0 12px rgba(243,156,18,0.3);
+    --glow-purple: 0 0 12px rgba(187,134,252,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --drawer-w: 220px;
+    --drawer-rail: 56px;
+    --header-h: 52px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Karla', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== APP HEADER ===== */
+  .app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-h);
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    z-index: 100;
+    gap: 12px;
+  }
+  .hamburger {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background 0.15s;
+  }
+  .hamburger:hover { background: var(--card-light); }
+  .hamburger span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--text);
+    transition: all 0.3s;
+  }
+  .hamburger.open span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .hamburger.open span:nth-child(2) { opacity: 0; }
+  .hamburger.open span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+  .app-logo {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    white-space: nowrap;
+  }
+  .app-logo .tt { color: var(--orange); }
+  .header-spacer { flex: 1; }
+  .header-user {
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .header-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--card-light);
+    border: 1px solid var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+  }
+
+  /* ===== DRAWER ===== */
+  .drawer-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .drawer-overlay.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--drawer-w);
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease, width 0.3s ease;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    min-height: var(--header-h);
+  }
+  .drawer-logo {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .drawer-logo .tt { color: var(--orange); }
+  .drawer-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: 6px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .drawer-close:hover { background: var(--card-light); color: var(--text); }
+
+  .drawer-nav { flex: 1; padding: 8px 0; }
+  .drawer-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 12px 16px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+  }
+  .drawer-item:hover { background: var(--card-light); color: var(--text); }
+  .drawer-item.active {
+    color: var(--green);
+    border-left-color: var(--green);
+    background: rgba(0,230,118,0.05);
+  }
+  .drawer-item .icon {
+    font-size: 18px;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .drawer-item .label { overflow: hidden; text-overflow: ellipsis; }
+  .drawer-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: white;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .drawer-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .drawer-footer .drawer-item { padding: 8px 0; border-left: none; }
+
+  /* ===== MAIN CONTENT ===== */
+  .main {
+    margin-top: var(--header-h);
+    padding: 16px;
+    transition: margin-left 0.3s ease;
+    min-height: calc(100vh - var(--header-h));
+  }
+
+  /* ===== SCREEN SWITCHER ===== */
+  .screen-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-tab {
+    padding: 5px 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .screen-tab:hover, .screen-tab.active {
+    background: var(--green);
+    color: var(--bg);
+    border-color: var(--green);
+  }
+  .tab-sep { font-size: 11px; color: var(--text-muted); align-self: center; padding: 0 2px; }
+
+  /* ===== RESPONSIVE BREAKPOINTS ===== */
+
+  /* --- MOBILE: ≤767px (iPhone SE → Samsung S23 Ultra) --- */
+  /* Default styles above = mobile-first */
+  /* Drawer is off-screen overlay, toggled by hamburger */
+
+  /* --- TABLET: 768px-1023px (iPad portrait, tablet) --- */
+  @media (min-width: 768px) {
+    .drawer {
+      transform: translateX(0);
+      width: var(--drawer-rail);
+      top: var(--header-h);
+    }
+    .drawer-header { display: none; }
+    .drawer .label { display: none; }
+    .drawer-section { display: none; }
+    .drawer-badge { display: none; }
+    .drawer-item { justify-content: center; padding: 12px 0; border-left: none; border-right: 3px solid transparent; }
+    .drawer-item.active { border-left: none; border-right-color: var(--green); }
+    .drawer-item .icon { font-size: 20px; width: 100%; }
+    .drawer-footer { display: none; }
+    .drawer-overlay { display: none !important; }
+    .main { margin-left: var(--drawer-rail); padding: 20px 24px; }
+
+    /* Expand on hover */
+    .drawer:hover {
+      width: var(--drawer-w);
+      box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+    }
+    .drawer:hover .label { display: inline; }
+    .drawer:hover .drawer-section { display: block; }
+    .drawer:hover .drawer-badge { display: inline; }
+    .drawer:hover .drawer-item { justify-content: flex-start; padding: 10px 16px; border-right: none; border-left: 3px solid transparent; }
+    .drawer:hover .drawer-item.active { border-left-color: var(--green); border-right: none; }
+    .drawer:hover .drawer-item .icon { width: 22px; font-size: 18px; }
+    .drawer:hover .drawer-header { display: flex; }
+    .drawer:hover .drawer-footer { display: block; }
+  }
+
+  /* --- DESKTOP: ≥1024px (iPad landscape, laptop, monitor) --- */
+  @media (min-width: 1024px) {
+    .drawer {
+      width: var(--drawer-w);
+      top: var(--header-h);
+      transform: translateX(0);
+    }
+    .drawer .label { display: inline; }
+    .drawer-section { display: block; }
+    .drawer-badge { display: inline; }
+    .drawer-item { justify-content: flex-start; padding: 10px 16px; border-left: 3px solid transparent; border-right: none; }
+    .drawer-item.active { border-left-color: var(--green); }
+    .drawer-item .icon { width: 22px; font-size: 18px; }
+    .drawer-footer { display: block; }
+    .drawer:hover { box-shadow: none; }
+    .main { margin-left: var(--drawer-w); padding: 24px 32px; max-width: calc(1920px - var(--drawer-w)); }
+    .hamburger { display: none; }
+  }
+
+  /* --- WIDESCREEN: ≥1440px --- */
+  @media (min-width: 1440px) {
+    .main { padding: 28px 40px; }
+  }
+
+  /* ===== SHARED COMPONENTS ===== */
+  .btn {
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .btn-green { background: var(--green); color: var(--bg); box-shadow: var(--glow-green); }
+  .btn-orange { background: var(--orange); color: var(--bg); box-shadow: var(--glow-orange); }
+  .btn-outline { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .card-raised { box-shadow: 4px 4px 10px rgba(0,0,0,0.3), -2px -2px 6px rgba(40,40,60,0.1); }
+
+  .well {
+    background: var(--inset);
+    border: 1px solid #1a1a24;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    width: 100%;
+  }
+  .field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .field-group { margin-bottom: 14px; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+  .badge-draft { background: rgba(160,160,176,0.2); color: var(--text-dim); }
+  .badge-sent { background: rgba(66,165,245,0.2); color: var(--blue); }
+  .badge-paid { background: rgba(0,230,118,0.2); color: var(--green); }
+
+  .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin: 20px 0 8px; }
+
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .page-header h2 { font-size: 20px; font-weight: 700; }
+  @media (min-width: 768px) { .page-header h2 { font-size: 22px; } }
+
+  /* Stats grid — responsive */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; } }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-value { font-size: 20px; font-weight: 700; }
+  @media (min-width: 768px) { .stat-value { font-size: 24px; } }
+  .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+
+  /* List items */
+  .list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    gap: 8px;
+  }
+  .list-item:hover { border-color: var(--green); }
+  .list-left { flex: 1; min-width: 0; }
+  .list-title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-right { text-align: right; flex-shrink: 0; }
+  .list-amount { font-weight: 700; font-size: 15px; color: var(--green); }
+
+  /* Calendar grid — responsive */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  @media (min-width: 768px) { .cal-grid { gap: 4px; max-width: 600px; } }
+  .cal-h { text-align: center; font-size: 11px; color: var(--text-muted); padding: 4px; }
+  @media (min-width: 768px) { .cal-h { font-size: 12px; } }
+  .cal-cell {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  @media (min-width: 768px) { .cal-cell { border-radius: 8px; font-size: 14px; aspect-ratio: 1.2; } }
+  .cal-cell:hover { background: var(--card-light); }
+  .cal-cell.today { border: 2px solid var(--green); box-shadow: var(--glow-green); }
+  .cal-cell.gig { background: rgba(0,230,118,0.12); color: var(--green); font-weight: 700; }
+  .cal-cell.practice { background: rgba(187,134,252,0.12); color: var(--purple); font-weight: 700; }
+  .cal-cell.away { background: rgba(255,82,82,0.1); color: var(--red); }
+  .cal-cell.past { opacity: 0.4; }
+
+  .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .month-nav h3 { font-size: 16px; font-weight: 700; }
+  @media (min-width: 768px) { .month-nav h3 { font-size: 18px; } }
+  .month-nav button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 12px; }
+
+  .legend { display: flex; gap: 12px; margin: 8px 0; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-dim); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Two-column layout — responsive */
+  .two-col { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 768px) { .two-col { grid-template-columns: 1fr 1fr; } }
+
+  /* Quick actions row */
+  .actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Lifecycle */
+  .lifecycle { display: flex; gap: 3px; margin: 12px 0; overflow-x: auto; }
+  .lc-stage {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    padding: 6px 2px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--inset);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  @media (min-width: 768px) { .lc-stage { font-size: 10px; padding: 8px 4px; } }
+  .lc-stage.done { background: rgba(0,230,118,0.12); color: var(--green); border-color: rgba(0,230,118,0.2); }
+  .lc-stage.current { background: rgba(0,230,118,0.2); color: var(--green); border-color: var(--green); box-shadow: var(--glow-green); }
+
+  /* Service items */
+  .svc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .svc-item:last-child { border-bottom: none; }
+  .svc-price { font-weight: 600; color: var(--green); white-space: nowrap; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-label { font-size: 14px; }
+  .toggle-sub { font-size: 11px; color: var(--text-muted); }
+  .toggle-sw { width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer; flex-shrink: 0; }
+  .toggle-sw::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 20px; }
+
+  /* Search */
+  .search-bar { background: var(--inset); border: 1px solid var(--border); border-radius: 20px; padding: 8px 14px; color: var(--text-dim); font-size: 13px; margin-bottom: 12px; width: 100%; max-width: 400px; }
+
+  /* Steps */
+  .steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+  .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+  .step-dot.active { background: var(--green); box-shadow: var(--glow-green); }
+  .step-dot.done { background: var(--green); opacity: 0.4; }
+
+  /* Form row */
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .form-row > * { flex: 1; min-width: 120px; }
+
+  /* Screens */
+  .screen { display: none; }
+  .screen.visible { display: block; }
+
+  /* Breakpoint indicator (dev tool) */
+  .bp-indicator {
+    position: fixed;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.8);
+    color: var(--green);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    z-index: 9999;
+    pointer-events: none;
+    font-family: monospace;
+  }
+</style>
+</head>
+<body>
+
+<!-- Breakpoint Indicator -->
+<div class="bp-indicator" id="bp"></div>
+
+<!-- App Header (always visible) -->
+<div class="app-header">
+  <div class="hamburger" id="burger" onclick="toggleDrawer()">
+    <span></span><span></span><span></span>
+  </div>
+  <div class="app-logo">Tangerine <span class="tt">Timetree</span></div>
+  <div class="header-spacer"></div>
+  <div class="header-user">
+    <span id="header-screen-name" style="color:var(--text-muted);font-size:11px">Calendar</span>
+    <div class="header-avatar">N</div>
+  </div>
+</div>
+
+<!-- Drawer Overlay (mobile only) -->
+<div class="drawer-overlay" id="overlay" onclick="closeDrawer()"></div>
+
+<!-- Collapsible Drawer -->
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-logo">Tangerine <span class="tt">Timetree</span></div>
+    <div class="drawer-close" onclick="closeDrawer()">&times;</div>
+  </div>
+  <div class="drawer-nav">
+    <div class="drawer-section">Calendar</div>
+    <div class="drawer-item active" onclick="nav(this,'calendar','Calendar')"><span class="icon">📅</span><span class="label">Calendar</span></div>
+    <div class="drawer-item" onclick="nav(this,'gig-list','Gig List')"><span class="icon">📋</span><span class="label">Gig List</span></div>
+    <div class="drawer-item" onclick="nav(this,'away','Away Dates')"><span class="icon">✈️</span><span class="label">Away Dates</span></div>
+
+    <div class="drawer-section">Business</div>
+    <div class="drawer-item" onclick="nav(this,'inv-dash','Dashboard')"><span class="icon">📊</span><span class="label">Dashboard</span></div>
+    <div class="drawer-item" onclick="nav(this,'inv-list','Invoices')"><span class="icon">📄</span><span class="label">Invoices</span></div>
+    <div class="drawer-item" onclick="nav(this,'quote-list','Quotes')"><span class="icon">📝</span><span class="label">Quotes</span></div>
+    <div class="drawer-item" onclick="nav(this,'clients','Clients')"><span class="icon">👥</span><span class="label">Clients</span></div>
+
+    <div class="drawer-section">Band</div>
+    <div class="drawer-item" onclick="nav(this,'media','Media')"><span class="icon">🖼️</span><span class="label">Media</span></div>
+    <div class="drawer-item" onclick="nav(this,'enquiries','Enquiries')"><span class="icon">📬</span><span class="label">Enquiries</span><span class="drawer-badge">2</span></div>
+    <div class="drawer-item" onclick="nav(this,'website','Website')"><span class="icon">🌐</span><span class="label">Website</span></div>
+  </div>
+  <div class="drawer-footer">
+    <div class="drawer-item" onclick="nav(this,'profile','Profile')"><span class="icon">👤</span><span class="label">Profile</span></div>
+    <div class="drawer-item" onclick="nav(this,'settings','Settings')"><span class="icon">⚙️</span><span class="label">Settings</span></div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main" id="main">
+
+  <!-- Screen Tabs -->
+  <div class="screen-tabs">
+    <button class="screen-tab active" onclick="showScreen('calendar',this)">Calendar</button>
+    <button class="screen-tab" onclick="showScreen('gig-list',this)">Gigs</button>
+    <button class="screen-tab" onclick="showScreen('away',this)">Away</button>
+    <span class="tab-sep">|</span>
+    <button class="screen-tab" onclick="showScreen('inv-dash',this)">Dashboard</button>
+    <button class="screen-tab" onclick="showScreen('inv-list',this)">Invoices</button>
+    <button class="screen-tab" onclick="showScreen('inv-detail',this)">Inv Detail</button>
+    <button class="screen-tab" onclick="showScreen('receipts',this)">Receipts</button>
+    <span class="tab-sep">|</span>
+    <button class="screen-tab" onclick="showScreen('quote-list',this)">Quotes</button>
+    <button class="screen-tab" onclick="showScreen('quote-detail',this)">Quote Detail</button>
+    <span class="tab-sep">|</span>
+    <button class="screen-tab" onclick="showScreen('clients',this)">Clients</button>
+    <button class="screen-tab" onclick="showScreen('settings',this)">Settings</button>
+  </div>
+
+  <!-- ==================== CALENDAR ==================== -->
+  <div id="screen-calendar" class="screen visible">
+    <div class="page-header">
+      <h2>March 2026</h2>
+      <div class="actions-row">
+        <button class="btn btn-outline btn-sm">Today</button>
+        <button class="btn btn-green btn-sm">+ Add Gig</button>
+      </div>
+    </div>
+    <div class="month-nav">
+      <button>&larr; Feb</button>
+      <h3>March 2026</h3>
+      <button>Apr &rarr;</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-h">M</div><div class="cal-h">T</div><div class="cal-h">W</div><div class="cal-h">T</div><div class="cal-h">F</div><div class="cal-h">S</div><div class="cal-h">S</div>
+      <div class="cal-cell past">23</div><div class="cal-cell past">24</div><div class="cal-cell past">25</div><div class="cal-cell past">26</div><div class="cal-cell past">27</div><div class="cal-cell past gig">28</div><div class="cal-cell past">1</div>
+      <div class="cal-cell past">2</div><div class="cal-cell past">3</div><div class="cal-cell today">4</div><div class="cal-cell">5</div><div class="cal-cell">6</div><div class="cal-cell gig">7</div><div class="cal-cell">8</div>
+      <div class="cal-cell">9</div><div class="cal-cell practice">10</div><div class="cal-cell">11</div><div class="cal-cell">12</div><div class="cal-cell">13</div><div class="cal-cell gig">14</div><div class="cal-cell">15</div>
+      <div class="cal-cell">16</div><div class="cal-cell">17</div><div class="cal-cell away">18</div><div class="cal-cell away">19</div><div class="cal-cell">20</div><div class="cal-cell gig">21</div><div class="cal-cell">22</div>
+      <div class="cal-cell">23</div><div class="cal-cell">24</div><div class="cal-cell">25</div><div class="cal-cell">26</div><div class="cal-cell">27</div><div class="cal-cell gig">28</div><div class="cal-cell">29</div>
+      <div class="cal-cell">30</div><div class="cal-cell">31</div><div class="cal-cell" style="opacity:0.3">1</div><div class="cal-cell" style="opacity:0.3">2</div><div class="cal-cell" style="opacity:0.3">3</div><div class="cal-cell" style="opacity:0.3">4</div><div class="cal-cell" style="opacity:0.3">5</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Gig</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Practice</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Away</div>
+    </div>
+  </div>
+
+  <!-- ==================== GIG LIST ==================== -->
+  <div id="screen-gig-list" class="screen">
+    <div class="page-header"><h2>Upcoming Gigs</h2></div>
+    <div class="section-title">This Week</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Gin & Juice, Mumbles</div><div class="list-sub">Sat, 7 Mar &bull; 20:00-23:00</div></div><div class="list-right"><div class="list-amount">&pound;500</div><div style="font-size:11px;color:var(--text-muted)">3 days</div></div></div>
+    <div class="section-title">Next Week</div>
+    <div class="list-item"><div class="list-left"><div class="list-title" style="color:var(--purple)">Practice @ Adam's</div><div class="list-sub">Tue, 10 Mar &bull; 19:00</div></div><div class="list-right"><span class="badge" style="background:rgba(187,134,252,0.15);color:var(--purple)">Practice</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">The Ship, Wandsworth</div><div class="list-sub">Sat, 14 Mar &bull; 20:00-23:30</div></div><div class="list-right"><div class="list-amount">&pound;600</div></div></div>
+    <div class="section-title">Later</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">North Star, Cardiff</div><div class="list-sub">Sat, 21 Mar &bull; 21:00-00:00</div></div><div class="list-right"><div class="list-amount">&pound;450</div></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">The Alma, Wandsworth</div><div class="list-sub">Sat, 28 Mar &bull; 20:30-23:30</div></div><div class="list-right"><div class="list-amount">&pound;550</div></div></div>
+  </div>
+
+  <!-- ==================== AWAY DATES ==================== -->
+  <div id="screen-away" class="screen">
+    <div class="page-header"><h2>My Away Dates</h2><div class="actions-row"><button class="btn btn-green btn-sm">+ Add</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">18-19 March 2026</div><div class="list-sub">Family holiday</div></div><div class="list-right"><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Delete</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">5-12 April 2026</div><div class="list-sub">Abroad</div></div><div class="list-right"><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Delete</button></div></div>
+  </div>
+
+  <!-- ==================== INVOICE DASHBOARD ==================== -->
+  <div id="screen-inv-dash" class="screen">
+    <div class="page-header"><h2>Invoice Dashboard</h2><div class="actions-row"><button class="btn btn-green btn-sm">Simple Invoice</button><button class="btn btn-orange btn-sm">Formal Quote</button></div></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" style="color:var(--green)">&pound;4,250</div><div class="stat-label">Total Invoiced</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--green)">&pound;3,100</div><div class="stat-label">Paid</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--orange)">&pound;1,150</div><div class="stat-label">Outstanding</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--blue)">8</div><div class="stat-label">Invoices</div></div>
+    </div>
+    <div class="actions-row" style="margin-bottom:16px"><button class="btn btn-outline btn-sm">Tax Year: 2025/26</button><button class="btn btn-outline btn-sm">Export CSV</button><button class="btn btn-outline btn-sm">Bulk PDF</button></div>
+    <div class="section-title">Recent Activity</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-008 &bull; Gin & Juice</div><div class="list-sub">Simple &bull; 28 Feb</div></div><div class="list-right"><div class="list-amount">&pound;500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-003 &bull; Williams Wedding</div><div class="list-sub">Formal &bull; 15 Feb</div></div><div class="list-right"><div class="list-amount">&pound;1,200</div><span class="badge badge-paid">Accepted</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-007 &bull; The Ship</div><div class="list-sub">Simple &bull; 22 Feb</div></div><div class="list-right"><div class="list-amount">&pound;600</div><span class="badge badge-paid">Paid</span></div></div>
+  </div>
+
+  <!-- ==================== INVOICE LIST ==================== -->
+  <div id="screen-inv-list" class="screen">
+    <div class="page-header"><h2>Invoices</h2><div class="actions-row"><button class="btn btn-green btn-sm">+ New</button></div></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+      <div class="search-bar" style="margin:0;flex:1;min-width:150px">&#128269; Search...</div>
+      <span class="badge badge-paid" style="cursor:pointer">All</span><span class="badge badge-draft" style="cursor:pointer">Draft</span><span class="badge badge-sent" style="cursor:pointer">Sent</span><span class="badge badge-paid" style="cursor:pointer">Paid</span>
+    </div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-008 &bull; Gin & Juice</div><div class="list-sub">Mumbles &bull; 28 Feb</div></div><div class="list-right"><div class="list-amount">&pound;500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-007 &bull; Young & Co's</div><div class="list-sub">The Ship &bull; 22 Feb</div></div><div class="list-right"><div class="list-amount">&pound;600</div><span class="badge badge-paid">Paid</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-006 &bull; North Star</div><div class="list-sub">Cardiff &bull; 15 Feb</div></div><div class="list-right"><div class="list-amount">&pound;450</div><span class="badge badge-paid">Paid</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-005 &bull; Suave Agency</div><div class="list-sub">The Alma &bull; 8 Feb</div></div><div class="list-right"><div class="list-amount">&pound;550</div><span class="badge badge-draft">Draft</span></div></div>
+  </div>
+
+  <!-- ==================== INVOICE DETAIL ==================== -->
+  <div id="screen-inv-detail" class="screen">
+    <div class="page-header"><h2>&larr; INV-008</h2><span class="badge badge-sent" style="font-size:13px;padding:6px 14px">Sent</span></div>
+    <div class="two-col">
+      <div>
+        <div class="card card-raised">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <div><div class="field-label">Client</div><div style="font-size:15px">Gin & Juice</div></div>
+            <div style="text-align:right"><div class="field-label">Amount</div><div style="font-size:22px;font-weight:700;color:var(--green)">&pound;500.00</div></div>
+          </div>
+          <div style="margin-top:10px"><div class="field-label">Venue</div>Gin & Juice, Mumbles</div>
+          <div style="margin-top:8px"><div class="field-label">Gig Date</div>Sat, 28 February 2026</div>
+          <div style="margin-top:8px"><div class="field-label">Description</div><span style="color:var(--text-dim);font-size:13px">Live music at Gin & Juice, Mumbles</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title" style="margin-top:0">Status</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap"><button class="btn btn-outline btn-sm">Draft</button><button class="btn btn-green btn-sm">Sent</button><button class="btn btn-outline btn-sm">Paid</button></div>
+        <div class="section-title">Actions</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn btn-outline" style="justify-content:center">Preview Invoice</button>
+          <button class="btn btn-green" style="justify-content:center">Download / Share PDF</button>
+          <button class="btn btn-outline" style="justify-content:center">View Receipts</button>
+          <button class="btn btn-outline" style="justify-content:center">Create Similar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== RECEIPTS ==================== -->
+  <div id="screen-receipts" class="screen">
+    <div class="page-header"><h2>&larr; Receipts — INV-007</h2></div>
+    <div class="card" style="background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2)"><div style="font-size:13px;color:var(--green)">Invoice: &pound;600.00 &bull; The Ship &bull; <span class="badge badge-paid">Paid</span></div><div style="font-size:12px;color:var(--text-dim);margin-top:4px">Split: &pound;200.00 each (3 members)</div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Neil</div><div class="list-sub">Bass</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm" style="margin-left:8px">PDF</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Adam</div><div class="list-sub">Guitar</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm" style="margin-left:8px">PDF</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">James</div><div class="list-sub">Vocals</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm" style="margin-left:8px">PDF</button></div></div>
+  </div>
+
+  <!-- ==================== QUOTE LIST ==================== -->
+  <div id="screen-quote-list" class="screen">
+    <div class="page-header"><h2>Quotes & Packages</h2><div class="actions-row"><button class="btn btn-orange btn-sm">+ New Quote</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-003 &bull; Williams Wedding</div><div class="list-sub">Manor House &bull; 15 Jun 2026</div></div><div class="list-right"><div class="list-amount">&pound;1,200</div><span class="badge badge-paid">Accepted</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-002 &bull; Corporate Dinner</div><div class="list-sub">Cardiff Bay Hotel &bull; 3 May</div></div><div class="list-right"><div class="list-amount">&pound;1,500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-001 &bull; Evans Party</div><div class="list-sub">Village Hall &bull; 12 Apr</div></div><div class="list-right"><div class="list-amount">&pound;800</div><span class="badge" style="background:rgba(255,82,82,0.2);color:var(--red)">Declined</span></div></div>
+  </div>
+
+  <!-- ==================== QUOTE DETAIL ==================== -->
+  <div id="screen-quote-detail" class="screen">
+    <div class="page-header"><h2>&larr; QTE-003</h2><span class="badge badge-paid" style="font-size:13px;padding:6px 14px">Accepted</span></div>
+    <div class="lifecycle">
+      <div class="lc-stage done">Draft</div><div class="lc-stage done">Sent</div><div class="lc-stage current">Accept</div><div class="lc-stage">Invoice</div><div class="lc-stage">Paid</div><div class="lc-stage">Done</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="card card-raised">
+          <div style="font-weight:700;font-size:16px">Williams Wedding</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:4px">The Manor House, Bridgend &bull; 15 Jun 2026</div>
+          <div style="font-size:22px;font-weight:700;color:var(--green);margin-top:8px">&pound;1,150.00</div>
+        </div>
+        <div class="section-title">Line Items</div>
+        <div class="card">
+          <div class="svc-item"><span>Live band — 2 sets</span><span class="svc-price">&pound;800</span></div>
+          <div class="svc-item"><span>DJ set</span><span class="svc-price">&pound;150</span></div>
+          <div class="svc-item"><span>First dance</span><span class="svc-price">&pound;50</span></div>
+          <div class="svc-item"><span>Acoustic ceremony</span><span class="svc-price">&pound;200</span></div>
+          <div class="svc-item" style="color:var(--red)"><span>Discount</span><span>-&pound;50</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title" style="margin-top:0">Next Step</div>
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-bottom:8px">Generate Invoice</button>
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:16px">Add to Calendar</button>
+        <div class="section-title">Documents</div>
+        <div class="list-item"><div class="list-left"><div class="list-title">Quote PDF</div><div class="list-sub">Sent 16 Feb</div></div><span style="color:var(--green);font-size:12px">View</span></div>
+        <div class="list-item" style="opacity:0.5"><div class="list-left"><div class="list-title">Invoice</div><div class="list-sub">Pending</div></div></div>
+        <div class="list-item" style="opacity:0.5"><div class="list-left"><div class="list-title">Receipts</div><div class="list-sub">On payment</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CLIENTS ==================== -->
+  <div id="screen-clients" class="screen">
+    <div class="page-header"><h2>Clients</h2><div class="actions-row"><button class="btn btn-green btn-sm">+ New</button></div></div>
+    <div class="search-bar">&#128269; Search clients...</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Gin & Juice</div><div class="list-sub">Dave &bull; 2 venues &bull; 3 invoices</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Young & Co's Brewery PLC</div><div class="list-sub">Mike &bull; 2 venues</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">North Star</div><div class="list-sub">Lisa &bull; 1 venue</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Mr & Mrs Williams</div><div class="list-sub">Sarah &bull; 1 quote</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+  </div>
+
+  <!-- ==================== SETTINGS ==================== -->
+  <div id="screen-settings" class="screen">
+    <div class="page-header"><h2>Settings</h2><div class="actions-row"><button class="btn btn-green btn-sm">Save</button></div></div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+      <span class="badge badge-paid" style="cursor:pointer;padding:6px 14px">Personal</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">Band</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">PLI</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">Services</span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="section-title">Your Details</div>
+        <div class="field-group"><div class="field-label">Name</div><div class="well">Nathan Thomas</div></div>
+        <div class="field-group"><div class="field-label">Email</div><div class="well">nathan@thegreentangerine.com</div></div>
+        <div class="field-group"><div class="field-label">Phone</div><div class="well">07700 900000</div></div>
+      </div>
+      <div>
+        <div class="section-title">Bank Details</div>
+        <div class="field-group"><div class="field-label">Account Name</div><div class="well">Nathan Thomas</div></div>
+        <div class="field-group"><div class="field-label">Bank</div><div class="well">Starling Bank</div></div>
+        <div class="form-row">
+          <div class="field-group"><div class="field-label">Sort Code</div><div class="well">60-83-71</div></div>
+          <div class="field-group"><div class="field-label">Acc No.</div><div class="well">12345678</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Placeholder screens -->
+  <div id="screen-media" class="screen"><div class="page-header"><h2>Media Manager</h2><div class="actions-row"><button class="btn btn-green btn-sm">Upload</button><button class="btn btn-outline btn-sm">YouTube</button></div></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px"><div class="card" style="text-align:center;padding:16px"><div style="font-size:28px">📷</div><div style="font-size:11px;margin-top:4px">gig-photo.jpg</div><span class="badge badge-paid" style="font-size:9px">Visible</span></div><div class="card" style="text-align:center;padding:16px"><div style="font-size:28px">📷</div><div style="font-size:11px;margin-top:4px">promo.jpg</div><span class="badge badge-paid" style="font-size:9px">Visible</span></div><div class="card" style="text-align:center;padding:16px"><div style="font-size:28px">🎬</div><div style="font-size:11px;margin-top:4px">Live at Ship</div><span class="badge badge-paid" style="font-size:9px">Visible</span></div><div class="card" style="text-align:center;padding:16px;opacity:0.5"><div style="font-size:28px">📷</div><div style="font-size:11px;margin-top:4px">backstage.jpg</div><span class="badge badge-draft" style="font-size:9px">Hidden</span></div></div></div>
+  <div id="screen-enquiries" class="screen"><div class="page-header"><h2>Enquiries</h2></div><div class="card" style="border-left:3px solid var(--green)"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px"><div><strong>Sarah Williams</strong><div style="font-size:12px;color:var(--text-dim)">Wedding &bull; 15 Jun 2026 &bull; 2h ago</div></div><span class="badge badge-paid" style="font-size:9px">New</span></div><div style="font-size:13px;color:var(--text-dim);margin-top:6px">Looking for a band for our wedding reception...</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm">Mark Read</button><button class="btn btn-outline btn-sm">Reply</button><button class="btn btn-outline btn-sm">Archive</button></div></div><div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px"><div><strong>Dave Jones</strong><div style="font-size:12px;color:var(--text-dim)">Corporate &bull; 3 May 2026 &bull; 1d ago</div></div><span class="badge badge-paid" style="font-size:9px">New</span></div><div style="font-size:13px;color:var(--text-dim);margin-top:6px">Annual dinner at Cardiff Bay Hotel...</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn btn-outline btn-sm">Mark Read</button><button class="btn btn-outline btn-sm">Reply</button><button class="btn btn-outline btn-sm">Archive</button></div></div></div>
+  <div id="screen-website" class="screen"><div class="page-header"><h2>Website Preview</h2><div class="actions-row"><a href="#" style="color:var(--green);font-size:13px">thegreentangerine.com &nearr;</a></div></div><div class="card" style="text-align:center;padding:40px;color:var(--text-dim)">Public site preview would render here<br><span style="font-size:12px">(Same as the live site at thegreentangerine.com)</span></div></div>
+  <div id="screen-profile" class="screen"><div class="page-header"><h2>Profile</h2><div class="actions-row"><button class="btn btn-green btn-sm">Save</button></div></div><div style="max-width:400px"><div class="card" style="text-align:center;padding:20px"><div style="width:64px;height:64px;border-radius:50%;background:var(--card-light);border:2px solid var(--green);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:24px">🥁</div><div style="font-weight:700">Nathan Thomas</div><div style="font-size:13px;color:var(--text-dim)">Drums</div></div><div class="field-group"><div class="field-label">Name</div><div class="well">Nathan Thomas</div></div><div class="field-group"><div class="field-label">Band Role</div><div class="well">Drums</div></div><div class="field-group"><div class="field-label">Email</div><div class="well" style="opacity:0.6">nathan@thegreentangerine.com</div></div><button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:16px;color:var(--red);border-color:var(--red)">Sign Out</button></div></div>
+
+</div><!-- end main -->
+
+<script>
+// Drawer toggle
+function toggleDrawer() {
+  const d = document.getElementById('drawer');
+  const o = document.getElementById('overlay');
+  const b = document.getElementById('burger');
+  const isOpen = d.classList.contains('open');
+  if (isOpen) { closeDrawer(); } else {
+    d.classList.add('open');
+    o.classList.add('open');
+    b.classList.add('open');
+  }
+}
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('burger').classList.remove('open');
+}
+
+// Navigation
+function nav(el, screenId, name) {
+  document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  showScreen(screenId);
+  document.getElementById('header-screen-name').textContent = name;
+  if (window.innerWidth < 768) closeDrawer();
+}
+
+function showScreen(id, tabBtn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('visible'));
+  const el = document.getElementById('screen-' + id);
+  if (el) el.classList.add('visible');
+  if (tabBtn) {
+    document.querySelectorAll('.screen-tab').forEach(t => t.classList.remove('active'));
+    tabBtn.classList.add('active');
+  }
+}
+
+// Breakpoint indicator
+function updateBP() {
+  const w = window.innerWidth;
+  let label = '';
+  if (w < 375) label = 'XS (<375)';
+  else if (w < 768) label = 'MOBILE (' + w + 'px)';
+  else if (w < 1024) label = 'TABLET (' + w + 'px)';
+  else if (w < 1440) label = 'DESKTOP (' + w + 'px)';
+  else label = 'WIDE (' + w + 'px)';
+  document.getElementById('bp').textContent = label;
+}
+window.addEventListener('resize', updateBP);
+updateBP();
+</script>
+</body>
+</html>

@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UX Consolidation Mockup — Before & After</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --surface: #0e0e16;
+    --card: #111118;
+    --card-light: #1a1a24;
+    --text: #e8e8e8;
+    --text-dim: #a0a0b0;
+    --text-muted: #606070;
+    --green: #00e676;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --red: #ff5252;
+    --teal: #1abc9c;
+    --blue: #42a5f5;
+    --border: #2a2a3a;
+    --inset: #0a0a10;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --drawer-w: 160px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Karla', sans-serif;
+    background: #060609;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===== TOP NAV ===== */
+  .top-nav {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 200;
+  }
+  .top-nav button {
+    padding: 8px 20px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .top-nav button:hover, .top-nav button.active {
+    background: var(--teal);
+    color: var(--bg);
+    border-color: var(--teal);
+  }
+
+  /* ===== VIEWS ===== */
+  .view { display: none; }
+  .view.visible { display: block; }
+
+  /* ===== APP SHELL (drawer + content) ===== */
+  .app-shell {
+    display: flex;
+    min-height: calc(100vh - 54px);
+  }
+
+  /* ===== DRAWER ===== */
+  .drawer {
+    width: var(--drawer-w);
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    flex-shrink: 0;
+  }
+  .drawer-logo {
+    padding: 8px 16px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--teal);
+    white-space: nowrap;
+  }
+  .drawer-section {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    padding: 12px 16px 4px;
+  }
+  .drawer-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.1s;
+    border-left: 3px solid transparent;
+  }
+  .drawer-item:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+  .drawer-item.active {
+    color: var(--green);
+    border-left-color: var(--green);
+    background: rgba(0,230,118,0.04);
+  }
+  .drawer-item .icon { font-size: 15px; width: 20px; text-align: center; }
+
+  /* ===== MAIN CONTENT ===== */
+  .main-content {
+    flex: 1;
+    background: var(--surface);
+    overflow-y: auto;
+  }
+
+  /* ===== CALENDAR GRID (simplified) ===== */
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 20px;
+  }
+  .calendar-header .month {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .calendar-header .arrow {
+    color: var(--teal);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(26,188,156,0.08);
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 0 16px 16px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .cal-day-header {
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 4px;
+    text-transform: uppercase;
+  }
+  .cal-cell {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px;
+    min-height: 52px;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+  }
+  .cal-cell:hover { border-color: var(--teal); }
+  .cal-cell.selected { border-color: var(--green); box-shadow: 0 0 8px rgba(0,230,118,0.2); }
+  .cal-cell .day-num { font-size: 11px; font-weight: 600; }
+  .cal-cell .venue-text { font-size: 7px; color: var(--text-dim); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-cell .dot-row { display: flex; gap: 2px; margin-top: 3px; }
+  .cal-cell .dot-row .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; }
+
+  /* ===== BOTTOM SHEET (current DayDetail) ===== */
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0;
+    left: var(--drawer-w);
+    right: 0;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    z-index: 50;
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--text-muted);
+    border-radius: 2px;
+    margin: 10px auto;
+  }
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 4px 20px 12px;
+  }
+  .sheet-header .date-text {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .sheet-header .arrow {
+    color: var(--teal);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(26,188,156,0.08);
+  }
+  .sheet-body { padding: 0 20px 20px; }
+
+  /* ===== GIG CARD (matching live site style) ===== */
+  .gig-card {
+    border-left: 3px solid var(--green);
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: var(--card-light);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .gig-card.enquiry { border-left-color: var(--orange); }
+  .gig-card .venue-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .gig-card .venue-name { font-size: 15px; font-weight: 700; }
+  .gig-nav-btn {
+    padding: 2px 10px;
+    border: 1px solid var(--teal);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--teal);
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .gig-detail-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 16px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .gig-detail-grid .label { color: var(--text-muted); }
+  .gig-detail-grid .value { font-family: 'JetBrains Mono', monospace; font-weight: 500; }
+  .gig-detail-grid .value.fee { color: var(--orange); }
+  .gig-attribution {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .gig-actions {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+  }
+  .gig-actions a {
+    color: var(--teal);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .gig-actions a.delete { color: var(--red); }
+
+  /* ===== FOOTER BUTTONS (matching live site) ===== */
+  .day-footer {
+    padding: 12px 20px 20px;
+  }
+  .btn-add-booking {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1.5px solid var(--green);
+    border-radius: var(--radius);
+    color: var(--green);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .btn-add-booking .sub { font-size: 11px; font-weight: 400; color: var(--text-muted); display: block; margin-top: 2px; }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .btn-secondary {
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .btn-secondary.away { color: var(--orange); border-color: rgba(243,156,18,0.3); }
+
+  /* ===== FULL SCREEN GIG DAY (proposed) ===== */
+  .gigday-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  .gigday-header .back-btn {
+    color: var(--teal);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background: rgba(26,188,156,0.08);
+    border: none;
+    font-family: inherit;
+  }
+  .gigday-header .date-text { font-size: 17px; font-weight: 700; flex: 1; }
+  .gigday-header .nav-arrows { display: flex; gap: 6px; }
+  .gigday-header .nav-arrows span {
+    color: var(--teal);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(26,188,156,0.08);
+  }
+  .gigday-body { padding: 16px 20px; }
+
+  /* ===== EXPANDABLE GIG CARD ===== */
+  .gig-card-new {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    background: var(--card);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .gig-card-new.enquiry { border-left-color: var(--orange); }
+  .gig-card-new:hover { border-color: var(--teal); }
+  .gig-card-new.expanded {
+    border-color: var(--teal);
+    box-shadow: 0 0 20px rgba(26,188,156,0.08);
+    cursor: default;
+  }
+  .gig-card-new .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .gig-card-new .card-header .left { flex: 1; }
+  .gig-card-new .venue-name { font-size: 15px; font-weight: 700; }
+  .gig-card-new .client-fee {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .gig-card-new .fee {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--orange);
+  }
+  .gig-card-new .times-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .gig-card-new .times-row .time-val {
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+  }
+
+  /* Mini pipeline dots */
+  .mini-pipeline {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 8px;
+  }
+  .mini-pipeline .mini-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--border);
+  }
+  .mini-pipeline .mini-dot.reached { background: var(--teal); }
+  .mini-pipeline .mini-dot.active { background: var(--green); box-shadow: 0 0 4px rgba(0,230,118,0.4); }
+  .mini-pipeline .stage-label { font-size: 10px; color: var(--text-muted); margin-left: 4px; }
+
+  /* Expand hint */
+  .expand-hint { text-align: center; font-size: 10px; color: var(--teal); margin-top: 6px; opacity: 0.6; }
+
+  /* ===== EXPANDED CONTENT ===== */
+  .expanded-body {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin: 12px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Pipeline tracker */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 8px 0;
+    justify-content: center;
+  }
+  .pipeline .dot {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700;
+    border: 2px solid var(--border);
+    background: var(--inset);
+    color: var(--text-muted);
+  }
+  .pipeline .dot.reached { border-color: var(--teal); background: rgba(26,188,156,0.15); color: var(--teal); }
+  .pipeline .dot.active { border-color: var(--green); background: rgba(0,230,118,0.15); color: var(--green); box-shadow: 0 0 8px rgba(0,230,118,0.25); }
+  .pipeline .line { width: 20px; height: 2px; background: var(--border); }
+  .pipeline .line.reached { background: var(--teal); }
+  .pipeline-labels {
+    display: flex; justify-content: space-between;
+    font-size: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 0 4px; margin-bottom: 6px;
+  }
+
+  /* Deposit */
+  .deposit-box {
+    background: var(--inset);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin: 6px 0;
+  }
+  .deposit-header { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 6px; }
+  .deposit-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .deposit-bar .fill { height: 100%; background: var(--green); border-radius: 2px; }
+
+  /* Linked docs */
+  .doc-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin: 4px 0;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .doc-link:hover { border-color: var(--teal); }
+  .doc-link .doc-icon { font-size: 18px; }
+  .doc-link .doc-info { flex: 1; }
+  .doc-link .doc-title { font-size: 12px; font-weight: 600; }
+  .doc-link .doc-meta { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .doc-link .doc-amount { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--orange); }
+  .doc-link .chevron { color: var(--text-muted); }
+
+  /* Notes */
+  .notes-box {
+    background: var(--inset);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-dim);
+    font-style: italic;
+    margin: 6px 0;
+  }
+
+  /* Action grid */
+  .action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .action-btn {
+    padding: 9px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--card-light);
+    color: var(--text-dim);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .action-btn:hover { border-color: var(--teal); color: var(--text); }
+  .action-btn.primary { background: var(--teal); color: var(--bg); border-color: var(--teal); }
+  .action-btn.orange { background: var(--orange); color: var(--bg); border-color: var(--orange); }
+  .action-btn.danger { color: var(--red); border-color: rgba(255,82,82,0.3); }
+  .action-btn.full { grid-column: 1 / -1; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge-confirmed { background: rgba(0,230,118,0.12); color: var(--green); }
+  .badge-enquiry { background: rgba(243,156,18,0.12); color: var(--orange); }
+  .badge-invoiced { background: rgba(66,165,245,0.12); color: var(--blue); }
+  .badge-client { background: rgba(187,134,252,0.12); color: var(--purple); }
+  .badge-practice { background: rgba(26,188,156,0.12); color: var(--teal); }
+  .badge-draft { background: rgba(160,160,176,0.12); color: var(--text-dim); }
+
+  /* Away warning */
+  .away-banner {
+    background: rgba(255,82,82,0.06);
+    border: 1px solid rgba(255,82,82,0.2);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--red);
+  }
+
+  /* ===== LABELS ===== */
+  .screen-badge {
+    text-align: center; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 8px; margin: 8px 0;
+    border-radius: var(--radius-sm);
+  }
+  .screen-badge.before { color: var(--red); background: rgba(255,82,82,0.06); border: 1px solid rgba(255,82,82,0.15); }
+  .screen-badge.after { color: var(--green); background: rgba(0,230,118,0.06); border: 1px solid rgba(0,230,118,0.15); }
+
+  /* ===== COMPARISON LAYOUT ===== */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1000px) { .comparison { grid-template-columns: 1fr; } }
+
+  .column-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .column-title.red { color: var(--red); }
+  .column-title.green { color: var(--green); }
+
+  .hop-arrow {
+    text-align: center;
+    padding: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .hop-arrow .arr { font-size: 22px; color: var(--red); display: block; }
+
+  /* ===== HOP TABLE ===== */
+  .hop-section { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .hop-section h2 { text-align: center; margin-bottom: 8px; }
+  .hop-section .subtitle { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .hop-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  .hop-table th {
+    text-align: left; padding: 10px 14px; background: var(--card); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .hop-table td { padding: 10px 14px; border: 1px solid var(--border); background: var(--bg); }
+  .hop-table .bad { color: var(--red); font-weight: 700; }
+  .hop-table .good { color: var(--green); font-weight: 700; }
+  .summary-stat {
+    text-align: center; margin-top: 32px; padding: 24px;
+    background: rgba(0,230,118,0.04);
+    border: 1px solid rgba(0,230,118,0.15);
+    border-radius: var(--radius);
+  }
+  .summary-stat .num { font-size: 28px; font-weight: 700; color: var(--green); }
+  .summary-stat .desc { font-size: 14px; color: var(--text-dim); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ===== TOP NAV ===== -->
+<div class="top-nav">
+  <button class="active" onclick="showView('before')">Current: 3-Screen Flow</button>
+  <button onclick="showView('after')">Proposed: Full-Screen Gig Day</button>
+  <button onclick="showView('hops')">Hop Comparison</button>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 1: CURRENT (BEFORE) — Calendar + Bottom Sheet + GigHub  -->
+<!-- ============================================================ -->
+<div class="view visible" id="view-before">
+  <div style="text-align:center; padding:20px 20px 0;">
+    <h2 style="color:var(--red);">Current Flow: 3 Screens to See Gig Details</h2>
+    <p style="color:var(--text-dim); font-size:13px; margin-top:4px;">Calendar &rarr; DayDetail (bottom sheet) &rarr; GigHub (separate screen)</p>
+  </div>
+
+  <!-- SCREEN 1: Calendar + Bottom Sheet -->
+  <div style="padding:16px 24px;">
+    <div class="screen-badge before">Screen 1: Calendar + DayDetail Bottom Sheet</div>
+    <div class="app-shell" style="height:600px; position:relative; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);">
+      <!-- Drawer -->
+      <div class="drawer">
+        <div class="drawer-logo">Tangerine Timetree</div>
+        <div class="drawer-section">Calendar</div>
+        <div class="drawer-item active"><span class="icon">&#128197;</span> Calendar</div>
+        <div class="drawer-item"><span class="icon">&#128203;</span> Gig List</div>
+        <div class="drawer-section">Business</div>
+        <div class="drawer-item"><span class="icon">&#128200;</span> Dashboard</div>
+        <div class="drawer-item"><span class="icon">&#128196;</span> Invoices</div>
+        <div class="drawer-item"><span class="icon">&#128221;</span> Quotes</div>
+        <div class="drawer-item"><span class="icon">&#128101;</span> Clients</div>
+        <div class="drawer-item"><span class="icon">&#127970;</span> Venues</div>
+        <div class="drawer-section">Music</div>
+        <div class="drawer-item"><span class="icon">&#127925;</span> Library</div>
+      </div>
+      <!-- Main: Calendar -->
+      <div class="main-content" style="position:relative;">
+        <div class="calendar-header">
+          <span class="arrow">&larr;</span>
+          <span class="month">March 2026</span>
+          <span class="arrow">&rarr;</span>
+        </div>
+        <div class="cal-grid">
+          <div class="cal-day-header">Mon</div><div class="cal-day-header">Tue</div><div class="cal-day-header">Wed</div>
+          <div class="cal-day-header">Thu</div><div class="cal-day-header">Fri</div><div class="cal-day-header">Sat</div><div class="cal-day-header">Sun</div>
+          <div class="cal-cell empty"></div><div class="cal-cell empty"></div><div class="cal-cell empty"></div><div class="cal-cell empty"></div><div class="cal-cell empty"></div><div class="cal-cell empty"></div>
+          <div class="cal-cell"><span class="day-num">1</span></div>
+          <div class="cal-cell"><span class="day-num">2</span></div>
+          <div class="cal-cell"><span class="day-num">3</span></div>
+          <div class="cal-cell"><span class="day-num">4</span></div>
+          <div class="cal-cell"><span class="day-num">5</span></div>
+          <div class="cal-cell"><span class="day-num">6</span></div>
+          <div class="cal-cell selected">
+            <span class="day-num">7</span>
+            <div class="venue-text">Three Compasses</div>
+            <div class="dot-row"><div class="dot" style="background:var(--green);"></div></div>
+          </div>
+          <div class="cal-cell"><span class="day-num">8</span></div>
+          <div class="cal-cell"><span class="day-num">9</span></div>
+          <div class="cal-cell"><span class="day-num">10</span></div>
+          <div class="cal-cell"><span class="day-num">11</span></div>
+          <div class="cal-cell"><span class="day-num">12</span></div>
+          <div class="cal-cell"><span class="day-num">13</span></div>
+          <div class="cal-cell">
+            <span class="day-num">14</span>
+            <div class="venue-text">Rose Garden</div>
+            <div class="dot-row"><div class="dot" style="background:var(--purple);"></div></div>
+          </div>
+          <div class="cal-cell"><span class="day-num">15</span></div>
+        </div>
+      </div>
+
+      <!-- Bottom Sheet (DayDetail) -->
+      <div class="bottom-sheet" style="left:var(--drawer-w);">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <span class="arrow">&larr;</span>
+          <span class="date-text">Saturday, 7 March 2026</span>
+          <span class="arrow">&rarr;</span>
+        </div>
+        <div class="sheet-body">
+          <div class="gig-card">
+            <div class="venue-row">
+              <span class="venue-name">Three Compasses, Clydach</span>
+              <button class="gig-nav-btn">Navigate</button>
+            </div>
+            <div class="gig-detail-grid">
+              <span class="label">Fee</span><span class="value fee">&pound;360.00</span>
+              <span class="label">Payment</span><span class="value">cash</span>
+              <span class="label">Load-in</span><span class="value">7:00pm</span>
+              <span class="label">Start</span><span class="value">8:00pm</span>
+            </div>
+            <div class="gig-attribution">Added by Nathan Thomas</div>
+            <div class="gig-actions">
+              <a>Show history</a>
+              <a>+ Invoice</a>
+              <a class="delete">Delete</a>
+            </div>
+          </div>
+        </div>
+        <div class="day-footer">
+          <button class="btn-add-booking">+ Add Booking<span class="sub">Quick entry or full client booking</span></button>
+          <div class="btn-row">
+            <button class="btn-secondary">Add Practice</button>
+            <button class="btn-secondary away">I'm Away</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; padding:8px; font-size:11px; color:var(--text-muted);">
+      This is what you see now. Thin card with basic info. To see pipeline, deposit, docs — you must tap the card and navigate to GigHub...
+    </div>
+  </div>
+
+  <div class="hop-arrow">
+    <span style="font-size:13px;">Tap the gig card...</span>
+    <span class="arr">&darr; navigates to entirely separate screen &darr;</span>
+  </div>
+
+  <!-- SCREEN 2: GigHub -->
+  <div style="padding:0 24px 24px;">
+    <div class="screen-badge before">Screen 2: GigHub (separate full page)</div>
+    <div class="app-shell" style="height:auto; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);">
+      <div class="drawer">
+        <div class="drawer-logo">Tangerine Timetree</div>
+        <div class="drawer-section">Calendar</div>
+        <div class="drawer-item active"><span class="icon">&#128197;</span> Calendar</div>
+        <div class="drawer-item"><span class="icon">&#128203;</span> Gig List</div>
+        <div class="drawer-section">Business</div>
+        <div class="drawer-item"><span class="icon">&#128200;</span> Dashboard</div>
+        <div class="drawer-item"><span class="icon">&#128196;</span> Invoices</div>
+      </div>
+      <div class="main-content" style="padding:0;">
+        <div class="gigday-header">
+          <button class="back-btn">&larr;</button>
+          <span class="date-text">Gig Details</span>
+          <span class="badge badge-confirmed">Confirmed</span>
+        </div>
+        <div style="padding:20px; text-align:center;">
+          <div style="font-size:22px; font-weight:700; margin-bottom:4px;">Three Compasses, Clydach</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-client">Client</span> <span style="margin-left:4px;">Direct booking</span></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:32px; font-weight:700; color:var(--orange);">&pound;360</div>
+        </div>
+        <div style="padding:0 20px;">
+          <div class="pipeline">
+            <span class="dot reached">&#10003;</span><span class="line reached"></span>
+            <span class="dot active">&#10003;</span><span class="line"></span>
+            <span class="dot">3</span><span class="line"></span>
+            <span class="dot">4</span><span class="line"></span>
+            <span class="dot">5</span>
+          </div>
+          <div class="pipeline-labels">
+            <span>Enquiry</span><span>Confirmed</span><span>Quote</span><span>Invoice</span><span>Paid</span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:12px 0;">
+            <div style="background:var(--inset); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase;">Date</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; margin-top:2px;">Sat 7</div>
+            </div>
+            <div style="background:var(--inset); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase;">Time</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; margin-top:2px;">8:00pm</div>
+            </div>
+            <div style="background:var(--inset); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase;">Load-in</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; margin-top:2px;">7:00pm</div>
+            </div>
+            <div style="background:var(--inset); border-radius:8px; padding:8px; text-align:center;">
+              <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase;">End</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:13px; margin-top:2px;">11:30pm</div>
+            </div>
+          </div>
+
+          <div class="section-label">Linked Documents</div>
+          <div class="doc-link" style="opacity:0.4;">
+            <span class="doc-icon">&#128196;</span>
+            <div class="doc-info"><div class="doc-title">No quote</div><div class="doc-meta">Generate one below</div></div>
+          </div>
+          <div class="doc-link" style="opacity:0.4;">
+            <span class="doc-icon">&#128196;</span>
+            <div class="doc-info"><div class="doc-title">No invoice</div><div class="doc-meta">Create one below</div></div>
+          </div>
+
+          <div class="action-grid" style="margin-top:16px; margin-bottom:20px;">
+            <button class="action-btn primary">Edit Booking</button>
+            <button class="action-btn">Change Status</button>
+            <button class="action-btn orange">Create Invoice</button>
+            <button class="action-btn">Gen. Quote</button>
+            <button class="action-btn">History</button>
+            <button class="action-btn">Navigate</button>
+            <button class="action-btn danger full">Delete Gig</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center; padding:8px; font-size:11px; color:var(--text-muted);">
+      This is an entirely separate screen. You had to leave the day view to see pipeline, docs, and actions for ONE gig.
+      To see another gig's details — go back, then tap that card too.
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 2: PROPOSED — Full-Screen Gig Day                       -->
+<!-- ============================================================ -->
+<div class="view" id="view-after">
+  <div style="text-align:center; padding:20px 20px 0;">
+    <h2 style="color:var(--green);">Proposed: Full-Screen Gig Day</h2>
+    <p style="color:var(--text-dim); font-size:13px; margin-top:4px;">Click a day &rarr; full-screen view. Expand any gig card in-place. No separate GigHub screen.</p>
+  </div>
+
+  <div style="padding:16px 24px;">
+    <div class="screen-badge after">1 Screen — Everything Accessible</div>
+    <div class="app-shell" style="height:auto; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border);">
+      <!-- Drawer -->
+      <div class="drawer">
+        <div class="drawer-logo">Tangerine Timetree</div>
+        <div class="drawer-section">Calendar</div>
+        <div class="drawer-item"><span class="icon">&#128197;</span> Calendar</div>
+        <div class="drawer-item"><span class="icon">&#128203;</span> Gig List</div>
+        <div class="drawer-section">Business</div>
+        <div class="drawer-item"><span class="icon">&#128200;</span> Dashboard</div>
+        <div class="drawer-item"><span class="icon">&#128196;</span> Invoices</div>
+        <div class="drawer-item"><span class="icon">&#128221;</span> Quotes</div>
+        <div class="drawer-item"><span class="icon">&#128101;</span> Clients</div>
+        <div class="drawer-item"><span class="icon">&#127970;</span> Venues</div>
+        <div class="drawer-section">Music</div>
+        <div class="drawer-item"><span class="icon">&#127925;</span> Library</div>
+      </div>
+
+      <!-- Main: Full-screen Gig Day -->
+      <div class="main-content" style="padding:0;">
+        <div class="gigday-header">
+          <button class="back-btn">&larr;</button>
+          <span class="date-text">Saturday, 7 March 2026</span>
+          <div class="nav-arrows"><span>&larr;</span><span>&rarr;</span></div>
+        </div>
+        <div class="gigday-body">
+
+          <!-- Away banner -->
+          <div class="away-banner"><span style="font-size:16px;">&#9888;</span> Nathan is away (holiday 5&ndash;12 Mar)</div>
+
+          <!-- GIG 1: COLLAPSED (practice) -->
+          <div class="gig-card-new">
+            <div class="card-header">
+              <div class="left">
+                <div class="venue-name">Home Studio <span class="badge badge-practice" style="margin-left:6px;">Practice</span></div>
+                <div class="times-row">
+                  <span>Start <span class="time-val">2:00pm</span></span>
+                  <span>&middot;</span>
+                  <span>End <span class="time-val">4:00pm</span></span>
+                </div>
+              </div>
+            </div>
+            <div class="expand-hint">&#9660; Tap to expand</div>
+          </div>
+
+          <!-- GIG 2: COLLAPSED (client gig) -->
+          <div class="gig-card-new enquiry">
+            <div class="card-header">
+              <div class="left">
+                <div class="venue-name">The Rose Garden <span class="badge badge-enquiry" style="margin-left:6px;">Enquiry</span></div>
+                <div class="client-fee">
+                  <span class="badge badge-client" style="font-size:9px;">Client</span>
+                  <span>Jones Anniversary</span>
+                  <span>&middot;</span>
+                  <span class="fee">&pound;650</span>
+                </div>
+                <div class="times-row">
+                  <span>Load <span class="time-val">2:00pm</span></span>
+                  <span>&middot;</span>
+                  <span>Start <span class="time-val">5:00pm</span></span>
+                </div>
+              </div>
+            </div>
+            <div class="mini-pipeline">
+              <span class="mini-dot reached"></span>
+              <span class="mini-dot"></span>
+              <span class="mini-dot"></span>
+              <span class="mini-dot"></span>
+              <span class="mini-dot"></span>
+              <span class="stage-label">Enquiry</span>
+            </div>
+            <div class="expand-hint">&#9660; Tap to expand</div>
+          </div>
+
+          <!-- GIG 3: EXPANDED (client gig with everything) -->
+          <div class="gig-card-new expanded">
+            <div class="card-header">
+              <div class="left">
+                <div class="venue-name">Three Compasses, Clydach <span class="badge badge-confirmed" style="margin-left:6px;">Confirmed</span></div>
+                <div class="client-fee">
+                  <span>Direct booking</span>
+                  <span>&middot;</span>
+                  <span class="fee">&pound;360</span>
+                  <span>&middot;</span>
+                  <span style="font-size:12px; color:var(--text-dim);">cash</span>
+                </div>
+                <div class="times-row">
+                  <span>Load <span class="time-val">7:00pm</span></span>
+                  <span>&middot;</span>
+                  <span>Start <span class="time-val">8:00pm</span></span>
+                  <span>&middot;</span>
+                  <span>End <span class="time-val">11:30pm</span></span>
+                </div>
+                <div style="font-size:10px; color:var(--text-muted); margin-top:4px;">Added by Nathan Thomas</div>
+              </div>
+              <button class="gig-nav-btn" style="margin-top:2px;">Navigate</button>
+            </div>
+
+            <!-- EXPANDED CONTENT (everything from GigHub) -->
+            <div class="expanded-body">
+              <div class="section-label">Pipeline</div>
+              <div class="pipeline">
+                <span class="dot reached">&#10003;</span><span class="line reached"></span>
+                <span class="dot active">&#10003;</span><span class="line"></span>
+                <span class="dot">3</span><span class="line"></span>
+                <span class="dot">4</span><span class="line"></span>
+                <span class="dot">5</span>
+              </div>
+              <div class="pipeline-labels">
+                <span>Enquiry</span><span>Confirmed</span><span>Quote</span><span>Invoice</span><span>Paid</span>
+              </div>
+
+              <div class="section-label">Documents</div>
+              <div class="doc-link">
+                <span class="doc-icon">&#128196;</span>
+                <div class="doc-info">
+                  <div class="doc-title">Quote Q-0008</div>
+                  <div class="doc-meta"><span class="badge badge-confirmed" style="font-size:8px;">Sent</span> &middot; &pound;360</div>
+                </div>
+                <span class="chevron">&rsaquo;</span>
+              </div>
+              <div class="doc-link">
+                <span class="doc-icon">&#128196;</span>
+                <div class="doc-info">
+                  <div class="doc-title">Invoice TGT-0005</div>
+                  <div class="doc-meta"><span class="badge badge-draft" style="font-size:8px;">Draft</span> &middot; &pound;360 &middot; Due 21 Mar</div>
+                </div>
+                <span class="chevron">&rsaquo;</span>
+              </div>
+
+              <div class="notes-box">"Standard pub gig, PA provided by venue. Bring own mics."</div>
+
+              <div class="action-grid">
+                <button class="action-btn primary">Edit Booking</button>
+                <button class="action-btn">Change Status</button>
+                <button class="action-btn orange">Create Invoice</button>
+                <button class="action-btn">Gen. Quote</button>
+                <button class="action-btn">History</button>
+                <button class="action-btn danger">Delete</button>
+              </div>
+            </div>
+            <div class="expand-hint">&#9650; Tap to collapse</div>
+          </div>
+
+          <!-- Away section -->
+          <div class="section-label" style="margin-top:16px;">Away</div>
+          <div style="background:var(--inset); border-radius:var(--radius-sm); padding:10px 14px; font-size:12px; color:var(--text-dim); margin-bottom:16px;">
+            <strong style="color:var(--text);">Nathan</strong> &mdash; Holiday (5&ndash;12 Mar)
+          </div>
+
+          <!-- Footer actions -->
+          <div style="margin-top:8px;">
+            <button class="btn-add-booking">+ Add Booking<span class="sub">Quick entry or full client booking</span></button>
+            <div class="btn-row">
+              <button class="btn-secondary">Add Practice</button>
+              <button class="btn-secondary away">I'm Away</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VIEW 3: HOP COMPARISON TABLE                                  -->
+<!-- ============================================================ -->
+<div class="view" id="view-hops">
+  <div class="hop-section">
+    <h2>Navigation Hop Comparison</h2>
+    <p class="subtitle">Every user action on a gig day, and how many screens they pass through.</p>
+
+    <table class="hop-table">
+      <thead>
+        <tr><th>Action</th><th>Before</th><th>After</th><th>Saved</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>See gig pipeline / status</td>
+          <td class="bad">Calendar &rarr; DayDetail sheet &rarr; GigHub (3)</td>
+          <td class="good">Calendar &rarr; Gig Day, expand (1)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>See deposit status</td>
+          <td class="bad">Calendar &rarr; DayDetail &rarr; GigHub (3)</td>
+          <td class="good">Calendar &rarr; Gig Day, expand (1)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Create invoice for gig</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub &rarr; InvoiceForm (4)</td>
+          <td class="good">Cal &rarr; Gig Day &rarr; InvoiceForm (2)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>View existing invoice</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub &rarr; InvoiceDetail (4)</td>
+          <td class="good">Cal &rarr; Gig Day &rarr; InvoiceDetail (2)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Edit a booking</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub &rarr; BookingWiz (4)</td>
+          <td class="good">Cal &rarr; Gig Day &rarr; BookingWiz (2)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Change gig status</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub &rarr; modal (3)</td>
+          <td class="good">Cal &rarr; Gig Day &rarr; modal (1)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Generate quote</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub &rarr; QuoteForm (4)</td>
+          <td class="good">Cal &rarr; Gig Day &rarr; QuoteForm (2)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Delete a gig</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub (3)</td>
+          <td class="good">Cal &rarr; Gig Day, expand (1)</td>
+          <td class="good">-2</td>
+        </tr>
+        <tr>
+          <td>Add new booking</td>
+          <td>Cal &rarr; DayDetail &rarr; BookingWiz (3)</td>
+          <td>Cal &rarr; Gig Day &rarr; BookingWiz (2)</td>
+          <td class="good">-1</td>
+        </tr>
+        <tr>
+          <td>View gig notes</td>
+          <td class="bad">Cal &rarr; DayDetail &rarr; GigHub (3)</td>
+          <td class="good">Cal &rarr; Gig Day, expand (1)</td>
+          <td class="good">-2</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="summary-stat">
+      <div class="num">2 fewer hops per action</div>
+      <div class="desc">GigHub screen eliminated entirely. DayDetail bottom sheet becomes full-screen Gig Day. Zero features lost.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('visible'));
+  document.getElementById('view-' + id).classList.add('visible');
+  document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>

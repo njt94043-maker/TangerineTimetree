@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tangerine Timetree — Web App Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08080c;
+    --card: #111118;
+    --card-light: #1a1a24;
+    --text: #e8e8e8;
+    --text-dim: #a0a0b0;
+    --text-muted: #606070;
+    --green: #00e676;
+    --orange: #f39c12;
+    --purple: #bb86fc;
+    --red: #ff5252;
+    --teal: #1abc9c;
+    --blue: #42a5f5;
+    --border: #2a2a3a;
+    --inset: #0a0a10;
+    --glow-green: 0 0 12px rgba(0,230,118,0.3);
+    --glow-orange: 0 0 12px rgba(243,156,18,0.3);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --sidebar-w: 220px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Karla', sans-serif;
+    background: #0e0e16;
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===== TOP NAV: Screen Switcher ===== */
+  .mockup-nav {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .mockup-nav button {
+    padding: 5px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+  .mockup-nav button:hover, .mockup-nav button.active {
+    background: var(--green);
+    color: var(--bg);
+    border-color: var(--green);
+  }
+  .nav-sep {
+    width: 1px;
+    background: var(--border);
+    margin: 0 4px;
+    align-self: stretch;
+  }
+
+  /* ===== APP SHELL ===== */
+  .app-shell {
+    display: none;
+    min-height: calc(100vh - 52px);
+  }
+  .app-shell.visible { display: flex; }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--card);
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    position: fixed;
+    top: 52px;
+    left: 0;
+    bottom: 0;
+    overflow-y: auto;
+  }
+  .sidebar-logo {
+    padding: 8px 16px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+  }
+  .sidebar-logo span { color: var(--orange); }
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .sidebar-item:hover { background: var(--card-light); color: var(--text); }
+  .sidebar-item.active {
+    color: var(--green);
+    border-left-color: var(--green);
+    background: rgba(0,230,118,0.05);
+  }
+  .sidebar-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar-section {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 16px 16px 6px;
+  }
+  .sidebar-badge {
+    margin-left: auto;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+  }
+
+  /* Main content area */
+  .main-content {
+    margin-left: var(--sidebar-w);
+    padding: 24px 32px;
+    flex: 1;
+    max-width: 1000px;
+  }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .page-header h2 { font-size: 22px; font-weight: 700; }
+  .page-header .actions { display: flex; gap: 8px; }
+
+  /* Full-width (public site, no sidebar) */
+  .full-width { margin-left: 0; max-width: 100%; padding: 0; }
+
+  /* ===== SHARED COMPONENTS ===== */
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-green { background: var(--green); color: var(--bg); box-shadow: var(--glow-green); }
+  .btn-orange { background: var(--orange); color: var(--bg); box-shadow: var(--glow-orange); }
+  .btn-outline { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+  }
+  .card-raised { box-shadow: 4px 4px 10px rgba(0,0,0,0.3), -2px -2px 6px rgba(40,40,60,0.1); }
+
+  .well {
+    background: var(--inset);
+    border: 1px solid #1a1a24;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+  }
+  .field-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .field-group { margin-bottom: 14px; }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-draft { background: rgba(160,160,176,0.2); color: var(--text-dim); }
+  .badge-sent { background: rgba(66,165,245,0.2); color: var(--blue); }
+  .badge-paid { background: rgba(0,230,118,0.2); color: var(--green); }
+  .badge-accepted { background: rgba(0,230,118,0.2); color: var(--green); }
+  .badge-declined { background: rgba(255,82,82,0.2); color: var(--red); }
+
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin: 20px 0 8px;
+  }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+
+  .list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .list-item:hover { border-color: var(--green); }
+  .list-left { flex: 1; }
+  .list-title { font-weight: 600; font-size: 14px; }
+  .list-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .list-right { text-align: right; }
+  .list-amount { font-weight: 700; font-size: 15px; color: var(--green); }
+
+  .search-bar {
+    background: var(--inset);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 8px 16px;
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-bottom: 12px;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  /* Calendar */
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-h { text-align: center; font-size: 12px; color: var(--text-muted); padding: 6px; }
+  .cal-cell {
+    aspect-ratio: 1.2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .cal-cell:hover { background: var(--card-light); }
+  .cal-cell.today { border: 2px solid var(--green); box-shadow: var(--glow-green); }
+  .cal-cell.gig { background: rgba(0,230,118,0.12); color: var(--green); font-weight: 700; }
+  .cal-cell.practice { background: rgba(187,134,252,0.12); color: var(--purple); font-weight: 700; }
+  .cal-cell.away { background: rgba(255,82,82,0.1); color: var(--red); }
+  .cal-cell.past { opacity: 0.4; }
+  .month-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .month-header h3 { font-size: 18px; }
+  .month-header button { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+
+  .legend { display: flex; gap: 16px; margin: 10px 0; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* Lifecycle bar */
+  .lifecycle { display: flex; gap: 4px; margin: 12px 0; }
+  .lc-stage {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    background: var(--inset);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .lc-stage.done { background: rgba(0,230,118,0.12); color: var(--green); border-color: rgba(0,230,118,0.2); }
+  .lc-stage.current { background: rgba(0,230,118,0.2); color: var(--green); border-color: var(--green); box-shadow: var(--glow-green); }
+
+  /* Steps */
+  .steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
+  .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+  .step-dot.active { background: var(--green); box-shadow: var(--glow-green); }
+  .step-dot.done { background: var(--green); opacity: 0.4; }
+
+  /* PDF preview */
+  .pdf-frame {
+    background: white;
+    border-radius: var(--radius);
+    padding: 24px;
+    color: #333;
+    min-height: 400px;
+    border: 2px solid var(--border);
+    position: relative;
+  }
+
+  /* Service items */
+  .svc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .svc-item:last-child { border-bottom: none; }
+  .svc-price { font-weight: 600; color: var(--green); }
+
+  /* Grid layouts */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .form-row { display: flex; gap: 12px; }
+  .form-row > * { flex: 1; }
+
+  /* Toggle */
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  .toggle-label { font-size: 14px; }
+  .toggle-sub { font-size: 11px; color: var(--text-muted); }
+  .toggle-sw { width: 40px; height: 22px; background: var(--green); border-radius: 11px; position: relative; cursor: pointer; }
+  .toggle-sw::after { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 20px; }
+
+  /* ===== PUBLIC SITE ===== */
+  .pub-hero {
+    background: linear-gradient(135deg, #0a1a0a 0%, #111118 50%, #1a0f00 100%);
+    padding: 80px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .pub-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(0,230,118,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 70% 50%, rgba(243,156,18,0.06) 0%, transparent 50%);
+  }
+  .pub-hero h1 {
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--green);
+    text-shadow: 0 0 40px rgba(0,230,118,0.4);
+    position: relative;
+  }
+  .pub-hero .tagline {
+    font-size: 18px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    position: relative;
+  }
+  .pub-hero .cta-row {
+    margin-top: 24px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    position: relative;
+  }
+  .pub-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(8,8,12,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 52px;
+    z-index: 50;
+  }
+  .pub-nav .logo { font-weight: 700; color: var(--green); font-size: 16px; }
+  .pub-nav .links { display: flex; gap: 20px; }
+  .pub-nav .links a { color: var(--text-dim); text-decoration: none; font-size: 13px; cursor: pointer; }
+  .pub-nav .links a:hover { color: var(--green); }
+
+  .pub-section { padding: 60px 40px; max-width: 1000px; margin: 0 auto; }
+  .pub-section h2 { font-size: 28px; font-weight: 700; margin-bottom: 16px; color: var(--green); }
+
+  .gig-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .gig-card + .gig-card { margin-top: 8px; }
+
+  .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .price-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    position: relative;
+  }
+  .price-card.popular { border-color: var(--green); box-shadow: var(--glow-green); }
+  .price-card .pop-badge {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--green);
+    color: var(--bg);
+    padding: 3px 12px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .price-card h3 { font-size: 16px; margin-bottom: 6px; }
+  .price-card .price { font-size: 22px; font-weight: 700; color: var(--green); }
+  .price-card .price-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 12px; }
+  .price-card ul { list-style: none; text-align: left; font-size: 12px; color: var(--text-dim); }
+  .price-card ul li { padding: 3px 0; }
+  .price-card ul li::before { content: '✓ '; color: var(--green); }
+
+  .gallery-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .gallery-item {
+    aspect-ratio: 1;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .gallery-item:hover { border-color: var(--green); }
+
+  .contact-form { max-width: 500px; }
+  .contact-form .field-group { margin-bottom: 12px; }
+  .contact-form .well { width: 100%; }
+
+  .pub-footer {
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .pub-footer .footer-brand { font-size: 16px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+
+  /* Login modal overlay */
+  .login-overlay {
+    position: fixed;
+    inset: 52px 0 0 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+  }
+  .login-modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    width: 360px;
+  }
+  .login-modal h2 { text-align: center; margin-bottom: 20px; color: var(--green); }
+
+  /* Day detail panel */
+  .day-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 500px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top Navigation -->
+<div class="mockup-nav">
+  <button class="active" onclick="show('public')">Public Site</button>
+  <button onclick="show('login')">Login Modal</button>
+  <div class="nav-sep"></div>
+  <button onclick="show('calendar')">Calendar</button>
+  <button onclick="show('day-detail')">Day Detail</button>
+  <button onclick="show('gig-form')">Gig Form</button>
+  <button onclick="show('gig-list')">Gig List</button>
+  <button onclick="show('away')">Away Dates</button>
+  <div class="nav-sep"></div>
+  <button onclick="show('inv-dash')">Inv. Dashboard</button>
+  <button onclick="show('inv-list')">Invoice List</button>
+  <button onclick="show('inv-detail')">Invoice Detail</button>
+  <button onclick="show('inv-wizard')">Invoice Wizard</button>
+  <button onclick="show('receipts')">Receipts</button>
+  <div class="nav-sep"></div>
+  <button onclick="show('quote-list')">Quotes</button>
+  <button onclick="show('quote-wizard')">Quote Wizard</button>
+  <button onclick="show('quote-detail')">Quote Detail</button>
+  <div class="nav-sep"></div>
+  <button onclick="show('clients')">Clients</button>
+  <button onclick="show('settings')">Settings</button>
+  <button onclick="show('media')">Media</button>
+  <button onclick="show('enquiries')">Enquiries</button>
+  <button onclick="show('profile')">Profile</button>
+</div>
+
+<!-- ==================== PUBLIC SITE ==================== -->
+<div id="screen-public" class="app-shell visible">
+  <div class="full-width">
+    <div class="pub-nav">
+      <div class="logo">The Green Tangerine</div>
+      <div class="links">
+        <a>About</a>
+        <a>For Venues</a>
+        <a>Pricing</a>
+        <a>Gallery</a>
+        <a>Contact</a>
+        <a><span class="btn btn-green btn-sm">Band Login</span></a>
+      </div>
+    </div>
+
+    <div class="pub-hero">
+      <h1>The Green Tangerine</h1>
+      <div class="tagline">South Wales Function Band from the Rhondda</div>
+      <p style="color:var(--text-muted);font-size:14px;margin-top:6px;position:relative">Live rock covers for pubs, weddings & events across Cardiff, Swansea, Bridgend, Neath & the Rhondda</p>
+      <div class="cta-row">
+        <button class="btn btn-green">View Gallery</button>
+        <button class="btn btn-orange">Book Us</button>
+      </div>
+    </div>
+
+    <div class="pub-section">
+      <h2>Upcoming Gigs</h2>
+      <div class="gig-card">
+        <div><div style="font-weight:700">Gin & Juice, Mumbles</div><div style="font-size:13px;color:var(--text-dim)">Saturday, 7 March 2026 &bull; 20:00</div></div>
+        <span class="badge badge-paid">Confirmed</span>
+      </div>
+      <div class="gig-card">
+        <div><div style="font-weight:700">The Ship, Wandsworth</div><div style="font-size:13px;color:var(--text-dim)">Saturday, 14 March 2026 &bull; 20:00</div></div>
+        <span class="badge badge-paid">Confirmed</span>
+      </div>
+      <div class="gig-card">
+        <div><div style="font-weight:700">North Star, Cardiff</div><div style="font-size:13px;color:var(--text-dim)">Saturday, 21 March 2026 &bull; 21:00</div></div>
+        <span class="badge badge-paid">Confirmed</span>
+      </div>
+    </div>
+
+    <div class="pub-section" style="background:var(--card);max-width:100%;padding:60px 40px">
+      <div style="max-width:1000px;margin:0 auto">
+        <h2>About the Band</h2>
+        <p style="color:var(--text-dim);line-height:1.7">The Green Tangerine are a 4-piece function band from the Rhondda Valley, South Wales. We bring high-energy classic rock and indie covers to pubs, weddings, private parties, corporate events, and festivals across the whole of South Wales.</p>
+        <p style="color:var(--text-dim);line-height:1.7;margin-top:12px"><em>"We don't just play — we display!"</em></p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:24px">
+          <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:4px">🥁</div><div style="font-weight:700">Nathan</div><div style="font-size:12px;color:var(--text-dim)">Drums</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:4px">🎸</div><div style="font-weight:700">Neil</div><div style="font-size:12px;color:var(--text-dim)">Bass</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:4px">🎸</div><div style="font-weight:700">Adam</div><div style="font-size:12px;color:var(--text-dim)">Guitar & Backing Vocals</div></div>
+          <div class="card" style="text-align:center"><div style="font-size:28px;margin-bottom:4px">🎤</div><div style="font-weight:700">James</div><div style="font-size:12px;color:var(--text-dim)">Lead Vocals</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-section">
+      <h2>Pricing</h2>
+      <div class="pricing-grid">
+        <div class="price-card">
+          <h3>Pub Gig</h3>
+          <div class="price">&pound;400-600</div>
+          <div class="price-sub">Per evening</div>
+          <ul><li>2 sets live music</li><li>PA & lighting included</li><li>Quick setup</li></ul>
+        </div>
+        <div class="price-card popular">
+          <div class="pop-badge">Most Popular</div>
+          <h3>Private Party</h3>
+          <div class="price">&pound;600-800</div>
+          <div class="price-sub">Per event</div>
+          <ul><li>2-3 sets</li><li>DJ set between sets</li><li>Song requests</li><li>Full PA & lights</li></ul>
+        </div>
+        <div class="price-card">
+          <h3>Wedding</h3>
+          <div class="price">&pound;800-1,200</div>
+          <div class="price-sub">Per event</div>
+          <ul><li>Full evening package</li><li>First dance song</li><li>Acoustic ceremony option</li><li>PLI certificate</li></ul>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:16px">
+        <div class="price-card" style="flex:1">
+          <h3>Corporate</h3>
+          <div class="price">&pound;1,000-1,500</div>
+          <div class="price-sub">Per event</div>
+          <ul><li>Tailored setlist</li><li>Volume control</li><li>PLI included</li></ul>
+        </div>
+        <div class="price-card" style="flex:1">
+          <h3>Festival</h3>
+          <div class="price">&pound;1,000+</div>
+          <div class="price-sub">Per slot</div>
+          <ul><li>Festival stage ready</li><li>Own sound engineer</li><li>Flexible set length</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-section" style="background:var(--card);max-width:100%;padding:60px 40px">
+      <div style="max-width:1000px;margin:0 auto">
+        <h2>Gallery</h2>
+        <div class="gallery-grid">
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">🎬</div>
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">📷</div>
+          <div class="gallery-item">🎬</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pub-section">
+      <h2>Book Us</h2>
+      <div class="contact-form">
+        <div class="field-group"><div class="field-label">Your Name</div><div class="well">John Smith</div></div>
+        <div class="field-group"><div class="field-label">Email</div><div class="well">john@example.com</div></div>
+        <div class="field-group"><div class="field-label">Event Type</div><div class="well" style="display:flex;justify-content:space-between"><span>Wedding</span><span style="color:var(--text-muted)">&darr;</span></div></div>
+        <div class="field-group"><div class="field-label">Preferred Date</div><div class="well">15 June 2026</div></div>
+        <div class="field-group"><div class="field-label">Message</div><div class="well" style="min-height:60px">We're looking for a band for our wedding reception...</div></div>
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-top:8px">Send Enquiry</button>
+      </div>
+    </div>
+
+    <div class="pub-footer">
+      <div class="footer-brand">The Green Tangerine</div>
+      <div>South Wales Function Band &bull; Rhondda Valley</div>
+      <div style="margin-top:8px">Cardiff &bull; Swansea &bull; Bridgend &bull; Neath &bull; Pontypridd &bull; Merthyr Tydfil</div>
+      <div style="margin-top:12px">&copy; 2026 The Green Tangerine. Keep It Green!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LOGIN MODAL ==================== -->
+<div id="screen-login" class="app-shell">
+  <div class="full-width" style="position:relative;min-height:600px;background:var(--bg)">
+    <div class="login-overlay" style="position:relative;min-height:600px">
+      <div class="login-modal">
+        <h2>Band Login</h2>
+        <div class="field-group"><div class="field-label">Email</div><div class="well">nathan@thegreentangerine.com</div></div>
+        <div class="field-group"><div class="field-label">Password</div><div class="well">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</div></div>
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-top:12px">Sign In</button>
+        <div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-muted);cursor:pointer">Cancel</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CALENDAR ==================== -->
+<div id="screen-calendar" class="app-shell">
+  <div class="sidebar">
+    <div class="sidebar-logo">Tangerine <span>Timetree</span></div>
+    <div class="sidebar-section">Navigation</div>
+    <div class="sidebar-item active"><span class="icon">📅</span> Calendar</div>
+    <div class="sidebar-item"><span class="icon">📋</span> Gig List</div>
+    <div class="sidebar-item"><span class="icon">✈️</span> Away Dates</div>
+    <div class="sidebar-section">Business</div>
+    <div class="sidebar-item"><span class="icon">📊</span> Dashboard</div>
+    <div class="sidebar-item"><span class="icon">📄</span> Invoices</div>
+    <div class="sidebar-item"><span class="icon">📝</span> Quotes</div>
+    <div class="sidebar-item"><span class="icon">👥</span> Clients</div>
+    <div class="sidebar-section">Band</div>
+    <div class="sidebar-item"><span class="icon">🖼️</span> Media</div>
+    <div class="sidebar-item"><span class="icon">📬</span> Enquiries <span class="sidebar-badge">2</span></div>
+    <div class="sidebar-item"><span class="icon">🌐</span> Website</div>
+    <div class="sidebar-section">Account</div>
+    <div class="sidebar-item"><span class="icon">👤</span> Profile</div>
+    <div class="sidebar-item"><span class="icon">⚙️</span> Settings</div>
+  </div>
+  <div class="main-content">
+    <div class="page-header">
+      <h2>March 2026</h2>
+      <div class="actions">
+        <button class="btn btn-outline btn-sm">Today</button>
+        <button class="btn btn-green btn-sm">+ Add Gig</button>
+      </div>
+    </div>
+    <div class="month-header">
+      <button>&larr; Feb</button>
+      <h3>March 2026</h3>
+      <button>Apr &rarr;</button>
+    </div>
+    <div class="cal-grid" style="max-width:600px">
+      <div class="cal-h">Mon</div><div class="cal-h">Tue</div><div class="cal-h">Wed</div><div class="cal-h">Thu</div><div class="cal-h">Fri</div><div class="cal-h">Sat</div><div class="cal-h">Sun</div>
+      <div class="cal-cell past">23</div><div class="cal-cell past">24</div><div class="cal-cell past">25</div><div class="cal-cell past">26</div><div class="cal-cell past">27</div><div class="cal-cell past gig">28</div><div class="cal-cell past">1</div>
+      <div class="cal-cell past">2</div><div class="cal-cell past">3</div><div class="cal-cell today">4</div><div class="cal-cell">5</div><div class="cal-cell">6</div><div class="cal-cell gig">7</div><div class="cal-cell">8</div>
+      <div class="cal-cell">9</div><div class="cal-cell practice">10</div><div class="cal-cell">11</div><div class="cal-cell">12</div><div class="cal-cell">13</div><div class="cal-cell gig">14</div><div class="cal-cell">15</div>
+      <div class="cal-cell">16</div><div class="cal-cell">17</div><div class="cal-cell away">18</div><div class="cal-cell away">19</div><div class="cal-cell">20</div><div class="cal-cell gig">21</div><div class="cal-cell">22</div>
+      <div class="cal-cell">23</div><div class="cal-cell">24</div><div class="cal-cell">25</div><div class="cal-cell">26</div><div class="cal-cell">27</div><div class="cal-cell gig">28</div><div class="cal-cell">29</div>
+      <div class="cal-cell">30</div><div class="cal-cell">31</div><div class="cal-cell" style="opacity:0.3">1</div><div class="cal-cell" style="opacity:0.3">2</div><div class="cal-cell" style="opacity:0.3">3</div><div class="cal-cell" style="opacity:0.3">4</div><div class="cal-cell" style="opacity:0.3">5</div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Gig</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Practice</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Away</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DAY DETAIL ==================== -->
+<div id="screen-day-detail" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item active"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📋</span> Gig List</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>&larr; Saturday, 7 March 2026</h2></div>
+    <div class="two-col">
+      <div>
+        <div class="section-title">Gigs</div>
+        <div class="card card-raised">
+          <div style="display:flex;justify-content:space-between">
+            <div><div style="font-weight:700;font-size:16px">Gin & Juice, Mumbles</div><div style="font-size:13px;color:var(--text-dim)">Client: Gin & Juice &bull; Fee: <span style="color:var(--green);font-weight:700">&pound;500</span></div></div>
+            <span class="badge badge-paid" style="align-self:start">Gig</span>
+          </div>
+          <div style="margin-top:8px;font-size:13px;color:var(--text-dim)">Load: 17:00 &bull; Start: 20:00 &bull; End: 23:00</div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm">Edit</button>
+            <button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Delete</button>
+          </div>
+        </div>
+        <div class="section-title">Changes</div>
+        <div style="font-size:13px;color:var(--text-dim)">Adam added this gig &bull; 2 days ago</div>
+      </div>
+      <div>
+        <div class="section-title">Quick Actions</div>
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-bottom:8px">Add Gig</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" style="flex:1;justify-content:center;color:var(--purple);border-color:var(--purple)">Add Practice</button>
+          <button class="btn btn-outline" style="flex:1;justify-content:center;color:var(--orange);border-color:var(--orange)">I'm Away</button>
+        </div>
+        <div class="section-title">Away</div>
+        <div style="font-size:13px;color:var(--text-dim)">No one is away on this date.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== GIG FORM ==================== -->
+<div id="screen-gig-form" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item active"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📋</span> Gig List</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:600px">
+    <div class="page-header"><h2>&larr; New Gig</h2><div class="actions"><button class="btn btn-green">Save</button></div></div>
+    <div class="form-row"><div class="field-group" style="flex:1"><div class="field-label">Date</div><div class="well">Saturday, 7 March 2026</div></div></div>
+    <div class="field-group"><div class="field-label">Venue</div><div class="well">Gin & Juice, Mumbles</div></div>
+    <div class="field-group"><div class="field-label">Client Name</div><div class="well">Gin & Juice</div></div>
+    <div class="form-row">
+      <div class="field-group"><div class="field-label">Fee (&pound;)</div><div class="well">500.00</div></div>
+      <div class="field-group"><div class="field-label">Payment</div><div class="well">Invoice</div></div>
+    </div>
+    <div class="form-row">
+      <div class="field-group"><div class="field-label">Load In</div><div class="well">17:00</div></div>
+      <div class="field-group"><div class="field-label">Start</div><div class="well">20:00</div></div>
+      <div class="field-group"><div class="field-label">End</div><div class="well">23:00</div></div>
+    </div>
+    <div class="field-group"><div class="field-label">Notes</div><div class="well" style="min-height:50px">Bring extra mic stand</div></div>
+    <div class="toggle-row">
+      <div><div class="toggle-label">Show on website</div><div class="toggle-sub">Display on thegreentangerine.com</div></div>
+      <div class="toggle-sw"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== GIG LIST ==================== -->
+<div id="screen-gig-list" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item active"><span class="icon">📋</span> Gig List</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Upcoming Gigs</h2></div>
+    <div class="section-title">This Week</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Gin & Juice, Mumbles</div><div class="list-sub">Sat, 7 Mar &bull; 20:00-23:00</div></div><div class="list-right"><div class="list-amount">&pound;500</div><div style="font-size:11px;color:var(--text-muted)">3 days</div></div></div>
+    <div class="section-title">Next Week</div>
+    <div class="list-item"><div class="list-left"><div class="list-title" style="color:var(--purple)">Practice @ Adam's</div><div class="list-sub">Tue, 10 Mar &bull; 19:00</div></div><div class="list-right"><span class="badge" style="background:rgba(187,134,252,0.15);color:var(--purple)">Practice</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">The Ship, Wandsworth</div><div class="list-sub">Sat, 14 Mar &bull; 20:00-23:30</div></div><div class="list-right"><div class="list-amount">&pound;600</div><div style="font-size:11px;color:var(--text-muted)">10 days</div></div></div>
+    <div class="section-title">Later</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">North Star, Cardiff</div><div class="list-sub">Sat, 21 Mar &bull; 21:00-00:00</div></div><div class="list-right"><div class="list-amount">&pound;450</div></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">The Alma, Wandsworth</div><div class="list-sub">Sat, 28 Mar &bull; 20:30-23:30</div></div><div class="list-right"><div class="list-amount">&pound;550</div></div></div>
+  </div>
+</div>
+
+<!-- ==================== AWAY DATES ==================== -->
+<div id="screen-away" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📋</span> Gig List</div><div class="sidebar-item active"><span class="icon">✈️</span> Away Dates</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:600px">
+    <div class="page-header"><h2>My Away Dates</h2><div class="actions"><button class="btn btn-green btn-sm">+ Add</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">18-19 March 2026</div><div class="list-sub">Family holiday</div></div><div class="list-right"><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Delete</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">5-12 April 2026</div><div class="list-sub">Abroad</div></div><div class="list-right"><button class="btn btn-outline btn-sm" style="color:var(--red);border-color:var(--red)">Delete</button></div></div>
+  </div>
+</div>
+
+<!-- ==================== INVOICE DASHBOARD ==================== -->
+<div id="screen-inv-dash" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📋</span> Gig List</div><div class="sidebar-section">Business</div><div class="sidebar-item active"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">📝</span> Quotes</div><div class="sidebar-item"><span class="icon">👥</span> Clients</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Invoice Dashboard</h2><div class="actions"><button class="btn btn-green">Simple Invoice</button><button class="btn btn-orange">Formal Quote</button></div></div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" style="color:var(--green)">&pound;4,250</div><div class="stat-label">Total Invoiced</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--green)">&pound;3,100</div><div class="stat-label">Paid</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--orange)">&pound;1,150</div><div class="stat-label">Outstanding</div></div>
+      <div class="stat-card"><div class="stat-value" style="color:var(--blue)">8</div><div class="stat-label">Invoices</div></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="btn btn-outline btn-sm">Tax Year: 2025/26</button>
+      <button class="btn btn-outline btn-sm">Export CSV</button>
+      <button class="btn btn-outline btn-sm">Bulk PDF Export</button>
+    </div>
+    <div class="section-title">Recent Activity</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-008 &bull; Gin & Juice</div><div class="list-sub">Simple invoice &bull; 28 Feb</div></div><div class="list-right"><div class="list-amount">&pound;500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-003 &bull; Williams Wedding</div><div class="list-sub">Formal quote &bull; 15 Feb</div></div><div class="list-right"><div class="list-amount">&pound;1,200</div><span class="badge badge-accepted">Accepted</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-007 &bull; The Ship</div><div class="list-sub">Simple invoice &bull; 22 Feb</div></div><div class="list-right"><div class="list-amount">&pound;600</div><span class="badge badge-paid">Paid</span></div></div>
+  </div>
+</div>
+
+<!-- ==================== INVOICE LIST ==================== -->
+<div id="screen-inv-list" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item active"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">📝</span> Quotes</div><div class="sidebar-item"><span class="icon">👥</span> Clients</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Invoices</h2><div class="actions"><button class="btn btn-green btn-sm">+ New Invoice</button></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center"><div class="search-bar" style="margin:0">&#128269; Search...</div>
+      <span class="badge badge-paid" style="cursor:pointer">All</span><span class="badge badge-draft" style="cursor:pointer">Draft</span><span class="badge badge-sent" style="cursor:pointer">Sent</span><span class="badge badge-paid" style="cursor:pointer">Paid</span>
+    </div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-008 &bull; Gin & Juice</div><div class="list-sub">Gin & Juice, Mumbles &bull; 28 Feb</div></div><div class="list-right"><div class="list-amount">&pound;500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-007 &bull; Young & Co's</div><div class="list-sub">The Ship, Wandsworth &bull; 22 Feb</div></div><div class="list-right"><div class="list-amount">&pound;600</div><span class="badge badge-paid">Paid</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-006 &bull; North Star</div><div class="list-sub">North Star, Cardiff &bull; 15 Feb</div></div><div class="list-right"><div class="list-amount">&pound;450</div><span class="badge badge-paid">Paid</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">INV-005 &bull; Suave Agency</div><div class="list-sub">The Alma &bull; 8 Feb</div></div><div class="list-right"><div class="list-amount">&pound;550</div><span class="badge badge-draft">Draft</span></div></div>
+  </div>
+</div>
+
+<!-- ==================== INVOICE DETAIL ==================== -->
+<div id="screen-inv-detail" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item active"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>&larr; INV-008</h2><div class="actions"><span class="badge badge-sent" style="font-size:13px;padding:6px 14px">Sent</span></div></div>
+    <div class="two-col">
+      <div>
+        <div class="card card-raised">
+          <div style="display:flex;justify-content:space-between"><div><div class="field-label">Client</div><div style="font-size:15px">Gin & Juice</div></div><div style="text-align:right"><div class="field-label">Amount</div><div style="font-size:22px;font-weight:700;color:var(--green)">&pound;500.00</div></div></div>
+          <div style="margin-top:10px"><div class="field-label">Venue</div>Gin & Juice, Mumbles</div>
+          <div style="margin-top:8px"><div class="field-label">Gig Date</div>Saturday, 28 February 2026</div>
+          <div style="margin-top:8px"><div class="field-label">Description</div><span style="color:var(--text-dim);font-size:13px">Live music performance at Gin & Juice, Mumbles on 28 Feb 2026</span></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;gap:20px;font-size:13px;color:var(--text-dim)">
+            <div><div class="field-label">Issued</div>28 Feb 2026</div>
+            <div><div class="field-label">Due</div>14 Mar 2026</div>
+            <div><div class="field-label">Style</div>Classic</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Status</div>
+        <div style="display:flex;gap:6px;margin-bottom:16px">
+          <button class="btn btn-outline btn-sm">Draft</button>
+          <button class="btn btn-green btn-sm">Sent</button>
+          <button class="btn btn-outline btn-sm">Paid</button>
+        </div>
+        <div class="section-title">Actions</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn btn-outline" style="justify-content:center">Preview Invoice</button>
+          <button class="btn btn-green" style="justify-content:center">Download / Share PDF</button>
+          <button class="btn btn-outline" style="justify-content:center">View Receipts</button>
+          <button class="btn btn-outline" style="justify-content:center">Create Similar</button>
+          <button class="btn btn-outline" style="justify-content:center;color:var(--red);border-color:var(--red)">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== INVOICE WIZARD ==================== -->
+<div id="screen-inv-wizard" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item active"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:700px">
+    <div class="page-header"><h2>&larr; New Simple Invoice</h2></div>
+    <div class="steps"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div></div>
+    <div class="card" style="background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2)"><span style="color:var(--green);font-size:13px">Client: Gin & Juice &bull; Mumbles, Swansea</span></div>
+    <div class="form-row"><div class="field-group"><div class="field-label">Venue</div><div class="well">Gin & Juice, Mumbles</div></div></div>
+    <div class="field-group"><div class="field-label">Gig Date</div><div class="well">28 February 2026</div></div>
+    <div class="form-row">
+      <div class="field-group"><div class="field-label">Amount (&pound;)</div><div class="well">500.00</div></div>
+      <div class="field-group"><div class="field-label">Style</div><div class="well" style="display:flex;justify-content:space-between"><span>Classic</span><span style="color:var(--text-muted)">&darr;</span></div></div>
+    </div>
+    <div class="field-group"><div class="field-label">Description</div><div class="well" style="min-height:50px">Live music performance at Gin & Juice, Mumbles on 28 Feb 2026</div></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-outline">&larr; Back</button>
+      <button class="btn btn-green" style="flex:1;justify-content:center">Next: Preview &rarr;</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== RECEIPTS ==================== -->
+<div id="screen-receipts" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item active"><span class="icon">📄</span> Invoices</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:600px">
+    <div class="page-header"><h2>&larr; Receipts — INV-007</h2></div>
+    <div class="card" style="background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2)"><div style="font-size:13px;color:var(--green)">Invoice: &pound;600.00 &bull; The Ship &bull; <span class="badge badge-paid">Paid</span></div><div style="font-size:12px;color:var(--text-dim);margin-top:4px">Split equally: &pound;200.00 per member (3 members)</div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Neil</div><div class="list-sub">Bass</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm">Download PDF</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Adam</div><div class="list-sub">Guitar & Backing Vocals</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm">Download PDF</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">James</div><div class="list-sub">Lead Vocals</div></div><div class="list-right"><div class="list-amount">&pound;200.00</div><button class="btn btn-outline btn-sm">Download PDF</button></div></div>
+  </div>
+</div>
+
+<!-- ==================== QUOTE LIST ==================== -->
+<div id="screen-quote-list" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item active"><span class="icon">📝</span> Quotes</div><div class="sidebar-item"><span class="icon">👥</span> Clients</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Quotes & Packages</h2><div class="actions"><button class="btn btn-orange btn-sm">+ New Quote</button></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-003 &bull; Williams Wedding</div><div class="list-sub">The Manor House &bull; 15 Jun 2026</div></div><div class="list-right"><div class="list-amount">&pound;1,200</div><span class="badge badge-accepted">Accepted</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-002 &bull; Corporate Dinner</div><div class="list-sub">Cardiff Bay Hotel &bull; 3 May 2026</div></div><div class="list-right"><div class="list-amount">&pound;1,500</div><span class="badge badge-sent">Sent</span></div></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">QTE-001 &bull; Evans Party</div><div class="list-sub">Village Hall &bull; 12 Apr 2026</div></div><div class="list-right"><div class="list-amount">&pound;800</div><span class="badge badge-declined">Declined</span></div></div>
+  </div>
+</div>
+
+<!-- ==================== QUOTE WIZARD ==================== -->
+<div id="screen-quote-wizard" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item active"><span class="icon">📝</span> Quotes</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:700px">
+    <div class="page-header"><h2>&larr; New Formal Quote</h2></div>
+    <div class="steps"><div class="step-dot done"></div><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
+    <div class="section-title">Build Package</div>
+    <div class="card">
+      <div class="svc-item"><div><strong>Live band — 2 sets</strong><div style="font-size:11px;color:var(--text-dim)">Qty: 1</div></div><div class="svc-price">&pound;800</div></div>
+      <div class="svc-item"><div><strong>DJ set (between sets)</strong><div style="font-size:11px;color:var(--text-dim)">Qty: 1</div></div><div class="svc-price">&pound;150</div></div>
+      <div class="svc-item"><div><strong>First dance song</strong><div style="font-size:11px;color:var(--text-dim)">Qty: 1</div></div><div class="svc-price">&pound;50</div></div>
+      <div class="svc-item"><div><strong>Acoustic ceremony</strong><div style="font-size:11px;color:var(--text-dim)">1 hr</div></div><div class="svc-price">&pound;200</div></div>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn btn-outline btn-sm">+ From Catalogue</button><button class="btn btn-outline btn-sm">+ Custom Item</button></div>
+    <div class="card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span>Subtotal</span><span>&pound;1,200.00</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--red)"><span>Discount</span><span>-&pound;50.00</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:700;padding:8px 0;border-top:1px solid var(--border)"><span>Total</span><span style="color:var(--green)">&pound;1,150.00</span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-outline">&larr; Back</button><button class="btn btn-green" style="flex:1;justify-content:center">Next: Extras &rarr;</button></div>
+  </div>
+</div>
+
+<!-- ==================== QUOTE DETAIL ==================== -->
+<div id="screen-quote-detail" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item active"><span class="icon">📝</span> Quotes</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>&larr; QTE-003 &bull; Williams Wedding</h2><span class="badge badge-accepted" style="font-size:13px;padding:6px 14px">Accepted</span></div>
+    <div class="lifecycle">
+      <div class="lc-stage done">Draft</div><div class="lc-stage done">Sent</div><div class="lc-stage current">Accepted</div><div class="lc-stage">Invoice</div><div class="lc-stage">Paid</div><div class="lc-stage">Done</div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="card card-raised">
+          <div style="font-weight:700;font-size:16px">Williams Wedding</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:4px">The Manor House, Bridgend &bull; 15 Jun 2026</div>
+          <div style="font-size:13px;color:var(--text-dim)">Sarah Williams &bull; sarah.williams@email.com</div>
+          <div style="font-size:24px;font-weight:700;color:var(--green);margin-top:8px">&pound;1,150.00</div>
+        </div>
+        <div class="section-title">Line Items</div>
+        <div class="card">
+          <div class="svc-item"><span>Live band — 2 sets</span><span class="svc-price">&pound;800</span></div>
+          <div class="svc-item"><span>DJ set</span><span class="svc-price">&pound;150</span></div>
+          <div class="svc-item"><span>First dance song</span><span class="svc-price">&pound;50</span></div>
+          <div class="svc-item"><span>Acoustic ceremony (1hr)</span><span class="svc-price">&pound;200</span></div>
+          <div class="svc-item" style="color:var(--red)"><span>Wedding discount</span><span>-&pound;50</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Documents</div>
+        <div class="list-item"><div class="list-left"><div class="list-title">Quote PDF</div><div class="list-sub">Created 15 Feb &bull; Sent 16 Feb</div></div><span style="color:var(--green);font-size:12px;cursor:pointer">View / Share</span></div>
+        <div class="list-item" style="opacity:0.5"><div class="list-left"><div class="list-title">Invoice PDF</div><div class="list-sub">Not yet generated</div></div></div>
+        <div class="list-item" style="opacity:0.5"><div class="list-left"><div class="list-title">Receipts</div><div class="list-sub">Generated on payment</div></div></div>
+
+        <div class="section-title">Next Step</div>
+        <button class="btn btn-green" style="width:100%;justify-content:center;margin-bottom:8px">Generate Invoice from Quote</button>
+        <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center">Add to Calendar</button>
+
+        <div class="section-title">Timeline</div>
+        <div style="font-size:12px;color:var(--text-dim)">
+          <div style="padding:4px 0">&bull; Accepted by client &bull; 1 Mar 2026</div>
+          <div style="padding:4px 0">&bull; Sent via share &bull; 16 Feb 2026</div>
+          <div style="padding:4px 0">&bull; Created by Nathan &bull; 15 Feb 2026</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLIENTS ==================== -->
+<div id="screen-clients" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item active"><span class="icon">👥</span> Clients</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Clients</h2><div class="actions"><button class="btn btn-green btn-sm">+ New Client</button></div></div>
+    <div class="search-bar" style="margin-bottom:16px">&#128269; Search clients...</div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Gin & Juice</div><div class="list-sub">Dave &bull; 2 venues &bull; 3 invoices</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Young & Co's Brewery PLC</div><div class="list-sub">Mike &bull; 2 venues &bull; 2 invoices</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">North Star</div><div class="list-sub">Lisa &bull; 1 venue &bull; 1 invoice</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+    <div class="list-item"><div class="list-left"><div class="list-title">Mr & Mrs Williams</div><div class="list-sub">Sarah &bull; 1 venue &bull; 1 quote</div></div><span style="color:var(--text-muted)">&rarr;</span></div>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS ==================== -->
+<div id="screen-settings" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item"><span class="icon">📄</span> Invoices</div><div class="sidebar-item active"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:700px">
+    <div class="page-header"><h2>Settings</h2><div class="actions"><button class="btn btn-green btn-sm">Save</button></div></div>
+    <div style="display:flex;gap:6px;margin-bottom:20px">
+      <span class="badge badge-paid" style="cursor:pointer;padding:6px 14px">Personal</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">Band</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">PLI</span>
+      <span class="badge badge-draft" style="cursor:pointer;padding:6px 14px">Services</span>
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="section-title">Your Details</div>
+        <div class="field-group"><div class="field-label">Name</div><div class="well">Nathan Thomas</div></div>
+        <div class="field-group"><div class="field-label">Email</div><div class="well">nathan@thegreentangerine.com</div></div>
+        <div class="field-group"><div class="field-label">Phone</div><div class="well">07700 900000</div></div>
+      </div>
+      <div>
+        <div class="section-title">Bank Details</div>
+        <div class="field-group"><div class="field-label">Account Name</div><div class="well">Nathan Thomas</div></div>
+        <div class="field-group"><div class="field-label">Bank</div><div class="well">Starling Bank</div></div>
+        <div class="form-row">
+          <div class="field-group"><div class="field-label">Sort Code</div><div class="well">60-83-71</div></div>
+          <div class="field-group"><div class="field-label">Acc. Number</div><div class="well">12345678</div></div>
+        </div>
+        <div class="field-group"><div class="field-label">Payment Terms</div><div class="well">14 days</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MEDIA ==================== -->
+<div id="screen-media" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-section">Band</div><div class="sidebar-item active"><span class="icon">🖼️</span> Media</div><div class="sidebar-item"><span class="icon">📬</span> Enquiries <span class="sidebar-badge">2</span></div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content">
+    <div class="page-header"><h2>Media Manager</h2><div class="actions"><button class="btn btn-green btn-sm">Upload Photo</button><button class="btn btn-outline btn-sm">Add YouTube</button></div></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="card" style="text-align:center;padding:20px"><div style="font-size:32px;margin-bottom:6px">📷</div><div style="font-size:12px">gig-photo-1.jpg</div><div style="display:flex;gap:4px;justify-content:center;margin-top:8px"><span class="badge badge-paid">Visible</span></div></div>
+      <div class="card" style="text-align:center;padding:20px"><div style="font-size:32px;margin-bottom:6px">📷</div><div style="font-size:12px">band-promo.jpg</div><div style="display:flex;gap:4px;justify-content:center;margin-top:8px"><span class="badge badge-paid">Visible</span></div></div>
+      <div class="card" style="text-align:center;padding:20px"><div style="font-size:32px;margin-bottom:6px">🎬</div><div style="font-size:12px">Live at The Ship</div><div style="display:flex;gap:4px;justify-content:center;margin-top:8px"><span class="badge badge-paid">Visible</span></div></div>
+      <div class="card" style="text-align:center;padding:20px;opacity:0.5"><div style="font-size:32px;margin-bottom:6px">📷</div><div style="font-size:12px">backstage.jpg</div><div style="display:flex;gap:4px;justify-content:center;margin-top:8px"><span class="badge badge-draft">Hidden</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ENQUIRIES ==================== -->
+<div id="screen-enquiries" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-section">Band</div><div class="sidebar-item"><span class="icon">🖼️</span> Media</div><div class="sidebar-item active"><span class="icon">📬</span> Enquiries <span class="sidebar-badge">2</span></div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:700px">
+    <div class="page-header"><h2>Booking Enquiries</h2></div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div><div style="font-weight:700">Sarah Williams</div><div style="font-size:12px;color:var(--text-dim)">sarah.williams@email.com &bull; 2 hours ago</div></div>
+        <span class="badge badge-paid" style="font-size:10px">New</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-dim);margin-top:8px">Event: Wedding &bull; 15 June 2026</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-top:4px">Looking for a band for our wedding reception at The Manor House...</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline btn-sm">Mark Read</button><button class="btn btn-outline btn-sm">Reply</button><button class="btn btn-outline btn-sm">Archive</button></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div><div style="font-weight:700">Dave Jones</div><div style="font-size:12px;color:var(--text-dim)">dave@email.com &bull; 1 day ago</div></div>
+        <span class="badge badge-paid" style="font-size:10px">New</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-dim);margin-top:8px">Event: Corporate &bull; 3 May 2026</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-top:4px">Annual company dinner at Cardiff Bay Hotel, need live entertainment...</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-outline btn-sm">Mark Read</button><button class="btn btn-outline btn-sm">Reply</button><button class="btn btn-outline btn-sm">Archive</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== PROFILE ==================== -->
+<div id="screen-profile" class="app-shell">
+  <div class="sidebar"><div class="sidebar-logo">Tangerine <span style="color:var(--orange)">Timetree</span></div><div class="sidebar-item"><span class="icon">📅</span> Calendar</div><div class="sidebar-item"><span class="icon">📊</span> Dashboard</div><div class="sidebar-item active"><span class="icon">👤</span> Profile</div><div class="sidebar-item"><span class="icon">⚙️</span> Settings</div></div>
+  <div class="main-content" style="max-width:500px">
+    <div class="page-header"><h2>Profile</h2><div class="actions"><button class="btn btn-green btn-sm">Save</button></div></div>
+    <div class="card" style="text-align:center;padding:24px">
+      <div style="width:80px;height:80px;border-radius:50%;background:var(--card-light);border:2px solid var(--green);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px">🥁</div>
+      <div style="font-size:16px;font-weight:700">Nathan Thomas</div>
+      <div style="font-size:13px;color:var(--text-dim)">Drums</div>
+    </div>
+    <div class="field-group"><div class="field-label">Name</div><div class="well">Nathan Thomas</div></div>
+    <div class="field-group"><div class="field-label">Band Role</div><div class="well">Drums</div></div>
+    <div class="field-group"><div class="field-label">Email</div><div class="well" style="opacity:0.6">nathan@thegreentangerine.com</div><div style="font-size:10px;color:var(--text-muted);margin-top:2px">Email cannot be changed</div></div>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:20px;color:var(--red);border-color:var(--red)">Sign Out</button>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.app-shell').forEach(s => s.classList.remove('visible'));
+  document.getElementById('screen-' + id).classList.add('visible');
+  document.querySelectorAll('.mockup-nav button').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

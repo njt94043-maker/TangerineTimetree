@@ -125,7 +125,16 @@
       "Bash(./gcloud.cmd run services describe beat-analysis --region=europe-west1 --project=tangerine-time-tree --format=\"value\\(status.url\\)\")",
       "Bash(./gcloud.cmd run deploy beat-analysis --source=/c/Apps/TGT/cloud-run --region=europe-west1 --project=tangerine-time-tree --allow-unauthenticated --memory=8Gi --cpu=4 --timeout=900 --max-instances=2 --concurrency=1)",
       "Bash(npx vercel env pull .env.vercel-check)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X OPTIONS \"https://beat-analysis-672617156755.europe-west1.run.app/process\" -H \"Origin: https://thegreentangerine.com\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: Content-Type\" -D -)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X OPTIONS \"https://beat-analysis-672617156755.europe-west1.run.app/process\" -H \"Origin: https://thegreentangerine.com\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: Content-Type\" -D -)",
+      "Bash(xargs grep -l \"sprint\\\\|Sprint\\\\|SPRINT\")",
+      "Bash(cd /c/Apps/TGT/shared/templates __NEW_LINE_89091b9d88e6e557__ echo \"=== PRINT_CSS import count \\(should be 28\\) ===\" grep -l \"import { PRINT_CSS }\" *.ts)",
+      "Bash(node -e \":*)",
+      "Bash(npx tsx -e \":*)",
+      "Bash(C:/Users/Owner/AppData/Local/Android/Sdk/platform-tools/adb.exe exec-out:*)",
+      "Bash(\"C:/Apps/TGT/screen_ux_android_calendar.png\")",
+      "Bash(grep -r GigHub /c/Apps/TGT/web/src --include=*.tsx --include=*.ts --include=*.css --include=*.jsx --include=*.js)",
+      "Bash(find /c/Apps -maxdepth 4 -type d \\\\\\(-iname *tgt* -o -iname *xr18* -o -iname *gigbook* -o -iname *tgt-control* -o -iname *tgt-capture* -o -iname *tgt-web* -o -iname *tangerine* -o -iname *subby* -o -iname *tomform* -o -iname *devkit* -o -iname *click* -o -iname *cis* \\\\\\))",
+      "Bash(find /c/Apps -maxdepth 4 \\\\\\(-name package.json -o -name build.gradle.kts -o -name *.csproj -o -name requirements.txt -o -name Cargo.toml -o -name *.sln \\\\\\) -not -path */node_modules/* -not -path */.gradle/* -not -path */build/*)"
     ]
   }
 }

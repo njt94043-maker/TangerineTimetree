@@ -3,10 +3,11 @@
   "configurations": [
     {
       "name": "web-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
       "port": 5173,
-      "cwd": "web"
+      "cwd": "web",
+      "autoPort": true
     },
     {
       "name": "capture-ui",
