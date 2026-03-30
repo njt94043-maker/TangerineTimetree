@@ -39,3 +39,19 @@ capture/capture.db
 capture/backend/__pycache__/
 capture/backend/.venv/
 capture/backend/**/__pycache__/
+
+# Loose screenshots and images
+*.jpg
+*.png
+!**/res/**/*.png
+!**/public/**/*.png
+!**/assets/**/*.png
+!**/icons/**/*.png
+
+# Build dirs in native
+native/modules/*/android/build/
+
+# Temp folders
+ERROR
+backups/
+concept-pack/
