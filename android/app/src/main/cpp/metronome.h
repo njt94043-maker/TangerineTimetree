@@ -98,15 +98,6 @@ public:
     // --- Practice Mode: Backbeat ---
     void setBackbeat(bool enabled);
 
-    // --- Practice Mode: Speed Trainer ---
-    void setSpeedTrainer(bool enabled, float startBpm, float endBpm,
-                         float incrementBpm, int32_t barsPerIncrement);
-    float getSpeedTrainerCurrentBpm() const { return speedCurrentBpm_.load(); }
-    bool isSpeedTrainerComplete() const { return speedTrainerComplete_.load(); }
-
-    // --- Practice Mode: Muted Bars (Rhythm Trainer) ---
-    void setMutedBars(bool enabled, int32_t playBars, int32_t muteBars);
-    bool isMutedBar() const { return currentBarIsMuted_.load(); }
 
     /**
      * Render click audio into the output buffer.
@@ -170,20 +161,6 @@ private:
 
     std::atomic<bool> backbeatEnabled_{false};
 
-    std::atomic<bool> speedTrainerEnabled_{false};
-    std::atomic<float> speedStartBpm_{80.0f};
-    std::atomic<float> speedEndBpm_{160.0f};
-    std::atomic<float> speedIncrementBpm_{5.0f};
-    std::atomic<int32_t> speedBarsPerIncrement_{4};
-    int32_t speedBarCounter_ = 0;
-    std::atomic<float> speedCurrentBpm_{80.0f};
-    std::atomic<bool> speedTrainerComplete_{false};
-
-    std::atomic<bool> muteEnabled_{false};
-    std::atomic<int32_t> mutePlayBars_{2};
-    std::atomic<int32_t> muteMuteBars_{2};
-    int32_t muteBarCounter_ = 0;
-    std::atomic<bool> currentBarIsMuted_{false};
 
     std::atomic<int32_t> countInBars_{0};
     std::atomic<int32_t> countInClickType_{CLICK_HIGH};

@@ -135,29 +135,6 @@ void Metronome::setBackbeat(bool enabled) {
     backbeatEnabled_.store(enabled);
 }
 
-void Metronome::setSpeedTrainer(bool enabled, float startBpm, float endBpm,
-                                float incrementBpm, int32_t barsPerIncrement) {
-    speedTrainerEnabled_.store(enabled);
-    speedStartBpm_.store(startBpm);
-    speedEndBpm_.store(endBpm);
-    speedIncrementBpm_.store(std::max(1.0f, incrementBpm));
-    speedBarsPerIncrement_.store(std::max(1, barsPerIncrement));
-    speedBarCounter_ = 0;
-    speedTrainerComplete_.store(false);
-    if (enabled) {
-        speedCurrentBpm_.store(startBpm);
-        setBpm(startBpm);
-    }
-}
-
-void Metronome::setMutedBars(bool enabled, int32_t playBars, int32_t muteBars) {
-    muteEnabled_.store(enabled);
-    mutePlayBars_.store(std::max(1, playBars));
-    muteMuteBars_.store(std::max(1, muteBars));
-    muteBarCounter_ = 0;
-    currentBarIsMuted_.store(false);
-}
-
 void Metronome::start() {
     framePosition_ = 0;
     // Apply beat offset so first click fires at the correct phase (aligns to track)
@@ -174,16 +151,6 @@ void Metronome::start() {
     currentBeatStartFrame_ = 0;
     subBeatIndex_ = 0;
     isSubClickActive_ = false;
-
-    speedBarCounter_ = 0;
-    if (speedTrainerEnabled_.load()) {
-        speedCurrentBpm_.store(speedStartBpm_.load());
-        setBpm(speedStartBpm_.load());
-        speedTrainerComplete_.store(false);
-    }
-
-    muteBarCounter_ = 0;
-    currentBarIsMuted_.store(false);
 
     isCountingIn_.store(countInBars_.load() > 0);
 
@@ -310,8 +277,6 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
     }
 
     int32_t divisor = subdivisionDivisor_.load();
-    bool muteActive = muteEnabled_.load();
-    bool speedActive = speedTrainerEnabled_.load();
     float swingPct = swingPercent_.load();
     int32_t dropPct = randomDropPercent_.load();
     bool backbeat = backbeatEnabled_.load();
@@ -333,7 +298,7 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
                 currentBar_.store(bar);
                 currentClickIsDownbeat_ = false; // no accent — all clicks sound identical
 
-                bool shouldSound = !(muteActive && currentBarIsMuted_.load());
+                bool shouldSound = true;
                 if (backbeat && (beatInBar % 2 == 0)) shouldSound = false;
                 if (dropPct > 0 && shouldSound) {
                     prngState_ = prngState_ * 1664525u + 1013904223u;
@@ -354,12 +319,6 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
                 currentBeatStartFrame_ = framePosition_;
                 subBeatIndex_          = 1;
                 isSubClickActive_      = false;
-
-                if (beatInBar + 1 >= beatMapBpb_ && muteActive) {
-                    muteBarCounter_++;
-                    int32_t cycle = mutePlayBars_.load() + muteMuteBars_.load();
-                    currentBarIsMuted_.store((muteBarCounter_ % cycle) >= mutePlayBars_.load());
-                }
 
                 beatMapBeatCount_++;
                 beatMapIdx_++;
@@ -389,7 +348,6 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
                 if (accentLen > 0 && beat < accentLen) {
                     shouldSound = (accentPattern_[beat] > 0);
                 }
-                if (muteActive && currentBarIsMuted_.load()) shouldSound = false;
                 if (backbeat && (beat % 2 == 0)) shouldSound = false;
                 if (dropPct > 0 && shouldSound) {
                     prngState_ = prngState_ * 1664525u + 1013904223u;
@@ -425,26 +383,6 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
                         if (scheduledBar_ >= countInBars_.load())
                             isCountingIn_.store(false);
                     }
-                    if (speedActive && !speedTrainerComplete_.load()) {
-                        speedBarCounter_++;
-                        if (speedBarCounter_ >= speedBarsPerIncrement_.load()) {
-                            speedBarCounter_ = 0;
-                            float newBpm = speedCurrentBpm_.load() + speedIncrementBpm_.load();
-                            if (newBpm >= speedEndBpm_.load()) {
-                                newBpm = speedEndBpm_.load();
-                                speedTrainerComplete_.store(true);
-                            }
-                            speedCurrentBpm_.store(newBpm);
-                            bpm_.store(newBpm);
-                            recalcFramesPerBeat();
-                            fpb = framesPerBeat_.load();
-                        }
-                    }
-                    if (muteActive) {
-                        muteBarCounter_++;
-                        int32_t cycle = mutePlayBars_.load() + muteMuteBars_.load();
-                        currentBarIsMuted_.store((muteBarCounter_ % cycle) >= mutePlayBars_.load());
-                    }
                 }
                 beatFired = true;
             }
@@ -469,12 +407,9 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
             }
 
             if (framePosition_ >= subBeatFrame) {
-                bool subShouldSound = !(muteActive && currentBarIsMuted_.load());
-                if (subShouldSound) {
-                    isSubClickActive_ = true;
-                    subClickSampleIndex_ = 0;
-                    subClickIsDownbeat_ = false;
-                }
+                isSubClickActive_ = true;
+                subClickSampleIndex_ = 0;
+                subClickIsDownbeat_ = false;
                 subBeatIndex_++;
             }
         }
