@@ -270,7 +270,7 @@ quotes : group the catagories (all, draft, sent, paid) into a drup down list the
 
 [11] "C:\Apps\TGT\Main512 pic.png"
 
-[REDACTED -- legacy service_role JWT, disabled 2026-03-05]
+[REDACTED — legacy service_role JWT, disabled 2026-03-05]
 
 ================================================================================
 SESSION 17: 2026-03-05 01:43
@@ -981,7 +981,7 @@ i cant find the venue list anywheere?
 Legacy anon, service_role API keys
 anon
 public
-[REDACTED -- legacy anon JWT, disabled 2026-03-05]
+[REDACTED — legacy anon JWT, disabled 2026-03-05]
 
 Copy
 This key is safe to use in a browser if you have enabled Row Level Security for your tables and configured policies. Prefer using Publishable API keys instead.
@@ -1018,9 +1018,9 @@ https://jlufqgslgjowfaqmqlds.supabase.co/auth/v1/.well-known/jwks.json
 
 [23] look its not there
 
-[24] [REDACTED -- sb_secret key]
+[24] [REDACTED — sb_secret key, see C:\Apps\TGT\.env]
 
-[REDACTED -- sb_publishable key]
+[REDACTED — sb_publishable key, see C:\Apps\TGT\.env]
 
 [25] caused me some grief here havent you.. cant you do it?
 
