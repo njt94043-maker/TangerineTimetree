@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
 interface AutocompleteInputProps {
   id?: string;
@@ -22,18 +22,14 @@ export function AutocompleteInput({
   inputMode,
 }: AutocompleteInputProps) {
   const [open, setOpen] = useState(false);
-  const [filtered, setFiltered] = useState<string[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     if (!value.trim()) {
-      setFiltered(suggestions.slice(0, 8));
-    } else {
-      const lower = value.toLowerCase();
-      setFiltered(
-        suggestions.filter(s => s.toLowerCase().includes(lower)).slice(0, 8),
-      );
+      return suggestions.slice(0, 8);
     }
+    const lower = value.toLowerCase();
+    return suggestions.filter(s => s.toLowerCase().includes(lower)).slice(0, 8);
   }, [value, suggestions]);
 
   // Close on outside click

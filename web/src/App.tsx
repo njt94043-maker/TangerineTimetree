@@ -5,7 +5,7 @@ import { useCalendarData } from './hooks/useCalendarData';
 import { useInvoiceData } from './hooks/useInvoiceData';
 import { useQuoteData } from './hooks/useQuoteData';
 import { getChangesSince, updateLastOpened, createGig } from '@shared/supabase/queries';
-import type { ChangeSummaryItem, GigWithCreator } from '@shared/supabase/types';
+import type { ChangeSummaryItem, GigWithCreator, Profile } from '@shared/supabase/types';
 import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
 import { PublicSite } from './components/PublicSite';
@@ -79,7 +79,7 @@ export default function App() {
   );
 }
 
-function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: string; onSignOut: () => void }) {
+function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; userEmail: string; onSignOut: () => void }) {
   const {
     view, selectedDate, editGigId, initialGigType,
     invoiceId,
@@ -162,6 +162,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
   const [playerMounted, setPlayerMounted] = useState(false);
 
   useEffect(() => {
+    // D-166: Keep Player mounted when navigating away; only unmounts on explicit close
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (view === 'player') setPlayerMounted(true);
   }, [view]);
 
@@ -377,7 +379,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: any; userEmail: 
             onCreateInvoice={handleCreateInvoiceFromGig}
             onViewQuote={(id) => goToQuoteDetail(id)}
             onViewInvoice={(id) => goToInvoiceDetail(id)}
-            onGenerateQuote={(_gig) => { refresh(); goToNewQuote(); }}
+            onGenerateQuote={() => { refresh(); goToNewQuote(); }}
             onEditBooking={goToEditBooking}
           />
         )}
