@@ -97,7 +97,7 @@ export function ImportPanel({ onClose, onImported }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [search, category, captureUrl]);
+  }, [search, category, captureUrl, standalone]);
 
   useEffect(() => {
     setLoading(true);

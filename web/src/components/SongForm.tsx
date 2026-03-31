@@ -328,6 +328,7 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
     if (beatStatus === 'pending' || beatStatus === 'analysing' || beatStatus === 'separating') {
       startPolling();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatStatus]);
 
   /** Trigger processing pipeline via Cloud Tasks. skip_stems=true → beats only.

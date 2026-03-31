@@ -40,6 +40,7 @@ export function XR18Camera() {
   useEffect(() => {
     startCamera();
     return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
   }, []);
 
   // Start QR scanning when camera is ready and disconnected
@@ -48,6 +49,7 @@ export function XR18Camera() {
       startScanning(videoRef.current);
     }
     return () => stopScanning();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- startScanning/stopScanning are stable refs
   }, [qrSupported, cameraStream, connectionState]);
 
   // Auto-connect when QR scanned
@@ -55,6 +57,7 @@ export function XR18Camera() {
     if (scannedResult) {
       connect(scannedResult);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- connect is a stable ref
   }, [scannedResult]);
 
   // Recording elapsed timer

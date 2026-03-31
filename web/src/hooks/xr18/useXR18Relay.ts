@@ -23,6 +23,91 @@ export function useXR18Relay() {
 
   const nextRef = () => String(++refCounterRef.current);
 
+  const handleFrame = useCallback((json: string) => {
+    try {
+      const frame = JSON.parse(json);
+      const event = frame.event;
+
+      switch (event) {
+        case 'phx_reply': {
+          const status = frame.payload?.status;
+          const topic = frame.topic;
+          if (topic === channelTopicRef.current && status === 'ok' && !joinedRef.current) {
+            joinedRef.current = true;
+          }
+          break;
+        }
+
+        case 'broadcast': {
+          const broadcastEvent = frame.payload?.event;
+          if (broadcastEvent !== 'phone_msg') return;
+          const innerPayload = frame.payload?.payload;
+          if (!innerPayload) return;
+          const msg = innerPayload as PhoneMessage;
+          if (msg.type) {
+            onMessageRef.current?.(msg);
+          }
+          break;
+        }
+      }
+    } catch { /* bad JSON */ }
+  }, []);
+
+  const handleDisconnect = useCallback(() => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+    joinedRef.current = false;
+    setIsConnected(false);
+    onDisconnectRef.current?.();
+  }, []);
+
+  const disconnect = useCallback(() => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
+    }
+    joinedRef.current = false;
+
+    const ws = wsRef.current;
+    if (ws) {
+      try {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            topic: channelTopicRef.current,
+            event: 'phx_leave',
+            payload: {},
+            ref: nextRef(),
+          }));
+        }
+        ws.close(1000, 'Client disconnect');
+      } catch { /* ignore */ }
+      wsRef.current = null;
+    }
+
+    if (isConnected) {
+      setIsConnected(false);
+    }
+  }, [isConnected]);
+
+  const send = useCallback((message: PhoneMessage) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    const broadcast = {
+      topic: channelTopicRef.current,
+      event: 'broadcast',
+      payload: {
+        type: 'broadcast',
+        event: 'phone_msg',
+        payload: message,
+      },
+      ref: nextRef(),
+    };
+    ws.send(JSON.stringify(broadcast));
+  }, []);
+
   const connect = useCallback((secret: string) => {
     disconnect();
 
@@ -72,97 +157,12 @@ export function useXR18Relay() {
     ws.onclose = () => {
       handleDisconnect();
     };
-  }, []);
-
-  const disconnect = useCallback(() => {
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
-    }
-    joinedRef.current = false;
-
-    const ws = wsRef.current;
-    if (ws) {
-      try {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({
-            topic: channelTopicRef.current,
-            event: 'phx_leave',
-            payload: {},
-            ref: nextRef(),
-          }));
-        }
-        ws.close(1000, 'Client disconnect');
-      } catch { /* ignore */ }
-      wsRef.current = null;
-    }
-
-    if (isConnected) {
-      setIsConnected(false);
-    }
-  }, [isConnected]);
-
-  const send = useCallback((message: PhoneMessage) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    const broadcast = {
-      topic: channelTopicRef.current,
-      event: 'broadcast',
-      payload: {
-        type: 'broadcast',
-        event: 'phone_msg',
-        payload: message,
-      },
-      ref: nextRef(),
-    };
-    ws.send(JSON.stringify(broadcast));
-  }, []);
-
-  const handleFrame = useCallback((json: string) => {
-    try {
-      const frame = JSON.parse(json);
-      const event = frame.event;
-
-      switch (event) {
-        case 'phx_reply': {
-          const status = frame.payload?.status;
-          const topic = frame.topic;
-          if (topic === channelTopicRef.current && status === 'ok' && !joinedRef.current) {
-            joinedRef.current = true;
-          }
-          break;
-        }
-
-        case 'broadcast': {
-          const broadcastEvent = frame.payload?.event;
-          if (broadcastEvent !== 'phone_msg') return;
-          const innerPayload = frame.payload?.payload;
-          if (!innerPayload) return;
-          const msg = innerPayload as PhoneMessage;
-          if (msg.type) {
-            onMessageRef.current?.(msg);
-          }
-          break;
-        }
-      }
-    } catch { /* bad JSON */ }
-  }, []);
-
-  const handleDisconnect = useCallback(() => {
-    if (heartbeatRef.current) {
-      clearInterval(heartbeatRef.current);
-      heartbeatRef.current = null;
-    }
-    joinedRef.current = false;
-    setIsConnected(false);
-    onDisconnectRef.current?.();
-  }, []);
+  }, [disconnect, handleDisconnect, handleFrame]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => { disconnect(); };
-  }, []);
+  }, [disconnect]);
 
   return {
     isConnected,

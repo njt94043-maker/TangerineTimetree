@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getQuote, getQuoteLineItems, deleteQuote,
   sendQuote, acceptQuote, declineQuote, expireQuote,
@@ -61,7 +61,7 @@ export function QuoteDetail({ quoteId, onClose, onPreview, onEdit, onDeleted, on
   const [showDecline, setShowDecline] = useState(false);
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [q, items] = await Promise.all([
         getQuote(quoteId),
@@ -88,9 +88,9 @@ export function QuoteDetail({ quoteId, onClose, onPreview, onEdit, onDeleted, on
     } finally {
       setLoading(false);
     }
-  }
+  }, [quoteId]);
 
-  useEffect(() => { load(); }, [quoteId]);
+  useEffect(() => { load(); }, [load]);
 
   function deriveStage(): Stage {
     if (!quote) return 'draft';

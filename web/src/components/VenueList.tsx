@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getVenues, searchVenues, createVenue, deleteVenue,
 } from '@shared/supabase/queries';
@@ -49,16 +49,16 @@ export function VenueList({ onClose, onVenuePress }: VenueListProps) {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Venue | null>(null);
 
-  async function loadVenues() {
+  const loadVenues = useCallback(async () => {
     try {
       const list = search.trim() ? await searchVenues(search.trim()) : await getVenues();
       setVenues(list);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load venues');
     }
-  }
+  }, [search]);
 
-  useEffect(() => { loadVenues(); }, [search]);
+  useEffect(() => { loadVenues(); }, [loadVenues]);
 
   function openAdd() {
     setVenueName(''); setAddress(''); setPostcode('');

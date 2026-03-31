@@ -7,6 +7,7 @@ const QUEUE_KEY = 'timetree-offline-queue';
 export interface QueuedMutation {
   id: string;
   type: 'createGig' | 'updateGig' | 'deleteGig' | 'createAwayDate' | 'updateAwayDate' | 'deleteAwayDate';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: any;
   createdAt: string;
 }
@@ -30,7 +31,7 @@ export function isNetworkError(err: unknown): boolean {
   return false;
 }
 
-export function queueMutation(type: QueuedMutation['type'], args: any): void {
+export function queueMutation(type: QueuedMutation['type'], args: Record<string, unknown>): void {
   const queue = loadQueue();
   queue.push({
     id: crypto.randomUUID(),

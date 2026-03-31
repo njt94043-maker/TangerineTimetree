@@ -75,7 +75,9 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
   const phoneIdRef = useRef<string | null>(null);
   const stateRef = useRef<ConnectionState>('disconnected');
   const optsRef = useRef(opts);
-  optsRef.current = opts;
+  useEffect(() => { optsRef.current = opts; });
+  const connectRef = useRef<(info: PairingInfo) => void>(() => {});
+  const tryConnectIpRef = useRef<(ip: string, info: PairingInfo) => void>(() => {});
 
   const nextRelayRef = () => String(++relayRefCounter.current);
 
@@ -101,6 +103,56 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
       }));
     }
   }, []);
+
+  const cleanup = useCallback(() => {
+    if (statusIntervalRef.current) { clearInterval(statusIntervalRef.current); statusIntervalRef.current = null; }
+    if (previewIntervalRef.current) { clearInterval(previewIntervalRef.current); previewIntervalRef.current = null; }
+    if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
+  }, []);
+
+  const cleanupRelay = useCallback(() => {
+    if (relayHeartbeatRef.current) {
+      clearInterval(relayHeartbeatRef.current);
+      relayHeartbeatRef.current = null;
+    }
+    relayJoinedRef.current = false;
+    setRelayConnected(false);
+  }, []);
+
+  const startStatusSender = useCallback(() => {
+    if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
+    statusIntervalRef.current = setInterval(async () => {
+      let battery = 0;
+      let storageFree = 0;
+      try {
+        const bm = await (navigator as unknown as { getBattery?: () => Promise<{ level: number }> }).getBattery?.();
+        if (bm) battery = Math.round(bm.level * 100);
+      } catch { /* unsupported */ }
+      try {
+        const est = await navigator.storage?.estimate?.();
+        if (est) storageFree = (est.quota ?? 0) - (est.usage ?? 0);
+      } catch { /* unsupported */ }
+      sendMessage(createMessage('status', phoneIdRef.current, serializePayload({
+        battery, storageFree,
+        resolution: '1080p', framerate: 30, sampleRate: '48000',
+        isRecording: stateRef.current === 'recording',
+        actualFramerate: 30,  // Web can't easily measure this
+        isConstantFrameRate: true,
+      })));
+    }, 10_000);
+  }, [sendMessage]);
+
+  const startPreviewSender = useCallback(() => {
+    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
+    previewIntervalRef.current = setInterval(() => {
+      if (!livePreviewEnabledRef.current) return;
+      if (stateRef.current === 'recording') return;
+      const frame = optsRef.current.capturePreviewFrame?.();
+      if (frame) {
+        sendMessage(createMessage('cameraPreview', phoneIdRef.current, frame));
+      }
+    }, 2000);
+  }, [sendMessage]);
 
   const handleMessage = useCallback((msg: PhoneMessage) => {
     switch (msg.type) {
@@ -188,42 +240,7 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         livePreviewEnabledRef.current = false;
         break;
     }
-  }, [sendMessage]);
-
-  const startStatusSender = useCallback(() => {
-    if (statusIntervalRef.current) clearInterval(statusIntervalRef.current);
-    statusIntervalRef.current = setInterval(async () => {
-      let battery = 0;
-      let storageFree = 0;
-      try {
-        const bm = await (navigator as any).getBattery?.();
-        if (bm) battery = Math.round(bm.level * 100);
-      } catch { /* unsupported */ }
-      try {
-        const est = await navigator.storage?.estimate?.();
-        if (est) storageFree = (est.quota ?? 0) - (est.usage ?? 0);
-      } catch { /* unsupported */ }
-      sendMessage(createMessage('status', phoneIdRef.current, serializePayload({
-        battery, storageFree,
-        resolution: '1080p', framerate: 30, sampleRate: '48000',
-        isRecording: stateRef.current === 'recording',
-        actualFramerate: 30,  // Web can't easily measure this
-        isConstantFrameRate: true,
-      })));
-    }, 10_000);
-  }, [sendMessage]);
-
-  const startPreviewSender = useCallback(() => {
-    if (previewIntervalRef.current) clearInterval(previewIntervalRef.current);
-    previewIntervalRef.current = setInterval(() => {
-      if (!livePreviewEnabledRef.current) return;
-      if (stateRef.current === 'recording') return;
-      const frame = optsRef.current.capturePreviewFrame?.();
-      if (frame) {
-        sendMessage(createMessage('cameraPreview', phoneIdRef.current, frame));
-      }
-    }, 2000);
-  }, [sendMessage]);
+  }, [sendMessage, startStatusSender, startPreviewSender]);
 
   /** Connect relay (Supabase Broadcast) as a fallback transport. */
   const connectRelay = useCallback((secret: string) => {
@@ -276,15 +293,17 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
 
     ws.onerror = () => { cleanupRelay(); };
     ws.onclose = () => { cleanupRelay(); };
-  }, [handleMessage]);
+  }, [handleMessage, cleanupRelay]);
 
-  const cleanupRelay = useCallback(() => {
-    if (relayHeartbeatRef.current) {
-      clearInterval(relayHeartbeatRef.current);
-      relayHeartbeatRef.current = null;
-    }
-    relayJoinedRef.current = false;
-    setRelayConnected(false);
+  const scheduleReconnect = useCallback(() => {
+    if (intentionalRef.current || !pairingRef.current) return;
+    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = setTimeout(() => {
+      if (pairingRef.current && !intentionalRef.current) {
+        backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
+        connectRef.current(pairingRef.current);
+      }
+    }, backoffRef.current);
   }, []);
 
   const tryConnectIp = useCallback((ip: string, info: PairingInfo) => {
@@ -314,7 +333,7 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
       // Try next IP if available
       const idx = info.ips.indexOf(ip);
       if (idx >= 0 && idx < info.ips.length - 1) {
-        tryConnectIp(info.ips[idx + 1], info);
+        tryConnectIpRef.current(info.ips[idx + 1], info);
       } else {
         // All IPs failed — try relay-only connection
         setWsConnected(false);
@@ -351,7 +370,9 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
         stateRef.current = 'disconnected';
       }
     };
-  }, [sendMessage, handleMessage]);
+  }, [sendMessage, handleMessage, cleanup, scheduleReconnect]);
+
+  useEffect(() => { tryConnectIpRef.current = tryConnectIp; }, [tryConnectIp]);
 
   const connect = useCallback((info: PairingInfo) => {
     pairingRef.current = info;
@@ -366,6 +387,8 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
     // Try direct WebSocket connection
     tryConnectIp(info.ips[0], info);
   }, [tryConnectIp, connectRelay]);
+
+  useEffect(() => { connectRef.current = connect; }, [connect]);
 
   const disconnect = useCallback(() => {
     intentionalRef.current = true;
@@ -393,24 +416,7 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
     stateRef.current = 'disconnected';
     setPhoneId(null);
     phoneIdRef.current = null;
-  }, [cleanupRelay]);
-
-  const scheduleReconnect = useCallback(() => {
-    if (intentionalRef.current || !pairingRef.current) return;
-    if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-    reconnectTimerRef.current = setTimeout(() => {
-      if (pairingRef.current && !intentionalRef.current) {
-        backoffRef.current = Math.min(backoffRef.current * 2, 30_000);
-        connect(pairingRef.current);
-      }
-    }, backoffRef.current);
-  }, [connect]);
-
-  const cleanup = useCallback(() => {
-    if (statusIntervalRef.current) { clearInterval(statusIntervalRef.current); statusIntervalRef.current = null; }
-    if (previewIntervalRef.current) { clearInterval(previewIntervalRef.current); previewIntervalRef.current = null; }
-    if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
-  }, []);
+  }, [cleanup, cleanupRelay]);
 
   // Cleanup on unmount
   useEffect(() => {

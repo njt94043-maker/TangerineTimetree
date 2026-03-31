@@ -363,6 +363,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
       }
     });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- viewVideoUrl would cause infinite loop
   }, [activeMode, activeSongId, userId]);
 
   // Cleanup view video URL on unmount
@@ -424,7 +425,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
       setAllSongs(songs);
       const startIdx = songs.findIndex(s => s.id === songId);
       // Build a virtual setlist from all songs so nav row + queue work
-      const virtualSetlist: SetlistWithSongs = {
+      const virtualSetlist = {
         id: '__all_songs__',
         name: 'All Songs',
         setlist_type: 'all',
@@ -437,7 +438,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
           song_artist: s.artist,
           song_bpm: s.bpm,
         })),
-      } as any;
+      } as unknown as SetlistWithSongs;
       setSetlist(virtualSetlist);
       setCurrentIndex(startIdx >= 0 ? startIdx : 0);
       setActiveSongId(songId);
@@ -449,6 +450,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     if (!queueOpen) return;
     if (allSongs.length === 0) getSongs().then(s => setAllSongs(s));
     if (allSetlists.length === 0) getSetlists().then(s => setAllSetlists(s));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only fetch when queue first opens, not on data changes
   }, [queueOpen]);
 
   // Navigate setlist
@@ -477,7 +479,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   const pickSong = useCallback((id: string) => {
     actions.stop();
     const startIdx = allSongs.findIndex(s => s.id === id);
-    const virtualSetlist: SetlistWithSongs = {
+    const virtualSetlist = {
       id: '__all_songs__',
       name: 'All Songs',
       setlist_type: 'all',
@@ -490,7 +492,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
         song_artist: s.artist,
         song_bpm: s.bpm,
       })),
-    } as any;
+    } as unknown as SetlistWithSongs;
     setSetlist(virtualSetlist);
     setCurrentIndex(startIdx >= 0 ? startIdx : 0);
     setActiveSongId(id);
@@ -550,7 +552,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   const songLyrics = displaySong?.lyrics ?? '';
   const songChords = displaySong?.chords ?? '';
   const songNotes = displaySong?.notes ?? '';
-  const songDrums = (displaySong as any)?.drum_notation ?? '';
+  const songDrums = displaySong?.drum_notation ?? '';
   const songBpm = displaySong?.bpm ?? 0;
 
   const isPlaying = state.engineState === 'playing';
@@ -1469,7 +1471,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
                   >
                     <div className="player-queue-info">
                       <span className="player-queue-name">{sl.name}</span>
-                      <span className="player-queue-artist">{(sl as any).song_count ?? ''} songs · {sl.setlist_type}</span>
+                      <span className="player-queue-artist">{(sl as Setlist & { song_count?: number }).song_count ?? ''} songs · {sl.setlist_type}</span>
                     </div>
                   </div>
                 );

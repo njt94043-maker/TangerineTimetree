@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GigWithCreator, AwayDateWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
 import { getGigsByDate, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
@@ -41,7 +41,7 @@ export function DayDetail({
   const [expandedGigId, setExpandedGigId] = useState<string | null>(null);
   const touchStartX = useRef(0);
 
-  function fetchDayGigs() {
+  const fetchDayGigs = useCallback(() => {
     setExpandedGigId(null);
     setLoading(true);
     setError(null);
@@ -49,15 +49,17 @@ export function DayDetail({
       .then(setGigs)
       .catch((err) => setError(isNetworkError(err) ? 'You\'re offline — gigs can\'t be loaded right now' : 'Failed to load gigs for this day'))
       .finally(() => setLoading(false));
-  }
+  }, [date]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetching on mount/date change
     fetchDayGigs();
-  }, [date]);
+  }, [fetchDayGigs]);
 
   // Fetch venue addresses for gigs with venue_id
   useEffect(() => {
     const gigsWithVenue = gigs.filter(g => g.venue_id);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional early-return default
     if (gigsWithVenue.length === 0) { setVenueAddresses(new Map()); return; }
     Promise.all(
       gigsWithVenue.map(async g => {
@@ -73,6 +75,7 @@ export function DayDetail({
   // Check which gigs already have invoices
   useEffect(() => {
     const invoiceGigs = gigs.filter(g => g.gig_type !== 'practice');
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional early-return default
     if (invoiceGigs.length === 0) { setInvoicedGigIds(new Set()); return; }
     Promise.all(
       invoiceGigs.map(async g => {

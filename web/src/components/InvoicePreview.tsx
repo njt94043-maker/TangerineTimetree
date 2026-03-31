@@ -22,6 +22,7 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
   const originalTitle = useRef(document.title);
 
   useEffect(() => {
+    const savedTitle = originalTitle.current;
     async function load() {
       try {
         const [inv, us, bs, receipts] = await Promise.all([
@@ -80,7 +81,7 @@ export function InvoicePreview({ invoiceId, onClose }: InvoicePreviewProps) {
       }
     }
     load();
-    return () => { document.title = originalTitle.current; };
+    return () => { document.title = savedTitle; };
   }, [invoiceId]);
 
   function handlePrint() {

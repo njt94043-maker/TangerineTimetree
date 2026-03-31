@@ -23,6 +23,7 @@ export function SplashScreen({ ready = false, minDisplayMs = 1800, onComplete }:
   // Begin exit when both ready + min time elapsed
   useEffect(() => {
     if (ready && canExit && !exiting) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional derived state transition
       setExiting(true);
     }
   }, [ready, canExit, exiting]);

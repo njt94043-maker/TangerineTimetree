@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getInvoice, updateInvoiceStatus, markInvoicePaid, deleteInvoice,
   getReceiptsForInvoice,
@@ -25,7 +25,7 @@ export function InvoiceDetail({ invoiceId, onClose, onPreview, onDuplicate, onDe
   const [loading, setLoading] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [inv, r] = await Promise.all([
         getInvoice(invoiceId),
@@ -38,9 +38,9 @@ export function InvoiceDetail({ invoiceId, onClose, onPreview, onDuplicate, onDe
     } finally {
       setLoading(false);
     }
-  }
+  }, [invoiceId]);
 
-  useEffect(() => { load(); }, [invoiceId]);
+  useEffect(() => { load(); }, [load]);
 
   async function handleStatusChange(status: InvoiceStatus) {
     if (!invoice) return;

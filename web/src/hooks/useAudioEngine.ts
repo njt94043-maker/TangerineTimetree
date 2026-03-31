@@ -152,6 +152,19 @@ export function useAudioEngine(
   const [trackMuted, setTrackMuted] = useState(false);
   const [countInBars, setCountInBarsState] = useState(0);
   const [nudgeOffsetMs, setNudgeOffsetMs] = useState(0);
+  const [stemsLoaded, setStemsLoaded] = useState(false);
+  const [trackLoaded, setTrackLoaded] = useState(false);
+
+  function updateStemChannels() {
+    setStemChannels(
+      mixerRef.current.getChannels().map(ch => ({
+        label: ch.label,
+        gain: ch.gain,
+        muted: ch.muted,
+        solo: ch.solo,
+      }))
+    );
+  }
 
   // Load song data
   useEffect(() => {
@@ -231,6 +244,7 @@ export function useAudioEngine(
             }
 
             updateStemChannels();
+            setStemsLoaded(true);
 
             // Generate waveform from first stem
             const buf = mixerRef.current.getBuffer();
@@ -239,6 +253,7 @@ export function useAudioEngine(
             // Load single practice track
             await trackRef.current.load(songData.audio_url);
             setDuration(trackRef.current.getDuration());
+            setTrackLoaded(true);
 
             // Generate waveform
             const buf = trackRef.current.getBuffer();
@@ -257,11 +272,14 @@ export function useAudioEngine(
 
     loadSong();
 
+    const click = clickRef.current;
+    const track = trackRef.current;
+    const mixer = mixerRef.current;
     return () => {
       cancelled = true;
-      clickRef.current.stop();
-      trackRef.current.stop();
-      mixerRef.current.stop();
+      click.stop();
+      track.stop();
+      mixer.stop();
       AudioEngine.reset();
     };
   }, [songId, mode]);
@@ -300,20 +318,9 @@ export function useAudioEngine(
     return removeListener;
   }, [prefs?.player_flash_enabled]);
 
-  function updateStemChannels() {
-    setStemChannels(
-      mixerRef.current.getChannels().map(ch => ({
-        label: ch.label,
-        gain: ch.gain,
-        muted: ch.muted,
-        solo: ch.solo,
-      }))
-    );
-  }
-
   // Determine which audio source is active
-  const hasStems = stems.length > 0 && mixerRef.current.isLoaded();
-  const hasTrack = trackRef.current.isLoaded();
+  const hasStems = stems.length > 0 && stemsLoaded;
+  const hasTrack = trackLoaded;
 
   // --- Actions ---
 
@@ -495,9 +502,13 @@ export function useAudioEngine(
     clickMuted,
     trackGain,
     trackMuted,
+    // These refs are read during render intentionally — they update at animation
+    // frame rate and using state would cause excessive re-renders.
+    /* eslint-disable react-hooks/refs */
     fftData: fftDataRef.current,
     beatIntensity: beatIntensityRef.current,
     barTargets: barTargetsRef.current,
+    /* eslint-enable react-hooks/refs */
   };
 
   const actions: AudioEngineActions = {
@@ -536,5 +547,6 @@ export function useAudioEngine(
     },
   };
 
+  // eslint-disable-next-line react-hooks/refs -- state contains intentional ref reads for animation data
   return [state, actions];
 }

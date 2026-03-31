@@ -142,10 +142,9 @@ export function useXR18Camera() {
   useEffect(() => {
     return () => {
       mediaRecorderRef.current?.stop();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       cameraStream?.getTracks().forEach(t => t.stop());
     };
-  }, []);
+  }, [cameraStream]);
 
   return {
     videoRef,

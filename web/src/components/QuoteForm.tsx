@@ -109,7 +109,6 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
     setCurrentIndex(idx);
   }, []);
 
-  // Load settings + clients + services on mount
   useEffect(() => {
     loadSettingsCached(
       (us, bs) => {
@@ -124,6 +123,7 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
     );
     getServiceCatalogue().then(svc => setServices(svc)).catch(() => {});
     loadClients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadClients() {
@@ -133,6 +133,7 @@ export function QuoteForm({ onClose, onSaved }: QuoteFormProps) {
     } catch { /* client list non-critical */ }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadClients reads clientSearch directly
   useEffect(() => { loadClients(); }, [clientSearch]);
 
   // Auto-fill venue address when venue is selected from DB

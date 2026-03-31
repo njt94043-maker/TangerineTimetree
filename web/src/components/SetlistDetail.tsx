@@ -50,7 +50,10 @@ export function SetlistDetail({ setlistId, onClose }: SetlistDetailProps) {
     }
   }
 
-  useEffect(() => { load(); }, [setlistId]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is stable, keyed on setlistId
+  }, [setlistId]);
 
   async function handleSaveMeta() {
     if (!name.trim()) { setError('Name is required'); return; }

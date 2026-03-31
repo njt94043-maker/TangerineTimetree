@@ -124,6 +124,7 @@ export function InvoiceForm({ onClose, onSaved, prefill }: InvoiceFormProps) {
         } catch { /* non-critical */ }
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadClients(): Promise<Client[]> {
@@ -134,6 +135,7 @@ export function InvoiceForm({ onClose, onSaved, prefill }: InvoiceFormProps) {
     } catch { return []; }
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- loadClients reads clientSearch directly
   useEffect(() => { loadClients(); }, [clientSearch]);
 
   useEffect(() => {

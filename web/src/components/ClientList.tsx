@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getClients, createClient, updateClient, deleteClient, searchClients,
 } from '@shared/supabase/queries';
@@ -28,16 +28,16 @@ export function ClientList({ onClose }: ClientListProps) {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
 
-  async function loadClients() {
+  const loadClients = useCallback(async () => {
     try {
       const list = search.trim() ? await searchClients(search.trim()) : await getClients();
       setClients(list);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load clients');
     }
-  }
+  }, [search]);
 
-  useEffect(() => { loadClients(); }, [search]);
+  useEffect(() => { loadClients(); }, [loadClients]);
 
   function openAdd() {
     setEditing(null);

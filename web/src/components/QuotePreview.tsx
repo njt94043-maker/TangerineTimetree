@@ -147,7 +147,8 @@ export function QuotePreview({ quoteId, onClose }: QuotePreviewProps) {
       }
     }
     load();
-    return () => { document.title = originalTitle.current; };
+    const savedTitle = originalTitle.current;
+    return () => { document.title = savedTitle; };
   }, [quoteId]);
 
   function handlePrint() {

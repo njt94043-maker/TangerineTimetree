@@ -158,7 +158,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   }
 
   /* ── Push a new entry onto the history stack ── */
-  function pushEntry(entry: HistoryEntry) {
+  const pushEntry = useCallback((entry: HistoryEntry) => {
     const stack = historyRef.current;
     const top = stack[stack.length - 1];
     // Prevent duplicate consecutive entries (e.g. rapid double-tap)
@@ -172,10 +172,10 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (!handlingPopState.current) {
       window.history.pushState({ depth: historyRef.current.length }, '');
     }
-  }
+  }, []);
 
   /* ── Replace the current top of stack (post-save transitions) ── */
-  function replaceEntry(entry: HistoryEntry) {
+  const replaceEntry = useCallback((entry: HistoryEntry) => {
     const stack = historyRef.current;
     historyRef.current = stack.length > 0 ? [...stack.slice(0, -1), entry] : [entry];
     restoreEntry(entry);
@@ -183,18 +183,18 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (!handlingPopState.current) {
       window.history.replaceState({ depth: historyRef.current.length }, '');
     }
-  }
+  }, []);
 
   /* ── Top-level navigation — resets the history stack ── */
-  function resetToView(v: View) {
+  const resetToView = useCallback((v: View) => {
     historyRef.current = [{ view: v }];
     setViewRaw(v);
     if (!handlingPopState.current) {
       window.history.pushState({ view: v, depth: 1 }, '');
     }
-  }
+  }, []);
 
-  const setView = useCallback((v: View) => resetToView(v), []);
+  const setView = useCallback((v: View) => resetToView(v), [resetToView]);
 
   /* ── Go back one step, restoring previous state ── */
   const goBack = useCallback(() => {
@@ -223,7 +223,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToDay = useCallback((date: string) => {
     setSelectedDate(date);
     pushEntry({ view: 'day-detail', selectedDate: date });
-  }, []);
+  }, [pushEntry]);
 
   // Gig Form
   const goToAddGig = useCallback((date: string, type: 'gig' | 'practice' = 'gig') => {
@@ -231,95 +231,95 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setEditGigId(null);
     setInitialGigType(type);
     pushEntry({ view: 'gig-form', selectedDate: date, editGigId: null, initialGigType: type });
-  }, []);
+  }, [pushEntry]);
 
   const goToEditGig = useCallback((gigId: string) => {
     setEditGigId(gigId);
     pushEntry({ view: 'gig-form', editGigId: gigId });
-  }, []);
+  }, [pushEntry]);
 
   const goToAddGigFromList = useCallback((date: string, type: 'gig' | 'practice') => {
     setSelectedDate(date);
     setEditGigId(null);
     setInitialGigType(type);
     pushEntry({ view: 'gig-form', selectedDate: date, editGigId: null, initialGigType: type });
-  }, []);
+  }, [pushEntry]);
 
   const goToEditGigFromList = useCallback((gigId: string, date: string) => {
     setSelectedDate(date);
     setEditGigId(gigId);
     pushEntry({ view: 'gig-form', editGigId: gigId, selectedDate: date });
-  }, []);
+  }, [pushEntry]);
 
   // Top-level drawer navigation — resets stack
-  const goToDashboard = useCallback(() => resetToView('dashboard'), []);
-  const goToInvoices = useCallback(() => resetToView('invoices'), []);
-  const goToSettings = useCallback(() => resetToView('settings'), []);
-  const goToClients = useCallback(() => resetToView('clients'), []);
-  const goToVenues = useCallback(() => resetToView('venues'), []);
-  const goToQuotes = useCallback(() => resetToView('quotes'), []);
-  const goToSongs = useCallback(() => resetToView('songs'), []);
-  const goToSetlists = useCallback(() => resetToView('setlists'), []);
-  const goToLibrary = useCallback(() => resetToView('library'), []);
-  const goToXR18Camera = useCallback(() => resetToView('xr18-camera'), []);
+  const goToDashboard = useCallback(() => resetToView('dashboard'), [resetToView]);
+  const goToInvoices = useCallback(() => resetToView('invoices'), [resetToView]);
+  const goToSettings = useCallback(() => resetToView('settings'), [resetToView]);
+  const goToClients = useCallback(() => resetToView('clients'), [resetToView]);
+  const goToVenues = useCallback(() => resetToView('venues'), [resetToView]);
+  const goToQuotes = useCallback(() => resetToView('quotes'), [resetToView]);
+  const goToSongs = useCallback(() => resetToView('songs'), [resetToView]);
+  const goToSetlists = useCallback(() => resetToView('setlists'), [resetToView]);
+  const goToLibrary = useCallback(() => resetToView('library'), [resetToView]);
+  const goToXR18Camera = useCallback(() => resetToView('xr18-camera'), [resetToView]);
 
   // Invoice drill-down
   const goToNewInvoice = useCallback(() => {
     setEditInvoiceId(null);
     pushEntry({ view: 'invoice-form', editInvoiceId: null });
-  }, []);
+  }, [pushEntry]);
   const goToEditInvoice = useCallback((id: string) => {
     setEditInvoiceId(id);
     pushEntry({ view: 'invoice-form', editInvoiceId: id });
-  }, []);
+  }, [pushEntry]);
   const goToInvoiceDetail = useCallback((id: string) => {
     setInvoiceId(id);
     pushEntry({ view: 'invoice-detail', invoiceId: id });
-  }, []);
+  }, [pushEntry]);
   const goToInvoicePreview = useCallback((id: string) => {
     setInvoiceId(id);
     pushEntry({ view: 'invoice-preview', invoiceId: id });
-  }, []);
+  }, [pushEntry]);
 
   // Quote drill-down
   const goToNewQuote = useCallback(() => {
     setEditQuoteId(null);
     pushEntry({ view: 'quote-form', editQuoteId: null });
-  }, []);
+  }, [pushEntry]);
   const goToEditQuote = useCallback((id: string) => {
     setEditQuoteId(id);
     pushEntry({ view: 'quote-form', editQuoteId: id });
-  }, []);
+  }, [pushEntry]);
   const goToQuoteDetail = useCallback((id: string) => {
     setQuoteId(id);
     pushEntry({ view: 'quote-detail', quoteId: id });
-  }, []);
+  }, [pushEntry]);
   const goToQuotePreview = useCallback((id: string) => {
     setQuoteId(id);
     pushEntry({ view: 'quote-preview', quoteId: id });
-  }, []);
+  }, [pushEntry]);
 
   // Venue drill-down
   const goToVenueDetail = useCallback((id: string) => {
     setVenueId(id);
     pushEntry({ view: 'venue-detail', venueId: id });
-  }, []);
+  }, [pushEntry]);
 
   // Song drill-down
   const goToNewSong = useCallback(() => {
     setEditSongId(null);
     pushEntry({ view: 'song-form', editSongId: null });
-  }, []);
+  }, [pushEntry]);
   const goToEditSong = useCallback((id: string) => {
     setEditSongId(id);
     pushEntry({ view: 'song-form', editSongId: id });
-  }, []);
+  }, [pushEntry]);
 
   // Setlist drill-down
   const goToSetlistDetail = useCallback((id: string) => {
     setSetlistId(id);
     pushEntry({ view: 'setlist-detail', setlistId: id });
-  }, []);
+  }, [pushEntry]);
 
   // Player drill-down (from library)
   const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice' | 'view', slId?: string) => {
@@ -327,48 +327,48 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     setPlayerMode(mode);
     setPlayerSetlistId(slId ?? null);
     pushEntry({ view: 'player', playerSongId: songId, playerMode: mode, playerSetlistId: slId ?? null });
-  }, []);
+  }, [pushEntry]);
 
   // Booking wizard / Gig Hub
   const goToBookingWizard = useCallback((date: string) => {
     setSelectedDate(date);
     setEditGigId(null);
     pushEntry({ view: 'booking-wizard', selectedDate: date, editGigId: null });
-  }, []);
+  }, [pushEntry]);
   const goToEditBooking = useCallback((gigId: string) => {
     setEditGigId(gigId);
     pushEntry({ view: 'booking-wizard', editGigId: gigId });
-  }, []);
+  }, [pushEntry]);
   // Away (push-based, preserves day-detail in stack)
   const goToAway = useCallback((date?: string) => {
     if (date) setSelectedDate(date);
     pushEntry({ view: 'away', selectedDate: date });
-  }, []);
+  }, [pushEntry]);
 
   /* ── Post-save replace helpers (swap current entry, no extra back step) ── */
   const replaceWithInvoiceDetail = useCallback((id: string) => {
     setInvoiceId(id);
     replaceEntry({ view: 'invoice-detail', invoiceId: id });
-  }, []);
+  }, [replaceEntry]);
   const replaceWithQuoteDetail = useCallback((id: string) => {
     setQuoteId(id);
     replaceEntry({ view: 'quote-detail', quoteId: id });
-  }, []);
+  }, [replaceEntry]);
   const replaceWithNewQuote = useCallback(() => {
     setEditQuoteId(null);
     replaceEntry({ view: 'quote-form', editQuoteId: null });
-  }, []);
+  }, [replaceEntry]);
   const replaceWithNewInvoice = useCallback(() => {
     setEditInvoiceId(null);
     replaceEntry({ view: 'invoice-form', editInvoiceId: null });
-  }, []);
+  }, [replaceEntry]);
 
   // Listen for browser back button / hardware back (Android & iOS PWA)
   useEffect(() => {
     // Seed initial browser history state
     window.history.replaceState({ view: 'calendar', depth: 1 }, '');
 
-    function onPopState(_e: PopStateEvent) {
+    function onPopState() {
       // If goBack() already handled the stack pop, skip to avoid double-pop
       if (handlingPopState.current) return;
       handlingPopState.current = true;
@@ -426,6 +426,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useView() {
   const ctx = useContext(ViewContext);
   if (!ctx) throw new Error('useView must be used within ViewProvider');

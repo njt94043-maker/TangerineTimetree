@@ -25,7 +25,10 @@ export function SongList({ onClose, onNewSong, onEditSong }: SongListProps) {
     }
   }
 
-  useEffect(() => { loadSongs(); }, [search]);
+  useEffect(() => {
+    loadSongs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadSongs is stable, keyed on search
+  }, [search]);
 
   async function handleDelete() {
     if (!deleteTarget) return;

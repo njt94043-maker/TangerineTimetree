@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getGigWithLinkedDocs, updateGig, getGigChangelog } from '@shared/supabase/queries';
 import type { GigWithCreator, GigChangelogWithUser, Quote, Invoice, FormalInvoice, BookingStatus } from '@shared/supabase/types';
 import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
@@ -50,11 +50,7 @@ export function GigCardExpanded({
   const [confirmStatus, setConfirmStatus] = useState<BookingStatus | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    loadGig();
-  }, [gigId]);
-
-  async function loadGig() {
+  const loadGig = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getGigWithLinkedDocs(gigId);
@@ -67,7 +63,11 @@ export function GigCardExpanded({
     } finally {
       setLoading(false);
     }
-  }
+  }, [gigId]);
+
+  useEffect(() => {
+    loadGig();
+  }, [loadGig]);
 
   async function handleStatusChange(newStatus: BookingStatus) {
     if (!gig) return;
