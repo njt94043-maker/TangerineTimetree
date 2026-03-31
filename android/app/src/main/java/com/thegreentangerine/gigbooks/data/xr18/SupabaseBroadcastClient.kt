@@ -61,7 +61,7 @@ class SupabaseBroadcastClient {
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         val url = "wss://jlufqgslgjowfaqmqlds.supabase.co/realtime/v1/websocket" +
-            "?apikey=[REDACTED -- sb_publishable key]&vsn=1.0.0"
+            "?apikey=sb_publishable_JwBPIqMBRavKV326-3oc9w_62AsevO1&vsn=1.0.0"
 
         val client = okhttp3.OkHttpClient.Builder()
             .pingInterval(java.time.Duration.ofSeconds(30))

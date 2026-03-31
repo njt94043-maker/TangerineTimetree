@@ -43,18 +43,37 @@ import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+const SPLASH_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+
+function shouldSkipSplash(): boolean {
+  const last = localStorage.getItem('splashLastShown');
+  if (!last) return false;
+  return Date.now() - Number(last) < SPLASH_COOLDOWN_MS;
+}
+
+function markSplashShown() {
+  localStorage.setItem('splashLastShown', String(Date.now()));
+}
+
 export default function App() {
   const { user, profile, loading: authLoading, signIn, signOut, resetPassword } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
+  const [splashDone, setSplashDone] = useState(shouldSkipSplash);
 
   if (!splashDone) {
     return (
       <SplashScreen
         ready={!authLoading}
-        onComplete={() => setSplashDone(true)}
+        onComplete={() => {
+          markSplashShown();
+          setSplashDone(true);
+        }}
       />
     );
+  }
+
+  if (authLoading) {
+    return null;
   }
 
   if (!user) {

@@ -15,7 +15,7 @@ object SupabaseProvider {
 
     // These match shared/supabase/config.ts
     private const val SUPABASE_URL = "https://jlufqgslgjowfaqmqlds.supabase.co"
-    private const val SUPABASE_ANON_KEY = "[REDACTED -- sb_publishable key]"
+    private const val SUPABASE_ANON_KEY = "sb_publishable_JwBPIqMBRavKV326-3oc9w_62AsevO1"
 
     val client: SupabaseClient by lazy {
         createSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY) {

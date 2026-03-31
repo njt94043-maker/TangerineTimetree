@@ -128,7 +128,7 @@ export function deserializePayload<T>(json: string | null | undefined): T | null
 // ── Supabase Relay Config ──
 
 export const SUPABASE_REALTIME_URL = 'wss://jlufqgslgjowfaqmqlds.supabase.co/realtime/v1/websocket';
-export const SUPABASE_ANON_KEY = '[REDACTED -- sb_publishable key]';
+export const SUPABASE_ANON_KEY = 'sb_publishable_JwBPIqMBRavKV326-3oc9w_62AsevO1';
 
 /** Build the relay channel topic from a pairing secret. */
 export function getRelayChannelTopic(secret: string): string {
