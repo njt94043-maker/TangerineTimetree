@@ -42,7 +42,7 @@ import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
@@ -53,22 +53,22 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
     var signing by remember { mutableStateOf(false) }
     val email   = remember { AuthRepository.currentUserEmail() ?: "—" }
 
-    Column(Modifier.fillMaxSize().background(GigColors.background)) {
+    Column(Modifier.fillMaxSize().background(TangerineColors.background)) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(GigColors.surface)
+                .background(TangerineColors.surface)
                 .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
             }
             Text(
                 text = "Settings",
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                style = TextStyle(color = GigColors.textDim, shadow = Shadow(GigColors.textDim.copy(alpha = 0.3f), Offset.Zero, 10f)),
+                style = TextStyle(color = TangerineColors.textDim, shadow = Shadow(TangerineColors.textDim.copy(alpha = 0.3f), Offset.Zero, 10f)),
             )
         }
 
@@ -83,24 +83,24 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
             // Account
             NeuCard {
                 Text("Account", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(6.dp))
                 Text("Nathan · Drums", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-                    style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.35f), Offset.Zero, 8f)))
-                Text(email, fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.textDim)
+                    style = TextStyle(color = TangerineColors.green, shadow = Shadow(TangerineColors.green.copy(0.35f), Offset.Zero, 8f)))
+                Text(email, fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.textDim)
             }
 
             // Audio engine status
             NeuCard {
                 Text("Audio Engine", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
                             .size(8.dp)
                             .background(
-                                if (vm.engineAvailable) GigColors.green else GigColors.danger,
+                                if (vm.engineAvailable) TangerineColors.green else TangerineColors.danger,
                                 RoundedCornerShape(4.dp),
                             ),
                     )
@@ -108,7 +108,7 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                     Text(
                         if (vm.engineAvailable) "Running — Oboe (C++ / NDK)" else "Unavailable on this device",
                         fontFamily = Karla, fontSize = 13.sp,
-                        color = if (vm.engineAvailable) GigColors.text else GigColors.danger,
+                        color = if (vm.engineAvailable) TangerineColors.text else TangerineColors.danger,
                     )
                 }
             }
@@ -116,7 +116,7 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
             // Click Sound Picker
             NeuCard {
                 Text("Click Sound", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(8.dp))
                 val clickSounds = listOf("Default" to 0, "High" to 1, "Low" to 2, "Wood" to 3, "Rimshot" to 4)
                 var selectedClick by remember { mutableIntStateOf(0) }
@@ -130,10 +130,10 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) GigColors.purple.copy(alpha = 0.12f) else GigColors.surfaceInset)
+                                .background(if (isSelected) TangerineColors.purple.copy(alpha = 0.12f) else TangerineColors.surfaceInset)
                                 .border(
                                     1.dp,
-                                    if (isSelected) GigColors.purple.copy(alpha = 0.4f) else GigColors.neuBorder,
+                                    if (isSelected) TangerineColors.purple.copy(alpha = 0.4f) else TangerineColors.neuBorder,
                                     RoundedCornerShape(8.dp),
                                 )
                                 .clickable {
@@ -146,7 +146,7 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                             Text(
                                 label, fontFamily = Karla, fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) GigColors.purple else GigColors.textDim,
+                                color = if (isSelected) TangerineColors.purple else TangerineColors.textDim,
                             )
                         }
                     }
@@ -158,15 +158,15 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
             // About
             NeuCard {
                 Text("About", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = GigColors.textMuted, letterSpacing = 0.5.sp)
+                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
                 Spacer(Modifier.height(6.dp))
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("GigBooks", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp,
-                        style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.4f), Offset.Zero, 8f)),
+                    Text("Tangerine Media", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                        style = TextStyle(color = TangerineColors.orange, shadow = Shadow(TangerineColors.orange.copy(0.4f), Offset.Zero, 8f)),
                         modifier = Modifier.weight(1f))
-                    Text("v1.0.0", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textMuted)
+                    Text("v1.0.0", fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textMuted)
                 }
-                Text("The Green Tangerine", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
+                Text("The Green Tangerine", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textDim)
             }
 
             Spacer(Modifier.weight(1f))
@@ -177,8 +177,8 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                    .border(0.5.dp, GigColors.danger.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
+                    .background(TangerineColors.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                    .border(0.5.dp, TangerineColors.danger.copy(alpha = 0.25f), RoundedCornerShape(12.dp))
                     .clickable(enabled = !signing) {
                         scope.launch {
                             signing = true
@@ -188,10 +188,10 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (signing) {
-                    CircularProgressIndicator(color = GigColors.danger, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    CircularProgressIndicator(color = TangerineColors.danger, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
                 } else {
                     Text("Sign Out", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                        color = GigColors.danger)
+                        color = TangerineColors.danger)
                 }
             }
 

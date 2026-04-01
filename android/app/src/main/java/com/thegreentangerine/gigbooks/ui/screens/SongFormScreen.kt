@@ -51,7 +51,7 @@ import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import com.thegreentangerine.gigbooks.data.supabase.models.SongShare
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.CoroutineScope
@@ -207,43 +207,43 @@ fun SongFormScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background),
+            .background(TangerineColors.background),
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(GigColors.surface)
+                .background(TangerineColors.surface)
                 .padding(start = 4.dp, end = 16.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
             }
             Text(
                 text = if (canEdit) "Edit Song" else "Song Details",
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(alpha = 0.4f), Offset.Zero, 14f)),
+                style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(alpha = 0.4f), Offset.Zero, 14f)),
             )
             Spacer(Modifier.weight(1f))
             if (canEdit) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (!saving) GigColors.green.copy(alpha = 0.12f) else Color.Transparent)
-                        .border(1.dp, if (!saving) GigColors.green.copy(alpha = 0.3f) else GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .background(if (!saving) TangerineColors.green.copy(alpha = 0.12f) else Color.Transparent)
+                        .border(1.dp, if (!saving) TangerineColors.green.copy(alpha = 0.3f) else TangerineColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                         .clickable(enabled = !saving) { save() }
                         .padding(horizontal = 14.dp, vertical = 7.dp),
                 ) {
                     Text(
                         if (saving) "Saving..." else "Save",
                         fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                        color = if (!saving) GigColors.green else GigColors.textMuted,
+                        color = if (!saving) TangerineColors.green else TangerineColors.textMuted,
                     )
                 }
             }
         }
-        HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+        HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f))
 
         // Form body
         Column(
@@ -266,9 +266,9 @@ fun SongFormScreen(
                 NeuCard {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (sharesLoading) {
-                            Text("Loading shares...", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+                            Text("Loading shares...", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
                         } else if (shares.isEmpty()) {
-                            Text("Not shared with anyone", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
+                            Text("Not shared with anyone", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textDim)
                         } else {
                             shares.forEach { share ->
                                 val memberName = vm.profileNames[share.sharedWith] ?: share.sharedWith
@@ -280,22 +280,22 @@ fun SongFormScreen(
                                         modifier = Modifier
                                             .size(24.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(GigColors.purple.copy(alpha = 0.15f)),
+                                            .background(TangerineColors.purple.copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Text(
                                             memberName.firstOrNull()?.uppercase() ?: "?",
                                             fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                                            color = GigColors.purple,
+                                            color = TangerineColors.purple,
                                         )
                                     }
                                     Spacer(Modifier.width(8.dp))
-                                    Text(memberName, fontFamily = Karla, fontSize = 13.sp, color = GigColors.text, modifier = Modifier.weight(1f))
+                                    Text(memberName, fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.text, modifier = Modifier.weight(1f))
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(6.dp))
-                                            .background(GigColors.danger.copy(alpha = 0.08f))
-                                            .border(0.5.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                                            .background(TangerineColors.danger.copy(alpha = 0.08f))
+                                            .border(0.5.dp, TangerineColors.danger.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
                                             .clickable {
                                                 scope.launch(Dispatchers.IO) {
                                                     try {
@@ -307,7 +307,7 @@ fun SongFormScreen(
                                             }
                                             .padding(horizontal = 8.dp, vertical = 4.dp),
                                     ) {
-                                        Text("Remove", fontFamily = Karla, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = GigColors.danger)
+                                        Text("Remove", fontFamily = Karla, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = TangerineColors.danger)
                                     }
                                 }
                             }
@@ -365,20 +365,20 @@ fun SongFormScreen(
                 NeuCard {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row {
-                            Text("Duration: ", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
-                            Text(song.durationFormatted ?: "—", fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.text)
+                            Text("Duration: ", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
+                            Text(song.durationFormatted ?: "—", fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.text)
                         }
                         Row {
-                            Text("Audio: ", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
-                            Text("Track loaded", fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.green)
+                            Text("Audio: ", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
+                            Text("Track loaded", fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.green)
                         }
                         if (processingMsg.isNotEmpty()) {
-                            Text(processingMsg, fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.teal)
+                            Text(processingMsg, fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.teal)
                         }
                         if (canEdit) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ActionButton("Re-analyse Beats", GigColors.teal, Modifier.weight(1f)) { triggerProcess(reAnalyseOnly = true) }
-                                ActionButton("Full Re-process", GigColors.purple, Modifier.weight(1f)) { triggerProcess(reAnalyseOnly = false) }
+                                ActionButton("Re-analyse Beats", TangerineColors.teal, Modifier.weight(1f)) { triggerProcess(reAnalyseOnly = true) }
+                                ActionButton("Full Re-process", TangerineColors.purple, Modifier.weight(1f)) { triggerProcess(reAnalyseOnly = false) }
                             }
                         }
                     }
@@ -398,7 +398,7 @@ private fun SectionLabel(text: String) {
         text = text,
         fontFamily = Karla, fontWeight = FontWeight.Bold,
         fontSize = 10.sp, letterSpacing = 1.sp,
-        color = GigColors.textMuted,
+        color = TangerineColors.textMuted,
         modifier = Modifier.padding(top = 4.dp),
     )
 }
@@ -414,25 +414,25 @@ private fun FormTextField(
 ) {
     val shape = RoundedCornerShape(8.dp)
     Column(modifier = modifier) {
-        Text(label, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
+        Text(label, fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = enabled,
             singleLine = true,
-            textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = if (enabled) GigColors.text else GigColors.textDim),
-            cursorBrush = SolidColor(GigColors.teal),
+            textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = if (enabled) TangerineColors.text else TangerineColors.textDim),
+            cursorBrush = SolidColor(TangerineColors.teal),
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             decorationBox = { inner ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(shape)
-                        .background(GigColors.surfaceInset)
-                        .border(1.dp, GigColors.neuBorder, shape)
+                        .background(TangerineColors.surfaceInset)
+                        .border(1.dp, TangerineColors.neuBorder, shape)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 ) {
-                    if (value.isEmpty()) Text(label, fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                    if (value.isEmpty()) Text(label, fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted)
                     inner()
                 }
             },
@@ -450,24 +450,24 @@ private fun FormTextArea(
 ) {
     val shape = RoundedCornerShape(8.dp)
     Column {
-        Text(label, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
+        Text(label, fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             enabled = enabled,
-            textStyle = TextStyle(fontFamily = Karla, fontSize = 13.sp, color = if (enabled) GigColors.text else GigColors.textDim),
-            cursorBrush = SolidColor(GigColors.teal),
+            textStyle = TextStyle(fontFamily = Karla, fontSize = 13.sp, color = if (enabled) TangerineColors.text else TangerineColors.textDim),
+            cursorBrush = SolidColor(TangerineColors.teal),
             minLines = lines,
             decorationBox = { inner ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(shape)
-                        .background(GigColors.surfaceInset)
-                        .border(1.dp, GigColors.neuBorder, shape)
+                        .background(TangerineColors.surfaceInset)
+                        .border(1.dp, TangerineColors.neuBorder, shape)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                 ) {
-                    if (value.isEmpty()) Text(label, fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+                    if (value.isEmpty()) Text(label, fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted)
                     inner()
                 }
             },
@@ -497,14 +497,14 @@ private fun CategoryDropdown(selected: String, onSelect: (String) -> Unit, enabl
     val displayLabel = CATEGORIES.find { it.first == selected }?.second ?: selected
 
     Column {
-        Text("Category", fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
+        Text("Category", fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim, modifier = Modifier.padding(bottom = 4.dp))
         Box {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(shape)
-                    .background(GigColors.surfaceInset)
-                    .border(1.dp, GigColors.neuBorder, shape)
+                    .background(TangerineColors.surfaceInset)
+                    .border(1.dp, TangerineColors.neuBorder, shape)
                     .clickable(enabled = enabled) { expanded = true }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -512,22 +512,22 @@ private fun CategoryDropdown(selected: String, onSelect: (String) -> Unit, enabl
                 Text(
                     displayLabel,
                     fontFamily = Karla, fontSize = 14.sp,
-                    color = if (enabled) GigColors.text else GigColors.textDim,
+                    color = if (enabled) TangerineColors.text else TangerineColors.textDim,
                     modifier = Modifier.weight(1f),
                 )
-                Text("\u25BE", fontSize = 14.sp, color = GigColors.textMuted)
+                Text("\u25BE", fontSize = 14.sp, color = TangerineColors.textMuted)
             }
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                containerColor = GigColors.surface,
+                containerColor = TangerineColors.surface,
             ) {
                 CATEGORIES.forEach { (value, label) ->
                     DropdownMenuItem(
                         text = {
                             Text(
                                 label, fontFamily = Karla, fontSize = 13.sp,
-                                color = if (value == selected) GigColors.teal else GigColors.text,
+                                color = if (value == selected) TangerineColors.teal else TangerineColors.text,
                                 fontWeight = if (value == selected) FontWeight.Bold else FontWeight.Normal,
                             )
                         },
@@ -551,23 +551,23 @@ private fun ShareMemberDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(GigColors.purple.copy(alpha = 0.06f))
-                .border(1.dp, GigColors.purple.copy(alpha = 0.2f), shape)
+                .background(TangerineColors.purple.copy(alpha = 0.06f))
+                .border(1.dp, TangerineColors.purple.copy(alpha = 0.2f), shape)
                 .clickable { expanded = true }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("+ Share with member", fontFamily = Karla, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = GigColors.purple, modifier = Modifier.weight(1f))
-            Text("\u25BE", fontSize = 14.sp, color = GigColors.purple.copy(alpha = 0.5f))
+            Text("+ Share with member", fontFamily = Karla, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TangerineColors.purple, modifier = Modifier.weight(1f))
+            Text("\u25BE", fontSize = 14.sp, color = TangerineColors.purple.copy(alpha = 0.5f))
         }
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = GigColors.surface,
+            containerColor = TangerineColors.surface,
         ) {
             members.forEach { (id, name) ->
                 DropdownMenuItem(
-                    text = { Text(name, fontFamily = Karla, fontSize = 13.sp, color = GigColors.text) },
+                    text = { Text(name, fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.text) },
                     onClick = { onShare(id); expanded = false },
                 )
             }

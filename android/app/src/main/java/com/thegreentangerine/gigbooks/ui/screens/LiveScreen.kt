@@ -60,7 +60,7 @@ import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
 import com.thegreentangerine.gigbooks.ui.components.VisType
 import com.thegreentangerine.gigbooks.ui.components.VisualHero
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
@@ -95,22 +95,22 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().background(GigColors.background)) {
+        Column(Modifier.fillMaxSize().background(TangerineColors.background)) {
             if (song == null) {
                 // Simple header when no song
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(GigColors.background)
+                        .background(TangerineColors.background)
                         .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onMenuClick) {
-                        Icon(Icons.Default.Close, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Default.Close, contentDescription = "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
                     }
                 }
                 NoSongPlaceholder(
-                    accent = GigColors.green,
+                    accent = TangerineColors.green,
                     screenName = "Live Mode",
                     onGoToLibrary = onGoToLibrary,
                 )
@@ -152,7 +152,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                         VisualHero(
                             isPlaying = vm.isClickPlaying,
                             currentBeat = vm.currentBeat,
-                            accent = GigColors.green,
+                            accent = TangerineColors.green,
                             modifier = heroMod,
                             suppressBeatGlow = glowFullscreen,
                             selectedVis = selectedVis,
@@ -198,14 +198,14 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(GigColors.surface, RoundedCornerShape(10.dp))
+                                .background(TangerineColors.surface, RoundedCornerShape(10.dp))
                                 .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                                 .clickable(onClick = { showQueue = true })
                                 .padding(horizontal = 14.dp, vertical = 5.dp),
                         ) {
                             Text(
                                 "Browse Songs",
-                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
                             )
                         }
                     }
@@ -225,7 +225,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            GigColors.surface,
+                            TangerineColors.surface,
                             RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                         )
                         .border(
@@ -294,7 +294,7 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
             FullscreenBeatGlow(
                 isPlaying = vm.isClickPlaying,
                 currentBeat = vm.currentBeat,
-                accent = GigColors.green,
+                accent = TangerineColors.green,
             )
         }
 
@@ -331,7 +331,7 @@ private fun LiveMixer(vm: AppViewModel) {
     channels.add(
         MixerChannel(
             label = "CLK",
-            color = GigColors.purple,
+            color = TangerineColors.purple,
             value = (vm.clickGain / 2f).coerceIn(0f, 1f),
             onValueChange = { vm.changeClickGain(it * 2f) },
             isMuted = vm.isClickMuted,
@@ -351,7 +351,7 @@ fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background.copy(alpha = 0.95f))
+            .background(TangerineColors.background.copy(alpha = 0.95f))
             .clickable(onClick = onDismiss),
     ) {
         Column(
@@ -368,11 +368,11 @@ fun QueueOverlay(vm: AppViewModel, onDismiss: () -> Unit) {
                 Text(
                     when (activeTab) { 0 -> "Queue"; 1 -> "Songs"; else -> "Setlists" },
                     fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                    style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.4f), Offset.Zero, 12f)),
+                    style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.4f), Offset.Zero, 12f)),
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = GigColors.textDim, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = TangerineColors.textDim, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -406,12 +406,12 @@ private fun QueueTab(label: String, idx: Int, activeTab: Int, onClick: () -> Uni
     Box(
         modifier = Modifier
             .background(
-                if (isActive) GigColors.teal.copy(alpha = 0.1f) else Color.Transparent,
+                if (isActive) TangerineColors.teal.copy(alpha = 0.1f) else Color.Transparent,
                 RoundedCornerShape(8.dp),
             )
             .border(
                 1.dp,
-                if (isActive) GigColors.teal.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
+                if (isActive) TangerineColors.teal.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
                 RoundedCornerShape(8.dp),
             )
             .clickable(onClick = onClick)
@@ -420,7 +420,7 @@ private fun QueueTab(label: String, idx: Int, activeTab: Int, onClick: () -> Uni
         Text(
             label,
             fontFamily = JetBrainsMono, fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 11.sp, color = if (isActive) GigColors.teal else GigColors.textMuted,
+            fontSize = 11.sp, color = if (isActive) TangerineColors.teal else TangerineColors.textMuted,
         )
     }
 }
@@ -430,14 +430,14 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
     val queue = vm.queueSongs
     if (queue.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No active queue", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+            Text("No active queue", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted)
         }
         return
     }
     val currentIdx = vm.queueIdx
 
     // Queue label subtitle (D-168)
-    Text(vm.queueLabel, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Text(vm.queueLabel, fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
     Spacer(Modifier.height(8.dp))
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -450,8 +450,8 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     .fillMaxWidth()
                     .then(
                         if (isCurrent) Modifier
-                            .background(GigColors.green.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(0.5.dp, GigColors.green.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.green.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, TangerineColors.green.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         else Modifier
                     )
                     .clickable { vm.jumpToSong(idx); onDismiss() }
@@ -465,9 +465,9 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         "${idx + 1}",
                         fontFamily = JetBrainsMono, fontSize = 13.sp,
                         color = when {
-                            isCurrent -> GigColors.green
-                            isPlayed -> GigColors.textMuted
-                            else -> GigColors.textDim
+                            isCurrent -> TangerineColors.green
+                            isPlayed -> TangerineColors.textMuted
+                            else -> TangerineColors.textDim
                         },
                         modifier = Modifier.width(24.dp),
                     )
@@ -479,16 +479,16 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                             fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                             fontSize = 14.sp,
                             color = when {
-                                isCurrent -> GigColors.text
-                                isPlayed -> GigColors.textMuted
-                                else -> GigColors.textDim
+                                isCurrent -> TangerineColors.text
+                                isPlayed -> TangerineColors.textMuted
+                                else -> TangerineColors.textDim
                             },
                         )
                         if (song.artist.isNotBlank()) {
                             Text(
                                 song.artist,
                                 fontFamily = Karla, fontSize = 11.sp,
-                                color = if (isPlayed) GigColors.textMuted.copy(alpha = 0.5f) else GigColors.textMuted,
+                                color = if (isPlayed) TangerineColors.textMuted.copy(alpha = 0.5f) else TangerineColors.textMuted,
                             )
                         }
                     }
@@ -496,7 +496,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     Text(
                         "${song.bpm.toInt()}",
                         fontFamily = JetBrainsMono, fontSize = 12.sp,
-                        color = if (isCurrent) GigColors.orange else GigColors.textMuted,
+                        color = if (isCurrent) TangerineColors.orange else TangerineColors.textMuted,
                     )
 
                     Spacer(Modifier.width(4.dp))
@@ -509,7 +509,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
                                 contentDescription = "Move up",
-                                tint = if (idx > 0) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
+                                tint = if (idx > 0) TangerineColors.textDim else TangerineColors.textMuted.copy(alpha = 0.3f),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -521,7 +521,7 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = "Move down",
-                                tint = if (idx < queue.size - 1) GigColors.textDim else GigColors.textMuted.copy(alpha = 0.3f),
+                                tint = if (idx < queue.size - 1) TangerineColors.textDim else TangerineColors.textMuted.copy(alpha = 0.3f),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
@@ -532,14 +532,14 @@ private fun QueueTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     Text(
                         "NOW PLAYING",
                         fontFamily = JetBrainsMono, fontSize = 9.sp, letterSpacing = 1.sp,
-                        style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.4f), Offset.Zero, 6f)),
+                        style = TextStyle(color = TangerineColors.green, shadow = Shadow(TangerineColors.green.copy(0.4f), Offset.Zero, 6f)),
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }
             if (!isCurrent && idx < queue.size - 1) {
                 androidx.compose.material3.HorizontalDivider(
-                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    color = TangerineColors.textMuted.copy(alpha = 0.1f),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
@@ -554,12 +554,12 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
 
     if (songs.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No songs loaded", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+            Text("No songs loaded", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted)
         }
         return
     }
 
-    Text("${songs.size} songs", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Text("${songs.size} songs", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
     Spacer(Modifier.height(8.dp))
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -571,8 +571,8 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     .fillMaxWidth()
                     .then(
                         if (isCurrent) Modifier
-                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, TangerineColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         else Modifier
                     )
                     .clickable {
@@ -589,32 +589,32 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         fontFamily = Karla,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp,
-                        color = if (isCurrent) GigColors.text else GigColors.textDim,
+                        color = if (isCurrent) TangerineColors.text else TangerineColors.textDim,
                     )
                     if (song.artist.isNotBlank()) {
                         Text(
                             song.artist,
-                            fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
+                            fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
                         )
                     }
                 }
                 Text(
                     "${song.bpm.toInt()}",
                     fontFamily = JetBrainsMono, fontSize = 12.sp,
-                    color = if (isCurrent) GigColors.orange else GigColors.textMuted,
+                    color = if (isCurrent) TangerineColors.orange else TangerineColors.textMuted,
                 )
                 if (isCurrent) {
                     Spacer(Modifier.width(6.dp))
                     Text(
                         "NOW",
                         fontFamily = JetBrainsMono, fontSize = 8.sp, letterSpacing = 1.sp,
-                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                        style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.3f), Offset.Zero, 6f)),
                     )
                 }
             }
             if (!isCurrent) {
                 androidx.compose.material3.HorizontalDivider(
-                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    color = TangerineColors.textMuted.copy(alpha = 0.1f),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
@@ -629,12 +629,12 @@ private fun SetlistsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
 
     if (setlists.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No setlists loaded", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+            Text("No setlists loaded", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted)
         }
         return
     }
 
-    Text("${setlists.size} setlists", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+    Text("${setlists.size} setlists", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
     Spacer(Modifier.height(8.dp))
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -646,8 +646,8 @@ private fun SetlistsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                     .fillMaxWidth()
                     .then(
                         if (isCurrent) Modifier
-                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, TangerineColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                         else Modifier
                     )
                     .clickable {
@@ -663,24 +663,24 @@ private fun SetlistsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         fontFamily = Karla,
                         fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                         fontSize = 14.sp,
-                        color = if (isCurrent) GigColors.text else GigColors.textDim,
+                        color = if (isCurrent) TangerineColors.text else TangerineColors.textDim,
                     )
                     Text(
                         "${sl.songCount} songs",
-                        fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
+                        fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
                     )
                 }
                 if (isCurrent) {
                     Text(
                         "ACTIVE",
                         fontFamily = JetBrainsMono, fontSize = 8.sp, letterSpacing = 1.sp,
-                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                        style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.3f), Offset.Zero, 6f)),
                     )
                 }
             }
             if (!isCurrent) {
                 androidx.compose.material3.HorizontalDivider(
-                    color = GigColors.textMuted.copy(alpha = 0.1f),
+                    color = TangerineColors.textMuted.copy(alpha = 0.1f),
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
@@ -698,7 +698,7 @@ private fun SetCompleteScreen(
     onGoToLibrary: () -> Unit,
 ) {
     Box(
-        modifier = Modifier.fillMaxSize().background(GigColors.background),
+        modifier = Modifier.fillMaxSize().background(TangerineColors.background),
         contentAlignment = Alignment.Center,
     ) {
         NeuWell(modifier = Modifier.padding(32.dp)) {
@@ -709,7 +709,7 @@ private fun SetCompleteScreen(
                 Icon(
                     Icons.Default.Celebration,
                     contentDescription = null,
-                    tint = GigColors.orange,
+                    tint = TangerineColors.orange,
                     modifier = Modifier.size(48.dp),
                 )
                 Spacer(Modifier.height(16.dp))
@@ -717,8 +717,8 @@ private fun SetCompleteScreen(
                     "Set Complete!",
                     fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 22.sp,
                     style = TextStyle(
-                        color = GigColors.orange,
-                        shadow = Shadow(GigColors.orange.copy(0.5f), Offset.Zero, 16f),
+                        color = TangerineColors.orange,
+                        shadow = Shadow(TangerineColors.orange.copy(0.5f), Offset.Zero, 16f),
                     ),
                     textAlign = TextAlign.Center,
                 )
@@ -726,12 +726,12 @@ private fun SetCompleteScreen(
                 Text(
                     setlistName,
                     fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
-                    color = GigColors.text, textAlign = TextAlign.Center,
+                    color = TangerineColors.text, textAlign = TextAlign.Center,
                 )
                 Text(
                     "$songCount songs performed",
                     fontFamily = Karla, fontSize = 13.sp,
-                    color = GigColors.textDim, textAlign = TextAlign.Center,
+                    color = TangerineColors.textDim, textAlign = TextAlign.Center,
                 )
 
                 Spacer(Modifier.height(24.dp))
@@ -740,15 +740,15 @@ private fun SetCompleteScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
-                        .background(GigColors.green.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                        .border(0.5.dp, GigColors.green.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                        .background(TangerineColors.green.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                        .border(0.5.dp, TangerineColors.green.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                         .clickable(onClick = onRestart),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "Restart Set",
                         fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                        style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.35f), Offset.Zero, 8f)),
+                        style = TextStyle(color = TangerineColors.green, shadow = Shadow(TangerineColors.green.copy(0.35f), Offset.Zero, 8f)),
                     )
                 }
 
@@ -758,15 +758,15 @@ private fun SetCompleteScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp)
-                        .background(GigColors.teal.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
-                        .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                        .background(TangerineColors.teal.copy(alpha = 0.08f), RoundedCornerShape(10.dp))
+                        .border(0.5.dp, TangerineColors.teal.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
                         .clickable(onClick = onGoToLibrary),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "Back to Library",
                         fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
-                        style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.35f), Offset.Zero, 8f)),
+                        style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.35f), Offset.Zero, 8f)),
                     )
                 }
             }
@@ -802,18 +802,18 @@ private fun SpeedSafetyModal(
                 Text(
                     "Speed Change",
                     fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp,
-                    style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.4f), Offset.Zero, 10f)),
+                    style = TextStyle(color = TangerineColors.orange, shadow = Shadow(TangerineColors.orange.copy(0.4f), Offset.Zero, 10f)),
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Change BPM by ${if (delta > 0) "+" else ""}${delta.toInt()} while playing?",
                     fontFamily = Karla, fontSize = 13.sp,
-                    color = GigColors.textDim, textAlign = TextAlign.Center,
+                    color = TangerineColors.textDim, textAlign = TextAlign.Center,
                 )
                 Text(
                     "${currentBpm.toInt()} \u2192 ${(currentBpm + delta).toInt()} BPM",
                     fontFamily = JetBrainsMono, fontSize = 14.sp,
-                    color = GigColors.text,
+                    color = TangerineColors.text,
                 )
                 Spacer(Modifier.height(16.dp))
                 Row(
@@ -823,25 +823,25 @@ private fun SpeedSafetyModal(
                     Box(
                         modifier = Modifier
                             .weight(1f).height(40.dp)
-                            .background(GigColors.textMuted.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-                            .border(0.5.dp, GigColors.textMuted.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.textMuted.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, TangerineColors.textMuted.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
                             .clickable(onClick = onCancel),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("Cancel", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textDim)
+                        Text("Cancel", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textDim)
                     }
                     Box(
                         modifier = Modifier
                             .weight(1f).height(40.dp)
-                            .background(GigColors.orange.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-                            .border(0.5.dp, GigColors.orange.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.orange.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                            .border(0.5.dp, TangerineColors.orange.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
                             .clickable(onClick = onConfirm),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             "Confirm",
                             fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp,
-                            style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.3f), Offset.Zero, 6f)),
+                            style = TextStyle(color = TangerineColors.orange, shadow = Shadow(TangerineColors.orange.copy(0.3f), Offset.Zero, 6f)),
                         )
                     }
                 }
@@ -867,7 +867,7 @@ fun NoSongPlaceholder(accent: Color, screenName: String, onGoToLibrary: () -> Un
                 Text(
                     "No song selected. Go to Library to pick a song.",
                     fontFamily = Karla, fontSize = 13.sp,
-                    color = GigColors.textDim, textAlign = TextAlign.Center,
+                    color = TangerineColors.textDim, textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(16.dp))
                 Box(

@@ -16,18 +16,18 @@
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
 
     <application
-        android:name=".GigBooksApplication"
+        android:name=".TangerineMediaApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="GigBooks"
+        android:label="Tangerine Media"
         android:supportsRtl="true"
-        android:theme="@style/Theme.GigBooks">
+        android:theme="@style/Theme.TangerineMedia">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.GigBooks"
+            android:theme="@style/Theme.TangerineMedia"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

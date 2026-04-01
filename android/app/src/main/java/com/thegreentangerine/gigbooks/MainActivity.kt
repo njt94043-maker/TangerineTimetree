@@ -16,10 +16,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
-import com.thegreentangerine.gigbooks.ui.GigBooksApp
+import com.thegreentangerine.gigbooks.ui.TangerineMediaApp
 import com.thegreentangerine.gigbooks.ui.screens.LoginScreen
-import com.thegreentangerine.gigbooks.ui.theme.GigBooksTheme
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineMediaTheme
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import io.github.jan.supabase.auth.status.SessionStatus
 
 class MainActivity : ComponentActivity() {
@@ -27,11 +27,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            GigBooksTheme {
+            TangerineMediaTheme {
                 val sessionStatus by AuthRepository.sessionStatus.collectAsState(
                     initial = SessionStatus.Initializing
                 )
-                // D-166: Once authenticated, stay on GigBooksApp even if session
+                // D-166: Once authenticated, stay on TangerineMediaApp even if session
                 // briefly flickers to Initializing on resume. Prevents destroying
                 // the player/nav state when returning from background.
                 var wasAuthenticated by remember { mutableStateOf(false) }
@@ -39,13 +39,13 @@ class MainActivity : ComponentActivity() {
                 if (sessionStatus is SessionStatus.NotAuthenticated) wasAuthenticated = false
 
                 when {
-                    wasAuthenticated -> GigBooksApp()
+                    wasAuthenticated -> TangerineMediaApp()
                     sessionStatus is SessionStatus.Initializing -> {
                         Box(
-                            modifier = Modifier.fillMaxSize().background(GigColors.background),
+                            modifier = Modifier.fillMaxSize().background(TangerineColors.background),
                             contentAlignment = Alignment.Center,
                         ) {
-                            CircularProgressIndicator(color = GigColors.orange)
+                            CircularProgressIndicator(color = TangerineColors.orange)
                         }
                     }
                     else -> LoginScreen()

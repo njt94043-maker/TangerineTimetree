@@ -4,7 +4,7 @@ import android.app.Application
 import android.media.AudioManager
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 
-class GigBooksApplication : Application() {
+class TangerineMediaApplication : Application() {
 
     companion object {
         var engineAvailable = false

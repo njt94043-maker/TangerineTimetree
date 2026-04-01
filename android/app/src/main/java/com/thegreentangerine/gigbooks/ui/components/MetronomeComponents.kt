@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
@@ -53,7 +53,7 @@ fun BeatDisplay(
             text = if (isPlaying) "BAR  ${currentBar + 1}" else "—",
             fontFamily = JetBrainsMono,
             fontSize = 12.sp,
-            color = GigColors.textMuted,
+            color = TangerineColors.textMuted,
             letterSpacing = 2.sp,
             textAlign = TextAlign.Center,
         )
@@ -126,8 +126,8 @@ fun PlayStopButton(
         colors = ButtonDefaults.buttonColors(
             containerColor         = if (isPlaying) accent.copy(alpha = 0.12f) else accent,
             contentColor           = if (isPlaying) accent else Color.Black,
-            disabledContainerColor = GigColors.surfaceInset,
-            disabledContentColor   = GigColors.textMuted,
+            disabledContainerColor = TangerineColors.surfaceInset,
+            disabledContentColor   = TangerineColors.textMuted,
         ),
     ) {
         Text(

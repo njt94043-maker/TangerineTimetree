@@ -39,7 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.R
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -151,7 +151,7 @@ fun SplashScreen(onFinished: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background),
+            .background(TangerineColors.background),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -166,8 +166,8 @@ fun SplashScreen(onFinished: () -> Unit) {
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    GigColors.orange.copy(alpha = 0.12f),
-                                    GigColors.green.copy(alpha = 0.05f),
+                                    TangerineColors.orange.copy(alpha = 0.12f),
+                                    TangerineColors.green.copy(alpha = 0.05f),
                                     Color.Transparent,
                                 ),
                                 center = center,
@@ -180,7 +180,7 @@ fun SplashScreen(onFinished: () -> Unit) {
             ) {
                 Image(
                     painter = painterResource(R.mipmap.ic_launcher),
-                    contentDescription = "GigBooks",
+                    contentDescription = "Tangerine Media",
                     modifier = Modifier
                         .size(150.dp)
                         .clip(CircleShape)
@@ -205,7 +205,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                     fontFamily = Karla,
                     fontWeight = FontWeight.Normal,
                     fontSize = 16.sp,
-                    color = GigColors.textMuted,
+                    color = TangerineColors.textMuted,
                     modifier = Modifier
                         .alpha(theAlpha.value)
                         .graphicsLayer { translationY = theOffsetY.value },
@@ -217,9 +217,9 @@ fun SplashScreen(onFinished: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 30.sp,
                     style = TextStyle(
-                        color = GigColors.green,
+                        color = TangerineColors.green,
                         shadow = Shadow(
-                            color = GigColors.green.copy(alpha = 0.3f),
+                            color = TangerineColors.green.copy(alpha = 0.3f),
                             offset = Offset.Zero,
                             blurRadius = 30f,
                         ),
@@ -235,9 +235,9 @@ fun SplashScreen(onFinished: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 30.sp,
                     style = TextStyle(
-                        color = GigColors.orange,
+                        color = TangerineColors.orange,
                         shadow = Shadow(
-                            color = GigColors.orange.copy(alpha = 0.3f),
+                            color = TangerineColors.orange.copy(alpha = 0.3f),
                             offset = Offset.Zero,
                             blurRadius = 30f,
                         ),
@@ -250,7 +250,7 @@ fun SplashScreen(onFinished: () -> Unit) {
 
             Spacer(Modifier.height(12.dp))
 
-            // ── App tagline: ── GigBooks ── ──
+            // ── App tagline: ── TANGERINE MEDIA ── ──
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -262,17 +262,17 @@ fun SplashScreen(onFinished: () -> Unit) {
                         .width(lineWidth.value.dp)
                         .background(
                             Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, GigColors.orange, Color.Transparent),
+                                colors = listOf(Color.Transparent, TangerineColors.orange, Color.Transparent),
                             ),
                         ),
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = "GIGBOOKS",
+                    text = "TANGERINE MEDIA",
                     fontFamily = Karla,
                     fontWeight = FontWeight.Normal,
                     fontSize = 11.sp,
-                    color = GigColors.textMuted,
+                    color = TangerineColors.textMuted,
                     letterSpacing = 5.sp,
                 )
                 Spacer(Modifier.width(12.dp))
@@ -282,7 +282,7 @@ fun SplashScreen(onFinished: () -> Unit) {
                         .width(lineWidth.value.dp)
                         .background(
                             Brush.horizontalGradient(
-                                colors = listOf(Color.Transparent, GigColors.orange, Color.Transparent),
+                                colors = listOf(Color.Transparent, TangerineColors.orange, Color.Transparent),
                             ),
                         ),
                 )
@@ -300,21 +300,21 @@ fun SplashScreen(onFinished: () -> Unit) {
                         .size(4.dp)
                         .alpha(dot1Alpha.value)
                         .clip(CircleShape)
-                        .background(GigColors.orange),
+                        .background(TangerineColors.orange),
                 )
                 Box(
                     Modifier
                         .size(4.dp)
                         .alpha(dot2Alpha.value)
                         .clip(CircleShape)
-                        .background(GigColors.orange),
+                        .background(TangerineColors.orange),
                 )
                 Box(
                     Modifier
                         .size(4.dp)
                         .alpha(dot3Alpha.value)
                         .clip(CircleShape)
-                        .background(GigColors.orange),
+                        .background(TangerineColors.orange),
                 )
             }
         }

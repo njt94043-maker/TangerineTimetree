@@ -62,7 +62,7 @@ import com.thegreentangerine.gigbooks.data.supabase.models.SetlistWithSongs
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
@@ -105,7 +105,7 @@ fun LibraryScreen(
     var activeTab by rememberSaveable { mutableStateOf(LibraryTab.Songs) }
     var showNewIdeaDialog by rememberSaveable { mutableStateOf(false) }
 
-    Column(modifier = Modifier.fillMaxSize().background(GigColors.background)) {
+    Column(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
         LibraryHeader(
             activeTab = activeTab,
             onTabChange = { activeTab = it },
@@ -162,7 +162,7 @@ private fun LibraryHeader(
     onMenuClick: () -> Unit,
     onNewIdea: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().background(GigColors.surface)) {
+    Column(modifier = Modifier.fillMaxWidth().background(TangerineColors.surface)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -170,26 +170,26 @@ private fun LibraryHeader(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
             }
             Text(
                 text = "Library",
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(alpha = 0.4f), Offset.Zero, 14f)),
+                style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(alpha = 0.4f), Offset.Zero, 14f)),
             )
             Spacer(Modifier.weight(1f))
             // New Idea button (D-138)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(GigColors.danger.copy(alpha = 0.1f))
-                    .border(1.dp, GigColors.danger.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                    .background(TangerineColors.danger.copy(alpha = 0.1f))
+                    .border(1.dp, TangerineColors.danger.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
                     .clickable(onClick = onNewIdea)
                     .padding(horizontal = 10.dp, vertical = 5.dp),
             ) {
                 Text(
                     "New Idea",
-                    fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.danger,
+                    fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.danger,
                 )
             }
         }
@@ -203,7 +203,7 @@ private fun LibraryTabBar(activeTab: LibraryTab, onTabChange: (LibraryTab) -> Un
     Row(modifier = Modifier.fillMaxWidth()) {
         LibraryTab.entries.forEach { tab ->
             val selected = activeTab == tab
-            val accent   = if (tab == LibraryTab.Songs) GigColors.teal else GigColors.orange
+            val accent   = if (tab == LibraryTab.Songs) TangerineColors.teal else TangerineColors.orange
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -219,7 +219,7 @@ private fun LibraryTabBar(activeTab: LibraryTab, onTabChange: (LibraryTab) -> Un
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                         fontSize = 14.sp,
                         style = if (selected) TextStyle(color = accent, shadow = Shadow(accent.copy(0.5f), Offset.Zero, 10f))
-                        else TextStyle(color = GigColors.textDim),
+                        else TextStyle(color = TangerineColors.textDim),
                     )
                     Spacer(Modifier.height(8.dp))
                     Box(
@@ -231,7 +231,7 @@ private fun LibraryTabBar(activeTab: LibraryTab, onTabChange: (LibraryTab) -> Un
             }
         }
     }
-    HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.2f))
+    HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.2f))
 }
 
 // ─── Songs Tab ───────────────────────────────────────────────────────────────
@@ -284,7 +284,7 @@ private fun SongsTab(
                 selected = scopeFilter,
                 onSelect = { scopeFilter = it },
                 label = { it.label },
-                accent = GigColors.teal,
+                accent = TangerineColors.teal,
                 modifier = Modifier.weight(1f),
             )
             FilterDropdown(
@@ -292,7 +292,7 @@ private fun SongsTab(
                 selected = typeFilter,
                 onSelect = { typeFilter = it },
                 label = { it.label },
-                accent = GigColors.teal,
+                accent = TangerineColors.teal,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -301,7 +301,7 @@ private fun SongsTab(
             if (filtered.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("No songs found", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                        Text("No songs found", fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted)
                     }
                 }
             } else {
@@ -342,9 +342,9 @@ private fun SongCard(
 
     // Left color border: teal for TGT songs, orange for personal (mirrors web)
     val borderColor = when {
-        song.category.startsWith("personal") -> GigColors.orange
-        song.category.startsWith("tgt") -> GigColors.teal
-        else -> GigColors.green
+        song.category.startsWith("personal") -> TangerineColors.orange
+        song.category.startsWith("tgt") -> TangerineColors.teal
+        else -> TangerineColors.green
     }
 
     NeuCard(modifier = Modifier.padding(horizontal = 12.dp).clickable(onClick = onClick)) {
@@ -360,23 +360,23 @@ private fun SongCard(
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(song.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
+                    Text(song.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TangerineColors.text)
                     if (!canEdit) {
-                        Text("\uD83D\uDD12", fontSize = 12.sp, color = GigColors.textMuted)
+                        Text("\uD83D\uDD12", fontSize = 12.sp, color = TangerineColors.textMuted)
                     }
                 }
                 if (song.artist.isNotBlank()) {
-                    Text(song.artist, fontFamily = Karla, fontSize = 12.sp, color = GigColors.textDim)
+                    Text(song.artist, fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textDim)
                 }
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     CategoryTag(song.category)
-                    if (ownerName != null) MetaBadge(ownerName, GigColors.textDim)
-                    if (isShared) MetaBadge("Shared", GigColors.purple)
-                    if (song.key.isNotBlank()) MetaBadge(song.key, GigColors.teal)
-                    MetaBadge(song.timeSig, GigColors.textMuted)
-                    song.durationFormatted?.let { MetaBadge(it, GigColors.textMuted) }
-                    if (song.hasAudio) MetaBadge("TRACK", GigColors.green)
+                    if (ownerName != null) MetaBadge(ownerName, TangerineColors.textDim)
+                    if (isShared) MetaBadge("Shared", TangerineColors.purple)
+                    if (song.key.isNotBlank()) MetaBadge(song.key, TangerineColors.teal)
+                    MetaBadge(song.timeSig, TangerineColors.textMuted)
+                    song.durationFormatted?.let { MetaBadge(it, TangerineColors.textMuted) }
+                    if (song.hasAudio) MetaBadge("TRACK", TangerineColors.green)
                 }
             }
             // BPM on right side
@@ -384,16 +384,16 @@ private fun SongCard(
                 Text(
                     "${song.bpm.toInt()}",
                     fontFamily = JetBrainsMono, fontSize = 20.sp,
-                    style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.3f), Offset.Zero, 8f)),
+                    style = TextStyle(color = TangerineColors.orange, shadow = Shadow(TangerineColors.orange.copy(0.3f), Offset.Zero, 8f)),
                 )
-                Text("BPM", fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textMuted)
+                Text("BPM", fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted)
             }
         }
 
         // Inline launch buttons (shown on tap)
         if (expanded) {
             Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+            HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f))
             Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -402,21 +402,21 @@ private fun SongCard(
                 LaunchButton(
                     icon = Icons.Default.GraphicEq,
                     label = "Live",
-                    color = GigColors.green,
+                    color = TangerineColors.green,
                     modifier = Modifier.weight(1f),
                     onClick = onLive,
                 )
                 LaunchButton(
                     icon = Icons.Default.Headphones,
                     label = "Practice",
-                    color = GigColors.purple,
+                    color = TangerineColors.purple,
                     modifier = Modifier.weight(1f),
                     onClick = onPractice,
                 )
                 LaunchButton(
                     icon = Icons.Default.Videocam,
                     label = "View",
-                    color = GigColors.teal,
+                    color = TangerineColors.teal,
                     modifier = Modifier.weight(1f),
                     onClick = onView,
                 )
@@ -427,7 +427,7 @@ private fun SongCard(
                 LaunchButton(
                     icon = Icons.Default.Edit,
                     label = "Edit Song",
-                    color = GigColors.orange,
+                    color = TangerineColors.orange,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onEdit,
                 )
@@ -441,8 +441,8 @@ private fun CategoryTag(category: String) {
     // Split into separate scope + type badges (mirrors web)
     val isTgt = category.startsWith("tgt")
     val isCover = category.endsWith("cover")
-    MetaBadge(if (isTgt) "TGT" else "Personal", if (isTgt) GigColors.teal else GigColors.orange)
-    MetaBadge(if (isCover) "Cover" else "Original", GigColors.textDim)
+    MetaBadge(if (isTgt) "TGT" else "Personal", if (isTgt) TangerineColors.teal else TangerineColors.orange)
+    MetaBadge(if (isCover) "Cover" else "Original", TangerineColors.textDim)
 }
 
 /** Dropdown selector styled as a neumorphic pill. */
@@ -463,8 +463,8 @@ private fun <T> FilterDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(shape)
-                .background(GigColors.surfaceInset)
-                .border(0.5.dp, if (selected != entries.first()) accent.copy(0.4f) else GigColors.neuBorder, shape)
+                .background(TangerineColors.surfaceInset)
+                .border(0.5.dp, if (selected != entries.first()) accent.copy(0.4f) else TangerineColors.neuBorder, shape)
                 .clickable { expanded = true }
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -474,15 +474,15 @@ private fun <T> FilterDropdown(
                 fontFamily = Karla,
                 fontSize = 12.sp,
                 fontWeight = if (selected != entries.first()) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (selected != entries.first()) accent else GigColors.textDim,
+                color = if (selected != entries.first()) accent else TangerineColors.textDim,
                 modifier = Modifier.weight(1f),
             )
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = GigColors.textMuted, modifier = Modifier.size(16.dp))
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = TangerineColors.textMuted, modifier = Modifier.size(16.dp))
         }
         androidx.compose.material3.DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = GigColors.surface,
+            containerColor = TangerineColors.surface,
         ) {
             entries.forEach { entry ->
                 androidx.compose.material3.DropdownMenuItem(
@@ -490,7 +490,7 @@ private fun <T> FilterDropdown(
                         Text(
                             label(entry),
                             fontFamily = Karla, fontSize = 13.sp,
-                            color = if (entry == selected) accent else GigColors.text,
+                            color = if (entry == selected) accent else TangerineColors.text,
                             fontWeight = if (entry == selected) FontWeight.Bold else FontWeight.Normal,
                         )
                     },
@@ -557,14 +557,14 @@ private fun SetlistsTab(
                 selected = filter,
                 onSelect = { filter = it },
                 label = { it.label },
-                accent = GigColors.orange,
+                accent = TangerineColors.orange,
                 modifier = Modifier.fillMaxWidth(0.5f),
             )
         }
 
         if (filtered.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No setlists found", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                Text("No setlists found", fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted)
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -603,31 +603,31 @@ private fun SetlistCard(
                     .width(3.dp)
                     .height(44.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(GigColors.orange),
+                    .background(TangerineColors.orange),
             )
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(setlist.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = GigColors.text)
+                Text(setlist.name, fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = TangerineColors.text)
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                     // Band tag
                     MetaBadge(
                         if (setlist.isTange) "TGT" else setlist.bandName,
-                        if (setlist.isTange) GigColors.orange else GigColors.purple,
+                        if (setlist.isTange) TangerineColors.orange else TangerineColors.purple,
                     )
-                    MetaBadge("${setlistWithSongs.songCount} songs", GigColors.textDim)
-                    setlistWithSongs.totalDurationFormatted?.let { MetaBadge(it, GigColors.textMuted) }
+                    MetaBadge("${setlistWithSongs.songCount} songs", TangerineColors.textDim)
+                    setlistWithSongs.totalDurationFormatted?.let { MetaBadge(it, TangerineColors.textMuted) }
                 }
             }
             Icon(
                 if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = null, tint = GigColors.textDim, modifier = Modifier.size(20.dp),
+                contentDescription = null, tint = TangerineColors.textDim, modifier = Modifier.size(20.dp),
             )
         }
 
         if (expanded) {
             Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+            HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f))
             Spacer(Modifier.height(6.dp))
 
             // Song preview list
@@ -639,29 +639,29 @@ private fun SetlistCard(
                     ) {
                         Text(
                             "${index + 1}", fontFamily = JetBrainsMono, fontSize = 11.sp,
-                            color = GigColors.textMuted, modifier = Modifier.width(20.dp),
+                            color = TangerineColors.textMuted, modifier = Modifier.width(20.dp),
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 row.songs?.name ?: "", fontFamily = Karla, fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp, color = GigColors.text,
+                                fontSize = 13.sp, color = TangerineColors.text,
                             )
                             val artist = row.songs?.artist ?: ""
-                            if (artist.isNotBlank()) Text(artist, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim)
+                            if (artist.isNotBlank()) Text(artist, fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim)
                         }
                         Text(
-                            "${row.songs?.bpm?.toInt() ?: ""}", fontFamily = JetBrainsMono, fontSize = 12.sp, color = GigColors.orange,
+                            "${row.songs?.bpm?.toInt() ?: ""}", fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.orange,
                         )
                         if (row.songs?.hasAudio == true) {
                             Spacer(Modifier.width(6.dp))
-                            Icon(Icons.Default.Headphones, contentDescription = null, tint = GigColors.green, modifier = Modifier.size(14.dp))
+                            Icon(Icons.Default.Headphones, contentDescription = null, tint = TangerineColors.green, modifier = Modifier.size(14.dp))
                         }
                     }
                 }
             }
 
             Spacer(Modifier.height(10.dp))
-            HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f))
+            HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f))
             Spacer(Modifier.height(10.dp))
 
             // Launch buttons
@@ -672,21 +672,21 @@ private fun SetlistCard(
                 LaunchButton(
                     icon = Icons.Default.GraphicEq,
                     label = "Live",
-                    color = GigColors.green,
+                    color = TangerineColors.green,
                     modifier = Modifier.weight(1f),
                     onClick = onLaunchLive,
                 )
                 LaunchButton(
                     icon = Icons.Default.Headphones,
                     label = "Practice",
-                    color = GigColors.purple,
+                    color = TangerineColors.purple,
                     modifier = Modifier.weight(1f),
                     onClick = onLaunchPractice,
                 )
                 LaunchButton(
                     icon = Icons.Default.Videocam,
                     label = "View",
-                    color = GigColors.teal,
+                    color = TangerineColors.teal,
                     modifier = Modifier.weight(1f),
                     onClick = onLaunchView,
                 )
@@ -703,21 +703,21 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit, placeholde
     Row(
         modifier = Modifier
             .fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)
-            .clip(shape).background(GigColors.surfaceInset)
-            .border(1.dp, GigColors.neuBorder, shape)
+            .clip(shape).background(TangerineColors.surfaceInset)
+            .border(1.dp, TangerineColors.neuBorder, shape)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.Search, contentDescription = null, tint = GigColors.textMuted, modifier = Modifier.size(16.dp))
+        Icon(Icons.Default.Search, contentDescription = null, tint = TangerineColors.textMuted, modifier = Modifier.size(16.dp))
         Spacer(Modifier.width(8.dp))
         BasicTextField(
             value = query, onValueChange = onQueryChange,
             modifier = Modifier.weight(1f),
-            textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = GigColors.text),
-            cursorBrush = SolidColor(GigColors.teal),
+            textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.text),
+            cursorBrush = SolidColor(TangerineColors.teal),
             singleLine = true,
             decorationBox = { inner ->
-                if (query.isEmpty()) Text(placeholder, fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                if (query.isEmpty()) Text(placeholder, fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted)
                 inner()
             },
         )
@@ -752,9 +752,9 @@ private fun LoadingState() {
     }
     val shimmerBrush = Brush.linearGradient(
         colors = listOf(
-            GigColors.surface,
-            GigColors.surfaceLight,
-            GigColors.surface,
+            TangerineColors.surface,
+            TangerineColors.surfaceLight,
+            TangerineColors.surface,
         ),
         start = Offset(shimmerAnim.value * 800f - 200f, 0f),
         end = Offset(shimmerAnim.value * 800f + 200f, 0f),
@@ -809,7 +809,7 @@ private fun LoadingState() {
 @Composable
 private fun ErrorState(message: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text("Failed to load: $message", fontFamily = Karla, fontSize = 13.sp, color = GigColors.danger)
+        Text("Failed to load: $message", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.danger)
     }
 }
 
@@ -821,30 +821,30 @@ private fun NewIdeaDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = GigColors.surface,
+        containerColor = TangerineColors.surface,
         title = {
-            Text("New Song Idea", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GigColors.text)
+            Text("New Song Idea", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TangerineColors.text)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Name your idea, then record immediately.", fontFamily = Karla, fontSize = 12.sp, color = GigColors.textMuted)
+                Text("Name your idea, then record immediately.", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
                 BasicTextField(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = GigColors.text),
-                    cursorBrush = SolidColor(GigColors.danger),
+                    textStyle = TextStyle(fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.text),
+                    cursorBrush = SolidColor(TangerineColors.danger),
                     decorationBox = { inner ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(GigColors.surfaceInset)
-                                .border(1.dp, GigColors.neuBorder, RoundedCornerShape(8.dp))
+                                .background(TangerineColors.surfaceInset)
+                                .border(1.dp, TangerineColors.neuBorder, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 12.dp, vertical = 10.dp),
                         ) {
                             if (name.isEmpty()) {
-                                Text("Song name…", fontFamily = Karla, fontSize = 14.sp, color = GigColors.textMuted)
+                                Text("Song name…", fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted)
                             }
                             inner()
                         }
@@ -856,12 +856,12 @@ private fun NewIdeaDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (name.isNotBlank()) GigColors.danger.copy(alpha = 0.15f) else Color.Transparent)
-                    .border(1.dp, if (name.isNotBlank()) GigColors.danger.copy(alpha = 0.3f) else GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    .background(if (name.isNotBlank()) TangerineColors.danger.copy(alpha = 0.15f) else Color.Transparent)
+                    .border(1.dp, if (name.isNotBlank()) TangerineColors.danger.copy(alpha = 0.3f) else TangerineColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                     .clickable(enabled = name.isNotBlank()) { onCreate(name.trim()) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
-                Text("Create & Record", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = if (name.isNotBlank()) GigColors.danger else GigColors.textMuted)
+                Text("Create & Record", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = if (name.isNotBlank()) TangerineColors.danger else TangerineColors.textMuted)
             }
         },
         dismissButton = {
@@ -871,7 +871,7 @@ private fun NewIdeaDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
                     .clickable(onClick = onDismiss)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             ) {
-                Text("Cancel", fontFamily = Karla, fontSize = 13.sp, color = GigColors.textMuted)
+                Text("Cancel", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted)
             }
         },
     )

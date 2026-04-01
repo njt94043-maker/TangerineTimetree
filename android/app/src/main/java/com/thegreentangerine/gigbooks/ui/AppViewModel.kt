@@ -9,7 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.thegreentangerine.gigbooks.GigBooksApplication
+import com.thegreentangerine.gigbooks.TangerineMediaApplication
 import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.data.supabase.CachedGigRepository
@@ -37,7 +37,7 @@ import java.nio.ByteOrder
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
-    val engineAvailable: Boolean = GigBooksApplication.engineAvailable
+    val engineAvailable: Boolean = TangerineMediaApplication.engineAvailable
 
     // Offline-first cached repositories
     private val offlineCache = OfflineCache(app)
@@ -874,11 +874,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     applyDetectedBeat() // D-167: auto-save, no manual tap
                                 }
                                 applied = true
-                                android.util.Log.i("GigBooks", "Server beat map applied: ${beatsArr.size} beats, ${beatMap.bpm} BPM")
+                                android.util.Log.i("TangerineMedia", "Server beat map applied: ${beatsArr.size} beats, ${beatMap.bpm} BPM")
                             }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.w("GigBooks", "Server beat map fetch failed, falling back to BTrack: ${e.message}")
+                        android.util.Log.w("TangerineMedia", "Server beat map fetch failed, falling back to BTrack: ${e.message}")
                     }
                 }
 
@@ -903,7 +903,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("GigBooks", "runAnalysis failed: ${e.message}", e)
+                android.util.Log.e("TangerineMedia", "runAnalysis failed: ${e.message}", e)
             } finally {
                 withContext(Dispatchers.Main) { isAnalysing = false }
             }

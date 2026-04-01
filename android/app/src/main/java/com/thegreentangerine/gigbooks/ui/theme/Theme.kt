@@ -4,29 +4,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 
-private val GigColorScheme = darkColorScheme(
-    primary = GigColors.green,
-    secondary = GigColors.teal,
-    tertiary = GigColors.orange,
-    background = GigColors.background,
-    surface = GigColors.surface,
-    error = GigColors.danger,
-    onPrimary = GigColors.background,
-    onSecondary = GigColors.background,
-    onTertiary = GigColors.background,
-    onBackground = GigColors.text,
-    onSurface = GigColors.text,
-    onError = GigColors.text,
-    surfaceVariant = GigColors.surfaceInset,
-    onSurfaceVariant = GigColors.textDim,
-    outline = GigColors.textMuted,
+private val TangerineColorScheme = darkColorScheme(
+    primary = TangerineColors.green,
+    secondary = TangerineColors.teal,
+    tertiary = TangerineColors.orange,
+    background = TangerineColors.background,
+    surface = TangerineColors.surface,
+    error = TangerineColors.danger,
+    onPrimary = TangerineColors.background,
+    onSecondary = TangerineColors.background,
+    onTertiary = TangerineColors.background,
+    onBackground = TangerineColors.text,
+    onSurface = TangerineColors.text,
+    onError = TangerineColors.text,
+    surfaceVariant = TangerineColors.surfaceInset,
+    onSurfaceVariant = TangerineColors.textDim,
+    outline = TangerineColors.textMuted,
 )
 
 @Composable
-fun GigBooksTheme(content: @Composable () -> Unit) {
+fun TangerineMediaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = GigColorScheme,
-        typography = GigTypography,
+        colorScheme = TangerineColorScheme,
+        typography = TangerineTypography,
         content = content,
     )
 }

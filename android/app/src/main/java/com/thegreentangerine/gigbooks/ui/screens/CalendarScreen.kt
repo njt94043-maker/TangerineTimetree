@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.supabase.models.Gig
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import java.time.LocalDate
 import java.time.YearMonth
@@ -85,28 +85,28 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(GigColors.background),
+        modifier = Modifier.fillMaxSize().background(TangerineColors.background),
     ) {
         // ── Header ──────────────────────────────────────────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(GigColors.surface)
+                .background(TangerineColors.surface)
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Menu, "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
             }
             Text(
-                "GigBooks",
+                "Tangerine Media",
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                style = TextStyle(color = GigColors.orange, shadow = Shadow(GigColors.orange.copy(0.4f), Offset.Zero, 14f)),
+                style = TextStyle(color = TangerineColors.orange, shadow = Shadow(TangerineColors.orange.copy(0.4f), Offset.Zero, 14f)),
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
             )
             if (vm.calLoading)
-                CircularProgressIndicator(color = GigColors.orange, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                CircularProgressIndicator(color = TangerineColors.orange, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
             else
                 Spacer(Modifier.size(48.dp))
         }
@@ -144,19 +144,19 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                     val prev = YearMonth.of(viewYear, viewMonth).minusMonths(1)
                     vm.calNavigate(prev.year, prev.monthValue)
                 }) {
-                    Icon(Icons.Default.ChevronLeft, "Previous", tint = GigColors.orange)
+                    Icon(Icons.Default.ChevronLeft, "Previous", tint = TangerineColors.orange)
                 }
                 TextButton(onClick = { vm.calNavigate(today.year, today.monthValue) }) {
                     Text(
                         "${yearMonth.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())} $viewYear",
-                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = GigColors.text,
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TangerineColors.text,
                     )
                 }
                 IconButton(onClick = {
                     val next = YearMonth.of(viewYear, viewMonth).plusMonths(1)
                     vm.calNavigate(next.year, next.monthValue)
                 }) {
-                    Icon(Icons.Default.ChevronRight, "Next", tint = GigColors.orange)
+                    Icon(Icons.Default.ChevronRight, "Next", tint = TangerineColors.orange)
                 }
             }
 
@@ -164,9 +164,9 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     TextButton(
                         onClick = { vm.calNavigate(today.year, today.monthValue) },
-                        modifier = Modifier.border(1.dp, GigColors.orange, RoundedCornerShape(10.dp)),
+                        modifier = Modifier.border(1.dp, TangerineColors.orange, RoundedCornerShape(10.dp)),
                     ) {
-                        Text("Today", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = GigColors.orange)
+                        Text("Today", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = TangerineColors.orange)
                     }
                 }
             }
@@ -177,7 +177,7 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                     Text(
                         d, modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
                         fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 11.sp,
-                        color = if (i >= 5) GigColors.textMuted else GigColors.textDim,
+                        color = if (i >= 5) TangerineColors.textMuted else TangerineColors.textDim,
                     )
                 }
             }
@@ -228,18 +228,18 @@ fun CalendarScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                LegendItem(GigColors.calAvailable, "Available")
-                LegendItem(GigColors.calGig,       "Pub Gig")
-                LegendItem(GigColors.calClient,    "Client")
+                LegendItem(TangerineColors.calAvailable, "Available")
+                LegendItem(TangerineColors.calGig,       "Pub Gig")
+                LegendItem(TangerineColors.calClient,    "Client")
             }
             Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                LegendItem(color = null, label = "Enquiry", dashed = true, dashColor = GigColors.calEnquiry)
-                LegendItem(GigColors.calPractice,  "Practice")
-                LegendItem(GigColors.calAway,      "Away")
+                LegendItem(color = null, label = "Enquiry", dashed = true, dashColor = TangerineColors.calEnquiry)
+                LegendItem(TangerineColors.calPractice,  "Practice")
+                LegendItem(TangerineColors.calAway,      "Away")
             }
         }
 
@@ -281,12 +281,12 @@ private fun computeDayDisplay(gigs: List<Gig>, hasAway: Boolean): DayDisplay {
 }
 
 private fun dayDisplayColor(display: DayDisplay): Color = when (display) {
-    DayDisplay.Available -> GigColors.calAvailable
-    DayDisplay.Pub       -> GigColors.calGig
-    DayDisplay.Client    -> GigColors.calClient
-    DayDisplay.Enquiry   -> GigColors.calEnquiry
-    DayDisplay.Practice  -> GigColors.calPractice
-    DayDisplay.Away      -> GigColors.calAway
+    DayDisplay.Available -> TangerineColors.calAvailable
+    DayDisplay.Pub       -> TangerineColors.calGig
+    DayDisplay.Client    -> TangerineColors.calClient
+    DayDisplay.Enquiry   -> TangerineColors.calEnquiry
+    DayDisplay.Practice  -> TangerineColors.calPractice
+    DayDisplay.Away      -> TangerineColors.calAway
 }
 
 // ─── Day cell (mirrors web: colored background, venue text, dots) ───────────
@@ -309,18 +309,18 @@ private fun CalendarDayCell(
 
     // Cell background: colored tint when events exist (mirrors web)
     val bgColor = when {
-        isSelected -> GigColors.orange.copy(alpha = 0.1f)
+        isSelected -> TangerineColors.orange.copy(alpha = 0.1f)
         hasEvents && display != DayDisplay.Available -> accentColor.copy(alpha = 0.08f)
-        else -> GigColors.shadowDark.copy(alpha = 0.3f)
+        else -> TangerineColors.shadowDark.copy(alpha = 0.3f)
     }
 
     // Border color
     val borderMod = when {
-        isToday    -> Modifier.border(2.dp, GigColors.orange, shape).shadow(8.dp, shape, ambientColor = GigColors.orange)
-        isSelected -> Modifier.border(1.dp, GigColors.orange.copy(alpha = 0.5f), shape)
+        isToday    -> Modifier.border(2.dp, TangerineColors.orange, shape).shadow(8.dp, shape, ambientColor = TangerineColors.orange)
+        isSelected -> Modifier.border(1.dp, TangerineColors.orange.copy(alpha = 0.5f), shape)
         hasEvents && display == DayDisplay.Enquiry -> Modifier // dashed border drawn in drawBehind
         hasEvents && display != DayDisplay.Available -> Modifier.border(1.dp, accentColor.copy(alpha = 0.15f), shape)
-        else       -> Modifier.border(1.dp, GigColors.neuBorder, shape)
+        else       -> Modifier.border(1.dp, TangerineColors.neuBorder, shape)
     }
 
     // Dashed border for enquiry
@@ -354,10 +354,10 @@ private fun CalendarDayCell(
                 fontSize = 12.sp,
                 fontWeight = if (hasEvents && display != DayDisplay.Available) FontWeight.Bold else FontWeight.Normal,
                 color = when {
-                    isToday -> GigColors.orange
+                    isToday -> TangerineColors.orange
                     hasEvents && display != DayDisplay.Available -> accentColor
-                    isPast -> GigColors.textMuted
-                    else -> GigColors.text
+                    isPast -> TangerineColors.textMuted
+                    else -> TangerineColors.text
                 },
             )
 
@@ -365,9 +365,9 @@ private fun CalendarDayCell(
             val firstVenue = gigs.firstOrNull { it.venue.isNotBlank() }?.venue
             if (firstVenue != null) {
                 val venueColor = when {
-                    gigs.first().isPractice -> GigColors.calPractice
-                    gigs.first().isClient -> GigColors.calClient
-                    else -> GigColors.calGig
+                    gigs.first().isPractice -> TangerineColors.calPractice
+                    gigs.first().isClient -> TangerineColors.calClient
+                    else -> TangerineColors.calGig
                 }
                 val words = firstVenue.split(" ").take(3) // Max 3 words to fit cell
                 words.forEach { word ->
@@ -388,11 +388,11 @@ private fun CalendarDayCell(
 
             // Dots at bottom (mirrors web: max 3 dots)
             val dots = buildList {
-                if (gigs.any { it.isClient })    add(GigColors.calClient to false)
-                if (gigs.any { it.isEnquiry })   add(GigColors.calEnquiry to true)
-                if (gigs.any { it.isPub })       add(GigColors.calGig to false)
-                if (gigs.any { it.isPractice })  add(GigColors.calPractice to false)
-                if (hasAway)                     add(GigColors.calAway to false)
+                if (gigs.any { it.isClient })    add(TangerineColors.calClient to false)
+                if (gigs.any { it.isEnquiry })   add(TangerineColors.calEnquiry to true)
+                if (gigs.any { it.isPub })       add(TangerineColors.calGig to false)
+                if (gigs.any { it.isPractice })  add(TangerineColors.calPractice to false)
+                if (hasAway)                     add(TangerineColors.calAway to false)
             }.take(3)
 
             if (dots.isNotEmpty()) {
@@ -437,23 +437,23 @@ private fun DayDetail(
         val dateLabel = "${date.dayOfMonth} ${date.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())} ${date.year}"
         Text(
             "$dayLabel · $dateLabel",
-            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = GigColors.text,
+            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TangerineColors.text,
         )
         Spacer(Modifier.height(6.dp))
 
         if (isAway) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(GigColors.calAway))
-                Text("  Away", fontFamily = Karla, fontSize = 12.sp, color = GigColors.calAway)
+                Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(TangerineColors.calAway))
+                Text("  Away", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.calAway)
             }
         }
 
         gigs.filter { !it.isCancelled }.forEach { gig ->
             val color = when {
-                gig.isEnquiry  -> GigColors.calEnquiry
-                gig.isClient   -> GigColors.calClient
-                gig.isPractice -> GigColors.calPractice
-                else           -> GigColors.calGig
+                gig.isEnquiry  -> TangerineColors.calEnquiry
+                gig.isClient   -> TangerineColors.calClient
+                gig.isPractice -> TangerineColors.calPractice
+                else           -> TangerineColors.calGig
             }
             val typeLabel = when {
                 gig.isEnquiry  -> "Enquiry"
@@ -469,13 +469,13 @@ private fun DayDetail(
                         fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = color,
                     )
                     if (gig.clientName.isNotBlank()) {
-                        Text(gig.clientName, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim)
+                        Text(gig.clientName, fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim)
                     }
                     gig.startTimeFormatted?.let {
-                        Text(it, fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted)
+                        Text(it, fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted)
                     }
                     if (gig.notes.isNotBlank()) {
-                        Text(gig.notes, fontFamily = Karla, fontSize = 10.sp, color = GigColors.textMuted)
+                        Text(gig.notes, fontFamily = Karla, fontSize = 10.sp, color = TangerineColors.textMuted)
                     }
                 }
             }
@@ -508,6 +508,6 @@ private fun LegendItem(
         } else {
             Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(color ?: Color.Transparent))
         }
-        Text(label, modifier = Modifier.padding(start = 4.dp), fontFamily = Karla, fontSize = 10.sp, color = GigColors.textDim)
+        Text(label, modifier = Modifier.padding(start = 4.dp), fontFamily = Karla, fontSize = 10.sp, color = TangerineColors.textDim)
     }
 }

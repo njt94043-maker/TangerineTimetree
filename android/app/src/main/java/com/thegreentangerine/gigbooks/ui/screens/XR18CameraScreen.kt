@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.thegreentangerine.gigbooks.data.xr18.*
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -149,11 +149,11 @@ fun XR18CameraScreen(
     }
 
     if (!hasCameraPermission) {
-        Box(Modifier.fillMaxSize().background(GigColors.background), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(TangerineColors.background), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.CameraAlt, "Camera", tint = GigColors.textMuted, modifier = Modifier.size(48.dp))
+                Icon(Icons.Default.CameraAlt, "Camera", tint = TangerineColors.textMuted, modifier = Modifier.size(48.dp))
                 Spacer(Modifier.height(12.dp))
-                Text("Camera permission required", color = GigColors.text, fontFamily = Karla)
+                Text("Camera permission required", color = TangerineColors.text, fontFamily = Karla)
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
                     Text("Grant Permission")
@@ -163,7 +163,7 @@ fun XR18CameraScreen(
         return
     }
 
-    Box(Modifier.fillMaxSize().background(GigColors.background)) {
+    Box(Modifier.fillMaxSize().background(TangerineColors.background)) {
         // Camera preview (full screen background)
         AndroidView(
             factory = { ctx ->
@@ -194,10 +194,10 @@ fun XR18CameraScreen(
 
             // Connection indicator
             val (statusColor, statusText) = when (connectionState) {
-                ConnectionState.Disconnected -> GigColors.textMuted to "Disconnected"
-                ConnectionState.Connecting -> GigColors.orange to "Connecting…"
-                ConnectionState.Pairing -> GigColors.orange to "Pairing…"
-                ConnectionState.Connected -> GigColors.green to "Connected"
+                ConnectionState.Disconnected -> TangerineColors.textMuted to "Disconnected"
+                ConnectionState.Connecting -> TangerineColors.orange to "Connecting…"
+                ConnectionState.Pairing -> TangerineColors.orange to "Pairing…"
+                ConnectionState.Connected -> TangerineColors.green to "Connected"
                 ConnectionState.Recording -> Color.Red to "REC"
                 ConnectionState.Error -> Color.Red to "Error"
             }
@@ -246,14 +246,14 @@ fun XR18CameraScreen(
                     }
 
                     Text("Scan QR code from XR18 Studio", color = Color.White, fontFamily = Karla, fontWeight = FontWeight.Bold)
-                    Text("Point camera at QR code on the PHONES tab", color = GigColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
+                    Text("Point camera at QR code on the PHONES tab", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
 
                     // Manual entry toggle
                     TextButton(onClick = { showManualEntry = !showManualEntry }) {
                         Text(
                             if (showManualEntry) "Hide manual entry" else "Enter manually instead",
-                            color = GigColors.orange, fontFamily = Karla,
+                            color = TangerineColors.orange, fontFamily = Karla,
                         )
                     }
 
@@ -266,8 +266,8 @@ fun XR18CameraScreen(
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = GigColors.orange, unfocusedBorderColor = GigColors.textMuted,
-                                    focusedLabelColor = GigColors.orange, unfocusedLabelColor = GigColors.textMuted,
+                                    focusedBorderColor = TangerineColors.orange, unfocusedBorderColor = TangerineColors.textMuted,
+                                    focusedLabelColor = TangerineColors.orange, unfocusedLabelColor = TangerineColors.textMuted,
                                 ),
                             )
                             OutlinedTextField(
@@ -278,8 +278,8 @@ fun XR18CameraScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                    focusedBorderColor = GigColors.orange, unfocusedBorderColor = GigColors.textMuted,
-                                    focusedLabelColor = GigColors.orange, unfocusedLabelColor = GigColors.textMuted,
+                                    focusedBorderColor = TangerineColors.orange, unfocusedBorderColor = TangerineColors.textMuted,
+                                    focusedLabelColor = TangerineColors.orange, unfocusedLabelColor = TangerineColors.textMuted,
                                 ),
                             )
                         }
@@ -291,8 +291,8 @@ fun XR18CameraScreen(
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedTextColor = Color.White, unfocusedTextColor = Color.White,
-                                focusedBorderColor = GigColors.orange, unfocusedBorderColor = GigColors.textMuted,
-                                focusedLabelColor = GigColors.orange, unfocusedLabelColor = GigColors.textMuted,
+                                focusedBorderColor = TangerineColors.orange, unfocusedBorderColor = TangerineColors.textMuted,
+                                focusedLabelColor = TangerineColors.orange, unfocusedLabelColor = TangerineColors.textMuted,
                             ),
                         )
                         Spacer(Modifier.height(12.dp))
@@ -301,7 +301,7 @@ fun XR18CameraScreen(
                                 val port = manualPort.toIntOrNull() ?: 8730
                                 manager.connect(PairingInfo(listOf(manualIp), port, 0, manualSecret))
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = GigColors.orange),
+                            colors = ButtonDefaults.buttonColors(containerColor = TangerineColors.orange),
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                         ) {
                             Text("Connect", fontFamily = Karla, fontWeight = FontWeight.Bold)
@@ -313,14 +313,14 @@ fun XR18CameraScreen(
                     // Connected info
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
-                            Text("Connected to XR18 Studio", color = GigColors.green, fontFamily = Karla, fontWeight = FontWeight.Bold)
-                            Text("ID: ${phoneId ?: "—"}", color = GigColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
-                            Text("${settings.resolution} @ ${settings.framerate}fps", color = GigColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
+                            Text("Connected to XR18 Studio", color = TangerineColors.green, fontFamily = Karla, fontWeight = FontWeight.Bold)
+                            Text("ID: ${phoneId ?: "—"}", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
+                            Text("${settings.resolution} @ ${settings.framerate}fps", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
                             // Transport indicators
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                val btColor = if (isBtConnected) GigColors.green else GigColors.textMuted
-                                val tcpColor = if (isTcpConnected) GigColors.green else GigColors.textMuted
-                                val relayColor = if (isRelayConnected) GigColors.green else GigColors.textMuted
+                                val btColor = if (isBtConnected) TangerineColors.green else TangerineColors.textMuted
+                                val tcpColor = if (isTcpConnected) TangerineColors.green else TangerineColors.textMuted
+                                val relayColor = if (isRelayConnected) TangerineColors.green else TangerineColors.textMuted
                                 Text("BT", color = btColor, fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.width(4.dp))
                                 Box(Modifier.size(6.dp).clip(CircleShape).background(btColor))
@@ -345,7 +345,7 @@ fun XR18CameraScreen(
                         Spacer(Modifier.height(8.dp))
                         Text(
                             "Recording controlled by XR18 Studio",
-                            color = GigColors.orange, fontFamily = Karla, fontSize = 12.sp,
+                            color = TangerineColors.orange, fontFamily = Karla, fontSize = 12.sp,
                         )
                     }
                 }
@@ -353,7 +353,7 @@ fun XR18CameraScreen(
                 else -> {
                     // Connecting/Pairing
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = GigColors.orange, strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), color = TangerineColors.orange, strokeWidth = 2.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             when (connectionState) {

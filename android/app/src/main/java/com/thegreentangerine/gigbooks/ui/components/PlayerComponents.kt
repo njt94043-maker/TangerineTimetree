@@ -62,7 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
@@ -83,11 +83,11 @@ fun PlayerHeader(
     onSwitchMode: ((String) -> Unit)? = null,
     currentMode: String? = null,
 ) {
-    val accent = modeBadgeColor ?: if (isLiveMode) GigColors.green else GigColors.purple
+    val accent = modeBadgeColor ?: if (isLiveMode) TangerineColors.green else TangerineColors.purple
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(GigColors.background)
+            .background(TangerineColors.background)
             .padding(start = 8.dp, end = 14.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -96,7 +96,7 @@ fun PlayerHeader(
             Icon(
                 Icons.Default.Menu,
                 contentDescription = "Menu",
-                tint = GigColors.textDim,
+                tint = TangerineColors.textDim,
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -107,7 +107,7 @@ fun PlayerHeader(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = "Close player",
-                    tint = GigColors.textMuted,
+                    tint = TangerineColors.textMuted,
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -120,20 +120,20 @@ fun PlayerHeader(
             Text(
                 text = songName,
                 fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp,
-                color = GigColors.text,
+                color = TangerineColors.text,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             if (songArtist.isNotBlank()) {
                 Text(
                     text = songArtist,
-                    fontFamily = Karla, fontSize = 11.sp, color = GigColors.textDim,
+                    fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textDim,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             if (setlistPosition != null && setlistName != null) {
                 Text(
                     text = "$setlistPosition — $setlistName",
-                    fontFamily = Karla, fontSize = 9.sp, color = GigColors.textMuted,
+                    fontFamily = Karla, fontSize = 9.sp, color = TangerineColors.textMuted,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -156,14 +156,14 @@ fun PlayerHeader(
             Text(
                 text = "$bpm",
                 fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 24.sp,
-                color = GigColors.green,
-                style = TextStyle(shadow = Shadow(GigColors.green.copy(alpha = 0.3f), Offset.Zero, 12f)),
+                color = TangerineColors.green,
+                style = TextStyle(shadow = Shadow(TangerineColors.green.copy(alpha = 0.3f), Offset.Zero, 12f)),
                 lineHeight = 26.sp,
             )
             Text(
                 text = "BPM",
                 fontFamily = JetBrainsMono, fontSize = 8.sp, letterSpacing = 1.sp,
-                color = GigColors.green.copy(alpha = 0.4f),
+                color = TangerineColors.green.copy(alpha = 0.4f),
             )
         }
     }
@@ -175,9 +175,9 @@ private data class ModeOption(val key: String, val label: String, val color: Col
 private fun ModeDropdown(currentMode: String, onSwitchMode: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val modes = listOf(
-        ModeOption("live", "Live", GigColors.green),
-        ModeOption("practice", "Practice", GigColors.purple),
-        ModeOption("view", "View", GigColors.teal),
+        ModeOption("live", "Live", TangerineColors.green),
+        ModeOption("practice", "Practice", TangerineColors.purple),
+        ModeOption("view", "View", TangerineColors.teal),
     )
     val current = modes.first { it.key == currentMode }
 
@@ -209,7 +209,7 @@ private fun ModeDropdown(currentMode: String, onSwitchMode: (String) -> Unit) {
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(GigColors.surface),
+            modifier = Modifier.background(TangerineColors.surface),
         ) {
             modes.forEach { mode ->
                 DropdownMenuItem(
@@ -234,7 +234,7 @@ private fun ModeDropdown(currentMode: String, onSwitchMode: (String) -> Unit) {
 
 @Composable
 fun ModeBadge(isLive: Boolean) {
-    val color = if (isLive) GigColors.green else GigColors.purple
+    val color = if (isLive) TangerineColors.green else TangerineColors.purple
     val label = if (isLive) "LIVE" else "PRACTICE"
     ModeBadge(label = label, color = color)
 }
@@ -322,7 +322,7 @@ fun VisualHero(
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 5.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(GigColors.surfaceInset)
+            .background(TangerineColors.surfaceInset)
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
     ) {
@@ -453,7 +453,7 @@ private fun VisSwitcherButton(label: String, selected: Boolean, accent: Color, o
         modifier = Modifier
             .clickable(onClick = onClick)
             .background(
-                if (selected) accent.copy(alpha = 0.06f) else GigColors.surface,
+                if (selected) accent.copy(alpha = 0.06f) else TangerineColors.surface,
                 RoundedCornerShape(8.dp),
             )
             .border(
@@ -466,7 +466,7 @@ private fun VisSwitcherButton(label: String, selected: Boolean, accent: Color, o
         Text(
             label,
             fontFamily = JetBrainsMono, fontSize = 8.sp,
-            color = if (selected) accent else GigColors.textMuted,
+            color = if (selected) accent else TangerineColors.textMuted,
         )
     }
 }
@@ -530,43 +530,43 @@ fun TextPanel(
             .fillMaxWidth()
             .padding(horizontal = 8.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(GigColors.surfaceInset)
+            .background(TangerineColors.surfaceInset)
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
             .verticalScroll(rememberScrollState())
             .padding(10.dp, 10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (toggles.showChords && !chords.isNullOrBlank()) {
-            TextPanelLabel("CHORDS", GigColors.orange)
+            TextPanelLabel("CHORDS", TangerineColors.orange)
             Text(
                 text = chords,
                 fontFamily = JetBrainsMono, fontSize = 12.sp, lineHeight = 19.sp,
-                color = GigColors.orange,
+                color = TangerineColors.orange,
             )
         }
         if (toggles.showLyrics && !lyrics.isNullOrBlank()) {
-            TextPanelLabel("LYRICS", GigColors.text)
+            TextPanelLabel("LYRICS", TangerineColors.text)
             Text(
                 text = lyrics,
                 fontFamily = Karla, fontSize = 13.sp, lineHeight = 21.sp,
-                color = GigColors.text,
+                color = TangerineColors.text,
             )
         }
         if (toggles.showNotes && !notes.isNullOrBlank()) {
-            TextPanelLabel("NOTES", GigColors.cyan)
+            TextPanelLabel("NOTES", TangerineColors.cyan)
             Text(
                 text = notes,
                 fontFamily = Karla, fontSize = 11.sp, lineHeight = 17.sp,
-                color = GigColors.cyan,
+                color = TangerineColors.cyan,
                 fontStyle = FontStyle.Italic,
             )
         }
         if (toggles.showDrums && !drums.isNullOrBlank()) {
-            TextPanelLabel("DRUMS", GigColors.pink)
+            TextPanelLabel("DRUMS", TangerineColors.pink)
             Text(
                 text = drums,
                 fontFamily = JetBrainsMono, fontSize = 10.sp, lineHeight = 16.sp,
-                color = GigColors.pink,
+                color = TangerineColors.pink,
             )
         }
     }
@@ -605,18 +605,18 @@ fun LiveTransport(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(GigColors.surfaceLight)
+                .background(TangerineColors.surfaceLight)
                 .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
                 .clickable(enabled = enabled, onClick = onRestart),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textMuted, modifier = Modifier.size(18.dp))
+            Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = TangerineColors.textMuted, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(8.dp))
         // Play/Pause (primary)
         PlayButton(
             isPlaying = isPlaying,
-            accent = GigColors.green,
+            accent = TangerineColors.green,
             onClick = onPlayStop,
             enabled = enabled,
         )
@@ -624,7 +624,7 @@ fun LiveTransport(
         // Stop
         TransportButton(
             icon = "■",
-            color = GigColors.danger,
+            color = TangerineColors.danger,
             onClick = onStop,
             size = 36.dp,
         )
@@ -640,7 +640,7 @@ fun PlayButton(
 ) {
     val bgBrush = Brush.linearGradient(
         colors = if (isPlaying) listOf(accent.copy(alpha = 0.12f), accent.copy(alpha = 0.08f))
-        else listOf(accent, GigColors.greenDark),
+        else listOf(accent, TangerineColors.greenDark),
     )
     Box(
         modifier = Modifier
@@ -664,7 +664,7 @@ fun PlayButton(
             Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = "Play",
-                tint = GigColors.background,
+                tint = TangerineColors.background,
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -682,7 +682,7 @@ fun TransportButton(
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(GigColors.surfaceLight)
+            .background(TangerineColors.surfaceLight)
             .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -693,14 +693,14 @@ fun TransportButton(
 
 @Composable
 fun ClickToggleButton(isClickMuted: Boolean, onClick: () -> Unit) {
-    val color = GigColors.purple
+    val color = TangerineColors.purple
     Box(
         modifier = Modifier
             .height(32.dp)
             .background(Color.Transparent, RoundedCornerShape(20.dp))
             .border(
                 1.dp,
-                if (isClickMuted) GigColors.textMuted.copy(alpha = 0.2f) else color.copy(alpha = 0.25f),
+                if (isClickMuted) TangerineColors.textMuted.copy(alpha = 0.2f) else color.copy(alpha = 0.25f),
                 RoundedCornerShape(20.dp),
             )
             .clickable(onClick = onClick)
@@ -710,7 +710,7 @@ fun ClickToggleButton(isClickMuted: Boolean, onClick: () -> Unit) {
         Text(
             text = if (isClickMuted) "CLICK OFF" else "CLICK",
             fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 9.sp,
-            color = if (isClickMuted) GigColors.textMuted else color,
+            color = if (isClickMuted) TangerineColors.textMuted else color,
         )
     }
 }
@@ -745,7 +745,7 @@ fun PlayerNavRow(
         if (queueLabel != null) {
             Box(
                 modifier = Modifier
-                    .background(GigColors.surface, RoundedCornerShape(10.dp))
+                    .background(TangerineColors.surface, RoundedCornerShape(10.dp))
                     .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                     .clickable(onClick = onQueue)
                     .padding(horizontal = 12.dp, vertical = 4.dp),
@@ -753,7 +753,7 @@ fun PlayerNavRow(
                 Text(
                     text = queueLabel,
                     fontFamily = JetBrainsMono, fontSize = 10.sp,
-                    color = GigColors.textMuted,
+                    color = TangerineColors.textMuted,
                 )
             }
         }
@@ -779,24 +779,24 @@ private fun NavSongButton(
 ) {
     Box(
         modifier = Modifier
-            .background(GigColors.surface, RoundedCornerShape(10.dp))
+            .background(TangerineColors.surface, RoundedCornerShape(10.dp))
             .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             if (!isNext) {
-                Text(icon, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) GigColors.textDim else GigColors.textMuted)
+                Text(icon, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) TangerineColors.textDim else TangerineColors.textMuted)
             }
             Text(
                 text = label ?: "—",
                 fontFamily = Karla, fontSize = 9.sp,
-                color = if (enabled) GigColors.textMuted else GigColors.textMuted.copy(alpha = 0.4f),
+                color = if (enabled) TangerineColors.textMuted else TangerineColors.textMuted.copy(alpha = 0.4f),
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.width(80.dp),
             )
             if (isNext) {
-                Text(icon, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) GigColors.textDim else GigColors.textMuted)
+                Text(icon, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = if (enabled) TangerineColors.textDim else TangerineColors.textMuted)
             }
         }
     }
@@ -811,7 +811,7 @@ fun DrawerHandle() {
             .width(30.dp)
             .height(3.dp)
             .clip(RoundedCornerShape(2.dp))
-            .background(GigColors.green),
+            .background(TangerineColors.green),
     )
 }
 
@@ -820,7 +820,7 @@ fun DrawerLabel(text: String) {
     Text(
         text = text,
         fontFamily = JetBrainsMono, fontSize = 9.sp, letterSpacing = 1.sp,
-        color = GigColors.textMuted,
+        color = TangerineColors.textMuted,
     )
 }
 
@@ -837,15 +837,15 @@ fun DisplayToggleRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        TogglePill("Visuals", showVisuals, GigColors.green, onVisualsToggle)
-        TogglePill("Chords", showChords, GigColors.orange, onChordsToggle)
-        TogglePill("Lyrics", showLyrics, GigColors.text, onLyricsToggle)
-        TogglePill("Notes", showNotes, GigColors.cyan, onNotesToggle)
-        TogglePill("Drums", showDrums, GigColors.pink, onDrumsToggle)
+        TogglePill("Visuals", showVisuals, TangerineColors.green, onVisualsToggle)
+        TogglePill("Chords", showChords, TangerineColors.orange, onChordsToggle)
+        TogglePill("Lyrics", showLyrics, TangerineColors.text, onLyricsToggle)
+        TogglePill("Notes", showNotes, TangerineColors.cyan, onNotesToggle)
+        TogglePill("Drums", showDrums, TangerineColors.pink, onDrumsToggle)
         if (onGlowToggle != null) {
             TogglePill(
                 if (glowFullscreen) "Glow: Full" else "Glow: Card",
-                glowFullscreen, GigColors.green, onGlowToggle,
+                glowFullscreen, TangerineColors.green, onGlowToggle,
             )
         }
     }
@@ -870,7 +870,7 @@ private fun TogglePill(label: String, active: Boolean, color: Color, onClick: ()
         Text(
             label,
             fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = if (active) color else GigColors.textMuted,
+            color = if (active) color else TangerineColors.textMuted,
         )
     }
 }
@@ -908,14 +908,14 @@ fun SettingsPills(
     ) {
         Text(
             "Nudge", fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = GigColors.textMuted,
+            color = TangerineColors.textMuted,
             modifier = Modifier.width(55.dp),
         )
         NudgePill("<<", onClick = onNudgeBack)
         Text(
             text = if (nudgeOffsetMs != 0f) "${if (nudgeOffsetMs > 0) "+" else ""}${nudgeOffsetMs.toInt()}ms" else "+0ms",
             fontFamily = JetBrainsMono, fontSize = 10.sp,
-            color = GigColors.green,
+            color = TangerineColors.green,
             textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f),
         )
@@ -932,7 +932,7 @@ private fun SettingsRow(label: String, content: @Composable () -> Unit) {
     ) {
         Text(
             label, fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = GigColors.textMuted,
+            color = TangerineColors.textMuted,
             modifier = Modifier.width(55.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -946,12 +946,12 @@ private fun SettingPill(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .background(
-                if (selected) GigColors.purple.copy(alpha = 0.12f) else Color.Transparent,
+                if (selected) TangerineColors.purple.copy(alpha = 0.12f) else Color.Transparent,
                 RoundedCornerShape(10.dp),
             )
             .border(
                 1.dp,
-                if (selected) GigColors.purple.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
+                if (selected) TangerineColors.purple.copy(alpha = 0.35f) else Color.White.copy(alpha = 0.06f),
                 RoundedCornerShape(10.dp),
             )
             .clickable(onClick = onClick)
@@ -960,7 +960,7 @@ private fun SettingPill(label: String, selected: Boolean, onClick: () -> Unit) {
         Text(
             label,
             fontFamily = JetBrainsMono, fontSize = 8.sp,
-            color = if (selected) GigColors.purple else GigColors.textMuted,
+            color = if (selected) TangerineColors.purple else TangerineColors.textMuted,
         )
     }
 }
@@ -974,7 +974,7 @@ private fun NudgePill(label: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 3.dp),
     ) {
-        Text(label, fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted)
+        Text(label, fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted)
     }
 }
 
@@ -1042,14 +1042,14 @@ fun MixerRow(channels: List<MixerChannel>) {
                 Text(
                     "${(ch.value * 100).toInt()}",
                     fontFamily = JetBrainsMono, fontSize = 7.sp,
-                    color = if (ch.isMuted) GigColors.textMuted.copy(alpha = 0.4f) else GigColors.textMuted,
+                    color = if (ch.isMuted) TangerineColors.textMuted.copy(alpha = 0.4f) else TangerineColors.textMuted,
                 )
                 // Mute button
                 Box(
                     modifier = Modifier
                         .size(width = 20.dp, height = 16.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(if (ch.isMuted) ch.color.copy(alpha = 0.3f) else GigColors.surfaceLight)
+                        .background(if (ch.isMuted) ch.color.copy(alpha = 0.3f) else TangerineColors.surfaceLight)
                         .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(3.dp))
                         .clickable(onClick = ch.onMuteToggle),
                     contentAlignment = Alignment.Center,
@@ -1057,7 +1057,7 @@ fun MixerRow(channels: List<MixerChannel>) {
                     Text(
                         "M",
                         fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 7.sp, color = if (ch.isMuted) ch.color else GigColors.textMuted,
+                        fontSize = 7.sp, color = if (ch.isMuted) ch.color else TangerineColors.textMuted,
                     )
                 }
             }
@@ -1091,7 +1091,7 @@ fun TakesSection(
         Text(
             "MY TAKES",
             fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-            fontSize = 9.sp, color = GigColors.textMuted,
+            fontSize = 9.sp, color = TangerineColors.textMuted,
             letterSpacing = 1.sp,
         )
         Spacer(Modifier.height(8.dp))
@@ -1099,14 +1099,14 @@ fun TakesSection(
         if (takes.isEmpty()) {
             Text(
                 "No takes yet. Record in the player to add takes.",
-                fontSize = 12.sp, color = GigColors.textMuted,
+                fontSize = 12.sp, color = TangerineColors.textMuted,
                 fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
             )
         }
 
         takes.forEach { take ->
-            val borderColor = if (take.isBest) GigColors.green.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.07f)
-            val bgColor = if (take.isBest) GigColors.green.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.03f)
+            val borderColor = if (take.isBest) TangerineColors.green.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.07f)
+            val bgColor = if (take.isBest) TangerineColors.green.copy(alpha = 0.03f) else Color.White.copy(alpha = 0.03f)
 
             Row(
                 modifier = Modifier
@@ -1123,7 +1123,7 @@ fun TakesSection(
                     modifier = Modifier
                         .size(24.dp)
                         .background(
-                            if (take.isBest) GigColors.green.copy(alpha = 0.15f) else GigColors.background,
+                            if (take.isBest) TangerineColors.green.copy(alpha = 0.15f) else TangerineColors.background,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center,
@@ -1131,7 +1131,7 @@ fun TakesSection(
                     Text(
                         "${take.takeNumber}",
                         fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                        color = if (take.isBest) GigColors.green else GigColors.textMuted,
+                        color = if (take.isBest) TangerineColors.green else TangerineColors.textMuted,
                     )
                 }
 
@@ -1141,24 +1141,24 @@ fun TakesSection(
                         Text(
                             "Take #${take.takeNumber}",
                             fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                            color = if (take.isBest) GigColors.green else GigColors.text,
+                            color = if (take.isBest) TangerineColors.green else TangerineColors.text,
                         )
                         if (take.isBest) {
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 "BEST",
                                 fontSize = 9.sp, fontWeight = FontWeight.Bold,
-                                color = GigColors.green,
+                                color = TangerineColors.green,
                                 modifier = Modifier
-                                    .background(GigColors.green.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
-                                    .border(1.dp, GigColors.green.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                    .background(TangerineColors.green.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+                                    .border(1.dp, TangerineColors.green.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                                     .padding(horizontal = 6.dp, vertical = 1.dp),
                             )
                         }
                     }
                     Text(
                         "${take.durationFormatted} · ${take.date}${if (take.isCloud) " · cloud" else ""}",
-                        fontSize = 11.sp, color = GigColors.textMuted,
+                        fontSize = 11.sp, color = TangerineColors.textMuted,
                     )
                 }
 
@@ -1168,17 +1168,17 @@ fun TakesSection(
                     modifier = Modifier
                         .size(28.dp)
                         .background(
-                            if (isPlaying) GigColors.green.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.03f),
+                            if (isPlaying) TangerineColors.green.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.03f),
                             CircleShape,
                         )
-                        .border(1.dp, if (isPlaying) GigColors.green.copy(alpha = 0.4f) else borderColor, CircleShape)
+                        .border(1.dp, if (isPlaying) TangerineColors.green.copy(alpha = 0.4f) else borderColor, CircleShape)
                         .clickable { onPlay(take.id) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         if (isPlaying) "■" else "▶",
                         fontSize = if (isPlaying) 9.sp else 11.sp,
-                        color = if (isPlaying) GigColors.green else if (take.isBest) GigColors.green else GigColors.textMuted,
+                        color = if (isPlaying) TangerineColors.green else if (take.isBest) TangerineColors.green else TangerineColors.textMuted,
                     )
                 }
 
@@ -1195,7 +1195,7 @@ fun TakesSection(
                     ) {
                         Text(
                             if (take.isBest) "Unset" else "Set Best",
-                            fontSize = 11.sp, color = if (take.isBest) GigColors.green else GigColors.textMuted,
+                            fontSize = 11.sp, color = if (take.isBest) TangerineColors.green else TangerineColors.textMuted,
                         )
                     }
                 }
@@ -1203,12 +1203,12 @@ fun TakesSection(
                 // Delete button
                 Box(
                     modifier = Modifier
-                        .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-                        .border(1.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                        .background(TangerineColors.danger.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                        .border(1.dp, TangerineColors.danger.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
                         .clickable { onDelete(take.id) }
                         .padding(horizontal = 8.dp, vertical = 3.dp),
                 ) {
-                    Text("Del", fontSize = 11.sp, color = GigColors.danger)
+                    Text("Del", fontSize = 11.sp, color = TangerineColors.danger)
                 }
             }
         }

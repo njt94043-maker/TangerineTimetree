@@ -3,10 +3,10 @@ package com.thegreentangerine.gigbooks.ui.theme
 import androidx.compose.ui.graphics.Color
 
 /**
- * GigBooks color palette — matches web app CSS custom properties exactly.
+ * Tangerine Media color palette — matches web app CSS custom properties exactly.
  * Dark neumorphic theme.
  */
-object GigColors {
+object TangerineColors {
     // Backgrounds
     val background = Color(0xFF08080c)
     val surface = Color(0xFF111118)

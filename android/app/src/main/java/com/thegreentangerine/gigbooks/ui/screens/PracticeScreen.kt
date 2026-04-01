@@ -67,7 +67,7 @@ import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
 import com.thegreentangerine.gigbooks.ui.components.TransportButton
 import com.thegreentangerine.gigbooks.ui.components.VisType
 import com.thegreentangerine.gigbooks.ui.components.VisualHero
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlin.math.roundToInt
@@ -128,22 +128,22 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
     var drawerOpen by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-    Column(Modifier.fillMaxSize().background(GigColors.background)) {
+    Column(Modifier.fillMaxSize().background(TangerineColors.background)) {
         if (song == null) {
             // Simple header when no song
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(GigColors.background)
+                    .background(TangerineColors.background)
                     .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onMenuClick) {
-                    Icon(Icons.Default.Close, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
                 }
             }
             NoSongPlaceholder(
-                accent = GigColors.purple,
+                accent = TangerineColors.purple,
                 screenName = "Practice",
                 onGoToLibrary = onGoToLibrary,
             )
@@ -175,7 +175,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     VisualHero(
                         isPlaying = vm.isClickPlaying,
                         currentBeat = vm.currentBeat,
-                        accent = GigColors.purple,
+                        accent = TangerineColors.purple,
                         modifier = Modifier.weight(if (bothVisible) 0.55f else 1f),
                         suppressBeatGlow = glowFullscreen,
                         selectedVis = selectedVis,
@@ -195,21 +195,21 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                             .padding(horizontal = 8.dp, vertical = 5.dp)
                             .height(48.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(GigColors.surface)
+                            .background(TangerineColors.surface)
                             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
                             .clickable(enabled = !vm.isLoadingTrack) { vm.loadTrack(song.audioUrl!!) },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (vm.isLoadingTrack) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                CircularProgressIndicator(color = GigColors.green, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = GigColors.green)
+                                CircularProgressIndicator(color = TangerineColors.green, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.green)
                             }
                         } else {
                             Text(
                                 "Load Track",
                                 fontFamily = JetBrainsMono, fontSize = 11.sp,
-                                style = TextStyle(color = GigColors.green, shadow = Shadow(GigColors.green.copy(0.3f), Offset.Zero, 6f)),
+                                style = TextStyle(color = TangerineColors.green, shadow = Shadow(TangerineColors.green.copy(0.3f), Offset.Zero, 6f)),
                             )
                         }
                     }
@@ -259,14 +259,14 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .background(GigColors.purple.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(1.dp, GigColors.purple.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.purple.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(1.dp, TangerineColors.purple.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = GigColors.purple,
+                            color = TangerineColors.purple,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(14.dp),
                         )
@@ -277,7 +277,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                 "separating" -> "Separating stems..."
                                 else -> "Processing..."
                             },
-                            fontFamily = Karla, fontSize = 12.sp, color = GigColors.purple,
+                            fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.purple,
                         )
                     }
                 }
@@ -320,14 +320,14 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(GigColors.surface, RoundedCornerShape(10.dp))
+                                .background(TangerineColors.surface, RoundedCornerShape(10.dp))
                                 .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                                 .clickable(onClick = { showQueue = true })
                                 .padding(horizontal = 14.dp, vertical = 5.dp),
                         ) {
                             Text(
                                 "Browse Songs",
-                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
                             )
                         }
                     }
@@ -342,7 +342,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        GigColors.surface,
+                        TangerineColors.surface,
                         RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                     )
                     .border(
@@ -391,7 +391,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(GigColors.danger)
+                                    .background(TangerineColors.danger)
                                     .clickable { vm.stopRecording() }
                                     .align(Alignment.CenterHorizontally),
                                 contentAlignment = Alignment.Center,
@@ -403,8 +403,8 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(GigColors.danger.copy(alpha = 0.15f))
-                                    .border(1.dp, GigColors.danger.copy(alpha = 0.4f), CircleShape)
+                                    .background(TangerineColors.danger.copy(alpha = 0.15f))
+                                    .border(1.dp, TangerineColors.danger.copy(alpha = 0.4f), CircleShape)
                                     .clickable { vm.startRecording() }
                                     .align(Alignment.CenterHorizontally),
                                 contentAlignment = Alignment.Center,
@@ -413,7 +413,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clip(CircleShape)
-                                        .background(GigColors.danger)
+                                        .background(TangerineColors.danger)
                                 )
                             }
                         }
@@ -443,7 +443,7 @@ fun PracticeScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () 
         FullscreenBeatGlow(
             isPlaying = vm.isClickPlaying,
             currentBeat = vm.currentBeat,
-            accent = GigColors.purple,
+            accent = TangerineColors.purple,
         )
     }
 
@@ -487,7 +487,7 @@ private fun PracticeTransport(vm: AppViewModel) {
                 Text(
                     "${speedPct}%",
                     fontFamily = JetBrainsMono, fontSize = 11.sp,
-                    color = GigColors.purple,
+                    color = TangerineColors.purple,
                     modifier = Modifier.width(36.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
@@ -498,9 +498,9 @@ private fun PracticeTransport(vm: AppViewModel) {
             // A-B loop controls (right) — only when track loaded
             if (vm.trackLoaded) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LoopPill("A", active = hasA, color = GigColors.orange) { vm.setLoopA() }
-                    LoopPill("B", active = hasB, color = GigColors.orange) { vm.setLoopB() }
-                    LoopPill("Clear", active = hasA || hasB, color = GigColors.textMuted, enabled = hasA || hasB) { vm.clearLoop() }
+                    LoopPill("A", active = hasA, color = TangerineColors.orange) { vm.setLoopA() }
+                    LoopPill("B", active = hasB, color = TangerineColors.orange) { vm.setLoopB() }
+                    LoopPill("Clear", active = hasA || hasB, color = TangerineColors.textMuted, enabled = hasA || hasB) { vm.clearLoop() }
                 }
             }
         }
@@ -516,24 +516,24 @@ private fun PracticeTransport(vm: AppViewModel) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(GigColors.surfaceLight)
+                    .background(TangerineColors.surfaceLight)
                     .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
                     .clickable(enabled = vm.engineAvailable && vm.trackLoaded) { vm.restart() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textMuted, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = TangerineColors.textMuted, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
             // Play
             PlayButton(
                 isPlaying = isPlaying,
-                accent = GigColors.purple,
+                accent = TangerineColors.purple,
                 onClick = { if (isPlaying) vm.pause() else vm.play() },
                 enabled = vm.engineAvailable,
             )
             Spacer(Modifier.width(8.dp))
             // Stop
-            TransportButton(icon = "■", color = GigColors.danger, onClick = { vm.stop() })
+            TransportButton(icon = "■", color = TangerineColors.danger, onClick = { vm.stop() })
         }
     }
 }
@@ -544,12 +544,12 @@ private fun SpeedButton(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .size(24.dp)
             .clip(CircleShape)
-            .background(GigColors.surfaceLight)
+            .background(TangerineColors.surfaceLight)
             .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, fontFamily = JetBrainsMono, fontSize = 8.sp, color = GigColors.textMuted)
+        Text(label, fontFamily = JetBrainsMono, fontSize = 8.sp, color = TangerineColors.textMuted)
     }
 }
 
@@ -574,7 +574,7 @@ private fun LoopPill(label: String, active: Boolean, color: Color, enabled: Bool
         Text(
             label,
             fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = if (active) color else GigColors.textMuted,
+            color = if (active) color else TangerineColors.textMuted,
         )
     }
 }
@@ -594,7 +594,7 @@ internal fun PracticeWaveform(vm: AppViewModel) {
             .padding(horizontal = 8.dp, vertical = 5.dp)
             .height(48.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(GigColors.surface)
+            .background(TangerineColors.surface)
             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
@@ -614,12 +614,12 @@ internal fun PracticeWaveform(vm: AppViewModel) {
                 val lx = minOf(loopA, loopB) * w
                 val rx = maxOf(loopA, loopB) * w
                 drawRect(
-                    color = GigColors.orange.copy(alpha = 0.04f),
+                    color = TangerineColors.orange.copy(alpha = 0.04f),
                     topLeft = Offset(lx, 0f),
                     size = Size(rx - lx, h),
                 )
                 for (x in listOf(lx, rx)) {
-                    drawLine(GigColors.orange.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.5f)
+                    drawLine(TangerineColors.orange.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, h), strokeWidth = 1.5f)
                 }
             }
 
@@ -631,11 +631,11 @@ internal fun PracticeWaveform(vm: AppViewModel) {
                 envelope.forEachIndexed { i, amp ->
                     val x = i * barW + barW / 2f
                     val barH = amp * midY * 0.9f
-                    val color = if (x < playX) GigColors.green.copy(alpha = 0.7f) else GigColors.green.copy(alpha = 0.12f)
+                    val color = if (x < playX) TangerineColors.green.copy(alpha = 0.7f) else TangerineColors.green.copy(alpha = 0.12f)
                     drawLine(color, Offset(x, midY - barH), Offset(x, midY + barH), strokeWidth = barW * 0.72f)
                 }
             } else {
-                drawLine(GigColors.textMuted.copy(alpha = 0.2f), Offset(0f, midY), Offset(w, midY), strokeWidth = 1f)
+                drawLine(TangerineColors.textMuted.copy(alpha = 0.2f), Offset(0f, midY), Offset(w, midY), strokeWidth = 1f)
             }
 
             // Playhead
@@ -649,14 +649,14 @@ internal fun PracticeWaveform(vm: AppViewModel) {
                 .align(Alignment.BottomStart)
                 .padding(start = 8.dp, bottom = 2.dp),
         ) {
-            Text(positionStr, fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textDim)
-            Text(" / $totalStr", fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.textMuted)
+            Text(positionStr, fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textDim)
+            Text(" / $totalStr", fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted)
         }
 
         // Speed overlay
         Text(
             "${speedPct}%",
-            fontFamily = JetBrainsMono, fontSize = 9.sp, color = GigColors.purple,
+            fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.purple,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 8.dp, bottom = 2.dp),
@@ -674,7 +674,7 @@ private fun PracticeMixer(vm: AppViewModel) {
     channels.add(
         MixerChannel(
             label = "CLK",
-            color = GigColors.purple,
+            color = TangerineColors.purple,
             value = (vm.clickGain / 2f).coerceIn(0f, 1f),
             onValueChange = { vm.changeClickGain(it * 2f) },
             isMuted = vm.isClickMuted,
@@ -687,7 +687,7 @@ private fun PracticeMixer(vm: AppViewModel) {
         channels.add(
             MixerChannel(
                 label = "TRK",
-                color = GigColors.green,
+                color = TangerineColors.green,
                 value = vm.trackGain,
                 onValueChange = { vm.changeTrackGain(it) },
                 isMuted = vm.isTrackMuted,
@@ -699,12 +699,12 @@ private fun PracticeMixer(vm: AppViewModel) {
     // Stem channels
     vm.loadedStems.forEach { (idx, stem) ->
         val stemColor = when (stem.label.uppercase()) {
-            "DRUMS" -> GigColors.orange
-            "BASS" -> GigColors.cyan
-            "VOCALS" -> GigColors.pink
-            "GUITAR", "GTR" -> GigColors.green
-            "KEYS", "KEY" -> GigColors.teal
-            else -> GigColors.slate
+            "DRUMS" -> TangerineColors.orange
+            "BASS" -> TangerineColors.cyan
+            "VOCALS" -> TangerineColors.pink
+            "GUITAR", "GTR" -> TangerineColors.green
+            "KEYS", "KEY" -> TangerineColors.teal
+            else -> TangerineColors.slate
         }
         channels.add(
             MixerChannel(
@@ -723,19 +723,19 @@ private fun PracticeMixer(vm: AppViewModel) {
         Text(
             "Loading stems...",
             fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = GigColors.teal, modifier = Modifier.padding(top = 4.dp),
+            color = TangerineColors.teal, modifier = Modifier.padding(top = 4.dp),
         )
     } else if (vm.processingStatus != null) {
         Text(
             "Server: ${vm.processingStatus}...",
             fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = GigColors.orange, modifier = Modifier.padding(top = 4.dp),
+            color = TangerineColors.orange, modifier = Modifier.padding(top = 4.dp),
         )
     } else if (vm.loadedStems.isEmpty() && vm.trackLoaded && vm.stemErrors.isEmpty()) {
         Text(
             "No stems — process track for multitrack",
             fontFamily = JetBrainsMono, fontSize = 8.sp,
-            color = GigColors.textMuted, modifier = Modifier.padding(top = 4.dp),
+            color = TangerineColors.textMuted, modifier = Modifier.padding(top = 4.dp),
         )
     }
 
@@ -755,8 +755,8 @@ private fun BeatAlignBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(GigColors.teal.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .border(0.5.dp, GigColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .background(TangerineColors.teal.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .border(0.5.dp, TangerineColors.teal.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -765,18 +765,18 @@ private fun BeatAlignBanner(
             Text(
                 "Beat detected",
                 fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.3f), Offset.Zero, 6f)),
             )
             Text(
                 "${bpm.roundToInt()} BPM · +${offsetMs}ms offset",
-                fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textDim,
+                fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textDim,
             )
         }
         Box(
             modifier = Modifier
                 .height(30.dp)
-                .background(GigColors.teal.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                .border(0.5.dp, GigColors.teal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                .background(TangerineColors.teal.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .border(0.5.dp, TangerineColors.teal.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
                 .clickable(onClick = onApply)
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
@@ -784,19 +784,19 @@ private fun BeatAlignBanner(
             Text(
                 "Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold,
                 fontSize = 11.sp,
-                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 4f)),
+                style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.3f), Offset.Zero, 4f)),
             )
         }
         Box(
             modifier = Modifier
                 .height(30.dp)
-                .background(GigColors.textMuted.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
-                .border(0.5.dp, GigColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                .background(TangerineColors.textMuted.copy(alpha = 0.05f), RoundedCornerShape(6.dp))
+                .border(0.5.dp, TangerineColors.textMuted.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                 .clickable(onClick = onDismiss)
                 .padding(horizontal = 10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("✕", fontFamily = JetBrainsMono, fontSize = 11.sp, color = GigColors.textMuted)
+            Text("✕", fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textMuted)
         }
     }
 }
@@ -814,8 +814,8 @@ internal fun RecordingBanner(vm: AppViewModel) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(GigColors.danger.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
-            .border(1.dp, GigColors.danger.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            .background(TangerineColors.danger.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+            .border(1.dp, TangerineColors.danger.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -825,20 +825,20 @@ internal fun RecordingBanner(vm: AppViewModel) {
             modifier = Modifier
                 .size(8.dp)
                 .clip(CircleShape)
-                .background(GigColors.danger)
+                .background(TangerineColors.danger)
         )
 
         // State label
         Text(
             if (isCountIn) "COUNT IN" else "REC",
             fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-            fontSize = 11.sp, color = GigColors.danger,
+            fontSize = 11.sp, color = TangerineColors.danger,
         )
 
         // Take number
         Text(
             "Take ${vm.recTakeNumber}",
-            fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted,
+            fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
         )
 
         Spacer(Modifier.weight(1f))
@@ -847,7 +847,7 @@ internal fun RecordingBanner(vm: AppViewModel) {
         if (!isCountIn) {
             Text(
                 "%d:%02d".format(mins, secs),
-                fontFamily = JetBrainsMono, fontSize = 13.sp, color = GigColors.danger,
+                fontFamily = JetBrainsMono, fontSize = 13.sp, color = TangerineColors.danger,
             )
         }
 
@@ -858,14 +858,14 @@ internal fun RecordingBanner(vm: AppViewModel) {
                     .width(40.dp)
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(GigColors.surfaceLight),
+                    .background(TangerineColors.surfaceLight),
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(levelWidth)
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(GigColors.green)
+                        .background(TangerineColors.green)
                 )
             }
         }
@@ -882,12 +882,12 @@ internal fun PostRecordingDialog(vm: AppViewModel) {
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = { /* can't dismiss without choosing */ },
-        containerColor = GigColors.surface,
+        containerColor = TangerineColors.surface,
         title = {
             Text(
                 "Take ${vm.recTakeNumber} · $durationStr",
                 fontFamily = Karla, fontWeight = FontWeight.Bold,
-                fontSize = 16.sp, color = GigColors.text,
+                fontSize = 16.sp, color = TangerineColors.text,
             )
         },
         text = {
@@ -898,12 +898,12 @@ internal fun PostRecordingDialog(vm: AppViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            if (markAsBest) GigColors.orange.copy(alpha = 0.08f) else Color.Transparent,
+                            if (markAsBest) TangerineColors.orange.copy(alpha = 0.08f) else Color.Transparent,
                             RoundedCornerShape(8.dp),
                         )
                         .border(
                             1.dp,
-                            if (markAsBest) GigColors.orange.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.06f),
+                            if (markAsBest) TangerineColors.orange.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.06f),
                             RoundedCornerShape(8.dp),
                         )
                         .clickable { markAsBest = !markAsBest }
@@ -911,23 +911,23 @@ internal fun PostRecordingDialog(vm: AppViewModel) {
                 ) {
                     Text(
                         if (markAsBest) "★" else "☆",
-                        fontSize = 16.sp, color = GigColors.orange,
+                        fontSize = 16.sp, color = TangerineColors.orange,
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Mark as Best Take",
                         fontFamily = Karla, fontSize = 13.sp,
-                        color = if (markAsBest) GigColors.orange else GigColors.textMuted,
+                        color = if (markAsBest) TangerineColors.orange else TangerineColors.textMuted,
                     )
                 }
 
                 Spacer(Modifier.height(4.dp))
 
                 // 4 action buttons (D-139)
-                PostRecButton("Discard & Re-take", GigColors.danger) { vm.discardRecording(retake = true) }
-                PostRecButton("Save & Re-take", GigColors.purple) { vm.saveRecording(asBest = markAsBest, retake = true) }
-                PostRecButton("Save as Take", GigColors.green) { vm.saveRecording(asBest = markAsBest) }
-                PostRecButton("Save & Preview", GigColors.teal) { vm.saveRecording(asBest = markAsBest, preview = true) }
+                PostRecButton("Discard & Re-take", TangerineColors.danger) { vm.discardRecording(retake = true) }
+                PostRecButton("Save & Re-take", TangerineColors.purple) { vm.saveRecording(asBest = markAsBest, retake = true) }
+                PostRecButton("Save as Take", TangerineColors.green) { vm.saveRecording(asBest = markAsBest) }
+                PostRecButton("Save & Preview", TangerineColors.teal) { vm.saveRecording(asBest = markAsBest, preview = true) }
             }
         },
         confirmButton = {},

@@ -17,42 +17,42 @@ val JetBrainsMono = FontFamily(
     Font(R.font.jetbrainsmono_regular, FontWeight.Normal),
 )
 
-val GigTypography = Typography(
+val TangerineTypography = Typography(
     bodyLarge = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        color = GigColors.text,
+        color = TangerineColors.text,
     ),
     bodyMedium = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
-        color = GigColors.text,
+        color = TangerineColors.text,
     ),
     bodySmall = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
-        color = GigColors.textDim,
+        color = TangerineColors.textDim,
     ),
     titleLarge = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Bold,
         fontSize = 17.sp,
-        color = GigColors.text,
+        color = TangerineColors.text,
     ),
     titleMedium = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
-        color = GigColors.text,
+        color = TangerineColors.text,
     ),
     labelSmall = TextStyle(
         fontFamily = Karla,
         fontWeight = FontWeight.Bold,
         fontSize = 10.sp,
         letterSpacing = 0.5.sp,
-        color = GigColors.textDim,
+        color = TangerineColors.textDim,
     ),
 )

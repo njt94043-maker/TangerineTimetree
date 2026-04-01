@@ -61,7 +61,7 @@ import com.thegreentangerine.gigbooks.ui.screens.SongFormScreen
 import com.thegreentangerine.gigbooks.ui.screens.SplashScreen
 import com.thegreentangerine.gigbooks.ui.screens.ViewScreen
 import com.thegreentangerine.gigbooks.ui.screens.XR18CameraScreen
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
 
@@ -82,7 +82,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 private val drawerScreens = listOf(Screen.Calendar, Screen.Library, Screen.Settings)
 
 @Composable
-fun GigBooksApp() {
+fun TangerineMediaApp() {
     val vm: AppViewModel    = viewModel()
     // D-166: Skip splash on Activity recreation / resume — go straight to Calendar
     val startDest = if (vm.splashDone) Screen.Calendar.route else Screen.Splash.route
@@ -108,20 +108,20 @@ fun GigBooksApp() {
         gesturesEnabled = currentRoute != Screen.Splash.route,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = GigColors.surface,
-                drawerContentColor   = GigColors.text,
+                drawerContainerColor = TangerineColors.surface,
+                drawerContentColor   = TangerineColors.text,
                 modifier             = Modifier.width(268.dp),
             ) {
                 DrawerHeader()
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.25f), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.25f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(8.dp))
 
                 // Calendar
                 DrawerSectionLabel("CALENDAR")
-                DrawerNavItem(Screen.Calendar, currentRoute == Screen.Calendar.route, GigColors.orange) { navigate(Screen.Calendar.route) }
+                DrawerNavItem(Screen.Calendar, currentRoute == Screen.Calendar.route, TangerineColors.orange) { navigate(Screen.Calendar.route) }
 
                 Spacer(Modifier.height(4.dp))
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(4.dp))
 
                 // Library (launchpad for Live/Practice)
@@ -129,7 +129,7 @@ fun GigBooksApp() {
                 DrawerNavItem(
                     Screen.Library,
                     currentRoute == Screen.Library.route,
-                    GigColors.teal,
+                    TangerineColors.teal,
                 ) { navigate(Screen.Library.route) }
 
                 // D-166: "Now Playing" — return to active player session
@@ -138,21 +138,21 @@ fun GigBooksApp() {
                     DrawerNavItem(
                         Screen.NowPlaying,
                         currentRoute in listOf(Screen.Live.route, Screen.Practice.route, Screen.View.route),
-                        GigColors.green,
+                        TangerineColors.green,
                     ) { navigate(playerRoute) }
                 }
 
                 Spacer(Modifier.height(4.dp))
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
                 Spacer(Modifier.height(4.dp))
 
                 // Recording (XR18 Studio companion)
                 DrawerSectionLabel("RECORDING")
-                DrawerNavItem(Screen.XR18Camera, currentRoute == Screen.XR18Camera.route, GigColors.danger) { navigate(Screen.XR18Camera.route) }
+                DrawerNavItem(Screen.XR18Camera, currentRoute == Screen.XR18Camera.route, TangerineColors.danger) { navigate(Screen.XR18Camera.route) }
 
                 Spacer(Modifier.weight(1f))
-                HorizontalDivider(color = GigColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
-                DrawerNavItem(Screen.Settings, currentRoute == Screen.Settings.route, GigColors.textDim) { navigate(Screen.Settings.route) }
+                HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                DrawerNavItem(Screen.Settings, currentRoute == Screen.Settings.route, TangerineColors.textDim) { navigate(Screen.Settings.route) }
                 DrawerUserFooter()
             }
         },
@@ -160,7 +160,7 @@ fun GigBooksApp() {
         NavHost(
             navController    = navController,
             startDestination = startDest,
-            modifier = Modifier.fillMaxSize().systemBarsPadding().background(GigColors.background),
+            modifier = Modifier.fillMaxSize().systemBarsPadding().background(TangerineColors.background),
         ) {
             composable(Screen.Splash.route) {
                 SplashScreen(onFinished = {
@@ -277,25 +277,25 @@ private fun DrawerHeader() {
         Box(
             modifier = Modifier
                 .size(36.dp).clip(CircleShape)
-                .background(GigColors.orange.copy(alpha = 0.15f))
-                .border(1.5.dp, GigColors.orange.copy(alpha = 0.6f), CircleShape),
+                .background(TangerineColors.orange.copy(alpha = 0.15f))
+                .border(1.5.dp, TangerineColors.orange.copy(alpha = 0.6f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "T", fontFamily = Karla, fontWeight = FontWeight.Bold,
-                fontSize = 18.sp, color = GigColors.orange, textAlign = TextAlign.Center,
-                style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(GigColors.orange.copy(0.7f), Offset.Zero, 12f)),
+                fontSize = 18.sp, color = TangerineColors.orange, textAlign = TextAlign.Center,
+                style = TextStyle(shadow = androidx.compose.ui.graphics.Shadow(TangerineColors.orange.copy(0.7f), Offset.Zero, 12f)),
             )
         }
         Spacer(Modifier.width(12.dp))
         Column {
             Row {
                 Text("Gig",   fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                    style = TextStyle(color = GigColors.orange, shadow = androidx.compose.ui.graphics.Shadow(GigColors.orange.copy(0.6f), Offset.Zero, 16f)))
+                    style = TextStyle(color = TangerineColors.orange, shadow = androidx.compose.ui.graphics.Shadow(TangerineColors.orange.copy(0.6f), Offset.Zero, 16f)))
                 Text("Books", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                    style = TextStyle(color = GigColors.green,  shadow = androidx.compose.ui.graphics.Shadow(GigColors.green.copy(0.5f),  Offset.Zero, 14f)))
+                    style = TextStyle(color = TangerineColors.green,  shadow = androidx.compose.ui.graphics.Shadow(TangerineColors.green.copy(0.5f),  Offset.Zero, 14f)))
             }
-            Text("The Green Tangerine", fontFamily = Karla, fontSize = 10.sp, color = GigColors.textMuted, letterSpacing = 0.3.sp)
+            Text("The Green Tangerine", fontFamily = Karla, fontSize = 10.sp, color = TangerineColors.textMuted, letterSpacing = 0.3.sp)
         }
     }
 }
@@ -304,7 +304,7 @@ private fun DrawerHeader() {
 private fun DrawerSectionLabel(label: String) {
     Text(
         text = label, fontFamily = Karla, fontWeight = FontWeight.Bold,
-        fontSize = 10.sp, letterSpacing = 1.sp, color = GigColors.textMuted,
+        fontSize = 10.sp, letterSpacing = 1.sp, color = TangerineColors.textMuted,
         modifier = Modifier.padding(start = 20.dp, top = 8.dp, bottom = 2.dp),
     )
 }
@@ -326,7 +326,7 @@ private fun DrawerNavItem(screen: Screen, selected: Boolean, accentColor: Color,
             icon = {
                 Box(modifier = if (selected) Modifier.glowBehind(accentColor, radius = 28.dp, alpha = 0.35f) else Modifier) {
                     Icon(screen.icon, contentDescription = screen.label,
-                        tint = if (selected) accentColor else GigColors.textDim, modifier = Modifier.size(20.dp))
+                        tint = if (selected) accentColor else TangerineColors.textDim, modifier = Modifier.size(20.dp))
                 }
             },
             label = {
@@ -334,9 +334,9 @@ private fun DrawerNavItem(screen: Screen, selected: Boolean, accentColor: Color,
                     screen.label, fontFamily = Karla, fontSize = 14.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                     style = if (selected) TextStyle(
-                        color  = GigColors.text,
+                        color  = TangerineColors.text,
                         shadow = androidx.compose.ui.graphics.Shadow(accentColor.copy(alpha = 0.3f), Offset.Zero, 8f),
-                    ) else TextStyle(color = GigColors.textDim),
+                    ) else TextStyle(color = TangerineColors.textDim),
                 )
             },
             selected = selected, onClick = onClick,
@@ -358,12 +358,12 @@ private fun DrawerUserFooter() {
         Box(
             modifier = Modifier
                 .size(32.dp).clip(CircleShape)
-                .background(GigColors.green.copy(alpha = 0.08f))
-                .border(1.5.dp, GigColors.green.copy(alpha = 0.5f), CircleShape)
+                .background(TangerineColors.green.copy(alpha = 0.08f))
+                .border(1.5.dp, TangerineColors.green.copy(alpha = 0.5f), CircleShape)
                 .drawBehind {
                     drawCircle(
                         brush = androidx.compose.ui.graphics.Brush.radialGradient(
-                            colors = listOf(GigColors.green.copy(alpha = 0.2f), Color.Transparent),
+                            colors = listOf(TangerineColors.green.copy(alpha = 0.2f), Color.Transparent),
                             center = center, radius = size.minDimension * 0.8f,
                         ),
                     )
@@ -371,12 +371,12 @@ private fun DrawerUserFooter() {
             contentAlignment = Alignment.Center,
         ) {
             Text("N", fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                style = TextStyle(color = GigColors.green, shadow = androidx.compose.ui.graphics.Shadow(GigColors.green.copy(0.6f), Offset.Zero, 10f)))
+                style = TextStyle(color = TangerineColors.green, shadow = androidx.compose.ui.graphics.Shadow(TangerineColors.green.copy(0.6f), Offset.Zero, 10f)))
         }
         Spacer(Modifier.width(10.dp))
         Column {
-            Text("Nathan", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = GigColors.text)
-            Text("Drums",  fontFamily = Karla, fontSize = 11.sp, color = GigColors.textMuted)
+            Text("Nathan", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = TangerineColors.text)
+            Text("Drums",  fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted)
         }
     }
 }

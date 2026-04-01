@@ -62,7 +62,7 @@ import com.thegreentangerine.gigbooks.ui.components.TextPanel
 import com.thegreentangerine.gigbooks.ui.components.TextPanelToggles
 import com.thegreentangerine.gigbooks.ui.components.TransportButton
 import com.thegreentangerine.gigbooks.ui.components.VisualHero
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlin.math.roundToInt
@@ -131,22 +131,22 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
     var drawerOpen by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-    Column(Modifier.fillMaxSize().background(GigColors.background)) {
+    Column(Modifier.fillMaxSize().background(TangerineColors.background)) {
         if (song == null) {
             // Simple header when no song
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(GigColors.background)
+                    .background(TangerineColors.background)
                     .padding(start = 8.dp, end = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = onMenuClick) {
-                    Icon(Icons.Default.Close, contentDescription = "Menu", tint = GigColors.textDim, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Menu", tint = TangerineColors.textDim, modifier = Modifier.size(22.dp))
                 }
             }
             NoSongPlaceholder(
-                accent = GigColors.teal,
+                accent = TangerineColors.teal,
                 screenName = "View",
                 onGoToLibrary = onGoToLibrary,
             )
@@ -192,21 +192,21 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                             .padding(horizontal = 8.dp, vertical = 5.dp)
                             .height(48.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(GigColors.surface)
+                            .background(TangerineColors.surface)
                             .border(1.dp, Color.White.copy(alpha = 0.03f), RoundedCornerShape(8.dp))
                             .clickable(enabled = !vm.isLoadingTrack) { vm.loadTrack(song.audioUrl!!) },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (vm.isLoadingTrack) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                CircularProgressIndicator(color = GigColors.teal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
-                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = GigColors.teal)
+                                CircularProgressIndicator(color = TangerineColors.teal, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                                Text("Loading…", fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.teal)
                             }
                         } else {
                             Text(
                                 "Load Track",
                                 fontFamily = JetBrainsMono, fontSize = 11.sp,
-                                style = TextStyle(color = GigColors.teal, shadow = Shadow(GigColors.teal.copy(0.3f), Offset.Zero, 6f)),
+                                style = TextStyle(color = TangerineColors.teal, shadow = Shadow(TangerineColors.teal.copy(0.3f), Offset.Zero, 6f)),
                             )
                         }
                     }
@@ -256,14 +256,14 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .background(GigColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
-                            .border(1.dp, GigColors.teal.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .background(TangerineColors.teal.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+                            .border(1.dp, TangerineColors.teal.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = GigColors.teal,
+                            color = TangerineColors.teal,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(14.dp),
                         )
@@ -274,7 +274,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                 "separating" -> "Separating stems..."
                                 else -> "Processing..."
                             },
-                            fontFamily = Karla, fontSize = 12.sp, color = GigColors.teal,
+                            fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.teal,
                         )
                     }
                 }
@@ -307,14 +307,14 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     ) {
                         Box(
                             modifier = Modifier
-                                .background(GigColors.surface, RoundedCornerShape(10.dp))
+                                .background(TangerineColors.surface, RoundedCornerShape(10.dp))
                                 .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(10.dp))
                                 .clickable(onClick = { showQueue = true })
                                 .padding(horizontal = 14.dp, vertical = 5.dp),
                         ) {
                             Text(
                                 "Browse Songs",
-                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = GigColors.textMuted,
+                                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
                             )
                         }
                     }
@@ -329,7 +329,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        GigColors.surface,
+                        TangerineColors.surface,
                         RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                     )
                     .border(
@@ -378,7 +378,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(GigColors.danger)
+                                    .background(TangerineColors.danger)
                                     .clickable { vm.stopRecording() }
                                     .align(Alignment.CenterHorizontally),
                                 contentAlignment = Alignment.Center,
@@ -390,8 +390,8 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(CircleShape)
-                                    .background(GigColors.danger.copy(alpha = 0.15f))
-                                    .border(1.dp, GigColors.danger.copy(alpha = 0.4f), CircleShape)
+                                    .background(TangerineColors.danger.copy(alpha = 0.15f))
+                                    .border(1.dp, TangerineColors.danger.copy(alpha = 0.4f), CircleShape)
                                     .clickable { vm.startRecording() }
                                     .align(Alignment.CenterHorizontally),
                                 contentAlignment = Alignment.Center,
@@ -400,7 +400,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                     modifier = Modifier
                                         .size(16.dp)
                                         .clip(CircleShape)
-                                        .background(GigColors.danger)
+                                        .background(TangerineColors.danger)
                                 )
                             }
                         }
@@ -430,7 +430,7 @@ fun ViewScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
         FullscreenBeatGlow(
             isPlaying = vm.isClickPlaying || vm.isTrackPlaying,
             currentBeat = vm.currentBeat,
-            accent = GigColors.teal,
+            accent = TangerineColors.teal,
         )
     }
 
@@ -485,7 +485,7 @@ private fun ViewHero(isPlaying: Boolean, modifier: Modifier = Modifier) {
                         .width(6.dp)
                         .height((fraction * 80).dp)
                         .clip(RoundedCornerShape(3.dp))
-                        .background(GigColors.teal.copy(alpha = if (isPlaying) 0.7f else 0.3f))
+                        .background(TangerineColors.teal.copy(alpha = if (isPlaying) 0.7f else 0.3f))
                 )
             }
         }
@@ -520,7 +520,7 @@ private fun ViewTransport(vm: AppViewModel) {
                 Text(
                     "${speedPct}%",
                     fontFamily = JetBrainsMono, fontSize = 11.sp,
-                    color = GigColors.teal,
+                    color = TangerineColors.teal,
                     modifier = Modifier.width(36.dp),
                     textAlign = TextAlign.Center,
                 )
@@ -531,9 +531,9 @@ private fun ViewTransport(vm: AppViewModel) {
             // A-B loop controls (right) — only when track loaded
             if (vm.trackLoaded) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    ViewLoopPill("A", active = hasA, color = GigColors.orange) { vm.setLoopA() }
-                    ViewLoopPill("B", active = hasB, color = GigColors.orange) { vm.setLoopB() }
-                    ViewLoopPill("Clear", active = hasA || hasB, color = GigColors.textMuted, enabled = hasA || hasB) { vm.clearLoop() }
+                    ViewLoopPill("A", active = hasA, color = TangerineColors.orange) { vm.setLoopA() }
+                    ViewLoopPill("B", active = hasB, color = TangerineColors.orange) { vm.setLoopB() }
+                    ViewLoopPill("Clear", active = hasA || hasB, color = TangerineColors.textMuted, enabled = hasA || hasB) { vm.clearLoop() }
                 }
             }
         }
@@ -549,24 +549,24 @@ private fun ViewTransport(vm: AppViewModel) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(GigColors.surfaceLight)
+                    .background(TangerineColors.surfaceLight)
                     .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
                     .clickable(enabled = vm.engineAvailable && vm.trackLoaded) { vm.restart() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = GigColors.textMuted, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.SkipPrevious, contentDescription = "Restart", tint = TangerineColors.textMuted, modifier = Modifier.size(18.dp))
             }
             Spacer(Modifier.width(8.dp))
             // Play (teal accent)
             PlayButton(
                 isPlaying = isPlaying,
-                accent = GigColors.teal,
+                accent = TangerineColors.teal,
                 onClick = { if (isPlaying) vm.pause() else vm.play() },
                 enabled = vm.engineAvailable,
             )
             Spacer(Modifier.width(8.dp))
             // Stop
-            TransportButton(icon = "■", color = GigColors.danger, onClick = { vm.stop() })
+            TransportButton(icon = "■", color = TangerineColors.danger, onClick = { vm.stop() })
         }
     }
 }
@@ -577,12 +577,12 @@ private fun ViewSpeedButton(label: String, onClick: () -> Unit) {
         modifier = Modifier
             .size(24.dp)
             .clip(CircleShape)
-            .background(GigColors.surfaceLight)
+            .background(TangerineColors.surfaceLight)
             .border(1.dp, Color.White.copy(alpha = 0.06f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, fontFamily = JetBrainsMono, fontSize = 8.sp, color = GigColors.textMuted)
+        Text(label, fontFamily = JetBrainsMono, fontSize = 8.sp, color = TangerineColors.textMuted)
     }
 }
 
@@ -607,7 +607,7 @@ private fun ViewLoopPill(label: String, active: Boolean, color: Color, enabled: 
         Text(
             label,
             fontFamily = JetBrainsMono, fontSize = 9.sp,
-            color = if (active) color else GigColors.textMuted,
+            color = if (active) color else TangerineColors.textMuted,
         )
     }
 }
@@ -622,7 +622,7 @@ private fun ViewMixer(vm: AppViewModel) {
     channels.add(
         MixerChannel(
             label = "CLK",
-            color = GigColors.teal,
+            color = TangerineColors.teal,
             value = (vm.clickGain / 2f).coerceIn(0f, 1f),
             onValueChange = { vm.changeClickGain(it * 2f) },
             isMuted = vm.isClickMuted,
@@ -635,7 +635,7 @@ private fun ViewMixer(vm: AppViewModel) {
         channels.add(
             MixerChannel(
                 label = "TRK",
-                color = GigColors.green,
+                color = TangerineColors.green,
                 value = vm.trackGain,
                 onValueChange = { vm.changeTrackGain(it) },
             )
@@ -645,10 +645,10 @@ private fun ViewMixer(vm: AppViewModel) {
     // Stem channels
     vm.loadedStems.forEach { (idx, stem) ->
         val stemColor = when (stem.label.uppercase()) {
-            "DRUMS" -> GigColors.orange
-            "BASS" -> GigColors.cyan
-            "VOCALS" -> GigColors.pink
-            else -> GigColors.slate
+            "DRUMS" -> TangerineColors.orange
+            "BASS" -> TangerineColors.cyan
+            "VOCALS" -> TangerineColors.pink
+            else -> TangerineColors.slate
         }
         channels.add(
             MixerChannel(

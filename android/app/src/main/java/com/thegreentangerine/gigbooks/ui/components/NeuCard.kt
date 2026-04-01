@@ -19,7 +19,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 
 /**
  * Neumorphic raised card — matches web .neu-card.
@@ -37,8 +37,8 @@ fun NeuCard(
             .padding(bottom = 12.dp)
             .neuShadow(cornerRadius = 16.dp)
             .clip(shape)
-            .background(GigColors.surface)
-            .border(1.dp, GigColors.neuBorder, shape)
+            .background(TangerineColors.surface)
+            .border(1.dp, TangerineColors.neuBorder, shape)
             .padding(16.dp),
         content = content,
     )
@@ -57,8 +57,8 @@ fun NeuWell(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(GigColors.surfaceInset)
-            .border(1.dp, GigColors.neuInsetBorder, shape)
+            .background(TangerineColors.surfaceInset)
+            .border(1.dp, TangerineColors.neuInsetBorder, shape)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         content = content,
     )

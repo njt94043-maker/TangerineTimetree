@@ -49,7 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
-import com.thegreentangerine.gigbooks.ui.theme.GigColors
+import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.launch
@@ -81,7 +81,7 @@ fun LoginScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(GigColors.background)
+            .background(TangerineColors.background)
             .imePadding()
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -98,8 +98,8 @@ fun LoginScreen() {
                 modifier = Modifier
                     .size(72.dp)
                     .clip(CircleShape)
-                    .background(GigColors.orange.copy(alpha = 0.1f))
-                    .border(2.dp, GigColors.orange.copy(alpha = 0.5f), CircleShape),
+                    .background(TangerineColors.orange.copy(alpha = 0.1f))
+                    .border(2.dp, TangerineColors.orange.copy(alpha = 0.5f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -108,9 +108,9 @@ fun LoginScreen() {
                     fontWeight = FontWeight.Bold,
                     fontSize = 36.sp,
                     style = TextStyle(
-                        color = GigColors.orange,
+                        color = TangerineColors.orange,
                         shadow = androidx.compose.ui.graphics.Shadow(
-                            color = GigColors.orange.copy(alpha = 0.8f),
+                            color = TangerineColors.orange.copy(alpha = 0.8f),
                             offset = Offset.Zero,
                             blurRadius = 20f,
                         ),
@@ -122,14 +122,14 @@ fun LoginScreen() {
 
             // Title
             Text(
-                text = "GigBooks",
+                text = "Tangerine Media",
                 fontFamily = Karla,
                 fontWeight = FontWeight.Bold,
                 fontSize = 28.sp,
                 style = TextStyle(
-                    color = GigColors.orange,
+                    color = TangerineColors.orange,
                     shadow = androidx.compose.ui.graphics.Shadow(
-                        color = GigColors.orange.copy(alpha = 0.5f),
+                        color = TangerineColors.orange.copy(alpha = 0.5f),
                         offset = Offset.Zero,
                         blurRadius = 20f,
                     ),
@@ -139,7 +139,7 @@ fun LoginScreen() {
                 text = "The Green Tangerine",
                 fontFamily = Karla,
                 fontSize = 13.sp,
-                color = GigColors.textMuted,
+                color = TangerineColors.textMuted,
                 textAlign = TextAlign.Center,
             )
 
@@ -175,7 +175,7 @@ fun LoginScreen() {
                     text = error!!,
                     fontFamily = Karla,
                     fontSize = 13.sp,
-                    color = GigColors.danger,
+                    color = TangerineColors.danger,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -191,9 +191,9 @@ fun LoginScreen() {
                     .height(48.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = GigColors.orange,
+                    containerColor = TangerineColors.orange,
                     contentColor = Color.Black,
-                    disabledContainerColor = GigColors.orange.copy(alpha = 0.3f),
+                    disabledContainerColor = TangerineColors.orange.copy(alpha = 0.3f),
                     disabledContentColor = Color.Black.copy(alpha = 0.4f),
                 ),
             ) {
@@ -235,8 +235,8 @@ private fun LoginTextField(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(GigColors.surfaceInset)
-            .border(1.dp, GigColors.neuInsetBorder.copy(alpha = 0.2f), shape)
+            .background(TangerineColors.surfaceInset)
+            .border(1.dp, TangerineColors.neuInsetBorder.copy(alpha = 0.2f), shape)
             .drawBehind {
                 // Inner shadow top-left (dark) — simulates inset depth
                 drawRoundRect(
@@ -252,12 +252,12 @@ private fun LoginTextField(
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
-                Text(placeholder, fontFamily = Karla, color = GigColors.textMuted, fontSize = 14.sp)
+                Text(placeholder, fontFamily = Karla, color = TangerineColors.textMuted, fontSize = 14.sp)
             },
             textStyle = TextStyle(
                 fontFamily = JetBrainsMono,
                 fontSize = 14.sp,
-                color = GigColors.text,
+                color = TangerineColors.text,
             ),
             singleLine = true,
             visualTransformation = when {
@@ -273,7 +273,7 @@ private fun LoginTextField(
                         fontFamily = Karla,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = GigColors.orange.copy(alpha = 0.7f),
+                        color = TangerineColors.orange.copy(alpha = 0.7f),
                         modifier = Modifier
                             .padding(end = 4.dp)
                             .clickable { passwordVisible = !passwordVisible }
@@ -284,11 +284,11 @@ private fun LoginTextField(
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
-                focusedTextColor = GigColors.text,
-                unfocusedTextColor = GigColors.text,
+                focusedTextColor = TangerineColors.text,
+                unfocusedTextColor = TangerineColors.text,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = GigColors.orange,
+                cursorColor = TangerineColors.orange,
             ),
         )
     }
