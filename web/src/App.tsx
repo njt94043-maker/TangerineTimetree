@@ -113,7 +113,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
     editSongId, goToNewSong, goToEditSong,
     setlistId, goToSetlistDetail,
     goToLibrary, goToPlayer,
-    playerSongId, playerSetlistId, playerMode,
+    playerSongId, playerSetlistId, playerMode, playerGigId,
     goToBookingWizard, goToEditBooking,
     goToAway,
     replaceWithInvoiceDetail, replaceWithQuoteDetail,
@@ -402,6 +402,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
             onViewInvoice={(id) => goToInvoiceDetail(id)}
             onGenerateQuote={() => { refresh(); goToNewQuote(); }}
             onEditBooking={goToEditBooking}
+            onPlayLive={(gigId) => goToPlayer('', 'live', undefined, gigId)}
           />
         )}
 
@@ -619,6 +620,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
               songId={playerSongId}
               setlistId={playerSetlistId}
               mode={playerMode}
+              gigId={playerGigId}
               onClose={handlePlayerClose}
               onMenuClick={toggleDrawer}
               userId={profile?.id ?? ''}

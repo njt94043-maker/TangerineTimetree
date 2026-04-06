@@ -6710,6 +6710,108 @@ select.ps-form-input {
   color: var(--color-text-dim);
 }
 
+/* --- Queue search + tag toggles --- */
+.player-queue-search-row {
+  padding: 0 0 8px;
+}
+.player-queue-search {
+  width: 100%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: 'Karla', sans-serif;
+  font-size: 14px;
+  color: var(--color-text);
+  outline: none;
+}
+.player-queue-search:focus {
+  border-color: rgba(0,200,200,0.4);
+}
+.player-queue-search::placeholder {
+  color: var(--color-text-dim);
+}
+.player-queue-tags {
+  display: flex;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.player-queue-tag {
+  font-family: 'Karla', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+}
+.player-queue-tag.off {
+  background: transparent;
+  color: var(--color-text-dim);
+  opacity: 0.5;
+}
+.player-queue-bucket {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--color-text-dim);
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  padding: 2px 5px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+.player-queue-played-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--color-text-dim);
+  opacity: 0.6;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+/* --- Previously Played (DayDetail) --- */
+.venue-history-section {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.venue-freq-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.venue-freq-badge {
+  font-family: 'Karla', sans-serif;
+  font-size: 11px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 3px 10px;
+  color: var(--color-text-dim);
+}
+.venue-history-gig {
+  margin-bottom: 10px;
+}
+.venue-history-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--color-teal);
+  font-weight: 600;
+}
+.venue-history-songs {
+  list-style: none;
+  padding: 4px 0 0 0;
+  margin: 0;
+}
+.venue-history-songs li {
+  font-size: 12px;
+  color: var(--color-text-dim);
+  padding: 1px 0;
+}
+
 /* --- Speed Safety Modal (Live mode — matches APK) --- */
 .v4-speed-modal-overlay {
   position: fixed;

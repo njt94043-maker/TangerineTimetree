@@ -12,12 +12,12 @@
  *   click during recording (D-141), count-in (D-142), post-recording (D-139).
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAudioEngine, type PlayerMode } from '../hooks/useAudioEngine';
 import { useRecording, type RecordingResult } from '../hooks/useRecording';
-import { getSetlistWithSongs, getSongs, getSetlists, uploadRecordedTake, setBestTake } from '@shared/supabase/queries';
+import { getSetlistWithSongs, getSongs, getSetlists, uploadRecordedTake, setBestTake, logSongPlayed, getSongPlayStats } from '@shared/supabase/queries';
 import { saveTakeLocally, getNextTakeNumber, makeTakeId, getBestTakeWithVideo } from '../storage/takesDb';
-import type { Song, Setlist, SetlistWithSongs, SetlistSongWithDetails } from '@shared/supabase/types';
+import type { Song, Setlist, SetlistWithSongs, SetlistSongWithDetails, SongPlayStats } from '@shared/supabase/types';
 import type { StemLabel } from '../audio/StemMixer';
 
 // ─── Wake Lock ───
@@ -275,19 +275,32 @@ function V4Waveform({ data, currentTime, duration, loop }: {
   return <canvas ref={canvasRef} className="v4-waveform" />;
 }
 
+// ─── Helpers ───
+
+function formatPlayedAgo(isoDate: string): string {
+  const diff = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'today';
+  if (days === 1) return '1d ago';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+}
+
 // ─── Player Component ───
 
 interface PlayerProps {
   songId: string | null;
   setlistId: string | null;
   mode: PlayerMode;
+  gigId?: string | null;
   onClose: () => void;
   onMenuClick: () => void;
   userId?: string;
   bandRole?: string;
 }
 
-export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, bandRole }: PlayerProps) {
+export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, userId, bandRole }: PlayerProps) {
   // Mode tabs — user can switch between Live/Practice/View (D-137, D-150)
   const [activeMode, setActiveMode] = useState<PlayerMode>(mode);
 
@@ -309,6 +322,10 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   // Between-songs / set complete
   const [betweenSongs, setBetweenSongs] = useState(false);
   const [setComplete, setSetComplete] = useState(false);
+  const [autoAdvanceSec, setAutoAdvanceSec] = useState(() => {
+    const stored = localStorage.getItem('tgt_player_auto_advance');
+    return stored !== null ? parseInt(stored, 10) : 5;
+  });
   const [countdown, setCountdown] = useState(5);
 
   // Display toggles (local state — reads from prefs on mount)
@@ -322,6 +339,32 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
 
   // Drawer open
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // Tag filtering (master list) — all ON by default so every song is visible
+  const [stapleOn, setStapleOn] = useState(true);
+  const [partyOn, setPartyOn] = useState(true);
+  const [rockOn, setRockOn] = useState(true);
+  const [songSearch, setSongSearch] = useState('');
+
+  // Performance logging — records what was loaded during a live gig
+  const perfLogPosition = useRef(0);
+  const lastLoggedSongId = useRef<string | null>(null);
+
+  const logCurrentSong = useCallback(() => {
+    if (!gigId || activeMode !== 'live' || !activeSongId || !userId) return;
+    if (activeSongId === lastLoggedSongId.current) return; // don't double-log same song
+    lastLoggedSongId.current = activeSongId;
+    logSongPlayed(gigId, activeSongId, perfLogPosition.current++, userId).catch(() => {});
+  }, [gigId, activeMode, activeSongId, userId]);
+
+  // Log the last song when Player unmounts or gigId changes
+  useEffect(() => {
+    return () => { logCurrentSong(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional cleanup-only
+  }, [gigId]);
+
+  // Song play stats (played recently badges)
+  const [playStats, setPlayStats] = useState<Map<string, SongPlayStats>>(new Map());
 
   // Live mode BPM safety modal (matches APK SpeedSafetyModal)
   const [showSpeedConfirm, setShowSpeedConfirm] = useState(false);
@@ -401,9 +444,9 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
       setSetComplete(true);
     } else {
       setBetweenSongs(true);
-      setCountdown(5);
+      setCountdown(autoAdvanceSec > 0 ? autoAdvanceSec : 0);
     }
-  }, [state.songComplete, setlist, currentIndex]);
+  }, [state.songComplete, setlist, currentIndex, autoAdvanceSec]);
 
   // Load setlist
   useEffect(() => {
@@ -422,14 +465,22 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     if (setlistId || !songId) return;
     getSongs().then(songs => {
       if (songs.length === 0) return;
-      setAllSongs(songs);
-      const startIdx = songs.findIndex(s => s.id === songId);
+      // Sort by bucket order (opener → middle → closer → untagged)
+      const sorted = [...songs].sort((a, b) => {
+        const bo: Record<string, number> = { opener: 0, middle: 1, closer: 2 };
+        const aB = bo[a.set_bucket ?? ''] ?? 99;
+        const bB = bo[b.set_bucket ?? ''] ?? 99;
+        if (aB !== bB) return aB - bB;
+        return (a.bucket_position ?? Infinity) - (b.bucket_position ?? Infinity);
+      });
+      setAllSongs(sorted);
+      const startIdx = sorted.findIndex(s => s.id === songId);
       // Build a virtual setlist from all songs so nav row + queue work
       const virtualSetlist = {
         id: '__all_songs__',
         name: 'All Songs',
         setlist_type: 'all',
-        songs: songs.map((s, i) => ({
+        songs: sorted.map((s, i) => ({
           id: `__q_${s.id}`,
           setlist_id: '__all_songs__',
           song_id: s.id,
@@ -450,12 +501,48 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     if (!queueOpen) return;
     if (allSongs.length === 0) getSongs().then(s => setAllSongs(s));
     if (allSetlists.length === 0) getSetlists().then(s => setAllSetlists(s));
+    // Fetch play stats for "played recently" badges
+    if (allSongs.length > 0 && playStats.size === 0) {
+      getSongPlayStats(allSongs.map(s => s.id)).then(stats => {
+        setPlayStats(new Map(stats.map(s => [s.song_id, s])));
+      }).catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only fetch when queue first opens, not on data changes
   }, [queueOpen]);
+
+  // Bucket sort helper — opener → middle → closer → untagged
+  const BUCKET_ORDER: Record<string, number> = { opener: 0, middle: 1, closer: 2 };
+  const bucketSort = useCallback((a: Song, b: Song) => {
+    const aB = BUCKET_ORDER[a.set_bucket ?? ''] ?? 99;
+    const bB = BUCKET_ORDER[b.set_bucket ?? ''] ?? 99;
+    if (aB !== bB) return aB - bB;
+    return (a.bucket_position ?? Infinity) - (b.bucket_position ?? Infinity);
+  }, []);
+
+  // Filtered + sorted songs for the Songs tab (tag toggles reduce clutter; search bypasses tags)
+  const filteredSongs = useMemo(() => {
+    let songs = allSongs;
+    // If searching, search ALL songs regardless of tag toggles (instant lookup is king)
+    if (songSearch.trim()) {
+      const q = songSearch.trim().toLowerCase();
+      songs = songs.filter(s => s.name.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
+    } else {
+      // When browsing (no search), apply tag filters
+      songs = songs.filter(s => {
+        const tag = s.performance_tag;
+        if (tag === 'staple') return stapleOn;
+        if (tag === 'party') return partyOn;
+        if (tag === 'rock') return rockOn;
+        return true; // untagged songs always visible
+      });
+    }
+    return [...songs].sort(bucketSort);
+  }, [allSongs, stapleOn, partyOn, rockOn, songSearch, bucketSort]);
 
   // Navigate setlist
   const goToSetlistSong = useCallback((index: number) => {
     if (!setlist) return;
+    logCurrentSong(); // Log the song we're leaving
     actions.stop();
     setCurrentIndex(index);
     setActiveSongId(setlist.songs[index].song_id);
@@ -463,7 +550,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     setLoopMarkA(null);
     setBetweenSongs(false);
     setSetComplete(false);
-  }, [setlist, actions]);
+  }, [setlist, actions, logCurrentSong]);
 
   const goToPrevSong = useCallback(() => {
     if (currentIndex > 0) goToSetlistSong(currentIndex - 1);
@@ -477,6 +564,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
 
   // Pick a song from Songs tab — rebuild queue as "All Songs" (D-168)
   const pickSong = useCallback((id: string) => {
+    logCurrentSong(); // Log the song we're leaving
     actions.stop();
     const startIdx = allSongs.findIndex(s => s.id === id);
     const virtualSetlist = {
@@ -500,7 +588,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     setLoopMarkA(null);
     setBetweenSongs(false);
     setSetComplete(false);
-  }, [actions, allSongs]);
+  }, [actions, allSongs, logCurrentSong]);
 
   // Pick a setlist from browse tab
   const pickSetlist = useCallback((id: string) => {
@@ -534,6 +622,8 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
   // Countdown timer
   useEffect(() => {
     if (!betweenSongs) return;
+    // Auto-advance disabled: stay on transition overlay until manual Next
+    if (autoAdvanceSec === 0) return;
     if (countdown <= 0) {
       setBetweenSongs(false);
       goToNextSong();
@@ -541,7 +631,7 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
     }
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [betweenSongs, countdown, goToNextSong]);
+  }, [betweenSongs, countdown, goToNextSong, autoAdvanceSec]);
 
   // Derived display data
   const currentSetlistSong: SetlistSongWithDetails | undefined = setlist?.songs[currentIndex];
@@ -1256,6 +1346,18 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
                 <span className="v4-set-pill" onClick={() => actions.nudge(1)}>&gt;&gt;</span>
               </div>
             </div>
+            <div className="v4-set-row">
+              <span className="v4-set-label">Auto-advance</span>
+              <div className="v4-set-pills">
+                {([['Off', 0], ['2s', 2], ['5s', 5], ['10s', 10], ['15s', 15]] as const).map(([l, v]) => (
+                  <span
+                    key={l}
+                    className={`v4-set-pill ${autoAdvanceSec === v ? 'on' : ''}`}
+                    onClick={() => { setAutoAdvanceSec(v); localStorage.setItem('tgt_player_auto_advance', String(v)); }}
+                  >{l}</span>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1270,9 +1372,9 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
             {setlist.songs[currentIndex + 1]?.song_artist && (
               <span className="player-transition-artist">{setlist.songs[currentIndex + 1]?.song_artist}</span>
             )}
-            <span className="player-transition-countdown">{countdown}</span>
+            {autoAdvanceSec > 0 && <span className="player-transition-countdown">{countdown}</span>}
             <div className="player-transition-actions">
-              <button className="btn btn-green btn-small" onClick={() => { setBetweenSongs(false); goToNextSong(); }}>Skip</button>
+              <button className="btn btn-green btn-small" onClick={() => { setBetweenSongs(false); goToNextSong(); }}>Next</button>
               <button className="btn btn-outline btn-small" onClick={() => setBetweenSongs(false)}>Stay</button>
             </div>
           </div>
@@ -1435,10 +1537,48 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
               )}
               {/* Songs tab */}
               {queueTab === 'songs' && allSongs.length > 0 && (
-                <div className="player-queue-subtitle">{allSongs.length} songs</div>
+                <>
+                  {/* Search — searches ALL songs regardless of tag toggles */}
+                  <div className="player-queue-search-row">
+                    <input
+                      type="text"
+                      className="player-queue-search"
+                      placeholder="Search songs…"
+                      value={songSearch}
+                      onChange={e => setSongSearch(e.target.value)}
+                      autoComplete="off"
+                    />
+                  </div>
+                  {/* Tag toggles — only shown when not searching */}
+                  {!songSearch.trim() && (
+                    <div className="player-queue-tags">
+                      {([
+                        { label: 'Staple', on: stapleOn, set: setStapleOn, color: '#009688' },
+                        { label: 'Party', on: partyOn, set: setPartyOn, color: '#ff9100' },
+                        { label: 'Rock', on: rockOn, set: setRockOn, color: '#9c27b0' },
+                      ] as const).map(t => (
+                        <span
+                          key={t.label}
+                          className={`player-queue-tag ${t.on ? 'on' : 'off'}`}
+                          style={{
+                            background: t.on ? `${t.color}22` : undefined,
+                            borderColor: t.on ? `${t.color}66` : undefined,
+                            color: t.on ? t.color : undefined,
+                          }}
+                          onClick={() => t.set(v => !v)}
+                        >
+                          {t.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="player-queue-subtitle">{filteredSongs.length} songs</div>
+                </>
               )}
-              {queueTab === 'songs' && allSongs.map(song => {
+              {queueTab === 'songs' && filteredSongs.map(song => {
                 const isCurrent = song.id === activeSongId;
+                const bucket = song.set_bucket;
+                const stats = playStats.get(song.id);
                 return (
                   <div
                     key={song.id}
@@ -1449,6 +1589,12 @@ export function Player({ songId, setlistId, mode, onClose, onMenuClick, userId, 
                       <span className="player-queue-name">{song.name}</span>
                       {song.artist && <span className="player-queue-artist">{song.artist}</span>}
                     </div>
+                    {stats && (
+                      <span className="player-queue-played-badge">
+                        {formatPlayedAgo(stats.last_played_at)}{stats.play_count > 1 ? ` x${stats.play_count}` : ''}
+                      </span>
+                    )}
+                    {bucket && <span className="player-queue-bucket">{bucket[0].toUpperCase()}</span>}
                     <span className="player-queue-bpm" style={isCurrent ? { color: 'var(--color-tangerine)' } : undefined}>{song.bpm}</span>
                     {isCurrent && <span className="player-queue-now-badge">NOW</span>}
                   </div>

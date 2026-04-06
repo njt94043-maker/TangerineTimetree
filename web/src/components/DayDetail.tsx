@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GigWithCreator, AwayDateWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
-import { getGigsByDate, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
+import { getGigsByDate, getVenue, getInvoiceByGigId, getVenuePerformanceHistory } from '@shared/supabase/queries';
 import { isNetworkError } from '../hooks/useOfflineQueue';
 import { formatDisplayDate, fmt, fmtFee } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
@@ -25,12 +25,13 @@ interface DayDetailProps {
   onViewInvoice?: (invoiceId: string) => void;
   onGenerateQuote?: (gig: GigWithCreator) => void;
   onEditBooking?: (gigId: string) => void;
+  onPlayLive?: (gigId: string) => void;
 }
 
 export function DayDetail({
   date, awayDates, eventDates = [], onClose, onAddGig, onEditGig,
   onAddBooking, onMarkAway, onGigDeleted, onDateChange, onCreateInvoice,
-  onViewQuote, onViewInvoice, onGenerateQuote, onEditBooking,
+  onViewQuote, onViewInvoice, onGenerateQuote, onEditBooking, onPlayLive,
 }: DayDetailProps) {
   const [gigs, setGigs] = useState<GigWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +40,8 @@ export function DayDetail({
   const [venueAddresses, setVenueAddresses] = useState<Map<string, string>>(new Map());
   const [invoicedGigIds, setInvoicedGigIds] = useState<Set<string>>(new Set());
   const [expandedGigId, setExpandedGigId] = useState<string | null>(null);
+  const [venueHistory, setVenueHistory] = useState<{ gig_date: string; songs: { name: string; artist: string }[] }[]>([]);
+  const [songFreqs, setSongFreqs] = useState<{ name: string; count: number }[]>([]);
   const touchStartX = useRef(0);
 
   const fetchDayGigs = useCallback(() => {
@@ -84,6 +87,22 @@ export function DayDetail({
       })
     ).then(ids => {
       setInvoicedGigIds(new Set(ids.filter(Boolean) as string[]));
+    }).catch(() => {});
+  }, [gigs]);
+
+  // Fetch venue performance history for non-practice gigs
+  useEffect(() => {
+    if (gigs.length === 0) return;
+    const gigVenues = gigs.filter(g => g.gig_type !== 'practice' && g.venue).map(g => g.venue);
+    if (gigVenues.length === 0) { setVenueHistory([]); setSongFreqs([]); return; }
+    // Use first gig's venue (most common: 1 gig per day)
+    getVenuePerformanceHistory(gigVenues[0], 3).then(history => {
+      setVenueHistory(history.map(h => ({ gig_date: h.gig_date, songs: h.songs })));
+      // Compute song frequency across all returned gigs
+      const freqMap = new Map<string, number>();
+      for (const h of history) for (const s of h.songs) freqMap.set(s.name, (freqMap.get(s.name) ?? 0) + 1);
+      const sorted = [...freqMap.entries()].sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+      setSongFreqs(sorted);
     }).catch(() => {});
   }, [gigs]);
 
@@ -287,6 +306,46 @@ export function DayDetail({
             </div>
           );
         })}
+
+        {/* Play Live button — launches Player in live mode with gigId for logging */}
+        {gigs.filter(g => g.gig_type !== 'practice').length > 0 && onPlayLive && (
+          <div style={{ padding: '0 0 12px' }}>
+            {gigs.filter(g => g.gig_type !== 'practice').map(gig => (
+              <button
+                key={`live-${gig.id}`}
+                className="btn btn-green"
+                style={{ width: '100%', marginBottom: 6 }}
+                onClick={() => onPlayLive(gig.id)}
+              >
+                Play Live{gigs.filter(g => g.gig_type !== 'practice').length > 1 ? ` — ${gig.venue || 'Gig'}` : ''}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Previously Played at this venue */}
+        {venueHistory.length > 0 && (
+          <div className="venue-history-section">
+            <h3 className="away-section-title">Previously Played Here</h3>
+            {songFreqs.length > 0 && (
+              <div className="venue-freq-row">
+                {songFreqs.slice(0, 8).map(sf => (
+                  <span className="venue-freq-badge" key={sf.name}>
+                    {sf.name} {sf.count > 1 ? `x${sf.count}` : ''}
+                  </span>
+                ))}
+              </div>
+            )}
+            {venueHistory.map(vh => (
+              <div key={vh.gig_date} className="venue-history-gig">
+                <span className="venue-history-date">{formatDisplayDate(vh.gig_date)}</span>
+                <ol className="venue-history-songs">
+                  {vh.songs.map((s, i) => <li key={i}>{s.name}</li>)}
+                </ol>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Away details */}
         {awayOnDate.length > 0 && (
