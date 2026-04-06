@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getPublicGigs, getPublicMedia, getPublicReviews, getSiteContent, submitContactForm } from '@shared/supabase/queries';
 import type { Gig, PublicMedia, SiteReview } from '@shared/supabase/types';
+import Availability from './Availability';
 
 interface PublicSiteProps {
   onLogin: () => void;
@@ -179,6 +180,7 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             <button className="ps-nav-link" onClick={() => scrollTo('about')}>About</button>
             <button className="ps-nav-link" onClick={() => scrollTo('venues')}>For Venues</button>
             <button className="ps-nav-link" onClick={() => scrollTo('pricing')}>Pricing</button>
+            <button className="ps-nav-link" onClick={() => scrollTo('availability')}>Availability</button>
             {reviews.length > 0 && <button className="ps-nav-link" onClick={() => scrollTo('reviews')}>Reviews</button>}
             {media.length > 0 && <button className="ps-nav-link" onClick={() => scrollTo('gallery')}>Gallery</button>}
             <button className="ps-nav-link" onClick={() => scrollTo('contact')}>Contact</button>
@@ -374,6 +376,13 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
             })()}
           </ul>
         </div>
+      </section>
+
+      {/* ─── Availability ─── */}
+      <section id="availability" className="ps-section ps-section-alt">
+        <h2 className="ps-section-title">Availability</h2>
+        <p className="ps-section-subtitle">Check our upcoming weekend availability</p>
+        <Availability isPublic />
       </section>
 
       {/* ─── Gallery ─── */}

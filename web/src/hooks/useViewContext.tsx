@@ -11,7 +11,8 @@ type View =
   | 'setlists' | 'setlist-detail'
   | 'library' | 'player'
   | 'booking-wizard'
-  | 'xr18-camera';
+  | 'xr18-camera'
+  | 'availability';
 
 /* ── History entry: view name + relevant state snapshot ── */
 interface HistoryEntry {
@@ -86,6 +87,8 @@ interface ViewContextValue extends ViewState {
   goToPlayer: (songId: string, mode: 'live' | 'practice' | 'view', setlistId?: string) => void;
   // XR18 Camera companion
   goToXR18Camera: () => void;
+  // Availability
+  goToAvailability: () => void;
   // Booking wizard / Gig Hub navigation
   goToBookingWizard: (date: string) => void;
   goToEditBooking: (gigId: string) => void;
@@ -262,6 +265,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToSetlists = useCallback(() => resetToView('setlists'), [resetToView]);
   const goToLibrary = useCallback(() => resetToView('library'), [resetToView]);
   const goToXR18Camera = useCallback(() => resetToView('xr18-camera'), [resetToView]);
+  const goToAvailability = useCallback(() => resetToView('availability'), [resetToView]);
 
   // Invoice drill-down
   const goToNewInvoice = useCallback(() => {
@@ -414,7 +418,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToVenues, goToVenueDetail,
         goToSongs, goToNewSong, goToEditSong,
         goToSetlists, goToSetlistDetail,
-        goToLibrary, goToPlayer, goToXR18Camera,
+        goToLibrary, goToPlayer, goToXR18Camera, goToAvailability,
         goToBookingWizard, goToEditBooking,
         goToAway,
         replaceWithInvoiceDetail, replaceWithQuoteDetail,

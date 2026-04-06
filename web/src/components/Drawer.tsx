@@ -22,6 +22,7 @@ const NAV_SECTIONS: NavSection[] = [
       { icon: '\uD83D\uDCC5', label: 'Calendar', view: 'calendar' },
       { icon: '\uD83D\uDCCB', label: 'Gig List', view: 'list' },
       { icon: '\u2708\uFE0F', label: 'Away Dates', view: 'away' },
+      { icon: '\u2705', label: 'Availability', view: 'availability' },
     ],
   },
   {
@@ -92,6 +93,7 @@ const VIEW_TO_NAV: Record<string, View> = {
   'day-detail': 'calendar',
   'gig-form': 'calendar',
   'xr18-camera': 'xr18-camera',
+  'availability': 'availability',
 };
 
 interface DrawerProps {
