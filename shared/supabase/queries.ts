@@ -53,6 +53,8 @@ import type {
   SetlistWithSongs,
   SongShare,
   SongShareWithProfile,
+  GigPerformanceLogWithSong,
+  SongPlayStats,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -2792,4 +2794,96 @@ export async function deleteRecordedTake(stemId: string): Promise<void> {
     .eq('id', stemId);
 
   if (deleteError) { checkAuthError(deleteError); throw deleteError; }
+}
+
+// ─── Gig Performance Log ────────────────────────────────────────────────────
+
+/** Log a song that was loaded/played during a live gig. Fire-and-forget from Player. */
+export async function logSongPlayed(
+  gigId: string,
+  songId: string,
+  position: number,
+  userId: string,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('gig_performance_log')
+    .insert({ gig_id: gigId, song_id: songId, position, created_by: userId });
+  if (error) { checkAuthError(error); throw error; }
+}
+
+/** Get all songs played at a specific gig, in performance order. */
+export async function getGigPerformanceLog(gigId: string): Promise<GigPerformanceLogWithSong[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_performance_log')
+    .select('*, songs!inner(name, artist)')
+    .eq('gig_id', gigId)
+    .order('position', { ascending: true });
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []).map((row: any) => ({
+    id: row.id,
+    gig_id: row.gig_id,
+    song_id: row.song_id,
+    position: row.position,
+    played_at: row.played_at,
+    created_by: row.created_by,
+    song_name: row.songs.name,
+    song_artist: row.songs.artist,
+  }));
+}
+
+/** Get performance history for a venue — last N gigs with their played songs. */
+export async function getVenuePerformanceHistory(
+  venueName: string,
+  limit = 3,
+): Promise<{ gig_id: string; gig_date: string; songs: { name: string; artist: string; position: number }[] }[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_performance_log')
+    .select('*, gigs!inner(id, date, venue), songs!inner(name, artist)')
+    .eq('gigs.venue', venueName)
+    .order('played_at', { ascending: false });
+  if (error) { checkAuthError(error); throw error; }
+  if (!data || data.length === 0) return [];
+
+  // Group by gig, keep most recent N gigs
+  const byGig = new Map<string, { gig_id: string; gig_date: string; songs: { name: string; artist: string; position: number }[] }>();
+  for (const row of data as any[]) {
+    const gid = row.gigs.id;
+    if (!byGig.has(gid)) {
+      byGig.set(gid, { gig_id: gid, gig_date: row.gigs.date, songs: [] });
+    }
+    byGig.get(gid)!.songs.push({ name: row.songs.name, artist: row.songs.artist, position: row.position });
+  }
+  // Sort gigs by date descending, take limit
+  const sorted = [...byGig.values()].sort((a, b) => b.gig_date.localeCompare(a.gig_date)).slice(0, limit);
+  // Sort songs within each gig by position
+  for (const g of sorted) g.songs.sort((a, b) => a.position - b.position);
+  return sorted;
+}
+
+/** Get play stats (last played, count) for a list of song IDs. */
+export async function getSongPlayStats(songIds: string[]): Promise<SongPlayStats[]> {
+  if (songIds.length === 0) return [];
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_performance_log')
+    .select('song_id, played_at')
+    .in('song_id', songIds)
+    .order('played_at', { ascending: false });
+  if (error) { checkAuthError(error); throw error; }
+  if (!data || data.length === 0) return [];
+
+  // Aggregate: count + most recent played_at per song
+  const stats = new Map<string, SongPlayStats>();
+  for (const row of data) {
+    const existing = stats.get(row.song_id);
+    if (existing) {
+      existing.play_count++;
+    } else {
+      stats.set(row.song_id, { song_id: row.song_id, last_played_at: row.played_at, play_count: 1 });
+    }
+  }
+  return [...stats.values()];
 }

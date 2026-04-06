@@ -30,6 +30,7 @@ interface HistoryEntry {
   playerSongId?: string | null;
   playerSetlistId?: string | null;
   playerMode?: 'live' | 'practice' | 'view';
+  playerGigId?: string | null;
 }
 
 interface ViewState {
@@ -47,6 +48,7 @@ interface ViewState {
   playerSongId: string | null;
   playerSetlistId: string | null;
   playerMode: 'live' | 'practice' | 'view';
+  playerGigId: string | null;
 }
 
 interface ViewContextValue extends ViewState {
@@ -84,7 +86,7 @@ interface ViewContextValue extends ViewState {
   goToSetlistDetail: (id: string) => void;
   // Library + Player navigation
   goToLibrary: () => void;
-  goToPlayer: (songId: string, mode: 'live' | 'practice' | 'view', setlistId?: string) => void;
+  goToPlayer: (songId: string, mode: 'live' | 'practice' | 'view', setlistId?: string, gigId?: string) => void;
   // XR18 Camera companion
   goToXR18Camera: () => void;
   // Availability
@@ -137,6 +139,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [playerSongId, setPlayerSongId] = useState<string | null>(null);
   const [playerSetlistId, setPlayerSetlistId] = useState<string | null>(null);
   const [playerMode, setPlayerMode] = useState<'live' | 'practice' | 'view'>('live');
+  const [playerGigId, setPlayerGigId] = useState<string | null>(null);
 
   // View history stack — each entry stores the view + its state snapshot
   const historyRef = useRef<HistoryEntry[]>([{ view: 'calendar' }]);
@@ -158,6 +161,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (entry.playerSongId !== undefined) setPlayerSongId(entry.playerSongId);
     if (entry.playerSetlistId !== undefined) setPlayerSetlistId(entry.playerSetlistId);
     if (entry.playerMode !== undefined) setPlayerMode(entry.playerMode);
+    if (entry.playerGigId !== undefined) setPlayerGigId(entry.playerGigId);
   }
 
   /* ── Push a new entry onto the history stack ── */
@@ -326,11 +330,12 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   }, [pushEntry]);
 
   // Player drill-down (from library)
-  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice' | 'view', slId?: string) => {
+  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice' | 'view', slId?: string, gId?: string) => {
     setPlayerSongId(songId);
     setPlayerMode(mode);
     setPlayerSetlistId(slId ?? null);
-    pushEntry({ view: 'player', playerSongId: songId, playerMode: mode, playerSetlistId: slId ?? null });
+    setPlayerGigId(gId ?? null);
+    pushEntry({ view: 'player', playerSongId: songId, playerMode: mode, playerSetlistId: slId ?? null, playerGigId: gId ?? null });
   }, [pushEntry]);
 
   // Booking wizard / Gig Hub
@@ -409,6 +414,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         playerSongId,
         playerSetlistId,
         playerMode,
+        playerGigId,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,

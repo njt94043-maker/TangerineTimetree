@@ -596,6 +596,28 @@ export interface SetlistWithSongs extends Setlist {
   song_count: number;
 }
 
+// ─── Gig Performance Log ────────────────────────────────
+
+export interface GigPerformanceLog {
+  id: string;
+  gig_id: string;
+  song_id: string;
+  position: number;
+  played_at: string;
+  created_by: string;
+}
+
+export interface GigPerformanceLogWithSong extends GigPerformanceLog {
+  song_name: string;
+  song_artist: string;
+}
+
+export interface SongPlayStats {
+  song_id: string;
+  last_played_at: string;
+  play_count: number;
+}
+
 // ─── Public Website Content ─────────────────────────────
 
 export interface SiteContent {
