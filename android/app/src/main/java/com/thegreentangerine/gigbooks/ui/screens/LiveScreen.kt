@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +29,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -44,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.supabase.models.Song
+import com.thegreentangerine.gigbooks.data.xr18.ConnectionState
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.DisplayToggleRow
 import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
@@ -66,7 +70,7 @@ import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 
 @Composable
-fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onClose: () -> Unit = {}, onSwitchMode: (String) -> Unit = {}) {
+fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> Unit, onClose: () -> Unit = {}, onSwitchMode: (String) -> Unit = {}, onNavigateToCamera: () -> Unit = {}) {
     val song = vm.selectedSong
     var showQueue by remember { mutableStateOf(false) }
     var showSpeedConfirm by remember { mutableStateOf(false) }
@@ -212,14 +216,56 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                     }
                 }
 
-                // Transport (restart / play-pause / stop)
-                LiveTransport(
-                    isPlaying = vm.isClickPlaying,
-                    onPlayStop = { vm.toggleClick() },
-                    onStop = { vm.stopClick() },
-                    onRestart = { vm.stopClick(); vm.toggleClick() },
-                    enabled = vm.engineAvailable,
-                )
+                // Transport (restart / play-pause / stop) + record button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Record button — only when camera is connected
+                    if (vm.cameraInitialised) {
+                        val camState by vm.phoneCompanion.state.collectAsState()
+                        val camRecording by vm.cameraRecording.isRecording.collectAsState()
+                        if (camState == ConnectionState.Connected || camState == ConnectionState.Recording) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .size(40.dp)
+                                    .background(
+                                        if (camRecording) Color.Red else Color.Red.copy(alpha = 0.15f),
+                                        CircleShape,
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (camRecording) Color.Red else Color.Red.copy(alpha = 0.4f),
+                                        CircleShape,
+                                    )
+                                    .clickable {
+                                        if (camRecording) vm.requestStudioStopRecording()
+                                        else vm.requestStudioRecording()
+                                    },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (camRecording) {
+                                    // Stop icon (square)
+                                    Box(Modifier.size(14.dp).background(Color.White, RoundedCornerShape(2.dp)))
+                                } else {
+                                    // Record dot
+                                    Box(Modifier.size(16.dp).clip(CircleShape).background(Color.Red))
+                                }
+                            }
+                        }
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        LiveTransport(
+                            isPlaying = vm.isClickPlaying,
+                            onPlayStop = { vm.toggleClick() },
+                            onStop = { vm.stopClick() },
+                            onRestart = { vm.stopClick(); vm.toggleClick() },
+                            enabled = vm.engineAvailable,
+                        )
+                    }
+                }
 
                 // Inline drawer — handle + expandable settings
                 Column(
@@ -282,6 +328,13 @@ fun LiveScreen(vm: AppViewModel, onMenuClick: () -> Unit, onGoToLibrary: () -> U
                                 onNudgeForward = { vm.nudge(+1) },
                                 onNudgeReset = { vm.resetNudge() },
                             )
+
+                            // Camera section — only show if managers have been initialised
+                            if (vm.cameraInitialised) {
+                                Spacer(Modifier.height(4.dp))
+                                DrawerLabel("CAMERA")
+                                CameraDrawerSection(vm, onNavigateToCamera)
+                            }
 
                             Spacer(Modifier.height(12.dp))
                         }
@@ -934,6 +987,69 @@ fun NoSongPlaceholder(accent: Color, screenName: String, onGoToLibrary: () -> Un
                         style = TextStyle(color = accent, shadow = Shadow(accent.copy(alpha = 0.4f), Offset.Zero, 8f)),
                     )
                 }
+            }
+        }
+    }
+}
+
+// ─── Shared small chip ───────────────────────────────────────────────────────────
+
+// ─── Camera drawer section ──────────────────────────────────────────────────────
+
+@Composable
+private fun CameraDrawerSection(vm: AppViewModel, onNavigateToCamera: () -> Unit) {
+    val connectionState by vm.phoneCompanion.state.collectAsState()
+    val isRecording by vm.cameraRecording.isRecording.collectAsState()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(TangerineColors.surface, RoundedCornerShape(8.dp))
+            .border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Status dot
+        val dotColor = when (connectionState) {
+            ConnectionState.Connected -> TangerineColors.green
+            ConnectionState.Recording -> Color.Red
+            ConnectionState.Connecting, ConnectionState.Pairing -> TangerineColors.orange
+            ConnectionState.Disconnected, ConnectionState.Error -> TangerineColors.textMuted
+        }
+        Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+        Spacer(Modifier.width(8.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            val statusText = when (connectionState) {
+                ConnectionState.Connected -> "Camera Connected"
+                ConnectionState.Recording -> if (isRecording) "Recording" else "Camera Connected"
+                ConnectionState.Connecting -> "Connecting..."
+                ConnectionState.Pairing -> "Pairing..."
+                ConnectionState.Error -> "Connection Error"
+                ConnectionState.Disconnected -> "Camera Not Connected"
+            }
+            Text(statusText, fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.text)
+        }
+
+        if (connectionState == ConnectionState.Disconnected || connectionState == ConnectionState.Error) {
+            Box(
+                modifier = Modifier
+                    .background(TangerineColors.orange.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                    .border(0.5.dp, TangerineColors.orange.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                    .clickable(onClick = onNavigateToCamera)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text("Connect", fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TangerineColors.orange)
+            }
+        } else if (connectionState == ConnectionState.Connected || connectionState == ConnectionState.Recording) {
+            Box(
+                modifier = Modifier
+                    .background(Color.Red.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                    .border(0.5.dp, Color.Red.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+                    .clickable(onClick = { vm.disconnectCamera() })
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+            ) {
+                Text("Disconnect", fontFamily = Karla, fontSize = 11.sp, color = Color.Red.copy(alpha = 0.8f))
             }
         }
     }

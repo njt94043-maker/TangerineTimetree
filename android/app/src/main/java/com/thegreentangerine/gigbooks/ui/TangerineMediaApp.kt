@@ -223,6 +223,7 @@ fun TangerineMediaApp() {
                     onGoToLibrary = { vm.exitPlayer(); navigate(Screen.Library.route) },
                     onClose       = { vm.exitPlayer(); navigate(Screen.Library.route) },
                     onSwitchMode  = { mode -> vm.enterPlayer(mode); navigate(mode) },
+                    onNavigateToCamera = { navigate(Screen.XR18Camera.route) },
                 )
             }
             composable(Screen.Practice.route) {
@@ -258,6 +259,7 @@ fun TangerineMediaApp() {
             }
             composable(Screen.XR18Camera.route) {
                 XR18CameraScreen(
+                    vm = vm,
                     onMenuClick = { openMenu() },
                     onBack = { navigate(Screen.Calendar.route) },
                 )

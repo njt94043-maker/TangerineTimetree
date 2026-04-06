@@ -33,6 +33,8 @@ enum class PhoneMessageType {
     @SerialName("syncPulse") SyncPulse,
     @SerialName("syncPulseAck") SyncPulseAck,
     @SerialName("qualityWarning") QualityWarning,
+    @SerialName("startRecRequest") StartRecRequest,
+    @SerialName("stopRecRequest") StopRecRequest,
 }
 
 // ── Message envelope ──

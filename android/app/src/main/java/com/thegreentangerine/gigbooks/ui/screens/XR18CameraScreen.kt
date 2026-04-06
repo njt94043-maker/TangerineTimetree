@@ -3,15 +3,11 @@ package com.thegreentangerine.gigbooks.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ExperimentalGetImage
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,21 +29,20 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.thegreentangerine.gigbooks.data.xr18.*
+import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalGetImage::class)
 @Composable
 fun XR18CameraScreen(
+    vm: AppViewModel,
     onMenuClick: () -> Unit,
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val scope = rememberCoroutineScope()
 
     // State
     var hasCameraPermission by remember {
@@ -57,7 +52,6 @@ fun XR18CameraScreen(
         hasCameraPermission = granted
     }
 
-    // Bluetooth permission (Android 12+ requires BLUETOOTH_CONNECT)
     var hasBtPermission by remember {
         mutableStateOf(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
@@ -69,9 +63,9 @@ fun XR18CameraScreen(
         hasBtPermission = granted
     }
 
-    // Managers
-    val manager = remember { PhoneCompanionManager(context) }
-    val cameraManager = remember { CameraRecordingManager(context) }
+    // Read state from ViewModel-owned managers
+    val manager = vm.phoneCompanion
+    val cameraManager = vm.cameraRecording
     val connectionState by manager.state.collectAsState()
     val phoneId by manager.phoneId.collectAsState()
     val error by manager.error.collectAsState()
@@ -86,38 +80,21 @@ fun XR18CameraScreen(
     var manualIp by remember { mutableStateOf("") }
     var manualPort by remember { mutableStateOf("8730") }
     var manualSecret by remember { mutableStateOf("") }
-    var isScanning by remember { mutableStateOf(true) }
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
 
     // Recording elapsed time
     var recStartTime by remember { mutableLongStateOf(0L) }
     var elapsedSec by remember { mutableIntStateOf(0) }
 
-    // Wire callbacks
+    // Wire settings callback to rebind camera when screen is active
     DisposableEffect(manager) {
-        manager.onStartRecording = { sessionName, sessionId ->
-            val dir = File(context.filesDir, "xr18_recordings")
-            cameraManager.startRecording(dir, sessionName, sessionId)
-            recStartTime = System.currentTimeMillis()
-        }
-        manager.onStopRecording = {
-            cameraManager.stopRecording()
-        }
         manager.onSettingsChanged = { newSettings ->
             previewView?.let { pv ->
                 cameraManager.applySettings(lifecycleOwner, pv, newSettings)
             }
         }
-        manager.capturePreviewFrame = { cameraManager.capturePreviewFrame() }
-
-        // QR code scanning: auto-connect when a valid QR code is detected
-        cameraManager.onQrCodeScanned = { pairingInfo ->
-            manager.connect(pairingInfo)
-        }
-
         onDispose {
-            manager.disconnect()
-            cameraManager.release()
+            // Don't disconnect — managers live in ViewModel
         }
     }
 
@@ -129,6 +106,7 @@ fun XR18CameraScreen(
     // Elapsed time ticker
     LaunchedEffect(isRecording) {
         if (isRecording) {
+            recStartTime = System.currentTimeMillis()
             while (true) {
                 elapsedSec = ((System.currentTimeMillis() - recStartTime) / 1000).toInt()
                 delay(1000)
@@ -169,7 +147,7 @@ fun XR18CameraScreen(
             factory = { ctx ->
                 PreviewView(ctx).also { pv ->
                     previewView = pv
-                    cameraManager.bind(lifecycleOwner, pv, settings)
+                    vm.bindCamera(lifecycleOwner, pv, settings)
                 }
             },
             modifier = Modifier.fillMaxSize(),
@@ -195,8 +173,8 @@ fun XR18CameraScreen(
             // Connection indicator
             val (statusColor, statusText) = when (connectionState) {
                 ConnectionState.Disconnected -> TangerineColors.textMuted to "Disconnected"
-                ConnectionState.Connecting -> TangerineColors.orange to "Connecting…"
-                ConnectionState.Pairing -> TangerineColors.orange to "Pairing…"
+                ConnectionState.Connecting -> TangerineColors.orange to "Connecting..."
+                ConnectionState.Pairing -> TangerineColors.orange to "Pairing..."
                 ConnectionState.Connected -> TangerineColors.green to "Connected"
                 ConnectionState.Recording -> Color.Red to "REC"
                 ConnectionState.Error -> Color.Red to "Error"
@@ -239,9 +217,8 @@ fun XR18CameraScreen(
         ) {
             when {
                 connectionState == ConnectionState.Disconnected || connectionState == ConnectionState.Error -> {
-                    // Scan / connect UI
                     if (error != null) {
-                        Text("⚠ $error", color = Color(0xFFFF6B6B), fontFamily = Karla, fontSize = 13.sp)
+                        Text("Warning: $error", color = Color(0xFFFF6B6B), fontFamily = Karla, fontSize = 13.sp)
                         Spacer(Modifier.height(8.dp))
                     }
 
@@ -249,7 +226,6 @@ fun XR18CameraScreen(
                     Text("Point camera at QR code on the PHONES tab", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
                     Spacer(Modifier.height(12.dp))
 
-                    // Manual entry toggle
                     TextButton(onClick = { showManualEntry = !showManualEntry }) {
                         Text(
                             if (showManualEntry) "Hide manual entry" else "Enter manually instead",
@@ -299,7 +275,7 @@ fun XR18CameraScreen(
                         Button(
                             onClick = {
                                 val port = manualPort.toIntOrNull() ?: 8730
-                                manager.connect(PairingInfo(listOf(manualIp), port, 0, manualSecret))
+                                vm.connectCamera(PairingInfo(listOf(manualIp), port, 0, manualSecret))
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = TangerineColors.orange),
                             modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -310,13 +286,11 @@ fun XR18CameraScreen(
                 }
 
                 connectionState == ConnectionState.Connected || connectionState == ConnectionState.Recording -> {
-                    // Connected info
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column {
                             Text("Connected to XR18 Studio", color = TangerineColors.green, fontFamily = Karla, fontWeight = FontWeight.Bold)
-                            Text("ID: ${phoneId ?: "—"}", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
+                            Text("ID: ${phoneId ?: "---"}", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
                             Text("${settings.resolution} @ ${settings.framerate}fps", color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp)
-                            // Transport indicators
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 val btColor = if (isBtConnected) TangerineColors.green else TangerineColors.textMuted
                                 val tcpColor = if (isTcpConnected) TangerineColors.green else TangerineColors.textMuted
@@ -335,7 +309,7 @@ fun XR18CameraScreen(
                             }
                         }
                         OutlinedButton(
-                            onClick = { manager.disconnect() },
+                            onClick = { vm.disconnectCamera() },
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
                         ) {
                             Text("Disconnect", fontFamily = Karla)
@@ -351,14 +325,13 @@ fun XR18CameraScreen(
                 }
 
                 else -> {
-                    // Connecting/Pairing
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = TangerineColors.orange, strokeWidth = 2.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
                             when (connectionState) {
-                                ConnectionState.Connecting -> "Connecting…"
-                                ConnectionState.Pairing -> "Pairing…"
+                                ConnectionState.Connecting -> "Connecting..."
+                                ConnectionState.Pairing -> "Pairing..."
                                 else -> ""
                             },
                             color = Color.White, fontFamily = Karla,

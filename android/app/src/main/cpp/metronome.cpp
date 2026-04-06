@@ -459,4 +459,43 @@ void Metronome::render(float* output, int32_t numFrames, int32_t channelCount, f
     }
 }
 
+// --- Speed Trainer (stubs — full logic in future session) ---
+
+void Metronome::setSpeedTrainer(bool enabled, float startBpm, float endBpm,
+                                 float incrementBpm, int32_t barsPerIncrement) {
+    speedTrainerEnabled_.store(enabled);
+    speedTrainerStartBpm_ = startBpm;
+    speedTrainerEndBpm_ = endBpm;
+    speedTrainerIncrementBpm_ = incrementBpm;
+    speedTrainerBarsPerIncrement_ = barsPerIncrement;
+    speedTrainerCurrentBpm_.store(startBpm);
+    speedTrainerComplete_.store(false);
+    speedTrainerBarCount_ = 0;
+    if (enabled) {
+        setBpm(startBpm);
+    }
+}
+
+float Metronome::getSpeedTrainerCurrentBpm() const {
+    return speedTrainerCurrentBpm_.load();
+}
+
+bool Metronome::isSpeedTrainerComplete() const {
+    return speedTrainerComplete_.load();
+}
+
+// --- Muted Bars (stubs — full logic in future session) ---
+
+void Metronome::setMutedBars(bool enabled, int32_t playBars, int32_t muteBars) {
+    mutedBarsEnabled_.store(enabled);
+    mutedPlayBars_ = playBars > 0 ? playBars : 1;
+    mutedMuteBars_ = muteBars > 0 ? muteBars : 1;
+    mutedBarCounter_ = 0;
+    currentBarMuted_.store(false);
+}
+
+bool Metronome::isMutedBar() const {
+    return currentBarMuted_.load();
+}
+
 } // namespace gigbooks

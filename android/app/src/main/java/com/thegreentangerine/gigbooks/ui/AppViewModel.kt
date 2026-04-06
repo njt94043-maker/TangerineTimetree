@@ -20,6 +20,11 @@ import com.thegreentangerine.gigbooks.data.supabase.OfflineCache
 import com.thegreentangerine.gigbooks.data.supabase.SetlistRepository
 import com.thegreentangerine.gigbooks.data.supabase.SongRepository
 import com.thegreentangerine.gigbooks.data.supabase.StemRepository
+import com.thegreentangerine.gigbooks.data.xr18.CameraRecordingManager
+import com.thegreentangerine.gigbooks.data.xr18.ConnectionState
+import com.thegreentangerine.gigbooks.data.xr18.PairingInfo
+import com.thegreentangerine.gigbooks.data.xr18.PhoneCompanionManager
+import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.data.supabase.models.AwayDate
 import com.thegreentangerine.gigbooks.data.supabase.models.Gig
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistWithSongs
@@ -32,6 +37,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.camera.view.PreviewView
+import androidx.lifecycle.LifecycleOwner
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -1165,6 +1173,65 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Exception) { }
     }
 
+    // ── XR18 Camera Companion ────────────────────────────────────────────────
+    // Managers survive navigation — created once, live until ViewModel cleared.
+
+    private var _phoneCompanion: PhoneCompanionManager? = null
+    private var _cameraRecording: CameraRecordingManager? = null
+
+    val phoneCompanion: PhoneCompanionManager get() {
+        if (_phoneCompanion == null) initCameraManagers()
+        return _phoneCompanion!!
+    }
+    val cameraRecording: CameraRecordingManager get() {
+        if (_cameraRecording == null) initCameraManagers()
+        return _cameraRecording!!
+    }
+
+    /** Whether managers have been initialised (avoids creating them just to read state). */
+    val cameraInitialised: Boolean get() = _phoneCompanion != null
+
+    private fun initCameraManagers() {
+        val ctx = getApplication<android.app.Application>()
+        val mgr = PhoneCompanionManager(ctx)
+        val cam = CameraRecordingManager(ctx)
+
+        // Wire callbacks — same as XR18CameraScreen did, but ViewModel-scoped
+        mgr.onStartRecording = { sessionName, sessionId ->
+            val dir = File(ctx.filesDir, "xr18_recordings")
+            cam.startRecording(dir, sessionName, sessionId)
+        }
+        mgr.onStopRecording = { cam.stopRecording() }
+        mgr.onSettingsChanged = { /* Settings applied when screen binds camera */ }
+        mgr.capturePreviewFrame = { cam.capturePreviewFrame() }
+        cam.onQrCodeScanned = { pairingInfo -> mgr.connect(pairingInfo) }
+
+        _phoneCompanion = mgr
+        _cameraRecording = cam
+    }
+
+    fun connectCamera(info: PairingInfo) { phoneCompanion.connect(info) }
+    fun disconnectCamera() { _phoneCompanion?.disconnect() }
+
+    /** Phone requests Studio to start ASIO recording AND starts local camera recording. */
+    fun requestStudioRecording() {
+        phoneCompanion.sendStartRecRequest()
+        // Local camera recording is triggered by the Studio's StartRec response
+        // (wired in initCameraManagers via onStartRecording callback)
+    }
+
+    /** Phone requests Studio to stop recording AND stops local camera recording. */
+    fun requestStudioStopRecording() {
+        phoneCompanion.sendStopRecRequest()
+        // Local camera stop is triggered by Studio's StopRec response
+    }
+
+    fun bindCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView, settings: PhoneSettings) {
+        cameraRecording.bind(lifecycleOwner, previewView, settings)
+    }
+
+    fun releaseCamera() { _cameraRecording?.release() }
+
     override fun onCleared() {
         super.onCleared()
         beatPollJob?.cancel(); trackPollJob?.cancel()
@@ -1172,5 +1239,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             AudioEngineBridge.nativeStopClick()
             AudioEngineBridge.nativeStopTrack()
         } catch (_: Exception) { }
+        // Clean up camera companion
+        _phoneCompanion?.disconnect()
+        _cameraRecording?.release()
     }
 }

@@ -98,6 +98,15 @@ public:
     // --- Practice Mode: Backbeat ---
     void setBackbeat(bool enabled);
 
+    // --- Practice Mode: Speed Trainer ---
+    void setSpeedTrainer(bool enabled, float startBpm, float endBpm,
+                         float incrementBpm, int32_t barsPerIncrement);
+    float getSpeedTrainerCurrentBpm() const;
+    bool isSpeedTrainerComplete() const;
+
+    // --- Practice Mode: Muted Bars ---
+    void setMutedBars(bool enabled, int32_t playBars, int32_t muteBars);
+    bool isMutedBar() const;
 
     /**
      * Render click audio into the output buffer.
@@ -183,6 +192,23 @@ private:
     std::atomic<int32_t> beatClickTypeLength_{0};
 
     int32_t currentClickType_{CLICK_DEFAULT};
+
+    // Speed trainer state
+    std::atomic<bool> speedTrainerEnabled_{false};
+    float speedTrainerStartBpm_{80.0f};
+    float speedTrainerEndBpm_{160.0f};
+    float speedTrainerIncrementBpm_{5.0f};
+    int32_t speedTrainerBarsPerIncrement_{4};
+    std::atomic<float> speedTrainerCurrentBpm_{80.0f};
+    std::atomic<bool> speedTrainerComplete_{false};
+    int32_t speedTrainerBarCount_{0};
+
+    // Muted bars state
+    std::atomic<bool> mutedBarsEnabled_{false};
+    int32_t mutedPlayBars_{4};
+    int32_t mutedMuteBars_{1};
+    int32_t mutedBarCounter_{0};
+    std::atomic<bool> currentBarMuted_{false};
 };
 
 } // namespace gigbooks

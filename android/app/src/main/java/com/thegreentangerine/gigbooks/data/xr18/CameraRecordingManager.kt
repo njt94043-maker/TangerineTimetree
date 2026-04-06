@@ -109,7 +109,7 @@ class CameraRecordingManager(private val context: Context) {
 
             val recorder = Recorder.Builder()
                 .setQualitySelector(QualitySelector.from(quality, FallbackStrategy.higherQualityOrLowerThan(quality)))
-                .setAudioSource(AudioSource.DEFAULT)  // Ensure audio is always recorded
+                .setAudioSource(android.media.MediaRecorder.AudioSource.DEFAULT)  // Ensure audio is always recorded
                 .build()
             videoCapture = VideoCapture.Builder(recorder)
                 .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))

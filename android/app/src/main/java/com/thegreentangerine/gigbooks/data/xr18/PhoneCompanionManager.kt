@@ -113,6 +113,24 @@ class PhoneCompanionManager(private val context: Context) {
         _state.value = ConnectionState.Disconnected
     }
 
+    /** Request Studio to start recording (phone → server direction). */
+    fun sendStartRecRequest() {
+        val msg = PhoneProtocol.createMessage(
+            type = PhoneMessageType.StartRecRequest,
+            phoneId = _phoneId.value,
+        )
+        scope?.launch { sendCommand(msg) }
+    }
+
+    /** Request Studio to stop recording (phone → server direction). */
+    fun sendStopRecRequest() {
+        val msg = PhoneProtocol.createMessage(
+            type = PhoneMessageType.StopRecRequest,
+            phoneId = _phoneId.value,
+        )
+        scope?.launch { sendCommand(msg) }
+    }
+
     private suspend fun doConnect(info: PairingInfo) {
         _state.value = ConnectionState.Connecting
         _error.value = null

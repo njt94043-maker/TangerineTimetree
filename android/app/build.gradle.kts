@@ -126,6 +126,9 @@ dependencies {
     // Kotlin serialization
     implementation(libs.serialization.json)
 
+    // OkHttp (WebSocket for Supabase Broadcast relay)
+    implementation(libs.okhttp)
+
     // Core
     implementation(libs.core.ktx)
 }
