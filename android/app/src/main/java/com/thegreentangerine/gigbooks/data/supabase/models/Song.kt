@@ -27,6 +27,9 @@ data class Song(
     @SerialName("beat_offset_ms") val beatOffsetMs: Double = 0.0,
     @SerialName("audio_url") val audioUrl: String? = null,
     @SerialName("audio_storage_path") val audioStoragePath: String? = null,
+    @SerialName("performance_tag") val performanceTag: String? = null,  // staple/party/rock — tgt_cover only
+    @SerialName("set_bucket") val setBucket: String? = null,            // opener/middle/closer — tgt_cover only
+    @SerialName("bucket_position") val bucketPosition: Int? = null,     // order within bucket — tgt_cover only
     @SerialName("created_by") val createdBy: String = "",
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",

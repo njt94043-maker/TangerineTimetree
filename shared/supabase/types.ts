@@ -475,6 +475,8 @@ export function isTgtSong(cat: SongCategory): boolean {
 }
 export type SetlistType = 'tange' | 'other_band';
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
+export type PerformanceTag = 'staple' | 'party' | 'rock';
+export type SetBucket = 'opener' | 'middle' | 'closer';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
 export type BeatMapStatus = 'pending' | 'analysing' | 'separating' | 'ready' | 'failed';
 
@@ -536,6 +538,9 @@ export interface Song {
   beat_offset_ms: number;       // Manual click-to-track alignment offset
   audio_url: string | null;     // Supabase Storage URL for practice MP3
   audio_storage_path: string | null;
+  performance_tag: PerformanceTag | null;  // staple/party/rock — tgt_cover only
+  set_bucket: SetBucket | null;            // opener/middle/closer — tgt_cover only
+  bucket_position: number | null;          // order within bucket — tgt_cover only
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -580,6 +585,9 @@ export interface SetlistSongWithDetails extends SetlistSong {
   song_chords: string;
   song_drum_notation: string;
   song_audio_url: string | null;
+  song_performance_tag: PerformanceTag | null;
+  song_set_bucket: SetBucket | null;
+  song_bucket_position: number | null;
 }
 
 export interface SetlistWithSongs extends Setlist {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getSong, createSong, updateSong, uploadPracticeTrack, deletePracticeTrack, getSongStems, uploadStem, deleteStem, getBeatMap, upsertBeatMap, getProfiles, getSongShares, shareSong, unshareSong, getUserRecordedTakes, deleteRecordedTake, setBestTake, clearBestTake } from '@shared/supabase/queries';
-import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, Profile, SongShareWithProfile } from '@shared/supabase/types';
+import type { ClickSound, SongStem, StemLabel, BeatMapStatus, SongCategory, PerformanceTag, SetBucket, Profile, SongShareWithProfile } from '@shared/supabase/types';
 import { isPersonalSong } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
 import { getUserTakesLocal, deleteTakeLocally, type LocalTake } from '../storage/takesDb';
@@ -27,6 +27,18 @@ const SONG_CATEGORIES: { value: SongCategory; label: string }[] = [
 const CLICK_SOUNDS: ClickSound[] = ['default', 'high', 'low', 'wood', 'rim'];
 const TIME_SIG_TOPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
 const TIME_SIG_BOTTOMS = [2, 4, 8, 16];
+
+const PERFORMANCE_TAGS: { value: PerformanceTag; label: string }[] = [
+  { value: 'staple', label: 'Staple' },
+  { value: 'party', label: 'Party' },
+  { value: 'rock', label: 'Rock' },
+];
+
+const SET_BUCKETS: { value: SetBucket; label: string }[] = [
+  { value: 'opener', label: 'Opener' },
+  { value: 'middle', label: 'Middle' },
+  { value: 'closer', label: 'Closer' },
+];
 
 interface SongFormProps {
   songId: string | null;
@@ -62,6 +74,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
   const [lyrics, setLyrics] = useState('');
   const [chords, setChords] = useState('');
   const [drumNotation, setDrumNotation] = useState('');
+  const [performanceTag, setPerformanceTag] = useState<PerformanceTag | null>(null);
+  const [setBucket, setSetBucket] = useState<SetBucket | null>(null);
+  const [bucketPosition, setBucketPosition] = useState('');
 
   // Practice track
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -118,6 +133,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
       setChords(song.chords);
       setDrumNotation(song.drum_notation);
       setAudioUrl(song.audio_url);
+      setPerformanceTag(song.performance_tag);
+      setSetBucket(song.set_bucket);
+      setBucketPosition(song.bucket_position != null ? String(song.bucket_position) : '');
       // Read-only: personal songs owned by someone else
       if (isPersonalSong(song.category) && song.owner_id && song.owner_id !== userId) {
         setReadOnly(true);
@@ -278,6 +296,9 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
         lyrics: lyrics.trim(),
         chords: chords.trim(),
         drum_notation: drumNotation.trim(),
+        performance_tag: category === 'tgt_cover' ? performanceTag : null,
+        set_bucket: category === 'tgt_cover' ? setBucket : null,
+        bucket_position: category === 'tgt_cover' && bucketPosition ? parseInt(bucketPosition) : null,
       };
 
       if (isEdit && songId) {
@@ -525,6 +546,31 @@ export function SongForm({ songId, onClose, onSaved, bandRole, userId }: SongFor
                 <option value="">Select member...</option>
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+            </div>
+          </>
+        )}
+
+        {category === 'tgt_cover' && (
+          <>
+            <label className="label">PERFORMANCE TAG</label>
+            <div className="neu-inset">
+              <select className="input-field" value={performanceTag ?? ''} onChange={e => setPerformanceTag((e.target.value || null) as PerformanceTag | null)} disabled={readOnly}>
+                <option value="">None</option>
+                {PERFORMANCE_TAGS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+
+            <label className="label">SET BUCKET</label>
+            <div className="neu-inset">
+              <select className="input-field" value={setBucket ?? ''} onChange={e => setSetBucket((e.target.value || null) as SetBucket | null)} disabled={readOnly}>
+                <option value="">None</option>
+                {SET_BUCKETS.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </div>
+
+            <label className="label">BUCKET POSITION</label>
+            <div className="neu-inset">
+              <input className="input-field" type="number" value={bucketPosition} onChange={e => setBucketPosition(e.target.value)} placeholder="e.g. 1, 2, 3..." disabled={readOnly} />
             </div>
           </>
         )}

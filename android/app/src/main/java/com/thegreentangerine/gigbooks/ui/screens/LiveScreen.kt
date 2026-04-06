@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.thegreentangerine.gigbooks.data.supabase.models.Song
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.DisplayToggleRow
 import com.thegreentangerine.gigbooks.ui.components.DrawerHandle
@@ -559,11 +560,41 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
         return
     }
 
-    Text("${songs.size} songs", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
+    // Tag filter state — all ON by default so full master list is visible
+    var stapleOn by remember { mutableStateOf(true) }
+    var partyOn by remember { mutableStateOf(true) }
+    var rockOn by remember { mutableStateOf(true) }
+
+    // Filter tgt_cover songs by active tags, sort by bucket then position
+    val bucketOrder = mapOf("opener" to 0, "middle" to 1, "closer" to 2)
+    val tgtCovers = songs
+        .filter { it.category == "tgt_cover" }
+        .filter { song ->
+            val tag = song.performanceTag
+            when (tag) {
+                "staple" -> stapleOn
+                "party"  -> partyOn
+                "rock"   -> rockOn
+                else     -> true  // untagged songs always visible
+            }
+        }
+        .sortedWith(compareBy<Song> { bucketOrder[it.setBucket] ?: 99 }.thenBy { it.bucketPosition ?: Int.MAX_VALUE })
+
+    // Tag toggle buttons
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        TagToggle("Staple", stapleOn, TangerineColors.teal) { stapleOn = it }
+        TagToggle("Party", partyOn, TangerineColors.orange) { partyOn = it }
+        TagToggle("Rock", rockOn, TangerineColors.purple) { rockOn = it }
+    }
+
+    Text("${tgtCovers.size} songs", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
     Spacer(Modifier.height(8.dp))
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        itemsIndexed(songs, key = { _, song -> song.id }) { _, song ->
+        itemsIndexed(tgtCovers, key = { _, song -> song.id }) { _, song ->
             val isCurrent = song.id == currentSongId
 
             Row(
@@ -576,7 +607,7 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
                         else Modifier
                     )
                     .clickable {
-                        vm.setQueue(songs, song, "All Songs")  // D-168
+                        vm.setQueue(tgtCovers, song, "TGT Covers")
                         vm.selectSong(song)
                         onDismiss()
                     }
@@ -620,6 +651,26 @@ private fun SongsTabContent(vm: AppViewModel, onDismiss: () -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun TagToggle(label: String, isOn: Boolean, color: Color, onToggle: (Boolean) -> Unit) {
+    val bg = if (isOn) color.copy(alpha = 0.15f) else TangerineColors.surface
+    val border = if (isOn) color.copy(alpha = 0.4f) else TangerineColors.textMuted.copy(alpha = 0.2f)
+    val textColor = if (isOn) color else TangerineColors.textMuted
+
+    Text(
+        text = label,
+        fontFamily = Karla,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = textColor,
+        modifier = Modifier
+            .background(bg, RoundedCornerShape(16.dp))
+            .border(0.5.dp, border, RoundedCornerShape(16.dp))
+            .clickable { onToggle(!isOn) }
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    )
 }
 
 @Composable

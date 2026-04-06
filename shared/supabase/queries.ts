@@ -2113,6 +2113,9 @@ export async function createSong(song: {
   beat_offset_ms?: number;
   audio_url?: string | null;
   audio_storage_path?: string | null;
+  performance_tag?: string | null;
+  set_bucket?: string | null;
+  bucket_position?: number | null;
 }): Promise<Song> {
   const supabase = getSupabase();
   const { data: { user } } = await supabase.auth.getUser();
@@ -2435,6 +2438,9 @@ interface SetlistSongJoin extends SetlistSong {
     chords: string;
     drum_notation: string;
     audio_url: string | null;
+    performance_tag: string | null;
+    set_bucket: string | null;
+    bucket_position: number | null;
   } | null;
 }
 
@@ -2442,7 +2448,7 @@ export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWit
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('setlist_songs')
-    .select('*, songs(name, artist, category, bpm, time_signature_top, time_signature_bottom, subdivision, swing_percent, accent_pattern, click_sound, count_in_bars, duration_seconds, key, notes, lyrics, chords, drum_notation, audio_url)')
+    .select('*, songs(name, artist, category, bpm, time_signature_top, time_signature_bottom, subdivision, swing_percent, accent_pattern, click_sound, count_in_bars, duration_seconds, key, notes, lyrics, chords, drum_notation, audio_url, performance_tag, set_bucket, bucket_position)')
     .eq('setlist_id', setlistId)
     .order('position');
 
@@ -2468,6 +2474,9 @@ export async function getSetlistSongs(setlistId: string): Promise<SetlistSongWit
     song_chords: row.songs?.chords ?? '',
     song_drum_notation: row.songs?.drum_notation ?? '',
     song_audio_url: row.songs?.audio_url ?? null,
+    song_performance_tag: row.songs?.performance_tag ?? null,
+    song_set_bucket: row.songs?.set_bucket ?? null,
+    song_bucket_position: row.songs?.bucket_position ?? null,
     songs: undefined,
   }));
 }
