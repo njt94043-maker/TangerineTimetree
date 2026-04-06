@@ -131,6 +131,37 @@ class PhoneCompanionManager(private val context: Context) {
         scope?.launch { sendCommand(msg) }
     }
 
+    /** S41: Notify Studio that drummer selected a song in live mode (for session markers + PWA broadcast). */
+    fun sendSongChanged(song: com.thegreentangerine.gigbooks.data.supabase.models.Song) {
+        val payload = PhoneProtocol.serializePayload(SongChangedPayload(
+            songId = song.id,
+            songName = song.name,
+            artist = song.artist,
+            bpm = song.bpm,
+        ))
+        val msg = PhoneProtocol.createMessage(
+            type = PhoneMessageType.SongChanged,
+            phoneId = _phoneId.value,
+            payload = payload,
+        )
+        scope?.launch { sendCommand(msg) }
+    }
+
+    /** S41: Request Studio to start recording with gig context. */
+    fun sendStartRecRequestWithGig(gigId: String?, venueName: String?, gigDate: String?) {
+        val payload = PhoneProtocol.serializePayload(StartRecPayload(
+            gigId = gigId,
+            venueName = venueName,
+            gigDate = gigDate,
+        ))
+        val msg = PhoneProtocol.createMessage(
+            type = PhoneMessageType.StartRecRequest,
+            phoneId = _phoneId.value,
+            payload = payload,
+        )
+        scope?.launch { sendCommand(msg) }
+    }
+
     private suspend fun doConnect(info: PairingInfo) {
         _state.value = ConnectionState.Connecting
         _error.value = null

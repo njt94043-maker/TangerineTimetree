@@ -35,6 +35,7 @@ enum class PhoneMessageType {
     @SerialName("qualityWarning") QualityWarning,
     @SerialName("startRecRequest") StartRecRequest,
     @SerialName("stopRecRequest") StopRecRequest,
+    @SerialName("songChanged") SongChanged,
 }
 
 // ── Message envelope ──
@@ -90,6 +91,17 @@ data class StartRecPayload(
     val sessionName: String = "",
     val timestamp: Long = 0,
     val sessionId: String = "",
+    val gigId: String? = null,
+    val venueName: String? = null,
+    val gigDate: String? = null,
+)
+
+@Serializable
+data class SongChangedPayload(
+    val songId: String = "",
+    val songName: String = "",
+    val artist: String = "",
+    val bpm: Double = 0.0,
 )
 
 @Serializable

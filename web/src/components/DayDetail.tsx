@@ -307,7 +307,7 @@ export function DayDetail({
           );
         })}
 
-        {/* Play Live button — launches Player in live mode with gigId for logging */}
+        {/* S41: Join as Prompter — launches Player in live/prompter mode (visual lyrics/notes only) */}
         {gigs.filter(g => g.gig_type !== 'practice').length > 0 && onPlayLive && (
           <div style={{ padding: '0 0 12px' }}>
             {gigs.filter(g => g.gig_type !== 'practice').map(gig => (
@@ -317,7 +317,7 @@ export function DayDetail({
                 style={{ width: '100%', marginBottom: 6 }}
                 onClick={() => onPlayLive(gig.id)}
               >
-                Play Live{gigs.filter(g => g.gig_type !== 'practice').length > 1 ? ` — ${gig.venue || 'Gig'}` : ''}
+                Join as Prompter{gigs.filter(g => g.gig_type !== 'practice').length > 1 ? ` — ${gig.venue || 'Gig'}` : ''}
               </button>
             ))}
           </div>

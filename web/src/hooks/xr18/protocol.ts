@@ -13,7 +13,8 @@ export type PhoneMessageType =
   | 'syncTimeRequest' | 'syncTimeResponse'
   | 'cameraPreview'
   | 'previewRequest' | 'previewStart' | 'previewStop'
-  | 'syncPulse' | 'syncPulseAck' | 'qualityWarning';
+  | 'syncPulse' | 'syncPulseAck' | 'qualityWarning'
+  | 'songChanged';
 
 // ── Message envelope ──
 
@@ -62,6 +63,16 @@ export interface StartRecPayload {
   sessionName: string;
   timestamp: number;
   sessionId: string;
+  gigId?: string;
+  venueName?: string;
+  gigDate?: string;
+}
+
+export interface SongChangedPayload {
+  songId: string;
+  songName: string;
+  artist: string;
+  bpm: number;
 }
 
 export interface SyncPulsePayload {

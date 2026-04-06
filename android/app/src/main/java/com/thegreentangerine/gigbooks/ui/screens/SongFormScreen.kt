@@ -90,6 +90,7 @@ fun SongFormScreen(
     var swingPercent by rememberSaveable { mutableStateOf(song.swingPercent.toInt().toString()) }
     var countInBars by rememberSaveable { mutableStateOf(song.countInBars.toInt().toString()) }
     var clickSound by rememberSaveable { mutableStateOf(song.clickSound) }
+    var liveClickMode by rememberSaveable { mutableStateOf(song.liveClickMode) }
     var notes by rememberSaveable { mutableStateOf(song.notes) }
     var lyrics by rememberSaveable { mutableStateOf(song.lyrics) }
     var chords by rememberSaveable { mutableStateOf(song.chords) }
@@ -189,6 +190,7 @@ fun SongFormScreen(
             "swing_percent" to (swingPercent.toDoubleOrNull() ?: 50.0),
             "count_in_bars" to (countInBars.toDoubleOrNull() ?: 0.0),
             "click_sound" to clickSound,
+            "live_click_mode" to liveClickMode,
             "notes" to notes,
             "lyrics" to lyrics,
             "chords" to chords,
@@ -349,6 +351,30 @@ fun SongFormScreen(
                 FormTextField("Subdivision", subdivision, { subdivision = it }, canEdit, KeyboardType.Number, Modifier.weight(1f))
                 FormTextField("Swing %", swingPercent, { swingPercent = it }, canEdit, KeyboardType.Number, Modifier.weight(1f))
                 FormTextField("Count-in", countInBars, { countInBars = it }, canEdit, KeyboardType.Number, Modifier.weight(1f))
+            }
+
+            // S41: Per-song live click mode toggle
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Live Click:", fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted)
+                listOf("full" to "Full", "count_in" to "30s Count-in", "off" to "Off").forEach { (value, label) ->
+                    val selected = liveClickMode == value
+                    Box(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (selected) TangerineColors.accent else TangerineColors.surfaceElevated)
+                            .clickable(enabled = canEdit) { liveClickMode = value }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            label,
+                            fontFamily = Karla,
+                            fontSize = 11.sp,
+                            color = if (selected) Color.White else TangerineColors.textMuted,
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(4.dp))

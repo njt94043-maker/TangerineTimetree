@@ -43,6 +43,7 @@ import Availability from './components/Availability';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { useGigSession } from './hooks/useGigSession';
 
 const SPLASH_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 
@@ -129,6 +130,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
   const { gigs, awayDates, profiles: allProfiles, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
   const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
+  const { activeGig } = useGigSession(); // S41: detect active gig for "Join Gig" banner
 
   // Build sorted list of dates that have events (gigs, practice, or away)
   const eventDates = useMemo(() => {
@@ -361,6 +363,22 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
               Back to App
             </button>
             <PublicSite onLogin={() => {}} />
+          </div>
+        )}
+
+        {/* S41: "Join Gig" banner when a live session is active */}
+        {activeGig && (view === 'calendar' || view === 'list' || view === 'dashboard') && (
+          <div
+            style={{
+              background: 'linear-gradient(90deg, var(--color-green), var(--color-accent))',
+              color: '#fff', padding: '10px 16px', borderRadius: 8,
+              margin: '0 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              cursor: 'pointer', fontWeight: 600, fontSize: 14,
+            }}
+            onClick={() => goToPlayer('', 'live', undefined, activeGig.gig_id ?? undefined)}
+          >
+            <span>Live gig in progress</span>
+            <span style={{ fontSize: 12, opacity: 0.9 }}>Join as Prompter →</span>
           </div>
         )}
 

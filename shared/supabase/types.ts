@@ -477,6 +477,7 @@ export type SetlistType = 'tange' | 'other_band';
 export type ClickSound = 'default' | 'high' | 'low' | 'wood' | 'rim';
 export type PerformanceTag = 'staple' | 'party' | 'rock';
 export type SetBucket = 'opener' | 'middle' | 'closer';
+export type LiveClickMode = 'full' | 'count_in' | 'off';
 export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
 export type BeatMapStatus = 'pending' | 'analysing' | 'separating' | 'ready' | 'failed';
 
@@ -541,6 +542,7 @@ export interface Song {
   performance_tag: PerformanceTag | null;  // staple/party/rock — tgt_cover only
   set_bucket: SetBucket | null;            // opener/middle/closer — tgt_cover only
   bucket_position: number | null;          // order within bucket — tgt_cover only
+  live_click_mode: LiveClickMode;          // full/count_in/off — per-song live click behavior
   created_by: string;
   created_at: string;
   updated_at: string;

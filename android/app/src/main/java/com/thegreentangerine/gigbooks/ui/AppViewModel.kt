@@ -82,6 +82,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // Values: "live", "practice", "view", or null when no player session is active
     var activePlayerRoute by mutableStateOf<String?>(null);            private set
 
+    // S41: Active gig context (set when entering live mode from calendar)
+    var activeGigId    by mutableStateOf<String?>(null);               private set
+    var activeGigVenue by mutableStateOf<String?>(null);               private set
+    var activeGigDate  by mutableStateOf<String?>(null);               private set
+
+    fun setActiveGig(gigId: String?, venue: String?, date: String?) {
+        activeGigId = gigId; activeGigVenue = venue; activeGigDate = date
+    }
+    fun clearActiveGig() { activeGigId = null; activeGigVenue = null; activeGigDate = null }
+
     fun enterPlayer(route: String) { activePlayerRoute = route }
     fun exitPlayer() {
         activePlayerRoute = null
@@ -412,6 +422,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private var beatPollJob:  Job? = null
     private var trackPollJob: Job? = null
+    private var liveClickAutoStopJob: Job? = null   // S41: auto-stop click after 30s in count_in mode
+    private var songChangedDebounceJob: Job? = null  // S41: 5s debounce before sending songChanged to Studio
 
     init {
         loadLibrary()
@@ -529,6 +541,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectSong(song: Song) {
         // D-165: Stop + release previous track/stems before loading new song
+        liveClickAutoStopJob?.cancel()
+        songChangedDebounceJob?.cancel()
         if (engineAvailable) try {
             if (isClickPlaying) { AudioEngineBridge.nativeStopClick(); isClickPlaying = false }
             AudioEngineBridge.nativeResetTrack()
@@ -563,6 +577,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // D-165: Auto-load the new song's track if it has audio
         if (song.hasAudio) {
             loadTrack(song.audioUrl!!)
+        }
+
+        // S41: Debounce songChanged → Studio (5s) for session metadata tagging
+        if (activePlayerRoute == "live" && _phoneCompanion != null && phoneCompanion.state.value == ConnectionState.Connected) {
+            songChangedDebounceJob = viewModelScope.launch {
+                delay(5_000L)
+                phoneCompanion.sendSongChanged(song)
+            }
         }
     }
 
@@ -666,9 +688,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Start click engine + begin beat polling. */
     fun startClick() {
         if (!engineAvailable) return
-        selectedSong?.let { applyEngineSettings(it) }
+        val song = selectedSong ?: return
+        // S41: In live mode, respect per-song live_click_mode
+        if (activePlayerRoute == "live") {
+            when (song.liveClickMode) {
+                "off" -> return  // no click for this song
+                else -> {} // "full" or "count_in" — proceed
+            }
+        }
+        applyEngineSettings(song)
         try { AudioEngineBridge.nativeStartClick() } catch (_: Exception) { return }
         isClickPlaying = true
+        liveClickAutoStopJob?.cancel()
+        // S41: auto-stop after 30s for count_in mode in live
+        if (activePlayerRoute == "live" && song.liveClickMode == "count_in") {
+            liveClickAutoStopJob = viewModelScope.launch {
+                delay(30_000L)
+                stopClick()
+            }
+        }
         beatPollJob?.cancel()
         var lastTick = 0  // matches C++ start() reset: beatTick_=0
         beatPollJob = viewModelScope.launch(Dispatchers.Default) {
@@ -694,6 +732,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun stopClick() {
         if (!engineAvailable) return
+        liveClickAutoStopJob?.cancel()
         try { AudioEngineBridge.nativeStopClick() } catch (_: Exception) { }
         isClickPlaying = false
         beatPollJob?.cancel()
@@ -1215,7 +1254,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Phone requests Studio to start ASIO recording AND starts local camera recording. */
     fun requestStudioRecording() {
-        phoneCompanion.sendStartRecRequest()
+        // S41: Include gig context if started from calendar
+        if (activeGigId != null) {
+            phoneCompanion.sendStartRecRequestWithGig(activeGigId, activeGigVenue, activeGigDate)
+        } else {
+            phoneCompanion.sendStartRecRequest()
+        }
         // Local camera recording is triggered by the Studio's StartRec response
         // (wired in initCameraManagers via onStartRecording callback)
     }

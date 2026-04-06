@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import {
   type PhoneMessage, type PairingInfo, type PhoneSettings, type SyncTimePayload,
-  type StartRecPayload, type SyncPulsePayload,
+  type StartRecPayload, type SyncPulsePayload, type SongChangedPayload,
   createMessage, serializePayload, deserializePayload,
   getRelayChannelTopic, getRealtimeUrl,
 } from './protocol';
@@ -17,6 +17,8 @@ interface UseXR18ConnectionOptions {
   onSettingsChanged?: (settings: PhoneSettings) => void;
   /** Returns a base64 JPEG preview frame, or null */
   capturePreviewFrame?: () => string | null;
+  /** S41: Called when Studio relays a SongChanged message from APK (drummer selected a song) */
+  onSongChanged?: (payload: SongChangedPayload) => void;
 }
 
 /** Flash screen white and play a 1kHz beep — sync cue for multi-camera alignment. */
@@ -239,6 +241,15 @@ export function useXR18Connection(opts: UseXR18ConnectionOptions = {}) {
       case 'previewStop':
         livePreviewEnabledRef.current = false;
         break;
+
+      case 'songChanged': {
+        // S41: Studio relayed a songChanged from the APK — update prompter display
+        const songPayload = deserializePayload<SongChangedPayload>(msg.payload);
+        if (songPayload) {
+          optsRef.current.onSongChanged?.(songPayload);
+        }
+        break;
+      }
     }
   }, [sendMessage, startStatusSender, startPreviewSender]);
 

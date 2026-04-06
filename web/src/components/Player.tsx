@@ -298,9 +298,11 @@ interface PlayerProps {
   onMenuClick: () => void;
   userId?: string;
   bandRole?: string;
+  /** S41: Song ID pushed from APK via Studio relay — auto-navigates in prompter mode */
+  pushedSongId?: string | null;
 }
 
-export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, userId, bandRole }: PlayerProps) {
+export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, userId, bandRole, pushedSongId }: PlayerProps) {
   // Mode tabs — user can switch between Live/Practice/View (D-137, D-150)
   const [activeMode, setActiveMode] = useState<PlayerMode>(mode);
 
@@ -366,9 +368,7 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
   // Song play stats (played recently badges)
   const [playStats, setPlayStats] = useState<Map<string, SongPlayStats>>(new Map());
 
-  // Live mode BPM safety modal (matches APK SpeedSafetyModal)
-  const [showSpeedConfirm, setShowSpeedConfirm] = useState(false);
-  const [pendingBpmDelta, setPendingBpmDelta] = useState(0);
+  // S41: Live BPM safety modal removed (PWA is prompter-only, no BPM control)
 
   // Recording state (S41)
   const recording = useRecording();
@@ -522,6 +522,10 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
   // Filtered + sorted songs for the Songs tab (tag toggles reduce clutter; search bypasses tags)
   const filteredSongs = useMemo(() => {
     let songs = allSongs;
+    // S41: In live/prompter mode, only show TGT covers (no personal covers for dep gigs)
+    if (activeMode === 'live') {
+      songs = songs.filter(s => s.category === 'tgt_cover');
+    }
     // If searching, search ALL songs regardless of tag toggles (instant lookup is king)
     if (songSearch.trim()) {
       const q = songSearch.trim().toLowerCase();
@@ -537,7 +541,7 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
       });
     }
     return [...songs].sort(bucketSort);
-  }, [allSongs, stapleOn, partyOn, rockOn, songSearch, bucketSort]);
+  }, [allSongs, activeMode, stapleOn, partyOn, rockOn, songSearch, bucketSort]);
 
   // Navigate setlist
   const goToSetlistSong = useCallback((index: number) => {
@@ -606,6 +610,17 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
     setSetComplete(false);
   }, [actions]);
 
+  // S41: Auto-navigate to pushed song from APK (via Studio relay) in prompter mode
+  // Manual override: if user picks a song themselves, ignore pushed songs until next push
+  const manualOverrideRef = useRef(false);
+  const lastPushedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeMode !== 'live' || !pushedSongId || pushedSongId === lastPushedRef.current) return;
+    lastPushedRef.current = pushedSongId;
+    manualOverrideRef.current = false; // new push resets manual override
+    pickSong(pushedSongId);
+  }, [activeMode, pushedSongId, pickSong]);
+
   // Reorder queue (D-115: queue editable mid-performance)
   const reorderQueueSong = useCallback((fromIdx: number, toIdx: number) => {
     if (!setlist || fromIdx === toIdx) return;
@@ -662,21 +677,6 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
 
   function handleSpeedChange(delta: number) {
     actions.setSpeed(Math.round((state.speed + delta) * 100) / 100);
-  }
-
-  // Live mode BPM change — show safety confirmation when playing
-  function handleLiveBpmChange(delta: number) {
-    if (isPlaying) {
-      setPendingBpmDelta(delta);
-      setShowSpeedConfirm(true);
-    } else {
-      handleSpeedChange(delta / 100);
-    }
-  }
-
-  function confirmBpmChange() {
-    handleSpeedChange(pendingBpmDelta / 100);
-    setShowSpeedConfirm(false);
   }
 
   function handleLoopMark() {
@@ -1131,24 +1131,12 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
           <button className="v4-t-btn" disabled style={{ opacity: 0.3 }}>⏭</button>
         </div>
       ) : isLive ? (
+        /* S41: PWA live mode = visual prompter only — no transport controls */
         <div className="v4-transport stack">
-          {/* Top row: BPM adjustment (matches APK SpeedSafetyModal) */}
-          <div className="v4-t-row">
-            <div className="v4-t-speed-group">
-              <button className="v4-t-spd" onClick={() => handleLiveBpmChange(-5)}>-5</button>
-              <span className="v4-t-spd-val">{Math.round(songBpm * state.speed)}<span className="v4-t-spd-unit">BPM</span></span>
-              <button className="v4-t-spd" onClick={() => handleLiveBpmChange(5)}>+5</button>
-            </div>
-          </div>
-          {/* Bottom row: restart / play / stop */}
-          <div className="v4-t-row">
-            <button className="v4-t-btn" onClick={() => { actions.stop(); actions.seek(0); }} title="Restart">
-              <span style={{ fontSize: '18px' }}>⏮</span>
-            </button>
-            <button className={`v4-t-play ${isPlaying ? 'playing' : ''}`} onClick={handlePlayPause}>
-              {isPlaying ? '⏸' : '▶'}
-            </button>
-            <button className="v4-t-btn v4-t-stop" onClick={actions.stop}>■</button>
+          <div className="v4-t-row" style={{ justifyContent: 'center', opacity: 0.5 }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '2px' }}>
+              Prompter — {Math.round(songBpm * state.speed)} BPM
+            </span>
           </div>
         </div>
       ) : (
@@ -1213,7 +1201,8 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
           {/* Mixer — all modes. Click is always a channel; stems when available */}
           <div className="v4-drawer-label" style={{ marginTop: 12 }}>MIXER</div>
           <div className="v4-mixer">
-            {/* Click channel — always present */}
+            {/* Click channel — hidden in live/prompter mode (S41: PWA has no click) */}
+            {!isLive && (
             <div className="v4-mx-ch">
               <span className="v4-mx-lbl" style={{ color: STEM_COLORS.click }}>CLK</span>
               <DraggableFader
@@ -1231,6 +1220,7 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
                 onClick={actions.toggleClick}
               >M</button>
             </div>
+            )}
             {/* Track channel — practice/view only, when track loaded but no stems */}
             {!isLive && state.stemChannels.length === 0 && state.duration > 0 && (
               <div className="v4-mx-ch">
@@ -1517,7 +1507,8 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
                     {i === currentIndex && <span className="player-queue-now">NOW PLAYING</span>}
                   </div>
                   <span className="player-queue-bpm">{song.song_bpm ?? ''}</span>
-                  {/* Reorder arrows (D-115) */}
+                  {/* Reorder arrows (D-115) — hidden in prompter mode (S41) */}
+                  {!isLive && (
                   <div className="player-queue-reorder" onClick={e => e.stopPropagation()}>
                     <button
                       className="player-queue-arrow"
@@ -1530,6 +1521,7 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
                       onClick={() => reorderQueueSong(i, i + 1)}
                     >▼</button>
                   </div>
+                  )}
                 </div>
               ))}
               {queueTab === 'queue' && !setlist && (
@@ -1630,24 +1622,6 @@ export function Player({ songId, setlistId, mode, gigId, onClose, onMenuClick, u
         </div>
       )}
 
-      {/* ── Speed Safety Modal (Live mode — matches APK SpeedSafetyModal) ── */}
-      {showSpeedConfirm && (
-        <div className="v4-speed-modal-overlay" onClick={() => setShowSpeedConfirm(false)}>
-          <div className="v4-speed-modal" onClick={e => e.stopPropagation()}>
-            <span className="v4-speed-modal-title">Speed Change</span>
-            <span className="v4-speed-modal-desc">
-              Change BPM by {pendingBpmDelta > 0 ? '+' : ''}{pendingBpmDelta} while playing?
-            </span>
-            <span className="v4-speed-modal-bpm">
-              {Math.round(songBpm * state.speed)} → {Math.round(songBpm * state.speed) + pendingBpmDelta} BPM
-            </span>
-            <div className="v4-speed-modal-actions">
-              <button className="v4-speed-modal-btn cancel" onClick={() => setShowSpeedConfirm(false)}>Cancel</button>
-              <button className="v4-speed-modal-btn confirm" onClick={confirmBpmChange}>Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

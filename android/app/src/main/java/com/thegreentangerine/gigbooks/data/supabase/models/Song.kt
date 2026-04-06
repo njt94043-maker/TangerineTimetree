@@ -30,6 +30,7 @@ data class Song(
     @SerialName("performance_tag") val performanceTag: String? = null,  // staple/party/rock — tgt_cover only
     @SerialName("set_bucket") val setBucket: String? = null,            // opener/middle/closer — tgt_cover only
     @SerialName("bucket_position") val bucketPosition: Int? = null,     // order within bucket — tgt_cover only
+    @SerialName("live_click_mode") val liveClickMode: String = "full", // full/count_in/off — per-song live click behavior
     @SerialName("created_by") val createdBy: String = "",
     @SerialName("created_at") val createdAt: String = "",
     @SerialName("updated_at") val updatedAt: String = "",
