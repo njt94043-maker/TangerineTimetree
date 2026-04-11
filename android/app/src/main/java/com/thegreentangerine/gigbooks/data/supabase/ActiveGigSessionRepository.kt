@@ -59,7 +59,7 @@ object ActiveGigSessionRepository {
         }) {
             filter {
                 eq("created_by", userId)
-                isExact("ended_at", null)
+                exact("ended_at", null)
             }
         }
     }

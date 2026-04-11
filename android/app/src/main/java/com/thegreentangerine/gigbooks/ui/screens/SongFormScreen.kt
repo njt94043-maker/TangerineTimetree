@@ -362,7 +362,7 @@ fun SongFormScreen(
                         modifier = Modifier
                             .height(32.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(if (selected) TangerineColors.accent else TangerineColors.surfaceElevated)
+                            .background(if (selected) TangerineColors.green else TangerineColors.surfaceLight)
                             .clickable(enabled = canEdit) { liveClickMode = value }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center,

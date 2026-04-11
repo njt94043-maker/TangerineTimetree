@@ -90,6 +90,9 @@ class PhoneCompanionManager(private val context: Context) {
     /** Provides quality warning info after recording starts, if device can't sustain CFR. */
     var getQualityWarning: (() -> QualityWarningPayload?)? = null
 
+    /** S54 W-G: Called when Studio sends a clip for sharing. Parameters: clipName, localFilePath. */
+    var onClipDownloaded: ((clipName: String, filePath: String) -> Unit)? = null
+
     private var wifiLock: WifiManager.WifiLock? = null
     private var intentionalDisconnect = false
     private var btPaired = false
@@ -545,7 +548,75 @@ class PhoneCompanionManager(private val context: Context) {
                 ))
             }
 
+            PhoneMessageType.ClipReady -> {
+                val clipPayload = PhoneProtocol.deserializePayload<ClipReadyPayload>(msg.payload)
+                if (clipPayload != null && clipPayload.downloadUrl.isNotBlank()) {
+                    Log.i(TAG, "ClipReady: ${clipPayload.clipName} (${clipPayload.fileSizeBytes / 1024}KB) from ${clipPayload.downloadUrl}")
+                    // Download in background, then notify via callback for share intent
+                    scope?.launch(Dispatchers.IO) {
+                        try {
+                            val localPath = downloadClip(clipPayload)
+                            if (localPath != null) {
+                                withContext(Dispatchers.Main) {
+                                    onClipDownloaded?.invoke(clipPayload.clipName, localPath)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Clip download failed: ${e.message}", e)
+                        }
+                    }
+                }
+            }
+
             else -> { /* Ignore unknown */ }
+        }
+    }
+
+    /**
+     * S54 W-G: Download an exported clip from the media server via Tailscale HTTPS.
+     * Returns the local file path, or null on failure.
+     */
+    private fun downloadClip(payload: ClipReadyPayload): String? {
+        val clipsDir = java.io.File(context.getExternalFilesDir(null), "TangerineClips")
+        if (!clipsDir.exists()) clipsDir.mkdirs()
+
+        val safeName = payload.clipName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val outputFile = java.io.File(clipsDir, "$safeName.mp4")
+
+        // Accept self-signed certs for Tailscale HTTPS
+        val trustAllCerts = arrayOf<javax.net.ssl.TrustManager>(object : javax.net.ssl.X509TrustManager {
+            override fun checkClientTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+            override fun checkServerTrusted(chain: Array<java.security.cert.X509Certificate>, authType: String) {}
+            override fun getAcceptedIssuers(): Array<java.security.cert.X509Certificate> = arrayOf()
+        })
+
+        val sslContext = javax.net.ssl.SSLContext.getInstance("TLS")
+        sslContext.init(null, trustAllCerts, java.security.SecureRandom())
+
+        val url = java.net.URL(payload.downloadUrl)
+        val conn = url.openConnection() as javax.net.ssl.HttpsURLConnection
+        conn.sslSocketFactory = sslContext.socketFactory
+        conn.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }
+        conn.connectTimeout = 15_000
+        conn.readTimeout = 60_000
+
+        try {
+            conn.connect()
+            if (conn.responseCode != 200) {
+                Log.e(TAG, "Clip download HTTP ${conn.responseCode}")
+                return null
+            }
+
+            conn.inputStream.use { input ->
+                outputFile.outputStream().use { output ->
+                    input.copyTo(output, bufferSize = 8192)
+                }
+            }
+
+            Log.i(TAG, "Clip downloaded: ${outputFile.absolutePath} (${outputFile.length() / 1024}KB)")
+            return outputFile.absolutePath
+        } finally {
+            conn.disconnect()
         }
     }
 

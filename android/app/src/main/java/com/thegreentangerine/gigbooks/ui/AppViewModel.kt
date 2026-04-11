@@ -1245,6 +1245,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         mgr.capturePreviewFrame = { cam.capturePreviewFrame() }
         cam.onQrCodeScanned = { pairingInfo -> mgr.connect(pairingInfo) }
 
+        // S54 W-G: Share downloaded clips via Android share sheet
+        mgr.onClipDownloaded = { clipName, filePath ->
+            shareClipToSocials(clipName, filePath)
+        }
+
         _phoneCompanion = mgr
         _cameraRecording = cam
     }
@@ -1275,6 +1280,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun releaseCamera() { _cameraRecording?.release() }
+
+    /**
+     * S54 W-G: Open Android share sheet for a downloaded clip.
+     * User picks TikTok, Instagram, YouTube, etc. from the system share sheet.
+     */
+    private fun shareClipToSocials(clipName: String, filePath: String) {
+        try {
+            val ctx = getApplication<Application>()
+            val file = java.io.File(filePath)
+            if (!file.exists()) return
+
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                ctx,
+                "${ctx.packageName}.provider",
+                file
+            )
+
+            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "video/mp4"
+                putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                putExtra(android.content.Intent.EXTRA_SUBJECT, clipName)
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            val chooser = android.content.Intent.createChooser(shareIntent, "Share clip")
+            chooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            ctx.startActivity(chooser)
+        } catch (e: Exception) {
+            android.util.Log.e("AppViewModel", "Share clip failed: ${e.message}", e)
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()

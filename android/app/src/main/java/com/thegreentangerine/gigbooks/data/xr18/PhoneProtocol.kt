@@ -36,6 +36,7 @@ enum class PhoneMessageType {
     @SerialName("startRecRequest") StartRecRequest,
     @SerialName("stopRecRequest") StopRecRequest,
     @SerialName("songChanged") SongChanged,
+    @SerialName("clipReady") ClipReady,
 }
 
 // ── Message envelope ──
@@ -116,6 +117,15 @@ data class QualityWarningPayload(
     val actualFramerate: Double = 0.0,
     val requestedFramerate: Int = 0,
     val isConstantFrameRate: Boolean = true,
+)
+
+/** S54 W-G: Notification that an exported clip is available for download from media server. */
+@Serializable
+data class ClipReadyPayload(
+    val clipName: String = "",
+    val downloadUrl: String = "",
+    val fileSizeBytes: Long = 0,
+    val presetName: String = "",
 )
 
 // ── QR pairing URI ──
