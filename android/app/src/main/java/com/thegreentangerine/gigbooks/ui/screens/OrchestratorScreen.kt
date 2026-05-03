@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,15 +15,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
@@ -49,9 +55,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorPeerServer
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
+import android.graphics.BitmapFactory
 
 /**
  * Orchestrator screen — drummer's gig-time controller (S118 A1).
@@ -89,10 +97,12 @@ fun OrchestratorScreen(onMenuClick: () -> Unit) {
     val isRecording = service?.isRecording?.collectAsState()?.value ?: false
     val lastSendOk = service?.osc?.lastSendOk?.collectAsState()?.value
     val peerCount = service?.peerCount?.collectAsState()?.value ?: 0
+    val peers = service?.peerInfos?.collectAsState()?.value ?: emptyList()
     val discovered = service?.discoveryFlow?.collectAsState()?.value
     val isSearching = service?.isSearching?.collectAsState()?.value ?: false
     val autoDiscover = service?.autoDiscover?.collectAsState()?.value ?: true
     val target = service?.osc?.target?.collectAsState()?.value
+    var fullscreenPeer by remember { mutableStateOf<OrchestratorPeerServer.PeerInfo?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
         Row(
@@ -162,8 +172,15 @@ fun OrchestratorScreen(onMenuClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            PeerCountCard(peerCount = peerCount)
+            PeerFleetCard(
+                peers = peers,
+                onPeerClick = { fullscreenPeer = it },
+            )
         }
+    }
+
+    fullscreenPeer?.let { peer ->
+        PeerPreviewFullscreen(peer = peer, onDismiss = { fullscreenPeer = null })
     }
 }
 
@@ -271,7 +288,10 @@ private fun ManualOverrideFields(
 }
 
 @Composable
-private fun PeerCountCard(peerCount: Int) {
+private fun PeerFleetCard(
+    peers: List<OrchestratorPeerServer.PeerInfo>,
+    onPeerClick: (OrchestratorPeerServer.PeerInfo) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -280,25 +300,129 @@ private fun PeerCountCard(peerCount: Int) {
             .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
             .padding(16.dp),
     ) {
-        Text(
-            "Phone fleet",
-            fontFamily = Karla,
-            fontWeight = FontWeight.SemiBold,
-            color = TangerineColors.text,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Text(
+                "Phone fleet",
+                fontFamily = Karla,
+                fontWeight = FontWeight.SemiBold,
+                color = TangerineColors.text,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "${peers.size} connected",
+                fontFamily = Karla,
+                color = TangerineColors.textMuted,
+                fontSize = 13.sp,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        if (peers.isEmpty()) {
+            Text(
+                "No peers paired yet — phones running the peer-mode app will appear here automatically.",
+                fontFamily = Karla,
+                color = TangerineColors.textMuted.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+            )
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(peers, key = { it.phoneId }) { peer ->
+                    PeerThumbnail(peer = peer, onClick = { onPeerClick(peer) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PeerThumbnail(
+    peer: OrchestratorPeerServer.PeerInfo,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(4f / 3f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(TangerineColors.background)
+                .border(
+                    1.dp,
+                    if (peer.isRecording) TangerineColors.danger else TangerineColors.textMuted.copy(alpha = 0.3f),
+                    RoundedCornerShape(8.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            val jpeg = peer.lastPreviewJpeg
+            val bitmap = remember(jpeg) {
+                jpeg?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
+            }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = peer.deviceName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text("…", color = TangerineColors.textMuted, fontFamily = Karla)
+            }
+            if (peer.isRecording) {
+                Box(
+                    modifier = Modifier
+                        .padding(6.dp)
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(TangerineColors.danger),
+                )
+            }
+        }
         Spacer(Modifier.height(4.dp))
         Text(
-            "$peerCount connected",
+            peer.deviceName,
             fontFamily = Karla,
-            color = TangerineColors.textMuted,
-            fontSize = 14.sp,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            "Peer fanout lands in A2 (next session)",
-            fontFamily = Karla,
-            color = TangerineColors.textMuted.copy(alpha = 0.6f),
+            color = TangerineColors.text,
             fontSize = 11.sp,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun PeerPreviewFullscreen(
+    peer: OrchestratorPeerServer.PeerInfo,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(androidx.compose.ui.graphics.Color.Black)
+            .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        val jpeg = peer.lastPreviewJpeg
+        val bitmap = remember(jpeg) {
+            jpeg?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
+        }
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = peer.deviceName,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Text("No preview yet", color = TangerineColors.text, fontFamily = Karla)
+        }
+        Text(
+            peer.deviceName,
+            fontFamily = Karla,
+            color = TangerineColors.text,
+            modifier = Modifier.padding(20.dp).align(Alignment.TopStart),
         )
     }
 }

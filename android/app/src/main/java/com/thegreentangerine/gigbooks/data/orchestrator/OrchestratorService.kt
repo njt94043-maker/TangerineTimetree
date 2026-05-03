@@ -55,6 +55,10 @@ class OrchestratorService : Service() {
     val discoveryFlow get() = discovery.discovered
     val isSearching get() = discovery.isSearching
 
+    val peerServer = OrchestratorPeerServer()
+    private lateinit var publisher: OrchestratorPublisher
+    val peerInfos: StateFlow<List<OrchestratorPeerServer.PeerInfo>> get() = peerServer.peerInfos
+
     /** When true, OSC target follows mDNS discovery; when false, user override holds. */
     private val _autoDiscover = MutableStateFlow(true)
     val autoDiscover: StateFlow<Boolean> = _autoDiscover
@@ -73,16 +77,37 @@ class OrchestratorService : Service() {
     private val _peerCount = MutableStateFlow(0)
     val peerCount: StateFlow<Int> = _peerCount
 
+    /** Per-set session id, regenerated on each /record fan-out so peers can correlate files. */
+    private fun newSessionId(): String =
+        "set-${System.currentTimeMillis()}"
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         discovery = OrchestratorDiscovery(this)
         discovery.start()
+        publisher = OrchestratorPublisher(this)
+        // Start TCP server first, then advertise the bound port over mDNS
+        val port = peerServer.start()
+        if (port > 0) publisher.register(port)
         // When discovery resolves, route the OSC client unless the user overrode it
         scope.launch {
             discovery.discovered.collect { d ->
                 if (d != null && _autoDiscover.value) {
                     osc.setTarget(d.host, d.port)
+                }
+            }
+        }
+        // Keep peer count in sync with the server's peer list. Only update the
+        // notification when the count changes — preview frames update the list on
+        // every cycle and we don't want to spam NotificationManager.
+        scope.launch {
+            var lastCount = -1
+            peerServer.peerInfos.collect { list ->
+                _peerCount.value = list.size
+                if (list.size != lastCount) {
+                    lastCount = list.size
+                    updateNotification()
                 }
             }
         }
@@ -103,6 +128,8 @@ class OrchestratorService : Service() {
 
     override fun onDestroy() {
         discovery.stop()
+        publisher.unregister()
+        peerServer.shutdown()
         scope.cancel()
         releaseWakeLock()
         super.onDestroy()
@@ -110,7 +137,11 @@ class OrchestratorService : Service() {
 
     fun startRecording() {
         scope.launch {
+            val sessionId = newSessionId()
+            // Reaper first (the source of truth), then peer fan-out — both within
+            // the same dispatcher tick so latency is dominated by network, not code.
             osc.sendRecord()
+            peerServer.broadcastStartRec(sessionId)
             _isRecording.value = true
             updateNotification()
         }
@@ -119,6 +150,7 @@ class OrchestratorService : Service() {
     fun stopRecording() {
         scope.launch {
             osc.sendStop()
+            peerServer.broadcastStopRec()
             _isRecording.value = false
             updateNotification()
         }

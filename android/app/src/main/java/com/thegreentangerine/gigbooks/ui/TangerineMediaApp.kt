@@ -57,6 +57,7 @@ import com.thegreentangerine.gigbooks.ui.screens.CalendarScreen
 import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
 import com.thegreentangerine.gigbooks.ui.screens.OrchestratorScreen
+import com.thegreentangerine.gigbooks.ui.screens.PeerScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SongFormScreen
@@ -79,6 +80,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object NowPlaying : Screen("nowplaying", "Now Playing", Icons.Default.PlayArrow)  // Dynamic drawer item (D-166)
     data object XR18Camera : Screen("xr18camera", "XR18 Camera", Icons.Default.Videocam)  // Phone companion for XR18Studio
     data object Orchestrator : Screen("orchestrator", "Orchestrator", Icons.Default.FiberManualRecord)  // S118 — drummer-side gig orchestrator
+    data object Peer : Screen("peer", "Peer (camera)", Icons.Default.Videocam)  // S118 A2 — non-drummer phone in the camera fleet
 }
 
 // Only these appear in the drawer
@@ -156,6 +158,7 @@ fun TangerineMediaApp() {
                 // S118 — drummer-side gig orchestrator (Reaper trigger + phone fleet)
                 DrawerSectionLabel("GIG")
                 DrawerNavItem(Screen.Orchestrator, currentRoute == Screen.Orchestrator.route, TangerineColors.orange) { navigate(Screen.Orchestrator.route) }
+                DrawerNavItem(Screen.Peer, currentRoute == Screen.Peer.route, TangerineColors.green) { navigate(Screen.Peer.route) }
 
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
@@ -273,6 +276,9 @@ fun TangerineMediaApp() {
             }
             composable(Screen.Orchestrator.route) {
                 OrchestratorScreen(onMenuClick = { openMenu() })
+            }
+            composable(Screen.Peer.route) {
+                PeerScreen(onMenuClick = { openMenu() })
             }
         }
     }
