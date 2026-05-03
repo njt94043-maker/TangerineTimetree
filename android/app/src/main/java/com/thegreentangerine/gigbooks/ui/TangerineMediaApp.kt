@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
@@ -55,6 +56,7 @@ import com.thegreentangerine.gigbooks.ui.components.glowBehind
 import com.thegreentangerine.gigbooks.ui.screens.CalendarScreen
 import com.thegreentangerine.gigbooks.ui.screens.LibraryScreen
 import com.thegreentangerine.gigbooks.ui.screens.LiveScreen
+import com.thegreentangerine.gigbooks.ui.screens.OrchestratorScreen
 import com.thegreentangerine.gigbooks.ui.screens.PracticeScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SongFormScreen
@@ -76,6 +78,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object SongForm : Screen("songform", "Edit Song",        Icons.Default.Settings)  // Not in drawer
     data object NowPlaying : Screen("nowplaying", "Now Playing", Icons.Default.PlayArrow)  // Dynamic drawer item (D-166)
     data object XR18Camera : Screen("xr18camera", "XR18 Camera", Icons.Default.Videocam)  // Phone companion for XR18Studio
+    data object Orchestrator : Screen("orchestrator", "Orchestrator", Icons.Default.FiberManualRecord)  // S118 — drummer-side gig orchestrator
 }
 
 // Only these appear in the drawer
@@ -149,6 +152,10 @@ fun TangerineMediaApp() {
                 // Recording (XR18 Studio companion)
                 DrawerSectionLabel("RECORDING")
                 DrawerNavItem(Screen.XR18Camera, currentRoute == Screen.XR18Camera.route, TangerineColors.danger) { navigate(Screen.XR18Camera.route) }
+
+                // S118 — drummer-side gig orchestrator (Reaper trigger + phone fleet)
+                DrawerSectionLabel("GIG")
+                DrawerNavItem(Screen.Orchestrator, currentRoute == Screen.Orchestrator.route, TangerineColors.orange) { navigate(Screen.Orchestrator.route) }
 
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
@@ -263,6 +270,9 @@ fun TangerineMediaApp() {
                     onMenuClick = { openMenu() },
                     onBack = { navigate(Screen.Calendar.route) },
                 )
+            }
+            composable(Screen.Orchestrator.route) {
+                OrchestratorScreen(onMenuClick = { openMenu() })
             }
         }
     }
