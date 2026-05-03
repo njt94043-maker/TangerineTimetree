@@ -14,8 +14,8 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.1.5"
+        versionCode = 8
+        versionName = "1.1.8"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -102,7 +102,9 @@ dependencies {
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.storage)
     implementation(libs.supabase.realtime)
-    implementation(libs.ktor.android)
+    // OkHttp Ktor engine — required for Supabase Realtime (WebSocket capability;
+    // the default ktor-android engine doesn't support WebSockets).
+    implementation(libs.ktor.okhttp)
 
     // Coroutines
     implementation(libs.coroutines.android)

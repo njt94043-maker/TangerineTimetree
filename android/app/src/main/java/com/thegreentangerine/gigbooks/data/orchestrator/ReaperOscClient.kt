@@ -37,7 +37,21 @@ class ReaperOscClient {
         encodeMessage("/action", intArg = 1013),   // Transport: Record
     )
     suspend fun sendStop() = sendPacket(encodeMessage("/stop"))
-    suspend fun sendSongMarker(title: String) = sendPacket(encodeMessage("/song_marker", stringArg = title))
+
+    /**
+     * Drop a Reaper marker at the current edit cursor (= current recording head)
+     * named after the song the drummer just advanced to. Sent as a bundle so
+     * Reaper processes both messages on a single tick:
+     *   - `/action 40157` (Markers: Insert marker at current position) — works
+     *     out-of-the-box with Default.ReaperOSC, no custom mapping needed.
+     *   - `/song_marker <title>` — custom OSC route. If a Lua script is mapped
+     *     to it (future), it can rename the just-inserted marker. Without the
+     *     script, this message is silently ignored by Reaper.
+     */
+    suspend fun sendSongMarker(title: String) = sendBundle(
+        encodeMessage("/action", intArg = 40157),
+        encodeMessage("/song_marker", stringArg = title),
+    )
 
     private suspend fun sendBundle(vararg messages: ByteArray) = sendPacket(encodeBundle(messages.toList()))
 

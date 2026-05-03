@@ -3,7 +3,6 @@ package com.thegreentangerine.gigbooks.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,21 +23,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thegreentangerine.gigbooks.audio.AudioEngineBridge
 import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.NeuCard
@@ -89,71 +85,6 @@ fun SettingsScreen(vm: AppViewModel, onMenuClick: () -> Unit) {
                     style = TextStyle(color = TangerineColors.green, shadow = Shadow(TangerineColors.green.copy(0.35f), Offset.Zero, 8f)))
                 Text(email, fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.textDim)
             }
-
-            // Audio engine status
-            NeuCard {
-                Text("Audio Engine", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(
-                                if (vm.engineAvailable) TangerineColors.green else TangerineColors.danger,
-                                RoundedCornerShape(4.dp),
-                            ),
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        if (vm.engineAvailable) "Running — Oboe (C++ / NDK)" else "Unavailable on this device",
-                        fontFamily = Karla, fontSize = 13.sp,
-                        color = if (vm.engineAvailable) TangerineColors.text else TangerineColors.danger,
-                    )
-                }
-            }
-
-            // Click Sound Picker
-            NeuCard {
-                Text("Click Sound", fontFamily = Karla, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
-                    color = TangerineColors.textMuted, letterSpacing = 0.5.sp)
-                Spacer(Modifier.height(8.dp))
-                val clickSounds = listOf("Default" to 0, "High" to 1, "Low" to 2, "Wood" to 3, "Rimshot" to 4)
-                var selectedClick by remember { mutableIntStateOf(0) }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    clickSounds.forEach { (label, idx) ->
-                        val isSelected = selectedClick == idx
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) TangerineColors.purple.copy(alpha = 0.12f) else TangerineColors.surfaceInset)
-                                .border(
-                                    1.dp,
-                                    if (isSelected) TangerineColors.purple.copy(alpha = 0.4f) else TangerineColors.neuBorder,
-                                    RoundedCornerShape(8.dp),
-                                )
-                                .clickable {
-                                    selectedClick = idx
-                                    if (vm.engineAvailable) try { AudioEngineBridge.nativeSetClickSound(idx) } catch (_: Exception) { }
-                                }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                label, fontFamily = Karla, fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) TangerineColors.purple else TangerineColors.textDim,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Display toggles live in the player bottom sheet drawer only (D-118)
 
             // About
             NeuCard {

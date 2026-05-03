@@ -37,14 +37,6 @@ class CameraRecordingManager(private val context: Context) {
     private var activeRecording: Recording? = null
     private var lastPreviewFrame: ByteArray? = null
     private val analysisExecutor = Executors.newSingleThreadExecutor()
-    private val scanScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
-    /** When set, each camera frame is scanned for QR codes. Called with the result on detection. */
-    var onQrCodeScanned: ((PairingInfo) -> Unit)? = null
-
-    /** Enable/disable QR scanning on camera frames. */
-    var qrScanEnabled: Boolean = false
-
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
 
@@ -124,28 +116,12 @@ class CameraRecordingManager(private val context: Context) {
                 .also { analysis ->
                     @androidx.camera.core.ExperimentalGetImage
                     analysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                        // QR scanning: MUST run BEFORE imageProxyToJpeg because JPEG conversion
-                        // consumes YUV buffer positions, leaving empty data for ML Kit.
-                        // Also skip JPEG capture during scanning — we're not connected so no preview needed.
-                        if (qrScanEnabled && onQrCodeScanned != null) {
-                            scanScope.launch {
-                                try {
-                                    val info = QrScannerHelper.scanImageProxy(imageProxy)
-                                    if (info != null) {
-                                        qrScanEnabled = false
-                                        onQrCodeScanned?.invoke(info)
-                                    }
-                                } catch (_: Exception) {
-                                    // ML Kit can fail on some frames — ignore
-                                } finally {
-                                    imageProxy.close()
-                                }
-                            }
-                        } else {
-                            // Normal mode: capture preview frame as JPEG for companion protocol
-                            lastPreviewFrame = imageProxyToJpeg(imageProxy)
-                            imageProxy.close()
-                        }
+                        // Capture preview frame as JPEG for the orchestrator preview drawer
+                        // (consumed by PeerOrchestratorClient.providePreviewFrame). QR-based
+                        // pairing was retired in S121 alongside the rest of the Songs flow;
+                        // peer pairing now uses mDNS only.
+                        lastPreviewFrame = imageProxyToJpeg(imageProxy)
+                        imageProxy.close()
                     }
                 }
 
@@ -353,7 +329,6 @@ class CameraRecordingManager(private val context: Context) {
         activeRecording = null
         cameraProvider?.unbindAll()
         analysisExecutor.shutdown()
-        scanScope.cancel()
         _isBound.value = false
     }
 
