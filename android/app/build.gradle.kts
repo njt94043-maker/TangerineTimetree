@@ -14,8 +14,8 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.1.8"
+        versionCode = 9
+        versionName = "1.1.9"
 
         ndk {
             abiFilters += listOf("arm64-v8a")
@@ -133,4 +133,7 @@ dependencies {
 
     // Core
     implementation(libs.core.ktx)
+
+    // DataStore (camera settings persistence)
+    implementation(libs.datastore.preferences)
 }

@@ -1,12 +1,15 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,10 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +58,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.thegreentangerine.gigbooks.data.orchestrator.PeerCameraService
 import com.thegreentangerine.gigbooks.data.orchestrator.PeerOrchestratorClient
+import com.thegreentangerine.gigbooks.data.xr18.CameraSettingsStore
 import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.ui.AppViewModel
+import com.thegreentangerine.gigbooks.ui.components.CameraSettingsSheet
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -73,11 +85,14 @@ import java.io.File
  * entry the user opens. Picking the right device is on the human, by design — gig
  * setup is an explicit ritual, not auto-elected.
  *
- * Note: this screen has no foreground service yet. Backgrounding the app or
- * navigating away mid-recording will tear down the peer connection and stop the
- * recording. Foreground-service lift is a follow-up; gig usage is "open the
- * screen, leave it open, screen on" for now.
+ * Foreground service ([PeerCameraService]) is started on screen entry — recording
+ * survives screen-off so the phone can sit on a stand with screen-saver active for
+ * the whole gig. Wake lock is held for the foreground service lifetime (4h max).
+ *
+ * Camera settings (front/back, output rotation) persist via [CameraSettingsStore]
+ * under the Peer role — band members configure once per device.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PeerScreen(onMenuClick: () -> Unit) {
     val context = LocalContext.current
@@ -85,9 +100,30 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     val vm: AppViewModel = viewModel()
     val client = remember { PeerOrchestratorClient(context) }
     val cameraManager = vm.cameraRecording
+    val settingsStore = remember { CameraSettingsStore(context) }
+    val scope = rememberCoroutineScope()
+    val settings by settingsStore.observe(CameraSettingsStore.Role.Peer)
+        .collectAsState(initial = PhoneSettings(cameraFacing = "back"))
+    var settingsSheetOpen by remember { mutableStateOf(false) }
     var lastSession by remember { mutableStateOf<String?>(null) }
     var lastRecToggleMs by remember { mutableLongStateOf(0L) }
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
+
+    // Foreground service lifetime mirrors the screen — start on entry, stop on dispose.
+    // The actual CameraX bind is still owned by the AppViewModel-scoped manager; the
+    // service exists purely to win the foreground-camera contract with the OS so
+    // recording survives screen-off.
+    DisposableEffect(Unit) {
+        val intent = Intent(context, PeerCameraService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+        onDispose {
+            runCatching { context.stopService(Intent(context, PeerCameraService::class.java)) }
+        }
+    }
 
     // Camera permission flow — peer mode requires camera + audio (CameraX records audio with video)
     var hasCameraPermission by remember {
@@ -102,14 +138,17 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         if (!hasCameraPermission) permLauncher.launch(Manifest.permission.CAMERA)
     }
 
-    // Bind CameraX as soon as permission + PreviewView are both ready. CameraX is
-    // idempotent on rebind via applySettings → rebind, so re-entering the screen
-    // won't double-bind.
-    LaunchedEffect(hasCameraPermission, previewView) {
+    // Bind / re-bind CameraX when permission, PreviewView, or rebind-relevant
+    // settings change (facing / resolution / framerate). Rotation is handled
+    // separately below — it can be applied at runtime without a full rebind.
+    LaunchedEffect(hasCameraPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
         val pv = previewView
         if (hasCameraPermission && pv != null) {
-            vm.bindCamera(lifecycleOwner, pv, PhoneSettings())
+            vm.bindCamera(lifecycleOwner, pv, settings)
         }
+    }
+    LaunchedEffect(settings.rotationDegrees) {
+        cameraManager.applyRotation(settings.rotationDegrees)
     }
 
     // Wire client callbacks → CameraRecordingManager. Output goes to a dedicated
@@ -173,7 +212,11 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 fontSize = 22.sp,
                 color = TangerineColors.text,
+                modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = { settingsSheetOpen = true }) {
+                Icon(Icons.Default.Tune, "Camera settings", tint = TangerineColors.text)
+            }
         }
 
         if (!hasCameraPermission) {
@@ -289,10 +332,31 @@ fun PeerScreen(onMenuClick: () -> Unit) {
             }
 
             Text(
-                "Recording is controlled by the drummer. Keep this screen open during the gig.",
+                "Recording is controlled by the drummer. The screen can sleep — recording survives.",
                 fontFamily = Karla,
                 color = TangerineColors.textMuted.copy(alpha = 0.6f),
                 fontSize = 11.sp,
+            )
+        }
+    }
+
+    // Settings sheet — front/back + rotation. Persisted per-device via
+    // CameraSettingsStore so band members configure once.
+    if (settingsSheetOpen) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { settingsSheetOpen = false },
+            sheetState = sheetState,
+            containerColor = TangerineColors.surface,
+            scrimColor = Color.Black.copy(alpha = 0.6f),
+        ) {
+            CameraSettingsSheet(
+                title = "Peer camera settings",
+                subtitle = "Mount the phone, set the angle, then forget about it. Settings persist per device.",
+                settings = settings,
+                onChange = { new ->
+                    scope.launch { settingsStore.update(CameraSettingsStore.Role.Peer, new) }
+                },
             )
         }
     }

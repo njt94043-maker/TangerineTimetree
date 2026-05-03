@@ -138,10 +138,12 @@ class OrchestratorService : Service() {
     fun startRecording() {
         scope.launch {
             val sessionId = newSessionId()
-            // Reaper first (the source of truth), then peer fan-out — both within
-            // the same dispatcher tick so latency is dominated by network, not code.
+            // Reaper first (the source of truth), then peer fan-out, then local
+            // orchestrator camera if Gig Mode wired CameraGate. All within the
+            // same dispatcher tick so latency is dominated by network, not code.
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId)
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId)
             _isRecording.value = true
             updateNotification()
         }
@@ -151,6 +153,7 @@ class OrchestratorService : Service() {
         scope.launch {
             osc.sendStop()
             peerServer.broadcastStopRec()
+            CameraGate.stopLocalRecording()
             _isRecording.value = false
             updateNotification()
         }

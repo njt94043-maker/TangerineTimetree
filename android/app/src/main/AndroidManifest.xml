@@ -48,14 +48,14 @@
         </provider>
 
         <service
-            android:name=".data.xr18.PhoneCompanionService"
-            android:exported="false"
-            android:foregroundServiceType="camera" />
-
-        <service
             android:name=".data.orchestrator.OrchestratorService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
+
+        <service
+            android:name=".data.orchestrator.PeerCameraService"
+            android:exported="false"
+            android:foregroundServiceType="camera" />
     </application>
 
 </manifest>

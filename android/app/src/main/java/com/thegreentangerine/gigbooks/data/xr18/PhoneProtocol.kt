@@ -85,6 +85,7 @@ data class PhoneSettings(
     val exposure: String = "Auto",
     val stabilisation: String = "Off",
     val cameraFacing: String = "back",  // "back" or "front"
+    val rotationDegrees: Int = 0,        // 0 / 90 / 180 / 270 — applied to recorded video output
 )
 
 @Serializable

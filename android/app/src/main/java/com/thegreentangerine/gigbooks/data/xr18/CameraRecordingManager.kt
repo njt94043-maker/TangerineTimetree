@@ -1,12 +1,11 @@
 package com.thegreentangerine.gigbooks.data.xr18
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.YuvImage
 import android.util.Log
 import android.util.Size
+import android.view.Surface
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
@@ -22,7 +21,12 @@ import java.util.concurrent.Executors
 
 /**
  * Manages CameraX for video recording and preview frame capture.
- * Bind to a LifecycleOwner + PreviewView before use.
+ * Bind to a LifecycleOwner before use.
+ *
+ * `previewView` is nullable. Pass a real PreviewView for screens that show the
+ * live camera (PeerScreen). Pass null for hidden-bind use cases (orchestrator
+ * recording its own selfie video while the prompter UI takes the screen) — only
+ * VideoCapture + ImageAnalysis are bound, no preview surface needed.
  */
 class CameraRecordingManager(private val context: Context) {
 
@@ -59,9 +63,10 @@ class CameraRecordingManager(private val context: Context) {
     private var frameMonitorStartMs = 0L
 
     /**
-     * Bind CameraX to lifecycle with Preview + VideoCapture + ImageAnalysis.
+     * Bind CameraX to lifecycle. Pass `previewView = null` for hidden recording
+     * (orchestrator-as-camera) — only VideoCapture + ImageAnalysis are bound.
      */
-    fun bind(lifecycleOwner: LifecycleOwner, previewView: PreviewView, settings: PhoneSettings = PhoneSettings()) {
+    fun bind(lifecycleOwner: LifecycleOwner, previewView: PreviewView?, settings: PhoneSettings = PhoneSettings()) {
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             val provider = future.get()
@@ -73,7 +78,7 @@ class CameraRecordingManager(private val context: Context) {
     private fun rebind(
         provider: ProcessCameraProvider,
         lifecycleOwner: LifecycleOwner,
-        previewView: PreviewView,
+        previewView: PreviewView?,
         settings: PhoneSettings,
     ) {
         // Don't rebind during recording — it kills the active recording
@@ -85,8 +90,13 @@ class CameraRecordingManager(private val context: Context) {
         try {
             provider.unbindAll()
 
-            preview = Preview.Builder().build().also {
-                it.surfaceProvider = previewView.surfaceProvider
+            val targetRotation = rotationToSurface(settings.rotationDegrees)
+
+            preview = previewView?.let { pv ->
+                Preview.Builder()
+                    .setTargetRotation(targetRotation)
+                    .build()
+                    .also { it.surfaceProvider = pv.surfaceProvider }
             }
 
             val quality = when (settings.resolution) {
@@ -105,21 +115,19 @@ class CameraRecordingManager(private val context: Context) {
                 .build()
             videoCapture = VideoCapture.Builder(recorder)
                 .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))
+                .setTargetRotation(targetRotation)
                 .build()
 
-            // ImageAnalysis for preview frame capture + QR scanning
-            // Use 640x480 for reliable QR detection (320x240 is too low for ML Kit)
+            // ImageAnalysis for preview frame capture (orchestrator/peer thumbnail). QR
+            // pairing was retired in S121; analyzer just snapshots JPEGs now.
             imageAnalysis = ImageAnalysis.Builder()
                 .setTargetResolution(Size(640, 480))
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setTargetRotation(targetRotation)
                 .build()
                 .also { analysis ->
                     @androidx.camera.core.ExperimentalGetImage
                     analysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                        // Capture preview frame as JPEG for the orchestrator preview drawer
-                        // (consumed by PeerOrchestratorClient.providePreviewFrame). QR-based
-                        // pairing was retired in S121 alongside the rest of the Songs flow;
-                        // peer pairing now uses mDNS only.
                         lastPreviewFrame = imageProxyToJpeg(imageProxy)
                         imageProxy.close()
                     }
@@ -131,12 +139,15 @@ class CameraRecordingManager(private val context: Context) {
                 CameraSelector.DEFAULT_BACK_CAMERA
             }
 
+            val useCases = mutableListOf<UseCase>()
+            preview?.let { useCases.add(it) }
+            videoCapture?.let { useCases.add(it) }
+            imageAnalysis?.let { useCases.add(it) }
+
             provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
-                preview,
-                videoCapture,
-                imageAnalysis,
+                *useCases.toTypedArray(),
             )
             _isBound.value = true
         } catch (e: Exception) {
@@ -147,6 +158,24 @@ class CameraRecordingManager(private val context: Context) {
                 rebind(provider, lifecycleOwner, previewView, PhoneSettings())
             }
         }
+    }
+
+    /**
+     * Apply rotation to bound use cases without rebinding. Cheap — no camera
+     * teardown. Safe to call mid-recording.
+     */
+    fun applyRotation(degrees: Int) {
+        val rot = rotationToSurface(degrees)
+        preview?.targetRotation = rot
+        videoCapture?.targetRotation = rot
+        imageAnalysis?.targetRotation = rot
+    }
+
+    private fun rotationToSurface(degrees: Int): Int = when (degrees) {
+        90 -> Surface.ROTATION_90
+        180 -> Surface.ROTATION_180
+        270 -> Surface.ROTATION_270
+        else -> Surface.ROTATION_0
     }
 
     /**
@@ -189,22 +218,10 @@ class CameraRecordingManager(private val context: Context) {
                         frameEventCount++
                         val elapsedSec = (nowMs - frameMonitorStartMs) / 1000.0
                         if (elapsedSec >= 5.0) {
-                            // We get Status events ~1Hz from CameraX; derive framerate from
-                            // the recorded duration vs the number of bytes/frames reported.
-                            // Use recordedDurationNanos for a more accurate measurement.
                             val recordedSec = stats.recordedDurationNanos / 1_000_000_000.0
                             if (recordedSec > 0) {
-                                // CameraX Status events fire once per second; use recorded duration
-                                // to estimate actual fps from the numBytesRecorded trend.
-                                // For a direct fps measurement, track Status event cadence
-                                // against the elapsed wall clock.
-                                val measuredFps = frameEventCount / elapsedSec
-                                // Status events fire ~1/sec, so measuredFps ≈ 1. Instead derive
-                                // from the encoder's reported duration: if duration is close to
-                                // wall time, CFR is working.
                                 val wallElapsedSec = (nowMs - frameMonitorStartMs) / 1000.0
                                 val durationRatio = if (wallElapsedSec > 0) recordedSec / wallElapsedSec else 1.0
-                                // Estimate actual fps as requestedFramerate * durationRatio
                                 val estimatedFps = requestedFramerate * durationRatio
                                 _actualFramerate.value = estimatedFps
                                 val diff = kotlin.math.abs(estimatedFps - requestedFramerate)
@@ -234,7 +251,7 @@ class CameraRecordingManager(private val context: Context) {
     /** Returns last captured preview frame as JPEG bytes, or null. */
     fun capturePreviewFrame(): ByteArray? = lastPreviewFrame
 
-    fun applySettings(lifecycleOwner: LifecycleOwner, previewView: PreviewView, settings: PhoneSettings) {
+    fun applySettings(lifecycleOwner: LifecycleOwner, previewView: PreviewView?, settings: PhoneSettings) {
         val provider = cameraProvider ?: return
         // CameraX bindToLifecycle must run on the main thread. Settings pushes arrive
         // from BT/TCP/relay handler threads — dispatch to main to avoid crashes.
