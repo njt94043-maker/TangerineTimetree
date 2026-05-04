@@ -55,6 +55,8 @@ import type {
   SongShareWithProfile,
   GigPerformanceLogWithSong,
   SongPlayStats,
+  SetlistEntry,
+  SetlistListId,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -2886,4 +2888,30 @@ export async function getSongPlayStats(songIds: string[]): Promise<SongPlayStats
     }
   }
   return [...stats.values()];
+}
+
+// ─── Setlist Entries (S118/S121 — self-contained rows, 3 master lists) ───
+
+export async function getSetlistEntries(): Promise<SetlistEntry[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_entries')
+    .select('*')
+    .order('list_id')
+    .order('position');
+
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as SetlistEntry[];
+}
+
+export async function getSetlistEntriesByList(listId: SetlistListId): Promise<SetlistEntry[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_entries')
+    .select('*')
+    .eq('list_id', listId)
+    .order('position');
+
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as SetlistEntry[];
 }

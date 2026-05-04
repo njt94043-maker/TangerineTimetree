@@ -7,9 +7,7 @@ type View =
   | 'quotes' | 'quote-form' | 'quote-detail' | 'quote-preview'
   | 'settings' | 'clients'
   | 'venues' | 'venue-detail'
-  | 'songs' | 'song-form'
-  | 'setlists' | 'setlist-detail'
-  | 'library' | 'player'
+  | 'library'
   | 'booking-wizard'
   | 'xr18-camera'
   | 'availability';
@@ -25,12 +23,6 @@ interface HistoryEntry {
   quoteId?: string | null;
   editQuoteId?: string | null;
   venueId?: string | null;
-  editSongId?: string | null;
-  setlistId?: string | null;
-  playerSongId?: string | null;
-  playerSetlistId?: string | null;
-  playerMode?: 'live' | 'practice' | 'view';
-  playerGigId?: string | null;
 }
 
 interface ViewState {
@@ -43,12 +35,6 @@ interface ViewState {
   quoteId: string | null;
   editQuoteId: string | null;
   venueId: string | null;
-  editSongId: string | null;
-  setlistId: string | null;
-  playerSongId: string | null;
-  playerSetlistId: string | null;
-  playerMode: 'live' | 'practice' | 'view';
-  playerGigId: string | null;
 }
 
 interface ViewContextValue extends ViewState {
@@ -77,16 +63,8 @@ interface ViewContextValue extends ViewState {
   // Venue navigation
   goToVenues: () => void;
   goToVenueDetail: (id: string) => void;
-  // Song navigation
-  goToSongs: () => void;
-  goToNewSong: () => void;
-  goToEditSong: (id: string) => void;
-  // Setlist navigation
-  goToSetlists: () => void;
-  goToSetlistDetail: (id: string) => void;
-  // Library + Player navigation
+  // Library navigation (3-list setlist view)
   goToLibrary: () => void;
-  goToPlayer: (songId: string, mode: 'live' | 'practice' | 'view', setlistId?: string, gigId?: string) => void;
   // XR18 Camera companion
   goToXR18Camera: () => void;
   // Availability
@@ -117,9 +95,6 @@ function entryKey(e: HistoryEntry): string {
     case 'quote-form': return `quote-form:${e.editQuoteId ?? 'new'}`;
     case 'quote-preview': return `quote-preview:${e.quoteId ?? ''}`;
     case 'venue-detail': return `venue-detail:${e.venueId ?? ''}`;
-    case 'song-form': return `song-form:${e.editSongId ?? 'new'}`;
-    case 'setlist-detail': return `setlist-detail:${e.setlistId ?? ''}`;
-    case 'player': return `player:${e.playerSongId ?? ''}:${e.playerMode ?? 'live'}`;
     default: return e.view;
   }
 }
@@ -134,12 +109,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [editQuoteId, setEditQuoteId] = useState<string | null>(null);
   const [venueId, setVenueId] = useState<string | null>(null);
-  const [editSongId, setEditSongId] = useState<string | null>(null);
-  const [setlistId, setSetlistId] = useState<string | null>(null);
-  const [playerSongId, setPlayerSongId] = useState<string | null>(null);
-  const [playerSetlistId, setPlayerSetlistId] = useState<string | null>(null);
-  const [playerMode, setPlayerMode] = useState<'live' | 'practice' | 'view'>('live');
-  const [playerGigId, setPlayerGigId] = useState<string | null>(null);
 
   // View history stack — each entry stores the view + its state snapshot
   const historyRef = useRef<HistoryEntry[]>([{ view: 'calendar' }]);
@@ -156,12 +125,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     if (entry.quoteId !== undefined) setQuoteId(entry.quoteId);
     if (entry.editQuoteId !== undefined) setEditQuoteId(entry.editQuoteId);
     if (entry.venueId !== undefined) setVenueId(entry.venueId);
-    if (entry.editSongId !== undefined) setEditSongId(entry.editSongId);
-    if (entry.setlistId !== undefined) setSetlistId(entry.setlistId);
-    if (entry.playerSongId !== undefined) setPlayerSongId(entry.playerSongId);
-    if (entry.playerSetlistId !== undefined) setPlayerSetlistId(entry.playerSetlistId);
-    if (entry.playerMode !== undefined) setPlayerMode(entry.playerMode);
-    if (entry.playerGigId !== undefined) setPlayerGigId(entry.playerGigId);
   }
 
   /* ── Push a new entry onto the history stack ── */
@@ -265,8 +228,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToClients = useCallback(() => resetToView('clients'), [resetToView]);
   const goToVenues = useCallback(() => resetToView('venues'), [resetToView]);
   const goToQuotes = useCallback(() => resetToView('quotes'), [resetToView]);
-  const goToSongs = useCallback(() => resetToView('songs'), [resetToView]);
-  const goToSetlists = useCallback(() => resetToView('setlists'), [resetToView]);
   const goToLibrary = useCallback(() => resetToView('library'), [resetToView]);
   const goToXR18Camera = useCallback(() => resetToView('xr18-camera'), [resetToView]);
   const goToAvailability = useCallback(() => resetToView('availability'), [resetToView]);
@@ -311,31 +272,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToVenueDetail = useCallback((id: string) => {
     setVenueId(id);
     pushEntry({ view: 'venue-detail', venueId: id });
-  }, [pushEntry]);
-
-  // Song drill-down
-  const goToNewSong = useCallback(() => {
-    setEditSongId(null);
-    pushEntry({ view: 'song-form', editSongId: null });
-  }, [pushEntry]);
-  const goToEditSong = useCallback((id: string) => {
-    setEditSongId(id);
-    pushEntry({ view: 'song-form', editSongId: id });
-  }, [pushEntry]);
-
-  // Setlist drill-down
-  const goToSetlistDetail = useCallback((id: string) => {
-    setSetlistId(id);
-    pushEntry({ view: 'setlist-detail', setlistId: id });
-  }, [pushEntry]);
-
-  // Player drill-down (from library)
-  const goToPlayer = useCallback((songId: string, mode: 'live' | 'practice' | 'view', slId?: string, gId?: string) => {
-    setPlayerSongId(songId);
-    setPlayerMode(mode);
-    setPlayerSetlistId(slId ?? null);
-    setPlayerGigId(gId ?? null);
-    pushEntry({ view: 'player', playerSongId: songId, playerMode: mode, playerSetlistId: slId ?? null, playerGigId: gId ?? null });
   }, [pushEntry]);
 
   // Booking wizard / Gig Hub
@@ -409,12 +345,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         invoiceId, editInvoiceId,
         quoteId, editQuoteId,
         venueId,
-        editSongId,
-        setlistId,
-        playerSongId,
-        playerSetlistId,
-        playerMode,
-        playerGigId,
         setView, goToDay, goToAddGig, goToEditGig,
         goToAddGigFromList, goToEditGigFromList, goBack,
         goToDashboard, goToInvoices, goToNewInvoice, goToEditInvoice,
@@ -422,9 +352,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToSettings, goToClients,
         goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
         goToVenues, goToVenueDetail,
-        goToSongs, goToNewSong, goToEditSong,
-        goToSetlists, goToSetlistDetail,
-        goToLibrary, goToPlayer, goToXR18Camera, goToAvailability,
+        goToLibrary, goToXR18Camera, goToAvailability,
         goToBookingWizard, goToEditBooking,
         goToAway,
         replaceWithInvoiceDetail, replaceWithQuoteDetail,

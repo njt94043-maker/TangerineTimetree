@@ -598,6 +598,41 @@ export interface SetlistWithSongs extends Setlist {
   song_count: number;
 }
 
+// ─── Setlist Entries (S118/S121: self-contained rows, 3 master lists) ───
+// Replaces songs + setlists + setlist_songs. Lists are fixed: Staples/Party/Classic Rock.
+
+export type SetlistListId = 'staples' | 'party' | 'classic_rock';
+
+export const SETLIST_LIST_ORDER: SetlistListId[] = ['staples', 'party', 'classic_rock'];
+
+export const SETLIST_LIST_LABELS: Record<SetlistListId, string> = {
+  staples: 'Staples',
+  party: 'Party',
+  classic_rock: 'Classic Rock',
+};
+
+export interface SetlistEntry {
+  id: string;
+  list_id: SetlistListId;
+  position: number;
+  title: string;
+  artist: string | null;
+  bpm: number | null;
+  beats_per_bar: number;
+  click_y_n: boolean;
+  click_config: unknown | null;
+  led_visual: string | null;
+  backdrop_url: string | null;
+  notes: string | null;
+  chord_text: string | null;
+  lyric_text: string | null;
+  drum_text: string | null;
+  practice_audio_ref: string | null;        // MS asset reference
+  practice_stems_refs: unknown | null;      // MS stem references (jsonb)
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Gig Performance Log ────────────────────────────────
 
 export interface GigPerformanceLog {

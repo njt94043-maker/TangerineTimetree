@@ -32,18 +32,12 @@ import { QuotePreview } from './components/QuotePreview';
 import { Dashboard } from './components/Dashboard';
 import { VenueList } from './components/VenueList';
 import { VenueDetail } from './components/VenueDetail';
-import { SongList } from './components/SongList';
-import { SongForm } from './components/SongForm';
-import { SetlistList } from './components/SetlistList';
-import { SetlistDetail } from './components/SetlistDetail';
 import { Library } from './components/Library';
-import { Player } from './components/Player';
 import { XR18Camera } from './components/XR18Camera';
 import Availability from './components/Availability';
 import { Drawer } from './components/Drawer';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { useGigSession } from './hooks/useGigSession';
 
 const SPLASH_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
 
@@ -111,10 +105,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
     quoteId,
     goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
     venueId, goToVenues, goToVenueDetail,
-    editSongId, goToNewSong, goToEditSong,
-    setlistId, goToSetlistDetail,
-    goToLibrary, goToPlayer,
-    playerSongId, playerSetlistId, playerMode, playerGigId,
     goToBookingWizard, goToEditBooking,
     goToAway,
     replaceWithInvoiceDetail, replaceWithQuoteDetail,
@@ -130,7 +120,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
   const { gigs, awayDates, profiles: allProfiles, error: calendarError, refresh } = useCalendarData(year, month);
   const { invoices, loading: invoicesLoading, refresh: refreshInvoices } = useInvoiceData();
   const { quotes, loading: quotesLoading, refresh: refreshQuotes } = useQuoteData();
-  const { activeGig } = useGigSession(); // S41: detect active gig for "Join Gig" banner
 
   // Build sorted list of dates that have events (gigs, practice, or away)
   const eventDates = useMemo(() => {
@@ -178,21 +167,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
 
   const toggleDrawer = useCallback(() => setDrawerOpen(o => !o), []);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-
-  // Player persistence (D-166): keep Player mounted when navigating away.
-  // Player only unmounts on explicit close, not on view change.
-  const [playerMounted, setPlayerMounted] = useState(false);
-
-  useEffect(() => {
-    // D-166: Keep Player mounted when navigating away; only unmounts on explicit close
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (view === 'player') setPlayerMounted(true);
-  }, [view]);
-
-  const handlePlayerClose = useCallback(() => {
-    setPlayerMounted(false);
-    goBack();
-  }, [goBack]);
 
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
@@ -254,10 +228,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       case 'settings': return 'Settings';
       case 'clients': return 'Clients';
       case 'venues': case 'venue-detail': return 'Venues';
-      case 'songs': case 'song-form': return 'Songs';
-      case 'setlists': case 'setlist-detail': return 'Setlists';
-      case 'library': return 'Library';
-      case 'player': return 'Player';
+      case 'library': return 'Setlist';
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
@@ -272,8 +243,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
 
   return (
     <>
-      {/* Header — hidden when player is fullscreen */}
-      {view !== 'player' && (
+      {/* Header */}
+      {(
         <header className="header">
           <div className="flex-row-gap-10">
             <button className="hamburger" onClick={toggleDrawer} aria-label="Toggle menu">
@@ -303,7 +274,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       <Drawer isOpen={drawerOpen} onClose={closeDrawer} profileName={profile?.name ?? 'User'} />
 
       {/* Main content area */}
-      <main className={`main-content${view === 'player' ? ' player-fullscreen' : ''}`}>
+      <main className="main-content">
         {/* Offline banner */}
         {isOffline && (
           <div className="offline-banner" role="status">
@@ -366,22 +337,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
           </div>
         )}
 
-        {/* S41: "Join Gig" banner when a live session is active */}
-        {activeGig && (view === 'calendar' || view === 'list' || view === 'dashboard') && (
-          <div
-            style={{
-              background: 'linear-gradient(90deg, var(--color-green), var(--color-accent))',
-              color: '#fff', padding: '10px 16px', borderRadius: 8,
-              margin: '0 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              cursor: 'pointer', fontWeight: 600, fontSize: 14,
-            }}
-            onClick={() => goToPlayer('', 'live', undefined, activeGig.gig_id ?? undefined)}
-          >
-            <span>Live gig in progress</span>
-            <span style={{ fontSize: 12, opacity: 0.9 }}>Join as Prompter →</span>
-          </div>
-        )}
-
         {view === 'calendar' && (
           <Calendar
             year={year}
@@ -420,7 +375,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
             onViewInvoice={(id) => goToInvoiceDetail(id)}
             onGenerateQuote={() => { refresh(); goToNewQuote(); }}
             onEditBooking={goToEditBooking}
-            onPlayLive={(gigId) => goToPlayer('', 'live', undefined, gigId)}
           />
         )}
 
@@ -578,74 +532,11 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
           />
         )}
 
-        {view === 'songs' && (
-          <SongList
-            onClose={goBack}
-            onNewSong={goToNewSong}
-            onEditSong={goToEditSong}
-          />
-        )}
-
-        {view === 'song-form' && (
-          <SongForm
-            songId={editSongId}
-            onClose={goBack}
-            onSaved={() => { goToLibrary(); }}
-            bandRole={profile?.band_role}
-            userId={profile?.id ?? ''}
-          />
-        )}
-
-        {view === 'setlists' && (
-          <SetlistList
-            onClose={goBack}
-            onSetlistPress={goToSetlistDetail}
-          />
-        )}
-
-        {view === 'setlist-detail' && setlistId && (
-          <SetlistDetail
-            setlistId={setlistId}
-            onClose={goBack}
-          />
-        )}
-
-        {view === 'library' && (
-          <Library
-            onNewSong={goToNewSong}
-            onEditSong={goToEditSong}
-            onSetlistPress={goToSetlistDetail}
-            onPlaySong={(songId, mode) => goToPlayer(songId, mode)}
-            onPlaySetlist={(slId, mode) => {
-              // For setlist play, we navigate to player with the first song
-              // The Player component will handle loading the setlist
-              goToPlayer('', mode, slId);
-            }}
-            userId={profile?.id ?? ''}
-            profiles={allProfiles}
-          />
-        )}
+        {view === 'library' && <Library />}
 
         {view === 'xr18-camera' && <XR18Camera />}
 
         {view === 'availability' && <Availability />}
-
-        {/* Player persistence (D-166): stays mounted when navigating away, hidden with CSS.
-            Audio keeps playing. Only unmounts on explicit close. */}
-        {playerMounted && (
-          <div style={{ display: view === 'player' ? undefined : 'none' }}>
-            <Player
-              songId={playerSongId}
-              setlistId={playerSetlistId}
-              mode={playerMode}
-              gigId={playerGigId}
-              onClose={handlePlayerClose}
-              onMenuClick={toggleDrawer}
-              userId={profile?.id ?? ''}
-              bandRole={profile?.band_role}
-            />
-          </div>
-        )}
 
       </main>
     </>
