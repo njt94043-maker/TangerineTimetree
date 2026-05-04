@@ -94,6 +94,7 @@ export function DayDetail({
   useEffect(() => {
     if (gigs.length === 0) return;
     const gigVenues = gigs.filter(g => g.gig_type !== 'practice' && g.venue).map(g => g.venue);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional early-return default
     if (gigVenues.length === 0) { setVenueHistory([]); setSongFreqs([]); return; }
     // Use first gig's venue (most common: 1 gig per day)
     getVenuePerformanceHistory(gigVenues[0], 3).then(history => {

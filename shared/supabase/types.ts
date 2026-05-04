@@ -633,6 +633,53 @@ export interface SetlistEntry {
   updated_at: string;
 }
 
+// ─── Setlist Authoring (S125 — cross-surface direct edit) ──────────────
+// All 3 surfaces (MS PWA / Web / APK) write directly to setlist_entries.
+// Editorial control = rollback-from-changelog. Gig-lock queues edits to
+// setlist_pending_edits which auto-apply on gig-end.
+//
+// See: specs/tgt/apps/setlist-authoring--build-brief.md, S125 migration.
+
+export type EditSurface = 'ms_pwa' | 'web' | 'apk' | 'studio_v2';
+export type SetlistAction = 'created' | 'updated' | 'deleted' | 'reordered' | 'moved';
+
+export interface SetlistChangelogEntry {
+  id: string;
+  list_id: SetlistListId;
+  entry_id: string | null;
+  actor_id: string | null;
+  actor_name: string;
+  surface: EditSurface;
+  action: SetlistAction;
+  field_changed: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  created_at: string;
+}
+
+export interface SetlistPendingEdit {
+  id: string;
+  list_id: SetlistListId;
+  entry_id: string | null;
+  actor_id: string | null;
+  actor_name: string;
+  surface: EditSurface;
+  action: SetlistAction;
+  payload: unknown;          // jsonb — shape depends on action
+  created_at: string;
+  applied_at: string | null;
+  apply_error: string | null;
+}
+
+export interface GigLockState {
+  id: 1;
+  is_locked: boolean;
+  locked_by_surface: EditSurface | null;
+  locked_at: string | null;
+  gig_label: string | null;
+  updated_at: string;
+}
+
 // ─── Gig Performance Log ────────────────────────────────
 
 export interface GigPerformanceLog {

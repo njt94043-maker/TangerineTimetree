@@ -57,6 +57,11 @@ import type {
   SongPlayStats,
   SetlistEntry,
   SetlistListId,
+  SetlistChangelogEntry,
+  SetlistPendingEdit,
+  GigLockState,
+  EditSurface,
+  SetlistAction,
 } from './types';
 
 // Row shapes returned by Supabase joins (avoids `any` casts)
@@ -2914,4 +2919,279 @@ export async function getSetlistEntriesByList(listId: SetlistListId): Promise<Se
 
   if (error) { checkAuthError(error); throw error; }
   return (data ?? []) as SetlistEntry[];
+}
+
+// ─── Setlist Authoring writes (S125 — cross-surface direct edit) ────────
+// All writes go through these helpers so the changelog stays consistent
+// across surfaces. During gig-lock, callers should route to
+// queuePendingEdit() instead — those auto-apply on gig-end.
+
+export interface SetlistEntryInput {
+  list_id: SetlistListId;
+  position: number;
+  title: string;
+  artist?: string | null;
+  bpm?: number | null;
+  beats_per_bar?: number;
+  click_y_n?: boolean;
+  click_config?: unknown | null;
+  led_visual?: string | null;
+  backdrop_url?: string | null;
+  notes?: string | null;
+  chord_text?: string | null;
+  lyric_text?: string | null;
+  drum_text?: string | null;
+  practice_audio_ref?: string | null;
+  practice_stems_refs?: unknown | null;
+}
+
+export async function createSetlistEntry(
+  input: SetlistEntryInput,
+  actor: { id: string; name: string },
+  surface: EditSurface,
+): Promise<SetlistEntry> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_entries')
+    .insert(input)
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  await logSetlistChange({
+    list_id: input.list_id,
+    entry_id: data.id,
+    action: 'created',
+    new_value: input.title,
+  }, actor, surface);
+  return data as SetlistEntry;
+}
+
+export async function updateSetlistEntry(
+  id: string,
+  patch: Partial<SetlistEntryInput>,
+  actor: { id: string; name: string },
+  surface: EditSurface,
+  prev?: Partial<SetlistEntry>,
+): Promise<SetlistEntry> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_entries')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  // One changelog row per changed scalar field — keeps history precise.
+  for (const [field, newVal] of Object.entries(patch)) {
+    const oldVal = prev?.[field as keyof SetlistEntry];
+    await logSetlistChange({
+      list_id: data.list_id as SetlistListId,
+      entry_id: id,
+      action: 'updated',
+      field_changed: field,
+      old_value: oldVal == null ? null : String(oldVal),
+      new_value: newVal == null ? null : String(newVal),
+    }, actor, surface);
+  }
+  return data as SetlistEntry;
+}
+
+export async function deleteSetlistEntry(
+  id: string,
+  actor: { id: string; name: string },
+  surface: EditSurface,
+  prev?: Pick<SetlistEntry, 'list_id' | 'title'>,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('setlist_entries').delete().eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+  if (prev) {
+    await logSetlistChange({
+      list_id: prev.list_id,
+      entry_id: null,           // entry gone; FK set null
+      action: 'deleted',
+      old_value: prev.title,
+    }, actor, surface);
+  }
+}
+
+/** Reorder N entries within one list. Caller passes the new full ordering. */
+export async function reorderSetlistEntries(
+  listId: SetlistListId,
+  orderedIds: string[],
+  actor: { id: string; name: string },
+  surface: EditSurface,
+): Promise<void> {
+  const supabase = getSupabase();
+  // Batched update — one row per id with new position.
+  const updates = orderedIds.map((id, idx) =>
+    supabase.from('setlist_entries').update({ position: idx + 1 }).eq('id', id),
+  );
+  for (const u of updates) {
+    const { error } = await u;
+    if (error) { checkAuthError(error); throw error; }
+  }
+  await logSetlistChange({
+    list_id: listId,
+    entry_id: null,
+    action: 'reordered',
+    new_value: orderedIds.length.toString(),
+  }, actor, surface);
+}
+
+/** Move an entry to a different list (carries to end of target list). */
+export async function moveSetlistEntry(
+  id: string,
+  toList: SetlistListId,
+  actor: { id: string; name: string },
+  surface: EditSurface,
+  prev?: Pick<SetlistEntry, 'list_id' | 'title'>,
+): Promise<SetlistEntry> {
+  const supabase = getSupabase();
+  // Pick a position past the current max in target list.
+  const tail = await getSetlistEntriesByList(toList);
+  const newPos = tail.length > 0 ? Math.max(...tail.map(e => e.position)) + 1 : 1;
+  const { data, error } = await supabase
+    .from('setlist_entries')
+    .update({ list_id: toList, position: newPos })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  await logSetlistChange({
+    list_id: toList,
+    entry_id: id,
+    action: 'moved',
+    old_value: prev?.list_id ?? null,
+    new_value: toList,
+  }, actor, surface);
+  return data as SetlistEntry;
+}
+
+// ─── Changelog ─────────────────────────────────────────
+
+interface ChangeLogPayload {
+  list_id: SetlistListId;
+  entry_id: string | null;
+  action: SetlistAction;
+  field_changed?: string | null;
+  old_value?: string | null;
+  new_value?: string | null;
+}
+
+export async function logSetlistChange(
+  payload: ChangeLogPayload,
+  actor: { id: string; name: string },
+  surface: EditSurface,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('setlist_changelog').insert({
+    list_id: payload.list_id,
+    entry_id: payload.entry_id,
+    actor_id: actor.id,
+    actor_name: actor.name,
+    surface,
+    action: payload.action,
+    field_changed: payload.field_changed ?? null,
+    old_value: payload.old_value ?? null,
+    new_value: payload.new_value ?? null,
+  });
+  // Don't throw on changelog write failure — the underlying edit already
+  // succeeded; losing one log row is recoverable, blocking the user isn't.
+  if (error) console.warn('[setlist_changelog] insert failed:', error);
+}
+
+export async function getSetlistChangelog(
+  limit = 100,
+  listId?: SetlistListId,
+): Promise<SetlistChangelogEntry[]> {
+  const supabase = getSupabase();
+  let q = supabase.from('setlist_changelog').select('*').order('created_at', { ascending: false }).limit(limit);
+  if (listId) q = q.eq('list_id', listId);
+  const { data, error } = await q;
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as SetlistChangelogEntry[];
+}
+
+// ─── Pending edits (gig-lock queue) ────────────────────
+
+export async function queuePendingEdit(
+  payload: {
+    list_id: SetlistListId;
+    entry_id: string | null;
+    action: SetlistAction;
+    payload: unknown;
+  },
+  actor: { id: string; name: string },
+  surface: EditSurface,
+): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('setlist_pending_edits').insert({
+    list_id: payload.list_id,
+    entry_id: payload.entry_id,
+    actor_id: actor.id,
+    actor_name: actor.name,
+    surface,
+    action: payload.action,
+    payload: payload.payload,
+  });
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function getPendingEdits(): Promise<SetlistPendingEdit[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('setlist_pending_edits')
+    .select('*')
+    .is('applied_at', null)
+    .order('created_at');
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as SetlistPendingEdit[];
+}
+
+// ─── Gig lock state (single-row control) ───────────────
+
+export async function getGigLockState(): Promise<GigLockState> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_lock_state')
+    .select('*')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error) { checkAuthError(error); throw error; }
+  // Anon (RLS-blocked) callers see no rows even though the singleton exists.
+  // Falling back to a stable unlocked default keeps surfaces functional in
+  // read-only mode pre-sign-in.
+  if (!data) {
+    return {
+      id: 1,
+      is_locked: false,
+      locked_by_surface: null,
+      locked_at: null,
+      gig_label: null,
+      updated_at: new Date().toISOString(),
+    };
+  }
+  return data as GigLockState;
+}
+
+export async function setGigLockState(
+  isLocked: boolean,
+  surface: EditSurface,
+  gigLabel?: string,
+): Promise<GigLockState> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('gig_lock_state')
+    .update({
+      is_locked: isLocked,
+      locked_by_surface: isLocked ? surface : null,
+      locked_at: isLocked ? new Date().toISOString() : null,
+      gig_label: isLocked ? (gigLabel ?? null) : null,
+    })
+    .eq('id', 1)
+    .select()
+    .single();
+  if (error) { checkAuthError(error); throw error; }
+  return data as GigLockState;
 }

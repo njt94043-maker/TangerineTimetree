@@ -16,6 +16,7 @@ export function Library() {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional load-trigger
     setLoading(true);
     getSetlistEntries()
       .then(rows => { if (!cancelled) setEntries(rows); })
