@@ -1,6 +1,9 @@
 package com.thegreentangerine.gigbooks.data.supabase
 
 import android.util.Log
+import com.thegreentangerine.gigbooks.data.supabase.models.EditSurface
+import com.thegreentangerine.gigbooks.data.supabase.models.SetlistAction
+import com.thegreentangerine.gigbooks.data.supabase.models.SetlistActor
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistEntry
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
@@ -30,6 +33,13 @@ import kotlinx.serialization.json.buildJsonObject
  * Lives as a singleton because the realtime subscription should outlive any
  * single screen — opening + closing DrummerPrompterScreen shouldn't tear down
  * the channel.
+ *
+ * S127: cross-surface direct edit. All mutations go through
+ * createEntry/updateEntry/deleteEntry/reorderEntries/moveEntry which take an
+ * actor + surface tag, write the change, AND insert a changelog row. When
+ * GigLockRepository reports locked, callers should route through
+ * SetlistPendingEditsRepository.queueEdit instead of these — the repo itself
+ * doesn't read the lock state to keep dependencies simple.
  */
 object SetlistEntriesRepository {
 
@@ -94,32 +104,187 @@ object SetlistEntriesRepository {
         }
     }
 
-    // ── Mutations (used by the authoring UI in task 4+) ────────────────────
+    // ── Authoring writes (S127 — actor-tagged + auto-changelog) ────────────
 
-    suspend fun updateField(id: String, field: String, value: Any?): Boolean = try {
-        client.from("setlist_entries").update(buildJsonObject {
-            put(field, value.toJson())
-        }) { filter { eq("id", id) } }
+    /** Create a new entry at end of `listId`. Returns the inserted row. */
+    suspend fun createEntry(
+        listId: String,
+        title: String,
+        artist: String? = null,
+        bpm: Int? = null,
+        clickYN: Boolean = false,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): SetlistEntry? = try {
+        val tail = _entries.value.filter { it.listId == listId }.maxOfOrNull { it.position } ?: 0
+        val payload = buildJsonObject {
+            put("list_id", JsonPrimitive(listId))
+            put("position", JsonPrimitive(tail + 1))
+            put("title", JsonPrimitive(title))
+            if (artist != null) put("artist", JsonPrimitive(artist))
+            if (bpm != null) put("bpm", JsonPrimitive(bpm))
+            put("click_y_n", JsonPrimitive(clickYN))
+        }
+        val row = client.from("setlist_entries")
+            .insert(payload) { select() }
+            .decodeSingle<SetlistEntry>()
+        SetlistChangelogRepository.log(
+            listId = listId,
+            entryId = row.id,
+            action = SetlistAction.CREATED,
+            newValue = title,
+            actor = actor,
+            surface = surface,
+        )
+        row
+    } catch (e: Exception) {
+        Log.w(TAG, "createEntry failed: ${e.message}", e)
+        _error.value = "Create failed: ${e.message}"
+        null
+    }
+
+    /** Update one or more fields on an entry. One changelog row per scalar
+     *  field — keeps history precise. `prev` is the pre-edit row used to
+     *  populate old_value on the changelog row. */
+    suspend fun updateEntry(
+        id: String,
+        patch: Map<String, Any?>,
+        prev: SetlistEntry,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): Boolean = try {
+        val payload = buildJsonObject {
+            for ((field, value) in patch) {
+                put(field, value.toJson())
+            }
+        }
+        client.from("setlist_entries").update(payload) { filter { eq("id", id) } }
+        for ((field, newVal) in patch) {
+            val oldVal = entryFieldString(prev, field)
+            SetlistChangelogRepository.log(
+                listId = prev.listId,
+                entryId = id,
+                action = SetlistAction.UPDATED,
+                fieldChanged = field,
+                oldValue = oldVal,
+                newValue = newVal?.toString(),
+                actor = actor,
+                surface = surface,
+            )
+        }
         true
     } catch (e: Exception) {
-        Log.w(TAG, "updateField($field) failed: ${e.message}", e)
+        Log.w(TAG, "updateEntry failed: ${e.message}", e)
+        _error.value = "Update failed: ${e.message}"
         false
     }
 
-    suspend fun insert(entry: SetlistEntry): Boolean = try {
-        client.from("setlist_entries").insert(entry)
+    /** Single-field convenience used by inline toggles (e.g. click_y_n). */
+    suspend fun updateField(
+        id: String,
+        field: String,
+        value: Any?,
+        prev: SetlistEntry,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): Boolean = updateEntry(id, mapOf(field to value), prev, actor, surface)
+
+    suspend fun deleteEntry(
+        entry: SetlistEntry,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): Boolean = try {
+        client.from("setlist_entries").delete { filter { eq("id", entry.id) } }
+        SetlistChangelogRepository.log(
+            listId = entry.listId,
+            entryId = null,           // FK set null on delete
+            action = SetlistAction.DELETED,
+            oldValue = entry.title,
+            actor = actor,
+            surface = surface,
+        )
         true
     } catch (e: Exception) {
-        Log.w(TAG, "insert failed: ${e.message}", e)
+        Log.w(TAG, "deleteEntry failed: ${e.message}", e)
+        _error.value = "Delete failed: ${e.message}"
         false
     }
 
-    suspend fun delete(id: String): Boolean = try {
-        client.from("setlist_entries").delete { filter { eq("id", id) } }
+    /** Reorder N entries within one list. Caller passes the new full ordering
+     *  for that list. Issued as N small updates (small N — fine). */
+    suspend fun reorderEntries(
+        listId: String,
+        orderedIds: List<String>,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): Boolean = try {
+        orderedIds.forEachIndexed { idx, id ->
+            client.from("setlist_entries").update(buildJsonObject {
+                put("position", JsonPrimitive(idx + 1))
+            }) { filter { eq("id", id) } }
+        }
+        SetlistChangelogRepository.log(
+            listId = listId,
+            entryId = null,
+            action = SetlistAction.REORDERED,
+            newValue = orderedIds.size.toString(),
+            actor = actor,
+            surface = surface,
+        )
         true
     } catch (e: Exception) {
-        Log.w(TAG, "delete failed: ${e.message}", e)
+        Log.w(TAG, "reorderEntries failed: ${e.message}", e)
+        _error.value = "Reorder failed: ${e.message}"
         false
+    }
+
+    /** Move an entry to another list (carries to end of target list). */
+    suspend fun moveEntry(
+        entry: SetlistEntry,
+        toList: String,
+        actor: SetlistActor,
+        surface: String = EditSurface.APK,
+    ): Boolean {
+        if (toList == entry.listId) return false
+        return try {
+            val tail = _entries.value.filter { it.listId == toList }.maxOfOrNull { it.position } ?: 0
+            client.from("setlist_entries").update(buildJsonObject {
+                put("list_id", JsonPrimitive(toList))
+                put("position", JsonPrimitive(tail + 1))
+            }) { filter { eq("id", entry.id) } }
+            SetlistChangelogRepository.log(
+                listId = toList,
+                entryId = entry.id,
+                action = SetlistAction.MOVED,
+                oldValue = entry.listId,
+                newValue = toList,
+                actor = actor,
+                surface = surface,
+            )
+            true
+        } catch (e: Exception) {
+            Log.w(TAG, "moveEntry failed: ${e.message}", e)
+            _error.value = "Move failed: ${e.message}"
+            false
+        }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    private fun entryFieldString(e: SetlistEntry, field: String): String? = when (field) {
+        "title" -> e.title
+        "artist" -> e.artist
+        "bpm" -> e.bpm?.toString()
+        "beats_per_bar" -> e.beatsPerBar?.toString()
+        "click_y_n" -> e.clickYN.toString()
+        "led_visual" -> e.ledVisual
+        "backdrop_url" -> e.backdropUrl
+        "notes" -> e.notes
+        "chord_text" -> e.chordText
+        "lyric_text" -> e.lyricText
+        "drum_text" -> e.drumText
+        "practice_audio_ref" -> e.practiceAudioRef
+        else -> null
     }
 
     private fun Any?.toJson(): JsonElement = when (this) {
