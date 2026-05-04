@@ -1,6 +1,7 @@
 package com.thegreentangerine.gigbooks
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -26,6 +27,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // S125 multi-cam test feedback: keep screen awake while app is open.
+        // Without this, peers and orchestrator dim during long pairing/recording windows.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContent {
             TangerineMediaTheme {
                 val sessionStatus by AuthRepository.sessionStatus.collectAsState(
