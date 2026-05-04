@@ -27,7 +27,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.net.InetAddress
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.Socket
 
 /**
@@ -208,9 +210,29 @@ class PeerOrchestratorClient(private val context: Context) {
         val host = resolved.host?.hostAddress ?: return
         val port = resolved.port
         if (port <= 0) return
+        // S122 gig-night bug: if the same phone is running both orchestrator and
+        // peer roles (e.g. Gig Mode opened then Peer drawer entry tapped), mDNS
+        // happily resolves the orchestrator's own broadcast and the peer connects
+        // to localhost as peer-1. The orchestrator then fans out RECORD to its own
+        // peer, which kills CameraX through the rebind storm. Refuse to pair with
+        // self.
+        if (isLocalHost(host)) {
+            Log.w(TAG, "Refusing self-pair: $host is one of this device's own interfaces — likely Gig Mode + Peer both open on the same phone.")
+            return
+        }
         Log.i(TAG, "Resolved ${resolved.serviceName} → $host:$port")
         _discovered.value = Discovered(resolved.serviceName, host, port)
         connectAsync(host, port)
+    }
+
+    /** True if [host] resolves to one of this device's own interface addresses. */
+    private fun isLocalHost(host: String): Boolean = try {
+        val resolved = InetAddress.getByName(host)
+        NetworkInterface.getNetworkInterfaces().asSequence()
+            .flatMap { it.inetAddresses.asSequence() }
+            .any { it.hostAddress == resolved.hostAddress }
+    } catch (_: Exception) {
+        false
     }
 
     // ── Connection ───────────────────────────────────────────────────────────────

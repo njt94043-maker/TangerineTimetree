@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
@@ -54,6 +55,7 @@ import com.thegreentangerine.gigbooks.ui.components.glowBehind
 import com.thegreentangerine.gigbooks.ui.screens.CalendarScreen
 import com.thegreentangerine.gigbooks.ui.screens.GigModeScreen
 import com.thegreentangerine.gigbooks.ui.screens.PeerScreen
+import com.thegreentangerine.gigbooks.ui.screens.RecordingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SplashScreen
 import com.thegreentangerine.gigbooks.ui.theme.Karla
@@ -67,11 +69,12 @@ import kotlinx.coroutines.launch
  * the kill-Songs work — Media Server PWA + Studio v2 own those flows now.
  */
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
-    data object Splash   : Screen("splash",   "Splash",         Icons.Default.CalendarMonth)
-    data object Calendar : Screen("calendar", "Calendar",       Icons.Default.CalendarMonth)
-    data object GigMode  : Screen("gig-mode", "Gig Mode",       Icons.Default.MusicNote)
-    data object Peer     : Screen("peer",     "Peer (camera)",  Icons.Default.Videocam)
-    data object Settings : Screen("settings", "Settings",       Icons.Default.Settings)
+    data object Splash     : Screen("splash",     "Splash",        Icons.Default.CalendarMonth)
+    data object Calendar   : Screen("calendar",   "Calendar",      Icons.Default.CalendarMonth)
+    data object GigMode    : Screen("gig-mode",   "Gig Mode",      Icons.Default.MusicNote)
+    data object Peer       : Screen("peer",       "Peer (camera)", Icons.Default.Videocam)
+    data object Recordings : Screen("recordings", "Recordings",    Icons.Default.FolderOpen)
+    data object Settings   : Screen("settings",   "Settings",      Icons.Default.Settings)
 }
 
 @Composable
@@ -118,6 +121,7 @@ fun TangerineMediaApp() {
                 DrawerSectionLabel("GIG")
                 DrawerNavItem(Screen.GigMode, currentRoute == Screen.GigMode.route, TangerineColors.orange) { navigate(Screen.GigMode.route) }
                 DrawerNavItem(Screen.Peer, currentRoute == Screen.Peer.route, TangerineColors.green) { navigate(Screen.Peer.route) }
+                DrawerNavItem(Screen.Recordings, currentRoute == Screen.Recordings.route, TangerineColors.teal) { navigate(Screen.Recordings.route) }
 
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
@@ -147,6 +151,9 @@ fun TangerineMediaApp() {
             }
             composable(Screen.Peer.route) {
                 PeerScreen(onMenuClick = { openMenu() })
+            }
+            composable(Screen.Recordings.route) {
+                RecordingsScreen(onMenuClick = { openMenu() })
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(vm = vm, onMenuClick = { openMenu() })

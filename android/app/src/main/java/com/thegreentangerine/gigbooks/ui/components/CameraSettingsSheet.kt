@@ -63,15 +63,24 @@ fun CameraSettingsSheet(
             onSelect = { onChange(settings.copy(cameraFacing = it)) },
         )
 
+        // Rotation: "Auto" (-1) follows the device's mount orientation. The
+        // numeric overrides force a specific rotation if Auto picks wrong.
+        val rotationKey = if (settings.useAutoRotation) -1 else settings.rotationDegrees
         SegmentedRow(
             label = "Output rotation",
-            options = listOf(0 to "0°", 90 to "90°", 180 to "180°", 270 to "270°"),
-            selected = settings.rotationDegrees,
-            onSelect = { onChange(settings.copy(rotationDegrees = it)) },
+            options = listOf(-1 to "Auto", 0 to "0°", 90 to "90°", 180 to "180°", 270 to "270°"),
+            selected = rotationKey,
+            onSelect = { picked ->
+                if (picked == -1) {
+                    onChange(settings.copy(useAutoRotation = true))
+                } else {
+                    onChange(settings.copy(useAutoRotation = false, rotationDegrees = picked))
+                }
+            },
         )
 
         Text(
-            "Rotation rotates the saved video, not the live preview. Pick whatever lands the recording right-side-up after import.",
+            "\"Auto\" matches the saved video to the phone's mount orientation when Gig Mode / Peer is opened. Use the numeric overrides if Auto picks wrong.",
             fontFamily = Karla, fontSize = 10.sp,
             color = TangerineColors.textMuted.copy(alpha = 0.6f),
         )

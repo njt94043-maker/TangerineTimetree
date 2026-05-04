@@ -1,12 +1,17 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -77,11 +82,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thegreentangerine.gigbooks.data.orchestrator.CameraGate
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorPeerServer
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.ReaperOscClient
+import com.thegreentangerine.gigbooks.data.orchestrator.RecordError
 import com.thegreentangerine.gigbooks.data.supabase.SetlistEntriesRepository
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistEntry
 import com.thegreentangerine.gigbooks.data.xr18.CameraSettingsStore
@@ -141,6 +149,28 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     var service by remember { mutableStateOf<OrchestratorService?>(null) }
     var cameraSettingsOpen by remember { mutableStateOf(false) }
 
+    // Camera + audio runtime permissions for the orchestrator self-cam. Both
+    // are required — withAudioEnabled() throws SecurityException without
+    // RECORD_AUDIO. Was the v1.1.9/10 bug that lost gig video.
+    fun hasPerm(p: String) = ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
+    var hasCamPerm by remember { mutableStateOf(hasPerm(Manifest.permission.CAMERA)) }
+    var hasAudioPerm by remember { mutableStateOf(hasPerm(Manifest.permission.RECORD_AUDIO)) }
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        hasCamPerm = granted[Manifest.permission.CAMERA] == true || hasPerm(Manifest.permission.CAMERA)
+        hasAudioPerm = granted[Manifest.permission.RECORD_AUDIO] == true || hasPerm(Manifest.permission.RECORD_AUDIO)
+    }
+    LaunchedEffect(cameraEnabled) {
+        if (cameraEnabled) {
+            val needed = buildList {
+                if (!hasCamPerm) add(Manifest.permission.CAMERA)
+                if (!hasAudioPerm) add(Manifest.permission.RECORD_AUDIO)
+            }
+            if (needed.isNotEmpty()) permLauncher.launch(needed.toTypedArray())
+        }
+    }
+
     DisposableEffect(Unit) {
         val intent = Intent(context, OrchestratorService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -159,12 +189,12 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     }
 
     // Hidden CameraX bind for orchestrator-as-3rd-camera. Bound only when the
-    // orchestrator camera is enabled (lets Nathan turn it off if he wants S23U
-    // pure-prompter-mode for the gig). previewView=null means no preview surface
-    // — the prompter UI takes the screen. ImageAnalysis still snapshots JPEGs so
-    // the self-tile in the Cameras drawer can show a thumbnail.
-    DisposableEffect(cameraEnabled, orchestratorSettings.cameraFacing, orchestratorSettings.resolution, orchestratorSettings.framerate) {
-        if (cameraEnabled) {
+    // orchestrator camera is enabled AND both perms granted (otherwise
+    // withAudioEnabled() throws SecurityException at RECORD time and silently
+    // fails — the gig-night S122 bug). previewView=null means no preview surface;
+    // ImageAnalysis still snapshots JPEGs for the self-tile thumbnail.
+    DisposableEffect(cameraEnabled, hasCamPerm, hasAudioPerm, orchestratorSettings.cameraFacing, orchestratorSettings.resolution, orchestratorSettings.framerate) {
+        if (cameraEnabled && hasCamPerm && hasAudioPerm) {
             cameraManager.bind(lifecycleOwner, previewView = null, orchestratorSettings)
             CameraGate.manager = cameraManager
             CameraGate.orchestratorOutputDir = File(context.filesDir, "orchestrator_recordings")
@@ -178,8 +208,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
             runCatching { cameraManager.stopRecording() }
         }
     }
-    LaunchedEffect(orchestratorSettings.rotationDegrees) {
-        cameraManager.applyRotation(orchestratorSettings.rotationDegrees)
+    LaunchedEffect(orchestratorSettings.useAutoRotation, orchestratorSettings.rotationDegrees) {
+        cameraManager.applyRotation(orchestratorSettings)
     }
 
     LaunchedEffect(Unit) { SetlistEntriesRepository.start() }
@@ -192,19 +222,13 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     var activeEntryId by remember { mutableStateOf<String?>(null) }
     var openDrawer by remember { mutableStateOf<DrawerKind?>(null) }
     var fullscreenPeer by remember { mutableStateOf<OrchestratorPeerServer.PeerInfo?>(null) }
+    var fullscreenSelf by remember { mutableStateOf(false) }
     var reaperConfigOpen by remember { mutableStateOf(false) }
-    var selfPreviewJpeg by remember { mutableStateOf<ByteArray?>(null) }
 
-    // Self-tile thumbnail refresh — only polled while the Cameras drawer is open
-    // to avoid wasted JPEG decodes.
-    LaunchedEffect(openDrawer, cameraEnabled) {
-        if (openDrawer == DrawerKind.Cameras && cameraEnabled) {
-            while (isActive) {
-                selfPreviewJpeg = cameraManager.capturePreviewFrame()
-                delay(2_000)
-            }
-        }
-    }
+    // Self-tile preview is real-time — local device, no network, so we collect
+    // every frame ImageAnalysis emits (~camera fps). Drawer thumbnail + fullscreen
+    // both update live without any polling delay.
+    val selfPreviewJpeg by cameraManager.previewFlow.collectAsState()
 
     val activeList = remember(entries, activeListId) {
         entries.filter { it.listId == activeListId }.sortedBy { it.position }
@@ -222,6 +246,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     val lastSendOk = service?.osc?.lastSendOk?.collectAsState()?.value
     val peerCount = service?.peerCount?.collectAsState()?.value ?: 0
     val peers = service?.peerInfos?.collectAsState()?.value ?: emptyList()
+    val localCameraRecording by CameraGate.isRecording.collectAsState()
+    val recordError by CameraGate.lastError.collectAsState()
     val discovered = service?.discoveryFlow?.collectAsState()?.value
     val isSearching = service?.isSearching?.collectAsState()?.value ?: false
     val autoDiscover = service?.autoDiscover?.collectAsState()?.value ?: true
@@ -296,6 +322,22 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 onClick = { reaperConfigOpen = true },
             )
         }
+
+        // ── Capture status banner — visible at-a-glance "is RECORD actually working" ──
+        // Counts everything the orchestrator fans out to: Reaper (1), self-cam (0/1
+        // depending on toggle), peer phones (N). Gives an honest live answer instead
+        // of the silent failure that lost S122.
+        CaptureStatusBanner(
+            reaperReady = target != null && lastSendOk != false,
+            selfCameraEnabled = cameraEnabled,
+            selfCameraReady = cameraEnabled && CameraGate.manager != null,
+            selfCameraRecording = localCameraRecording,
+            peerCount = peerCount,
+            peerRecordingCount = peers.count { it.isRecording },
+            isRecording = isRecording,
+            recordError = recordError,
+            onClearError = { CameraGate.clearError() },
+        )
 
         // ── BPM flash hero ──
         Box(
@@ -458,6 +500,7 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 selfFacingLabel = if (orchestratorSettings.cameraFacing == "front") "front" else "back",
                 onSelfEnabledChange = { CameraGate.setEnabled(it) },
                 onSelfSettingsClick = { cameraSettingsOpen = true },
+                onSelfTap = { fullscreenSelf = true },
                 onPeerTap = { fullscreenPeer = it },
             )
         }
@@ -487,6 +530,15 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     // ── Fullscreen peer preview ──
     fullscreenPeer?.let { peer ->
         PeerPreviewFullscreen(peer = peer, onDismiss = { fullscreenPeer = null })
+    }
+
+    // ── Fullscreen self (drummer-cam) preview ──
+    if (fullscreenSelf) {
+        CameraPreviewFullscreen(
+            label = "Drummer cam (S23U)",
+            jpeg = selfPreviewJpeg,
+            onDismiss = { fullscreenSelf = false },
+        )
     }
 
     // ── Orchestrator camera settings sheet ──
@@ -974,6 +1026,7 @@ private fun CamerasDrawer(
     selfFacingLabel: String,
     onSelfEnabledChange: (Boolean) -> Unit,
     onSelfSettingsClick: () -> Unit,
+    onSelfTap: () -> Unit,
     onPeerTap: (OrchestratorPeerServer.PeerInfo) -> Unit,
 ) {
     val totalCams = peers.size + (if (selfEnabled) 1 else 0)
@@ -1006,45 +1059,77 @@ private fun CamerasDrawer(
         }
         Spacer(Modifier.height(8.dp))
 
-        // Self tile (this phone, S23U) — full-width above the peer grid
-        SelfCameraTile(
+        // Drummer-cam control row — toggle + cog above the preview grid.
+        // The preview itself lives as a tile inside the grid alongside peers.
+        DrummerCamControlRow(
             enabled = selfEnabled,
-            previewJpeg = selfPreviewJpeg,
             facingLabel = selfFacingLabel,
-            isRecording = isRecording && selfEnabled,
             onEnabledChange = onSelfEnabledChange,
             onSettingsClick = onSelfSettingsClick,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
 
-        Text(
-            if (peers.isEmpty()) "No peer phones paired"
-            else "${peers.size} peer${if (peers.size == 1) "" else "s"} paired",
-            fontFamily = JetBrainsMono, fontSize = 10.sp,
-            color = TangerineColors.textMuted,
-        )
-        Spacer(Modifier.height(6.dp))
-
-        if (peers.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().height(140.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "Open the Peer (camera) screen on a non-drummer phone — it'll appear here within 5s.",
-                    fontFamily = Karla, fontSize = 11.sp,
-                    color = TangerineColors.textMuted.copy(alpha = 0.7f), maxLines = 3,
+        // Unified preview grid — self + peers as equal-citizen tiles.
+        // 1 cam: full-width single tile so coverage is readable.
+        // 2+ cams: 2-col grid.
+        // Each tile uses ContentScale.Fit + dynamic aspect from its bitmap so what
+        // you see is what gets recorded (Nathan's S123 ask: accurate coverage for
+        // placement decisions).
+        val tiles = buildList {
+            if (selfEnabled) add(
+                CameraTileSpec.Self(
+                    label = "Drummer cam (S23U)",
+                    sub = "$selfFacingLabel · this phone",
+                    jpeg = selfPreviewJpeg,
+                    isRecording = isRecording,
+                    onTap = onSelfTap,
+                )
+            )
+            peers.forEach { peer ->
+                add(
+                    CameraTileSpec.Remote(
+                        label = peer.deviceName,
+                        jpeg = peer.lastPreviewJpeg,
+                        isRecording = peer.isRecording,
+                        onTap = { onPeerTap(peer) },
+                    )
                 )
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxWidth().height(440.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(peers, key = { it.phoneId }) { peer ->
-                    CameraTile(peer = peer, onClick = { onPeerTap(peer) })
+        }
+
+        when {
+            tiles.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(140.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Drummer cam off + no peer phones paired. Toggle drummer cam on or open Peer (camera) on a non-drummer phone.",
+                        fontFamily = Karla, fontSize = 11.sp,
+                        color = TangerineColors.textMuted.copy(alpha = 0.7f), maxLines = 4,
+                    )
+                }
+            }
+            // Single tile: render directly, no grid wrapper. Tile's own aspectRatio
+            // drives height. Drawer's ModalBottomSheet manages overall scroll.
+            tiles.size == 1 -> {
+                CameraGridTile(tiles[0])
+            }
+            // 2+ tiles: hand-chunked 2-col layout. Avoids LazyVerticalGrid's need
+            // for a bounded height (which clipped tall portrait tiles in v1.1.18).
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    tiles.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { spec ->
+                                Box(modifier = Modifier.weight(1f)) {
+                                    CameraGridTile(spec)
+                                }
+                            }
+                            // Pad an odd row so the last tile doesn't stretch full-width.
+                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -1052,144 +1137,119 @@ private fun CamerasDrawer(
 }
 
 @Composable
-private fun SelfCameraTile(
+private fun DrummerCamControlRow(
     enabled: Boolean,
-    previewJpeg: ByteArray?,
     facingLabel: String,
-    isRecording: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onSettingsClick: () -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(TangerineColors.background)
+            .clip(RoundedCornerShape(10.dp))
+            .background(TangerineColors.surface)
             .border(
                 1.dp,
-                if (enabled) TangerineColors.green.copy(alpha = 0.4f)
+                if (enabled) TangerineColors.green.copy(alpha = 0.35f)
                 else TangerineColors.textMuted.copy(alpha = 0.2f),
-                RoundedCornerShape(12.dp),
+                RoundedCornerShape(10.dp),
             )
-            .padding(10.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.CameraAlt,
-                contentDescription = null,
-                tint = if (enabled) TangerineColors.green else TangerineColors.textMuted,
-                modifier = Modifier.size(18.dp),
+        Icon(
+            Icons.Default.CameraAlt,
+            contentDescription = null,
+            tint = if (enabled) TangerineColors.green else TangerineColors.textMuted,
+            modifier = Modifier.size(18.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Drummer cam (S23U)",
+                fontFamily = Karla, fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp, color = TangerineColors.text,
             )
-            Spacer(Modifier.width(6.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Drummer cam (S23U)",
-                    fontFamily = Karla, fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp, color = TangerineColors.text,
-                )
-                Text(
-                    if (enabled) "$facingLabel · records with sets" else "off — toggle on to capture",
-                    fontFamily = Karla, fontSize = 10.sp, color = TangerineColors.textMuted,
-                )
-            }
-            Switch(
-                checked = enabled,
-                onCheckedChange = onEnabledChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = TangerineColors.green,
-                    checkedTrackColor = TangerineColors.green.copy(alpha = 0.45f),
-                ),
+            Text(
+                if (enabled) "$facingLabel · records with sets" else "off — toggle to enable",
+                fontFamily = Karla, fontSize = 10.sp, color = TangerineColors.textMuted,
             )
-            Spacer(Modifier.width(4.dp))
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Tune, "Drummer cam settings", tint = TangerineColors.text)
-            }
         }
-        if (enabled) {
-            Spacer(Modifier.height(8.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.Black)
-                    .border(
-                        1.dp,
-                        if (isRecording) TangerineColors.danger else TangerineColors.textMuted.copy(alpha = 0.2f),
-                        RoundedCornerShape(8.dp),
-                    ),
-            ) {
-                val bitmap = remember(previewJpeg) {
-                    previewJpeg?.let {
-                        runCatching { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull()
-                    }
-                }
-                if (bitmap != null) {
-                    androidx.compose.foundation.Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Drummer cam preview",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            "warming up…",
-                            fontFamily = JetBrainsMono, fontSize = 10.sp,
-                            color = TangerineColors.textMuted,
-                        )
-                    }
-                }
-                if (isRecording) {
-                    Row(
-                        modifier = Modifier
-                            .padding(6.dp)
-                            .background(TangerineColors.danger.copy(alpha = 0.85f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(Color.White))
-                        Spacer(Modifier.width(4.dp))
-                        Text("REC", color = Color.White, fontFamily = JetBrainsMono, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = TangerineColors.green,
+                checkedTrackColor = TangerineColors.green.copy(alpha = 0.45f),
+            ),
+        )
+        IconButton(onClick = onSettingsClick) {
+            Icon(Icons.Default.Tune, "Drummer cam settings", tint = TangerineColors.text)
         }
     }
 }
 
+private sealed class CameraTileSpec {
+    abstract val label: String
+    abstract val jpeg: ByteArray?
+    abstract val isRecording: Boolean
+    abstract val onTap: () -> Unit
+
+    data class Self(
+        override val label: String,
+        val sub: String,
+        override val jpeg: ByteArray?,
+        override val isRecording: Boolean,
+        override val onTap: () -> Unit,
+    ) : CameraTileSpec()
+
+    data class Remote(
+        override val label: String,
+        override val jpeg: ByteArray?,
+        override val isRecording: Boolean,
+        override val onTap: () -> Unit,
+    ) : CameraTileSpec()
+}
+
 @Composable
-private fun CameraTile(
-    peer: OrchestratorPeerServer.PeerInfo,
-    onClick: () -> Unit,
-) {
+private fun CameraGridTile(spec: CameraTileSpec) {
+    val bitmap = remember(spec.jpeg) {
+        spec.jpeg?.let {
+            runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull()
+        }
+    }
+    // Dynamic aspect ratio = WYSIWYG. Falls back to 16/9 when no frame yet.
+    val aspect = if (bitmap != null && bitmap.height > 0) {
+        bitmap.width.toFloat() / bitmap.height.toFloat()
+    } else {
+        16f / 9f
+    }
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(TangerineColors.background)
-            .clickable(onClick = onClick),
+            .background(TangerineColors.background),
     ) {
+        // Clickable on the inner preview Box so the actual visible preview area
+        // is the tap target. Wrapping the whole Column was unreliable inside
+        // ModalBottomSheet + LazyVerticalGrid (Nathan reported tap not firing).
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 3f)
+                .aspectRatio(aspect)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color.Black)
                 .border(
                     1.dp,
-                    if (peer.isRecording) TangerineColors.danger else TangerineColors.textMuted.copy(alpha = 0.25f),
+                    if (spec.isRecording) TangerineColors.danger else TangerineColors.textMuted.copy(alpha = 0.25f),
                     RoundedCornerShape(10.dp),
-                ),
+                )
+                .clickable(onClick = spec.onTap),
         ) {
-            val jpeg = peer.lastPreviewJpeg
-            val bitmap = remember(jpeg) {
-                jpeg?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
-            }
             if (bitmap != null) {
                 Image(
                     bitmap = bitmap.asImageBitmap(),
-                    contentDescription = peer.deviceName,
-                    contentScale = ContentScale.Crop,
+                    contentDescription = spec.label,
+                    contentScale = ContentScale.Fit,  // WYSIWYG — no cropping
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -1197,10 +1257,14 @@ private fun CameraTile(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("…", color = TangerineColors.textMuted, fontFamily = Karla)
+                    Text(
+                        "warming up…",
+                        fontFamily = JetBrainsMono, fontSize = 10.sp,
+                        color = TangerineColors.textMuted,
+                    )
                 }
             }
-            if (peer.isRecording) {
+            if (spec.isRecording) {
                 Row(
                     modifier = Modifier
                         .padding(6.dp)
@@ -1215,11 +1279,67 @@ private fun CameraTile(
             }
         }
         Text(
-            peer.deviceName,
+            spec.label,
             fontFamily = Karla, fontSize = 11.sp,
             color = TangerineColors.text, maxLines = 1,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
         )
+    }
+}
+
+/**
+ * Generic full-screen preview — used by both self and peer fullscreen triggers.
+ *
+ * Wrapped in [Dialog] so it renders in a system window above the active
+ * ModalBottomSheet (Cameras drawer). Without Dialog the fullscreen Box was a
+ * regular Compose sibling and the BottomSheet's window covered it — Nathan saw
+ * "fullscreen opens behind the drawer."
+ */
+@Composable
+private fun CameraPreviewFullscreen(
+    label: String,
+    jpeg: ByteArray?,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false,  // we handle dismiss via the close button + tap-to-dismiss inside
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            val bitmap = remember(jpeg) {
+                jpeg?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
+            }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = label,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Text("No preview yet", color = TangerineColors.text, fontFamily = Karla)
+            }
+            Row(
+                modifier = Modifier.padding(20.dp).align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(label, fontFamily = Karla, color = Color.White, fontWeight = FontWeight.SemiBold)
+            }
+        }
     }
 }
 
@@ -1228,38 +1348,13 @@ private fun PeerPreviewFullscreen(
     peer: OrchestratorPeerServer.PeerInfo,
     onDismiss: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        val jpeg = peer.lastPreviewJpeg
-        val bitmap = remember(jpeg) {
-            jpeg?.let { runCatching { BitmapFactory.decodeByteArray(it, 0, it.size) }.getOrNull() }
-        }
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = peer.deviceName,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Text("No preview yet", color = TangerineColors.text, fontFamily = Karla)
-        }
-        Row(
-            modifier = Modifier.padding(20.dp).align(Alignment.TopStart),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, "Close", tint = Color.White)
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(peer.deviceName, fontFamily = Karla, color = Color.White, fontWeight = FontWeight.SemiBold)
-        }
-    }
+    // Same Dialog-based windowing as CameraPreviewFullscreen so this also stacks
+    // above the Cameras drawer ModalBottomSheet.
+    CameraPreviewFullscreen(
+        label = peer.deviceName,
+        jpeg = peer.lastPreviewJpeg,
+        onDismiss = onDismiss,
+    )
 }
 
 // ─── Reaper config sheet ─────────────────────────────────────────────────────
@@ -1335,6 +1430,89 @@ private fun ReaperConfigPane(
             )
         }
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+// ─── Capture status banner ───────────────────────────────────────────────────
+
+@Composable
+private fun CaptureStatusBanner(
+    reaperReady: Boolean,
+    selfCameraEnabled: Boolean,
+    selfCameraReady: Boolean,
+    selfCameraRecording: Boolean,
+    peerCount: Int,
+    peerRecordingCount: Int,
+    isRecording: Boolean,
+    recordError: RecordError?,
+    onClearError: () -> Unit,
+) {
+    // Targets = how many capture endpoints the RECORD button fans out to.
+    val totalTargets = 1 + (if (selfCameraEnabled) 1 else 0) + peerCount  // Reaper + self + peers
+    val readyTargets = (if (reaperReady) 1 else 0) +
+        (if (selfCameraReady) 1 else 0) +
+        peerCount  // peers count once paired
+    val recordingTargets = (if (isRecording) 1 else 0) +  // Reaper recording
+        (if (selfCameraRecording) 1 else 0) +
+        peerRecordingCount
+
+    val accent: Color
+    val icon: String
+    val label: String
+
+    if (recordError != null) {
+        accent = TangerineColors.danger
+        icon = "⚠"
+        label = "${recordError::class.simpleName} — ${recordError.msg}"
+    } else if (isRecording) {
+        if (recordingTargets < totalTargets) {
+            accent = TangerineColors.danger
+            icon = "● REC"
+            label = "$recordingTargets/$totalTargets capturing — ${totalTargets - recordingTargets} not engaged"
+        } else {
+            accent = TangerineColors.danger
+            icon = "● REC"
+            label = "$recordingTargets/$totalTargets capturing"
+        }
+    } else {
+        if (readyTargets < totalTargets) {
+            accent = TangerineColors.orange
+            icon = "ARMED"
+            label = "$readyTargets/$totalTargets ready — ${totalTargets - readyTargets} pending"
+        } else {
+            accent = TangerineColors.green
+            icon = "ARMED"
+            label = "$readyTargets/$totalTargets ready"
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(accent.copy(alpha = 0.10f))
+            .border(1.dp, accent.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            icon,
+            fontFamily = JetBrainsMono, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+            color = accent,
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            label,
+            fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.text,
+            modifier = Modifier.weight(1f),
+            maxLines = 2,
+        )
+        if (recordError != null) {
+            IconButton(onClick = onClearError, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Close, "Dismiss error", tint = TangerineColors.textMuted, modifier = Modifier.size(16.dp))
+            }
+        }
     }
 }
 

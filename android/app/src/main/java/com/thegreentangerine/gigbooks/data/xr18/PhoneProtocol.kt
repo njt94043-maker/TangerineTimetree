@@ -84,8 +84,9 @@ data class PhoneSettings(
     val framerate: Int = 30,
     val exposure: String = "Auto",
     val stabilisation: String = "Off",
-    val cameraFacing: String = "back",  // "back" or "front"
-    val rotationDegrees: Int = 0,        // 0 / 90 / 180 / 270 — applied to recorded video output
+    val cameraFacing: String = "back",   // "back" or "front"
+    val useAutoRotation: Boolean = true, // true = derive from device display rotation at bind time
+    val rotationDegrees: Int = 0,        // 0 / 90 / 180 / 270 — only used when useAutoRotation = false
 )
 
 @Serializable

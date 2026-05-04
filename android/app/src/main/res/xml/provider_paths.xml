@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Legacy clip-export path from XR18 Studio companion era -->
     <external-files-path
         name="tangerine_clips"
         path="TangerineClips/" />
+
+    <!-- v1.1.10 Recordings screen — shares orchestrator + peer MP4s via FileProvider -->
+    <files-path
+        name="orchestrator_recordings"
+        path="orchestrator_recordings/" />
+    <files-path
+        name="peer_recordings"
+        path="peer_recordings/" />
 </paths>

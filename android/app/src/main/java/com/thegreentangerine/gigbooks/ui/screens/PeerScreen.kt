@@ -125,30 +125,41 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         }
     }
 
-    // Camera permission flow — peer mode requires camera + audio (CameraX records audio with video)
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        hasCameraPermission = granted
+    // Camera + audio permissions — peer mode records video AND audio (CameraX
+    // mp4 muxes both). Without RECORD_AUDIO at runtime, withAudioEnabled() throws
+    // SecurityException and recording silently fails — this was the v1.1.9/10 bug
+    // that cost the S122 gig's video.
+    fun hasPerm(p: String) = ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
+    var hasCameraPermission by remember { mutableStateOf(hasPerm(Manifest.permission.CAMERA)) }
+    var hasAudioPermission by remember { mutableStateOf(hasPerm(Manifest.permission.RECORD_AUDIO)) }
+    val permLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { granted ->
+        hasCameraPermission = granted[Manifest.permission.CAMERA] == true ||
+            hasPerm(Manifest.permission.CAMERA)
+        hasAudioPermission = granted[Manifest.permission.RECORD_AUDIO] == true ||
+            hasPerm(Manifest.permission.RECORD_AUDIO)
     }
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission) permLauncher.launch(Manifest.permission.CAMERA)
+        val needed = buildList {
+            if (!hasCameraPermission) add(Manifest.permission.CAMERA)
+            if (!hasAudioPermission) add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (needed.isNotEmpty()) permLauncher.launch(needed.toTypedArray())
     }
 
     // Bind / re-bind CameraX when permission, PreviewView, or rebind-relevant
     // settings change (facing / resolution / framerate). Rotation is handled
     // separately below — it can be applied at runtime without a full rebind.
-    LaunchedEffect(hasCameraPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
+    // Both camera AND audio perms required — withAudioEnabled() throws without RECORD_AUDIO.
+    LaunchedEffect(hasCameraPermission, hasAudioPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
         val pv = previewView
-        if (hasCameraPermission && pv != null) {
+        if (hasCameraPermission && hasAudioPermission && pv != null) {
             vm.bindCamera(lifecycleOwner, pv, settings)
         }
     }
-    LaunchedEffect(settings.rotationDegrees) {
-        cameraManager.applyRotation(settings.rotationDegrees)
+    LaunchedEffect(settings.useAutoRotation, settings.rotationDegrees) {
+        cameraManager.applyRotation(settings)
     }
 
     // Wire client callbacks → CameraRecordingManager. Output goes to a dedicated
@@ -219,20 +230,22 @@ fun PeerScreen(onMenuClick: () -> Unit) {
             }
         }
 
-        if (!hasCameraPermission) {
+        if (!hasCameraPermission || !hasAudioPermission) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.CameraAlt, "Camera", tint = TangerineColors.textMuted, modifier = Modifier.size(48.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("Camera permission required", color = TangerineColors.text, fontFamily = Karla)
+                    Text("Camera + microphone permissions required", color = TangerineColors.text, fontFamily = Karla)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Peer mode records video while the drummer's RECORD is active.",
+                        "Peer mode records video AND audio while the drummer's RECORD is active.",
                         color = TangerineColors.textMuted, fontFamily = Karla, fontSize = 12.sp,
                     )
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { permLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Grant permission")
+                    Button(onClick = {
+                        permLauncher.launch(arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO))
+                    }) {
+                        Text("Grant permissions")
                     }
                 }
             }

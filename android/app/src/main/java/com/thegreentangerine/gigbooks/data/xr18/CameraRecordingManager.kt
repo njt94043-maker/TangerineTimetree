@@ -1,12 +1,18 @@
 package com.thegreentangerine.gigbooks.data.xr18
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
+import android.graphics.Matrix
 import android.graphics.YuvImage
 import android.util.Log
 import android.util.Size
 import android.view.Surface
+import android.view.WindowManager
 import androidx.camera.core.*
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.view.PreviewView
@@ -39,7 +45,14 @@ class CameraRecordingManager(private val context: Context) {
     private var imageAnalysis: ImageAnalysis? = null
     private var preview: Preview? = null
     private var activeRecording: Recording? = null
-    private var lastPreviewFrame: ByteArray? = null
+    /**
+     * Live preview JPEG flow — emits at camera fps (whatever ImageAnalysis delivers).
+     * Local-device consumers (Gig Mode self-tile) collect it for real-time preview;
+     * network consumers (PeerOrchestratorClient) snapshot via [capturePreviewFrame]
+     * and apply their own polling cadence to limit hotspot bandwidth.
+     */
+    private val _previewFlow = MutableStateFlow<ByteArray?>(null)
+    val previewFlow: StateFlow<ByteArray?> = _previewFlow
     private val analysisExecutor = Executors.newSingleThreadExecutor()
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
@@ -90,7 +103,7 @@ class CameraRecordingManager(private val context: Context) {
         try {
             provider.unbindAll()
 
-            val targetRotation = rotationToSurface(settings.rotationDegrees)
+            val targetRotation = effectiveRotation(settings)
 
             preview = previewView?.let { pv ->
                 Preview.Builder()
@@ -118,17 +131,25 @@ class CameraRecordingManager(private val context: Context) {
                 .setTargetRotation(targetRotation)
                 .build()
 
-            // ImageAnalysis for preview frame capture (orchestrator/peer thumbnail). QR
-            // pairing was retired in S121; analyzer just snapshots JPEGs now.
+            // ImageAnalysis for preview frame capture (orchestrator/peer thumbnail).
+            // Aspect ratio MUST match VideoCapture (16:9 for HD/FHD/UHD) so the
+            // thumbnail shows the same framing as the recorded MP4 — Nathan's S123
+            // ask: WYSIWYG coverage for placement decisions. setTargetResolution()
+            // would have given a 4:3 frame from the sensor's ImageAnalysis surface,
+            // which is a different crop than VideoCapture and confuses placement.
+            val analysisResolution = ResolutionSelector.Builder()
+                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                .build()
             imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(640, 480))
+                .setResolutionSelector(analysisResolution)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(targetRotation)
                 .build()
                 .also { analysis ->
                     @androidx.camera.core.ExperimentalGetImage
                     analysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                        lastPreviewFrame = imageProxyToJpeg(imageProxy)
+                        val jpeg = imageProxyToJpeg(imageProxy)
+                        if (jpeg != null) _previewFlow.value = jpeg
                         imageProxy.close()
                     }
                 }
@@ -164,11 +185,28 @@ class CameraRecordingManager(private val context: Context) {
      * Apply rotation to bound use cases without rebinding. Cheap — no camera
      * teardown. Safe to call mid-recording.
      */
-    fun applyRotation(degrees: Int) {
-        val rot = rotationToSurface(degrees)
+    fun applyRotation(settings: PhoneSettings) {
+        val rot = effectiveRotation(settings)
         preview?.targetRotation = rot
         videoCapture?.targetRotation = rot
         imageAnalysis?.targetRotation = rot
+    }
+
+    /**
+     * Resolves [PhoneSettings] rotation to a [Surface.ROTATION_*] constant.
+     * If `useAutoRotation = true`, reads the device's current display rotation —
+     * mounting the phone landscape gives landscape video, portrait gives portrait,
+     * no manual setting needed. Manual override `rotationDegrees` is honoured when
+     * `useAutoRotation = false`.
+     */
+    private fun effectiveRotation(settings: PhoneSettings): Int {
+        if (!settings.useAutoRotation) return rotationToSurface(settings.rotationDegrees)
+        return try {
+            @Suppress("DEPRECATION")
+            (context.getSystemService(WindowManager::class.java))?.defaultDisplay?.rotation ?: Surface.ROTATION_0
+        } catch (_: Exception) {
+            Surface.ROTATION_0
+        }
     }
 
     private fun rotationToSurface(degrees: Int): Int = when (degrees) {
@@ -249,7 +287,7 @@ class CameraRecordingManager(private val context: Context) {
     }
 
     /** Returns last captured preview frame as JPEG bytes, or null. */
-    fun capturePreviewFrame(): ByteArray? = lastPreviewFrame
+    fun capturePreviewFrame(): ByteArray? = _previewFlow.value
 
     fun applySettings(lifecycleOwner: LifecycleOwner, previewView: PreviewView?, settings: PhoneSettings) {
         val provider = cameraProvider ?: return
@@ -365,7 +403,22 @@ class CameraRecordingManager(private val context: Context) {
             val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
             val out = ByteArrayOutputStream()
             yuvImage.compressToJpeg(android.graphics.Rect(0, 0, imageProxy.width, imageProxy.height), 60, out)
-            out.toByteArray()
+            val raw = out.toByteArray()
+
+            // Match the thumbnail orientation to what VideoCapture writes to the MP4.
+            // ImageAnalysis frames come out in the camera sensor's native orientation;
+            // we need to rotate by imageInfo.rotationDegrees to get the upright frame.
+            val rotation = imageProxy.imageInfo.rotationDegrees
+            if (rotation == 0) return raw
+
+            val bmp = BitmapFactory.decodeByteArray(raw, 0, raw.size) ?: return raw
+            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+            val rotated = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
+            val out2 = ByteArrayOutputStream()
+            rotated.compress(Bitmap.CompressFormat.JPEG, 60, out2)
+            bmp.recycle()
+            if (rotated !== bmp) rotated.recycle()
+            out2.toByteArray()
         } catch (_: Exception) { null }
     }
 }
