@@ -47,6 +47,7 @@ capture/backend/**/__pycache__/
 !**/public/**/*.png
 !**/assets/**/*.png
 !**/icons/**/*.png
+!shared/reaper-templates/*.png
 
 # Build dirs in native
 native/modules/*/android/build/
