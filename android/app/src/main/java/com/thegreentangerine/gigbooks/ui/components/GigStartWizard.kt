@@ -78,7 +78,7 @@ fun GigStartWizard(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Name the gig — Reaper will save the project under this name and add to it as you record each set.",
+                    "Name the gig — Reaper will save the project under this name. You'll get a moment to review everything before recording starts.",
                     fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
                 )
                 Spacer(Modifier.height(14.dp))

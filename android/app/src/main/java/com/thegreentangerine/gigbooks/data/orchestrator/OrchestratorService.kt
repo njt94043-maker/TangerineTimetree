@@ -179,19 +179,31 @@ class OrchestratorService : Service() {
         }
     }
 
-    // ─── Gig-level lifecycle (S129 row 6) ──────────────────────────────────
+    // ─── Gig-level lifecycle (S129 row 6, v1.2.3 refined) ──────────────────
     //
-    // Wraps per-set start/stopRecording with the gig wizard's lifecycle and the
-    // Reaper project-rename / save commands. Each transition fans the same
-    // sequence: tell Reaper (HTTP project command), tell the per-set transport
-    // (existing OSC bundle), update GigSession.
+    // Two-phase start: armGig (project rename/save only, no transport) ->
+    // beginRecording (record fanout). The drummer reviews state in the ARMED
+    // phase before committing to the take.
+    //
+    // BREAK has two continue paths: continueSameSet (no marker, same #) for
+    // brief mid-set interruptions, and continueNewSet (marker + #++) for
+    // genuine set boundaries.
 
-    fun startGig(name: String) {
+    /** Wizard saves project + arms — does NOT start recording. */
+    fun armGig(name: String) {
         scope.launch {
-            session.start(name)
-            // Rename + save the .rpp first so set 1 lands on the correct path,
-            // then immediately fan out the per-set record trigger.
+            session.arm(name)
+            // Reaper rename + save runs immediately so the named project exists
+            // on disk. Recording transport stays idle until beginRecording().
             gigCmd.start(name)
+            updateNotification()
+        }
+    }
+
+    /** ARMED -> ACTIVE_SET (set 1). Fires the per-set record fanout. */
+    fun beginRecording() {
+        scope.launch {
+            session.beginRecording()
             osc.sendRecord()
             peerServer.broadcastStartRec(newSessionId())
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
@@ -214,14 +226,34 @@ class OrchestratorService : Service() {
         }
     }
 
-    fun continueSet() {
+    /** Brief mid-set pause continuing — no marker, same set #. */
+    fun continueSameSet() {
         scope.launch {
-            session.cont()
-            // Cursor-at-end-then-record bundle (S120 lock) — set N+1 starts
-            // strictly after the previous set so it doesn't overwrite.
+            session.continueSameSet()
+            // Cursor-at-end-then-record bundle (S120 lock) — new take starts
+            // strictly after the previous so they don't overwrite.
             osc.sendRecord()
             peerServer.broadcastStartRec(newSessionId())
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            _isRecording.value = true
+            updateNotification()
+        }
+    }
+
+    /** Set-boundary continue — marker dropped, set #++ . */
+    fun continueNewSet() {
+        scope.launch {
+            session.continueNewSet()
+            osc.sendRecord()
+            peerServer.broadcastStartRec(newSessionId())
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            // Drop the named "Set N" marker via HTTP file-drop (Reaper-side
+            // song-marker-listener.lua picks it up). OSC fallback if HTTP fails.
+            val markerTitle = "Set ${session.setNumber}"
+            gigCmd.sendSongMarker(markerTitle)
+            if (gigCmd.lastSendOk.value == false) {
+                osc.sendSongMarker(markerTitle)
+            }
             _isRecording.value = true
             updateNotification()
         }

@@ -5,35 +5,45 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Gig session state machine (S129 row 6).
+ * Gig session state machine (S129 row 6, refined v1.2.3).
  *
  * Wraps the existing per-set RECORD/STOP fanout (OrchestratorService) with a
  * gig-level lifecycle so the drummer's flow at the gig is:
  *
  *   IDLE
- *     -> [Start gig wizard: name + save]   -> ACTIVE_SET (set 1)
- *     -> [Pause/Break]                     -> BREAK
- *     -> [Continue]                        -> ACTIVE_SET (set 2)
+ *     -> [Start gig wizard: name + save]    -> ARMED
+ *                                              (project saved, NOT recording —
+ *                                               drummer reviews everything first)
+ *     -> [Begin recording]                   -> ACTIVE_SET (set 1)
+ *     -> [Pause/Break]                       -> BREAK
+ *     -> [Continue]                          -> ACTIVE_SET (same set#, no marker)
+ *     -> [Continue + new set]                -> ACTIVE_SET (set#+1, marker dropped)
  *     -> ... (repeat per set) ...
- *     -> [End gig + confirm]               -> ENDED -> IDLE
+ *     -> [End gig + confirm]                 -> ENDED -> IDLE
+ *
+ * ARMED is the post-wizard / pre-record stage. Reaper has the named project
+ * loaded but transport is idle. The drummer can verify peer cameras, mixer
+ * state, prompter setlist, etc. before committing to the take.
+ *
+ * BREAK has two continue paths so brief mid-set pauses (talk between songs,
+ * tech glitch) don't get marked as new sets — the marker only drops when the
+ * drummer explicitly says "this is a new set boundary".
  *
  * Each transition fans out:
- *   - APK record-trigger: existing per-set OSC bundle (S120 cursor-at-end + record)
+ *   - APK record-trigger: per-set OSC bundle (S120 cursor-at-end + record)
  *     and per-set stop. Drives Reaper recording AND peer phones.
  *   - Reaper project-state command via [GigCommandClient]:
  *       start -> name + save the .rpp at <gigs_dir>/<gig_name>/<gig_name>.rpp
  *       save  -> save (on every Pause / Continue / End — gig-recording-per-set
- *                lock from S119: every set should be saved-on-disk before the
- *                next state)
- *       stop  -> save (final). No auto-close — drummer keeps the project open.
- *
- * Per-set takes are owned by Reaper's transport (cursor-at-end-on-record), so
- * this state machine doesn't track time-positions itself; it's purely the
- * surface that decides which OSC + HTTP calls fire at which moment.
+ *                lock from S119)
+ *       stop  -> save (final). No auto-close.
+ *   - Set-boundary marker: HTTP /song-marker with title "Set N" — only on
+ *     the "Continue + new set" path. Reaper-side song-marker-listener.lua
+ *     drops a named marker.
  */
 class GigSession {
 
-    enum class State { IDLE, ACTIVE_SET, BREAK, ENDED }
+    enum class State { IDLE, ARMED, ACTIVE_SET, BREAK, ENDED }
 
     data class Snapshot(
         val state: State = State.IDLE,
@@ -48,11 +58,20 @@ class GigSession {
     val gigName: String get() = _snapshot.value.gigName
     val setNumber: Int get() = _snapshot.value.setNumber
 
-    /** First set begins immediately on Start gig — no separate "armed" state. */
-    fun start(name: String) {
+    /** Wizard finishes -> ARMED. Project named + saved, transport idle. */
+    fun arm(name: String) {
         _snapshot.value = Snapshot(
-            state = State.ACTIVE_SET,
+            state = State.ARMED,
             gigName = name,
+            setNumber = 0,
+        )
+    }
+
+    /** ARMED -> ACTIVE_SET (set 1). Only valid from ARMED. */
+    fun beginRecording() {
+        if (_snapshot.value.state != State.ARMED) return
+        _snapshot.value = _snapshot.value.copy(
+            state = State.ACTIVE_SET,
             setNumber = 1,
         )
     }
@@ -62,7 +81,14 @@ class GigSession {
         _snapshot.value = _snapshot.value.copy(state = State.BREAK)
     }
 
-    fun cont() {
+    /** Brief mid-set pause continuing — same set number, no marker. */
+    fun continueSameSet() {
+        if (_snapshot.value.state != State.BREAK) return
+        _snapshot.value = _snapshot.value.copy(state = State.ACTIVE_SET)
+    }
+
+    /** Set-boundary continue — set#+1, caller drops the marker. */
+    fun continueNewSet() {
         if (_snapshot.value.state != State.BREAK) return
         _snapshot.value = _snapshot.value.copy(
             state = State.ACTIVE_SET,

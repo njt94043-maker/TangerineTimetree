@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -336,9 +337,12 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
       ModalNavigationDrawer(
         drawerState = setlistDrawerState,
-        // Block setlist gestures while cameras drawer is open so a swipe doesn't
-        // open both drawers at once.
-        gesturesEnabled = openDrawer == null || openDrawer == DrawerKind.Setlist,
+        // v1.2.3: Material3's gesture region for the inner Rtl-flipped drawer
+        // intercepts left-edge swipes before they reach the OUTER nav drawer
+        // (TangerineMediaApp), breaking the nav swipe-to-open. Disable the
+        // built-in gestures and use the explicit right-edge detector below
+        // instead — clean separation of left vs right edge events.
+        gesturesEnabled = false,
         drawerContent = {
           CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
             ModalDrawerSheet(
@@ -393,6 +397,7 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 )
                 Text(
                     when (gigSnapshot.state) {
+                        GigSession.State.ARMED -> "Armed — ready to record"
                         GigSession.State.ACTIVE_SET -> "Set ${gigSnapshot.setNumber} • ${
                             if (activeEntry != null) "${activeIdx + 1}/${activeList.size}" else "no entry"
                         }"
@@ -531,6 +536,25 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                         onClick = { startWizardOpen = true },
                     )
                 }
+                GigSession.State.ARMED -> {
+                    // v1.2.3: post-wizard ARMED stage. Project saved, transport
+                    // idle. Drummer reviews everything (peers, mixer, prompter)
+                    // before tapping Begin recording.
+                    GigPrimaryButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Begin recording",
+                        sublabel = "armed — review then tap",
+                        accent = TangerineColors.green,
+                        enabled = true,
+                        onClick = { service?.beginRecording() },
+                    )
+                    GigSecondaryButton(
+                        modifier = Modifier.weight(0.4f),
+                        label = "End",
+                        accent = TangerineColors.danger,
+                        onClick = { endConfirmOpen = true },
+                    )
+                }
                 GigSession.State.ACTIVE_SET -> {
                     GigPrimaryButton(
                         modifier = Modifier.weight(1f),
@@ -550,13 +574,25 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                     )
                 }
                 GigSession.State.BREAK -> {
+                    // v1.2.3: two continue paths. "Continue" treats the pause
+                    // as a brief mid-set interruption (no marker, same set#).
+                    // "+ Set N+1" drops a "Set N+1" marker and increments —
+                    // for genuine set boundaries between break music etc.
                     GigPrimaryButton(
                         modifier = Modifier.weight(1f),
                         label = "Continue",
-                        sublabel = "Set ${gigSnapshot.setNumber + 1}",
+                        sublabel = "same set — no marker",
                         accent = TangerineColors.orange,
                         enabled = true,
-                        onClick = { service?.continueSet() },
+                        onClick = { service?.continueSameSet() },
+                    )
+                    GigPrimaryButton(
+                        modifier = Modifier.weight(1f),
+                        label = "+ Set ${gigSnapshot.setNumber + 1}",
+                        sublabel = "drops marker",
+                        accent = TangerineColors.green,
+                        enabled = true,
+                        onClick = { service?.continueNewSet() },
                     )
                     GigSecondaryButton(
                         modifier = Modifier.weight(0.4f),
@@ -569,18 +605,36 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         }
     }
 
-    // ── Cameras edge-swipe peek (S129 row 5) ──
-    // Replaces the Cameras pill — pure edge handle. Tap or vertical-drag-up to
-    // open. Sits at the very bottom of the screen, drawn over the bottom-row
-    // gig controls' lower margin so it doesn't push the layout up. Width is
-    // wide enough to be discoverable, height is small so it doesn't steal
-    // touches from the bottom-row buttons.
+    // ── Setlist right-edge swipe detector (v1.2.3) ──
+    // Replaces ModalNavigationDrawer's built-in right-edge gesture (which was
+    // disabled to free the nav drawer's left edge). Slim Box on the right
+    // edge listening for horizontal drag-left to open the setlist drawer.
+    Box(
+        modifier = Modifier
+            .align(Alignment.CenterEnd)
+            .fillMaxHeight()
+            .width(20.dp)
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures { _, dragAmount ->
+                    if (dragAmount < -8f && openDrawer == null) {
+                        openDrawer = DrawerKind.Setlist
+                    }
+                }
+            },
+    )
+
+    // ── Cameras peek handle (v1.2.3 — pushed up off the system gesture bar) ──
+    // Sits 36dp above the literal bottom so Android's nav-gesture region
+    // doesn't claim swipes meant for the peek. Tap or short upward drag opens
+    // the cameras drawer.
     CamerasPeekHandle(
-        modifier = Modifier.align(Alignment.BottomCenter),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = 36.dp),
         peerCount = peerCount,
         onOpen = { openDrawer = DrawerKind.Cameras },
     )
-    }    // close Box wrapping Column + peek
+    }    // close Box wrapping Column + peeks
         }    // close CompositionLocalProvider(Ltr)
       }      // close ModalNavigationDrawer
     }        // close CompositionLocalProvider(Rtl)
@@ -650,7 +704,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
             onCancel = { startWizardOpen = false },
             onStart = { name ->
                 startWizardOpen = false
-                service?.startGig(name)
+                // v1.2.3: wizard arms only — separate Begin button starts recording
+                service?.armGig(name)
             },
         )
     }
