@@ -51,7 +51,7 @@ class OrchestratorService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     val osc = ReaperOscClient()
-    val gigCmd = GigCommandClient()
+    val gigCmd by lazy { GigCommandClient(this) }
     val session = GigSession()
     private lateinit var discovery: OrchestratorDiscovery
     val discoveryFlow get() = discovery.discovered
