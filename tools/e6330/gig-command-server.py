@@ -12,10 +12,16 @@ song-marker-listener.lua established the file-poll pattern as the bridge — thi
 daemon is the network-receive side of that same pattern, extended to gig-level
 state changes (start / save / stop) instead of just markers.
 
-Endpoint:
+Endpoints:
     POST /gig
     Content-Type: application/json
     Body: {"action": "start" | "save" | "stop", "project_name": "<gig name>"}
+
+    POST /song-marker         (S128 follow-up; closes the gap where APK was
+                               firing OSC /song_marker but the listener was
+                               polling a file directory)
+    Content-Type: application/json
+    Body: {"title": "<song title>"}
 
 Responses:
     200 {"ok": true, "queued": "<filename>"}
@@ -49,15 +55,18 @@ import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Optional
 
 LISTEN_HOST = "0.0.0.0"
 LISTEN_PORT = 8666
 QUEUE_DIR = Path("/tmp/gig-commands")
+SONG_MARKER_DIR = Path("/tmp/song-markers")
 VALID_ACTIONS = {"start", "save", "stop"}
 
 
 def ensure_queue_dir() -> None:
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
+    SONG_MARKER_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class GigHandler(BaseHTTPRequestHandler):
@@ -79,20 +88,28 @@ class GigHandler(BaseHTTPRequestHandler):
             return
         self._json(404, {"ok": False, "error": "not found"})
 
-    def do_POST(self):  # noqa: N802
-        if self.path != "/gig":
-            self._json(404, {"ok": False, "error": "not found"})
-            return
-
+    def _read_json_body(self) -> Optional[dict]:
         length = int(self.headers.get("Content-Length") or 0)
         if length <= 0 or length > 8192:
             self._json(400, {"ok": False, "error": "missing or oversize body"})
-            return
-
+            return None
         try:
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            return json.loads(self.rfile.read(length).decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self._json(400, {"ok": False, "error": f"bad json: {e}"})
+            return None
+
+    def do_POST(self):  # noqa: N802
+        if self.path == "/gig":
+            self._handle_gig()
+        elif self.path == "/song-marker":
+            self._handle_song_marker()
+        else:
+            self._json(404, {"ok": False, "error": "not found"})
+
+    def _handle_gig(self) -> None:
+        payload = self._read_json_body()
+        if payload is None:
             return
 
         action = payload.get("action")
@@ -112,6 +129,29 @@ class GigHandler(BaseHTTPRequestHandler):
                 json.dumps({"action": action, "project_name": project_name, "ts_ms": ts}),
                 encoding="utf-8",
             )
+        except OSError as e:
+            self._json(500, {"ok": False, "error": f"write failed: {e}"})
+            return
+
+        self._json(200, {"ok": True, "queued": filename})
+
+    def _handle_song_marker(self) -> None:
+        payload = self._read_json_body()
+        if payload is None:
+            return
+
+        title = (payload.get("title") or "").strip()
+        if not title:
+            self._json(400, {"ok": False, "error": "title required"})
+            return
+
+        ts = int(time.time() * 1000)
+        # Filename prefix sorts chronologically; song-marker-listener.lua reads
+        # the .txt content for the actual title.
+        filename = f"{ts}-marker.txt"
+        target = SONG_MARKER_DIR / filename
+        try:
+            target.write_text(title, encoding="utf-8")
         except OSError as e:
             self._json(500, {"ok": False, "error": f"write failed: {e}"})
             return

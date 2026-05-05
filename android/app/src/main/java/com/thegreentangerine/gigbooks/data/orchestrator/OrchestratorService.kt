@@ -168,7 +168,15 @@ class OrchestratorService : Service() {
     }
 
     fun sendSongMarker(title: String) {
-        scope.launch { osc.sendSongMarker(title) }
+        // S129: HTTP file-drop preferred (named marker via song-marker-listener.lua).
+        // OSC fallback still wired for the no-daemon case — drops a generic
+        // unnamed marker via /action/40157 if the daemon is unreachable.
+        scope.launch {
+            gigCmd.sendSongMarker(title)
+            if (gigCmd.lastSendOk.value == false) {
+                osc.sendSongMarker(title)
+            }
+        }
     }
 
     // ─── Gig-level lifecycle (S129 row 6) ──────────────────────────────────

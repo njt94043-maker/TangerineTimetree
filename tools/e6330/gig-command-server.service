@@ -9,8 +9,8 @@ ExecStart=/usr/bin/python3 /opt/tgt/gig-command-server.py
 Restart=on-failure
 RestartSec=3s
 # Run as the desktop user so the queue files in /tmp/gig-commands are owned
-# by the same user Reaper runs as. Replace 'nathan' if the E6330 user differs.
-User=nathan
+# by the same user Reaper runs as. E6330 desktop user is `tangerine`.
+User=tangerine
 StandardOutput=journal
 StandardError=journal
 

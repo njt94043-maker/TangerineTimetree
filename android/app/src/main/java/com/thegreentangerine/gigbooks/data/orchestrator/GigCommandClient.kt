@@ -38,27 +38,42 @@ class GigCommandClient {
         _target.value = Target(host.trim(), port)
     }
 
-    suspend fun start(projectName: String) = post(
-        action = "start",
-        projectName = projectName,
+    suspend fun start(projectName: String) = postJson(
+        path = "/gig",
+        body = """{"action":"start","project_name":${jsonString(projectName)}}""",
     )
 
-    suspend fun save() = post(action = "save", projectName = "")
+    suspend fun save() = postJson(
+        path = "/gig",
+        body = """{"action":"save","project_name":""}""",
+    )
 
-    suspend fun stop() = post(action = "stop", projectName = "")
+    suspend fun stop() = postJson(
+        path = "/gig",
+        body = """{"action":"stop","project_name":""}""",
+    )
 
-    private suspend fun post(action: String, projectName: String) {
+    /**
+     * S129: replaces the dual OSC `/action/40157` + `/song_marker` bundle.
+     * The named marker is dropped by the Reaper-side song-marker-listener.lua
+     * when this file lands in /tmp/song-markers/.
+     */
+    suspend fun sendSongMarker(title: String) = postJson(
+        path = "/song-marker",
+        body = """{"title":${jsonString(title)}}""",
+    )
+
+    private suspend fun postJson(path: String, body: String) {
         val tgt = _target.value
         val ok = withContext(Dispatchers.IO) {
             try {
-                val url = URL("http://${tgt.host}:${tgt.port}/gig")
+                val url = URL("http://${tgt.host}:${tgt.port}$path")
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.connectTimeout = 1500
                 conn.readTimeout = 1500
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json")
-                val body = """{"action":"$action","project_name":${jsonString(projectName)}}"""
                 conn.outputStream.use { out: OutputStream ->
                     out.write(body.toByteArray(Charsets.UTF_8))
                 }
