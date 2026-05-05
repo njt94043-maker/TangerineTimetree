@@ -11,9 +11,10 @@
 --     "ts_ms": <int> }
 --
 -- Actions:
---   start  -> create ~/Reaper/Gigs/<name>/<name>.rpp via Main_SaveProjectEx,
---             so the project filename matches the gig from the moment Set 1
---             starts recording.
+--   start  -> open the TGT recording template (noprompt: discards the
+--             auto-resumed prior session silently) then save-as to
+--             ~/Reaper/Gigs/<name>/<name>.rpp. Guarantees a fresh, known
+--             channel layout each gig regardless of what Reaper booted into.
 --   save   -> Main_OnCommand 40026 (File: Save project) — saves to whatever
 --             path is currently set. If start ran first, that's the gig path.
 --   stop   -> save (no auto-close — drummer might want to keep the project
@@ -48,8 +49,14 @@ local function gigs_dir_path()
   end
 end
 
+local function template_path()
+  local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+  return home .. "/.config/REAPER/ProjectTemplates/tgt-gig-and-practice.RPP"
+end
+
 local POLL_DIR = poll_dir_path()
 local GIGS_DIR = gigs_dir_path()
+local TEMPLATE = template_path()
 
 local function ensure_dir(path)
   reaper.RecursiveCreateDirectory(path, 0)
@@ -86,9 +93,12 @@ local function parse_command(text)
 end
 
 local function sanitise(name)
-  -- Allow letters, digits, dash, underscore, space, dot. Replace others with _.
-  local cleaned = name:gsub("[^%w%-_%. ]", "_")
-  cleaned = cleaned:gsub("^%s+", ""):gsub("%s+$", "")
+  -- Whitespace runs collapse to a single dash; anything else outside
+  -- [a-zA-Z0-9._-] becomes underscore. Strip leading/trailing dash/underscore.
+  -- Result: shell-friendly filenames (no spaces, no quoting needed downstream).
+  local cleaned = name:gsub("%s+", "-")
+  cleaned = cleaned:gsub("[^%w%-_%.]", "_")
+  cleaned = cleaned:gsub("^[-_]+", ""):gsub("[-_]+$", "")
   if cleaned == "" then cleaned = "untitled-gig" end
   return cleaned
 end
@@ -98,9 +108,12 @@ local function start_project(name)
   local proj_dir = GIGS_DIR .. "/" .. clean
   ensure_dir(proj_dir)
   local target = proj_dir .. "/" .. clean .. ".rpp"
-  -- options=0: save (not save-as-copy); silent (no dialog).
+  -- "noprompt:" prefix discards the currently-loaded project silently —
+  -- so the auto-resumed prior gig doesn't taint the new one.
+  reaper.Main_openProject("noprompt:" .. TEMPLATE)
+  -- options=0: Save As (re-binds active project filename to target).
   reaper.Main_SaveProjectEx(0, target, 0)
-  reaper.ShowConsoleMsg(string.format("[gig-cmd] start -> %s\n", target))
+  reaper.ShowConsoleMsg(string.format("[gig-cmd] start -> %s (from template %s)\n", target, TEMPLATE))
 end
 
 local function save_project()
