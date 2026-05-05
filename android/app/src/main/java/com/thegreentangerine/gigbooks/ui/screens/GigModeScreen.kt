@@ -658,7 +658,15 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 lastSendOk = lastSendOk,
                 autoDiscover = autoDiscover,
                 onAutoDiscoverChange = { service?.setAutoDiscover(it) },
-                onManualHostChange = { host, port -> service?.osc?.setTarget(host, port) },
+                onManualHostChange = { host, port ->
+                    // v1.2.4 hotfix: also point the HTTP gig-command client at
+                    // the same host (port stays fixed at 8666). Otherwise the
+                    // gig wizard fires HTTP at e6330.local:8666 which won't
+                    // resolve when mDNS isn't propagating (S23 hotspot AP-mode
+                    // multicast is flaky).
+                    service?.osc?.setTarget(host, port)
+                    service?.gigCmd?.setTarget(host)
+                },
             )
         }
     }
