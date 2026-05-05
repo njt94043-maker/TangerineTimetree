@@ -18,12 +18,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,20 +45,22 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -69,14 +73,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -86,6 +94,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thegreentangerine.gigbooks.data.orchestrator.CameraGate
+import com.thegreentangerine.gigbooks.data.orchestrator.GigSession
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorPeerServer
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.ReaperOscClient
@@ -96,6 +105,8 @@ import com.thegreentangerine.gigbooks.data.xr18.CameraSettingsStore
 import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.ui.AppViewModel
 import com.thegreentangerine.gigbooks.ui.components.CameraSettingsSheet
+import com.thegreentangerine.gigbooks.ui.components.GigEndConfirm
+import com.thegreentangerine.gigbooks.ui.components.GigStartWizard
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
@@ -225,6 +236,22 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     var fullscreenSelf by remember { mutableStateOf(false) }
     var reaperConfigOpen by remember { mutableStateOf(false) }
 
+    // ── S129 row 6: gig wizard state ──
+    // Wizard opens on the first Start-gig tap (only when session is IDLE).
+    // End-confirm opens on End-gig tap (avoids accidental end mid-gig).
+    // Pre-fill is computed from today's calendar entry the moment the wizard opens.
+    var startWizardOpen by remember { mutableStateOf(false) }
+    var endConfirmOpen by remember { mutableStateOf(false) }
+    var startPrefill by remember { mutableStateOf("") }
+    val gigSnapshot = service?.session?.snapshot?.collectAsState()?.value
+        ?: GigSession.Snapshot()
+    val gigCmdLastOk = service?.gigCmd?.lastSendOk?.collectAsState()?.value
+    LaunchedEffect(startWizardOpen) {
+        if (startWizardOpen) {
+            startPrefill = vm.getTodaysGigName()
+        }
+    }
+
     // Self-tile preview is real-time — local device, no network, so we collect
     // every frame ImageAnalysis emits (~camera fps). Drawer thumbnail + fullscreen
     // both update live without any polling delay.
@@ -289,7 +316,58 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
+    // S129 row 5: setlist drawer is now an Rtl-flipped right-side ModalNavigationDrawer.
+    // Drawer state ↔ openDrawer kept in sync both directions so:
+    //   - tapping the top-bar gig-name still works (writes openDrawer)
+    //   - swiping from the right edge opens the drawer (writes openDrawer back)
+    //   - tapping a setlist row dismisses the drawer (writes both)
+    val setlistDrawerState = rememberDrawerState(DrawerValue.Closed)
+    LaunchedEffect(openDrawer) {
+        if (openDrawer == DrawerKind.Setlist && !setlistDrawerState.isOpen) setlistDrawerState.open()
+        else if (openDrawer != DrawerKind.Setlist && setlistDrawerState.isOpen) setlistDrawerState.close()
+    }
+    LaunchedEffect(setlistDrawerState.targetValue) {
+        when (setlistDrawerState.targetValue) {
+            DrawerValue.Open -> if (openDrawer != DrawerKind.Setlist) openDrawer = DrawerKind.Setlist
+            DrawerValue.Closed -> if (openDrawer == DrawerKind.Setlist) openDrawer = null
+        }
+    }
+
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+      ModalNavigationDrawer(
+        drawerState = setlistDrawerState,
+        // Block setlist gestures while cameras drawer is open so a swipe doesn't
+        // open both drawers at once.
+        gesturesEnabled = openDrawer == null || openDrawer == DrawerKind.Setlist,
+        drawerContent = {
+          CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            ModalDrawerSheet(
+              drawerContainerColor = TangerineColors.surface,
+              drawerContentColor = TangerineColors.text,
+            ) {
+              SetlistDrawer(
+                entries = entries,
+                primaryListId = activeListId,
+                secondaryListId = pinnedSecondaryListId,
+                activeEntryId = activeEntryId,
+                onPickPrimary = { activeListId = it; pinnedSecondaryListId = null },
+                onTogglePinSecondary = { listId ->
+                  pinnedSecondaryListId = if (pinnedSecondaryListId == listId) null else listId
+                },
+                onTapEntry = { entry ->
+                  activeListId = entry.listId
+                  activeEntryId = entry.id
+                  service?.sendSongMarker(entry.title)
+                  openDrawer = null
+                },
+              )
+            }
+          }
+        },
+      ) {
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
+    Column(modifier = Modifier.fillMaxSize()) {
         // ── Top bar ──
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
@@ -305,13 +383,25 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                     .clickable { openDrawer = DrawerKind.Setlist },
             ) {
                 Text(
-                    "Gig Mode",
+                    if (gigSnapshot.state != GigSession.State.IDLE && gigSnapshot.gigName.isNotBlank())
+                        gigSnapshot.gigName
+                    else
+                        "Gig Mode",
                     fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
                     color = TangerineColors.text,
+                    maxLines = 1,
                 )
                 Text(
-                    if (activeEntry != null) "${activeIdx + 1} of ${activeList.size} — ${SetlistEntry.LIST_LABELS[activeListId] ?: activeListId}"
-                    else "no entry selected",
+                    when (gigSnapshot.state) {
+                        GigSession.State.ACTIVE_SET -> "Set ${gigSnapshot.setNumber} • ${
+                            if (activeEntry != null) "${activeIdx + 1}/${activeList.size}" else "no entry"
+                        }"
+                        GigSession.State.BREAK -> "Break after Set ${gigSnapshot.setNumber}"
+                        GigSession.State.ENDED -> "Gig ended"
+                        else -> if (activeEntry != null)
+                            "${activeIdx + 1} of ${activeList.size} — ${SetlistEntry.LIST_LABELS[activeListId] ?: activeListId}"
+                        else "no entry selected"
+                    },
                     fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
                 )
             }
@@ -423,65 +513,77 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
 
         Spacer(Modifier.weight(1f))
 
-        // ── Bottom row: drawer triggers + RECORD ──
+        // ── Bottom row: gig controls (S129 rows 5+6 — pills removed,
+        //     setlist/cameras moved to edge-swipe drawers). ──
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            DrawerTrigger(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.QueueMusic,
-                label = "Setlist",
-                badge = if (activeEntry != null) "${activeIdx + 1}/${activeList.size}" else null,
-                onClick = { openDrawer = DrawerKind.Setlist },
-            )
-            DrawerTrigger(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Videocam,
-                label = "Cameras",
-                badge = if (peerCount > 0) peerCount.toString() else null,
-                onClick = { openDrawer = DrawerKind.Cameras },
-            )
-            RecordButton(
-                modifier = Modifier.weight(1.5f),
-                isRecording = isRecording,
-                elapsedSec = setElapsedSec,
-                enabled = target != null,
-                onClick = {
-                    if (isRecording) service?.stopRecording() else service?.startRecording()
-                },
-            )
+            when (gigSnapshot.state) {
+                GigSession.State.IDLE, GigSession.State.ENDED -> {
+                    GigPrimaryButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Start gig",
+                        accent = TangerineColors.orange,
+                        enabled = target != null,
+                        disabledLabel = if (target == null) "no Reaper" else null,
+                        onClick = { startWizardOpen = true },
+                    )
+                }
+                GigSession.State.ACTIVE_SET -> {
+                    GigPrimaryButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Pause",
+                        sublabel = "%02d:%02d:%02d".format(
+                            setElapsedSec / 3600, (setElapsedSec % 3600) / 60, setElapsedSec % 60,
+                        ),
+                        accent = TangerineColors.green,
+                        enabled = true,
+                        onClick = { service?.pauseSet() },
+                    )
+                    GigSecondaryButton(
+                        modifier = Modifier.weight(0.4f),
+                        label = "End",
+                        accent = TangerineColors.danger,
+                        onClick = { endConfirmOpen = true },
+                    )
+                }
+                GigSession.State.BREAK -> {
+                    GigPrimaryButton(
+                        modifier = Modifier.weight(1f),
+                        label = "Continue",
+                        sublabel = "Set ${gigSnapshot.setNumber + 1}",
+                        accent = TangerineColors.orange,
+                        enabled = true,
+                        onClick = { service?.continueSet() },
+                    )
+                    GigSecondaryButton(
+                        modifier = Modifier.weight(0.4f),
+                        label = "End",
+                        accent = TangerineColors.danger,
+                        onClick = { endConfirmOpen = true },
+                    )
+                }
+            }
         }
     }
 
-    // ── Setlist drawer ──
-    if (openDrawer == DrawerKind.Setlist) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { openDrawer = null },
-            sheetState = sheetState,
-            containerColor = TangerineColors.surface,
-            scrimColor = Color.Black.copy(alpha = 0.6f),
-        ) {
-            SetlistDrawer(
-                entries = entries,
-                primaryListId = activeListId,
-                secondaryListId = pinnedSecondaryListId,
-                activeEntryId = activeEntryId,
-                onPickPrimary = { activeListId = it; pinnedSecondaryListId = null },
-                onTogglePinSecondary = { listId ->
-                    pinnedSecondaryListId = if (pinnedSecondaryListId == listId) null else listId
-                },
-                onTapEntry = { entry ->
-                    activeListId = entry.listId
-                    activeEntryId = entry.id
-                    service?.sendSongMarker(entry.title)
-                    openDrawer = null
-                },
-            )
-        }
-    }
+    // ── Cameras edge-swipe peek (S129 row 5) ──
+    // Replaces the Cameras pill — pure edge handle. Tap or vertical-drag-up to
+    // open. Sits at the very bottom of the screen, drawn over the bottom-row
+    // gig controls' lower margin so it doesn't push the layout up. Width is
+    // wide enough to be discoverable, height is small so it doesn't steal
+    // touches from the bottom-row buttons.
+    CamerasPeekHandle(
+        modifier = Modifier.align(Alignment.BottomCenter),
+        peerCount = peerCount,
+        onOpen = { openDrawer = DrawerKind.Cameras },
+    )
+    }    // close Box wrapping Column + peek
+        }    // close CompositionLocalProvider(Ltr)
+      }      // close ModalNavigationDrawer
+    }        // close CompositionLocalProvider(Rtl)
 
     // ── Cameras drawer ──
     if (openDrawer == DrawerKind.Cameras) {
@@ -538,6 +640,31 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
             label = "Drummer cam (S23U)",
             jpeg = selfPreviewJpeg,
             onDismiss = { fullscreenSelf = false },
+        )
+    }
+
+    // ── Gig start wizard ──
+    if (startWizardOpen) {
+        GigStartWizard(
+            prefill = startPrefill,
+            onCancel = { startWizardOpen = false },
+            onStart = { name ->
+                startWizardOpen = false
+                service?.startGig(name)
+            },
+        )
+    }
+
+    // ── Gig end confirm ──
+    if (endConfirmOpen) {
+        GigEndConfirm(
+            gigName = gigSnapshot.gigName,
+            setsRecorded = gigSnapshot.setNumber,
+            onCancel = { endConfirmOpen = false },
+            onConfirm = {
+                endConfirmOpen = false
+                service?.endGig()
+            },
         )
     }
 
@@ -638,55 +765,66 @@ private fun NavSongButton(
 }
 
 @Composable
-private fun DrawerTrigger(
+private fun CamerasPeekHandle(
     modifier: Modifier,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    badge: String?,
-    onClick: () -> Unit,
+    peerCount: Int,
+    onOpen: () -> Unit,
 ) {
-    Row(
+    // Thin horizontal handle bar, tap or swipe-up to open the cameras drawer.
+    // The pill is gone (S129 row 5), this is the discoverable affordance.
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(TangerineColors.surface)
-            .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .fillMaxWidth()
+            .height(18.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures { _, dragAmount ->
+                    if (dragAmount < -4f) onOpen()
+                }
+            }
+            .clickable(onClick = onOpen),
+        contentAlignment = Alignment.TopCenter,
     ) {
-        Icon(icon, contentDescription = label, tint = TangerineColors.text, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.text, fontWeight = FontWeight.SemiBold)
-        if (badge != null) {
-            Spacer(Modifier.width(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(TangerineColors.orange.copy(alpha = 0.18f))
-                    .padding(horizontal = 6.dp, vertical = 1.dp),
-            ) {
-                Text(badge, fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.orange)
+                    .padding(top = 4.dp)
+                    .width(56.dp)
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(TangerineColors.textMuted.copy(alpha = 0.45f)),
+            )
+            if (peerCount > 0) {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "${peerCount} cam${if (peerCount == 1) "" else "s"}",
+                    fontFamily = JetBrainsMono,
+                    fontSize = 9.sp,
+                    color = TangerineColors.textMuted,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun RecordButton(
+private fun GigPrimaryButton(
     modifier: Modifier,
-    isRecording: Boolean,
-    elapsedSec: Int,
+    label: String,
+    sublabel: String? = null,
+    accent: Color,
     enabled: Boolean,
+    disabledLabel: String? = null,
     onClick: () -> Unit,
 ) {
-    val tint = if (isRecording) TangerineColors.danger else TangerineColors.orange
+    val tint = if (enabled) accent else TangerineColors.textMuted.copy(alpha = 0.3f)
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(tint.copy(alpha = if (enabled) 0.12f else 0.04f))
+            .background(tint.copy(alpha = if (enabled) 0.14f else 0.04f))
             .border(
                 2.dp,
-                tint.copy(alpha = if (enabled) 0.6f else 0.2f),
+                tint.copy(alpha = if (enabled) 0.7f else 0.2f),
                 RoundedCornerShape(14.dp),
             )
             .clickable(enabled = enabled, onClick = onClick)
@@ -695,28 +833,48 @@ private fun RecordButton(
         horizontalArrangement = Arrangement.Center,
     ) {
         Icon(
-            imageVector = if (isRecording) Icons.Default.Stop else Icons.Default.FiberManualRecord,
-            contentDescription = if (isRecording) "Stop set" else "Record",
-            tint = tint, modifier = Modifier.size(22.dp),
+            imageVector = Icons.Default.FiberManualRecord,
+            contentDescription = label,
+            tint = tint, modifier = Modifier.size(20.dp),
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Column {
             Text(
-                when {
-                    !enabled -> "no Reaper"
-                    isRecording -> "STOP SET"
-                    else -> "RECORD"
-                },
-                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = tint,
+                if (!enabled && disabledLabel != null) disabledLabel else label,
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = tint,
             )
-            if (isRecording) {
+            if (sublabel != null) {
                 Text(
-                    "%02d:%02d:%02d".format(elapsedSec / 3600, (elapsedSec % 3600) / 60, elapsedSec % 60),
+                    sublabel,
                     fontFamily = JetBrainsMono, fontSize = 10.sp,
                     color = tint.copy(alpha = 0.8f),
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun GigSecondaryButton(
+    modifier: Modifier,
+    label: String,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(accent.copy(alpha = 0.08f))
+            .border(1.dp, accent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            fontFamily = Karla, fontWeight = FontWeight.Bold,
+            fontSize = 13.sp, color = accent,
+        )
     }
 }
 

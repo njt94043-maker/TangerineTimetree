@@ -51,6 +51,8 @@ class OrchestratorService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
 
     val osc = ReaperOscClient()
+    val gigCmd = GigCommandClient()
+    val session = GigSession()
     private lateinit var discovery: OrchestratorDiscovery
     val discoveryFlow get() = discovery.discovered
     val isSearching get() = discovery.isSearching
@@ -66,8 +68,12 @@ class OrchestratorService : Service() {
     fun setAutoDiscover(enabled: Boolean) {
         _autoDiscover.value = enabled
         if (enabled) {
-            // Re-apply latest discovered target if present
-            discovery.discovered.value?.let { osc.setTarget(it.host, it.port) }
+            // Re-apply latest discovered target if present. OSC follows discovery
+            // verbatim; gigCmd uses the same host on its own fixed HTTP port.
+            discovery.discovered.value?.let {
+                osc.setTarget(it.host, it.port)
+                gigCmd.setTarget(it.host)
+            }
         }
     }
 
@@ -90,11 +96,13 @@ class OrchestratorService : Service() {
         // Start TCP server first, then advertise the bound port over mDNS
         val port = peerServer.start()
         if (port > 0) publisher.register(port)
-        // When discovery resolves, route the OSC client unless the user overrode it
+        // When discovery resolves, route the OSC client unless the user overrode it.
+        // Gig-command HTTP target follows the same host (different fixed port).
         scope.launch {
             discovery.discovered.collect { d ->
                 if (d != null && _autoDiscover.value) {
                     osc.setTarget(d.host, d.port)
+                    gigCmd.setTarget(d.host)
                 }
             }
         }
@@ -161,6 +169,70 @@ class OrchestratorService : Service() {
 
     fun sendSongMarker(title: String) {
         scope.launch { osc.sendSongMarker(title) }
+    }
+
+    // ─── Gig-level lifecycle (S129 row 6) ──────────────────────────────────
+    //
+    // Wraps per-set start/stopRecording with the gig wizard's lifecycle and the
+    // Reaper project-rename / save commands. Each transition fans the same
+    // sequence: tell Reaper (HTTP project command), tell the per-set transport
+    // (existing OSC bundle), update GigSession.
+
+    fun startGig(name: String) {
+        scope.launch {
+            session.start(name)
+            // Rename + save the .rpp first so set 1 lands on the correct path,
+            // then immediately fan out the per-set record trigger.
+            gigCmd.start(name)
+            osc.sendRecord()
+            peerServer.broadcastStartRec(newSessionId())
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            _isRecording.value = true
+            updateNotification()
+        }
+    }
+
+    fun pauseSet() {
+        scope.launch {
+            // Stop the per-set transport, then tell Reaper to save. Per S119
+            // every set is its own take and saved-on-disk before continuing.
+            osc.sendStop()
+            peerServer.broadcastStopRec()
+            CameraGate.stopLocalRecording()
+            _isRecording.value = false
+            gigCmd.save()
+            session.pause()
+            updateNotification()
+        }
+    }
+
+    fun continueSet() {
+        scope.launch {
+            session.cont()
+            // Cursor-at-end-then-record bundle (S120 lock) — set N+1 starts
+            // strictly after the previous set so it doesn't overwrite.
+            osc.sendRecord()
+            peerServer.broadcastStartRec(newSessionId())
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            _isRecording.value = true
+            updateNotification()
+        }
+    }
+
+    fun endGig() {
+        scope.launch {
+            // If we're mid-set, stop first.
+            if (_isRecording.value) {
+                osc.sendStop()
+                peerServer.broadcastStopRec()
+                CameraGate.stopLocalRecording()
+                _isRecording.value = false
+            }
+            gigCmd.stop()  // final save (Reaper-side does not auto-close)
+            session.end()
+            session.reset()  // free the wizard for the next gig
+            updateNotification()
+        }
     }
 
     private fun statusText(): String {

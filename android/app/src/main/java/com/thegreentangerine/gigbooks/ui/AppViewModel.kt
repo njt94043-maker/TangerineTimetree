@@ -81,6 +81,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Look up today's gig (if any) for the GigStartWizard prefill. Returns the
+     * venue name or client name, whichever is populated. Empty string if there's
+     * no calendar entry on today's date — the wizard then asks the drummer to
+     * type one in. Hits the offline cache first so it works even if the gig is
+     * in a hotspot-only environment.
+     */
+    suspend fun getTodaysGigName(): String {
+        val today = LocalDate.now()
+        return try {
+            val gigs = cachedGigs.getGigsForMonth(today.year, today.monthValue)
+            val match = gigs.firstOrNull { it.date == today.toString() && !it.isCancelled }
+            when {
+                match == null -> ""
+                match.venue.isNotBlank() -> match.venue
+                match.clientName.isNotBlank() -> match.clientName
+                else -> ""
+            }
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
     // ── Camera (used by PeerScreen) ───────────────────────────────────────────
     // Lazily created so phones that never open Peer don't allocate CameraX state.
 

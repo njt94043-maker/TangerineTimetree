@@ -9,6 +9,7 @@ import type { ChangeSummaryItem, GigWithCreator, Profile } from '@shared/supabas
 import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
 import { PublicSite } from './components/PublicSite';
+import { QrLanding } from './components/QrLanding';
 import { LoginModal } from './components/LoginModal';
 import { Calendar } from './components/Calendar';
 import { GigList } from './components/GigList';
@@ -55,6 +56,15 @@ export default function App() {
   const { user, profile, loading: authLoading, signIn, signOut, resetPassword } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [splashDone, setSplashDone] = useState(shouldSkipSplash);
+
+  // S129 row 3: QR-code landing route bypasses splash + auth + main app.
+  // Even logged-in band members who scan the post-gig QR card land here, per
+  // Nathan's spec ("regardless of auth status, even logged in band members
+  // should land here if they scan the qr code").
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+  if (path.startsWith('/qr') || path.startsWith('/scan')) {
+    return <QrLanding />;
+  }
 
   if (!splashDone) {
     return (

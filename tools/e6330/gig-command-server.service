@@ -1,0 +1,18 @@
+[Unit]
+Description=TGT gig-command HTTP daemon (APK -> Reaper file-drop bridge)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/tgt/gig-command-server.py
+Restart=on-failure
+RestartSec=3s
+# Run as the desktop user so the queue files in /tmp/gig-commands are owned
+# by the same user Reaper runs as. Replace 'nathan' if the E6330 user differs.
+User=nathan
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
