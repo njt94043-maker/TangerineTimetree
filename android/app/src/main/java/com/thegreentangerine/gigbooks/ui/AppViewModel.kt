@@ -12,6 +12,7 @@ import com.thegreentangerine.gigbooks.data.supabase.AuthRepository
 import com.thegreentangerine.gigbooks.data.supabase.CachedGigRepository
 import com.thegreentangerine.gigbooks.data.supabase.OfflineCache
 import com.thegreentangerine.gigbooks.data.supabase.SetlistEntriesRepository
+import com.thegreentangerine.gigbooks.data.supabase.SetlistEntryPracticeTracksRepository
 import com.thegreentangerine.gigbooks.data.supabase.models.AwayDate
 import com.thegreentangerine.gigbooks.data.supabase.models.Gig
 import com.thegreentangerine.gigbooks.data.xr18.CameraRecordingManager
@@ -63,6 +64,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         loadCalendarMonth()
         // Kick the setlist repo so DrummerPrompter has data when it opens.
         SetlistEntriesRepository.start()
+        // S130 W3b: per-version practice tracks (one Realtime channel covers
+        // all entries — cheap to start at app launch).
+        SetlistEntryPracticeTracksRepository.start()
     }
 
     fun calNavigate(year: Int, month: Int) {
