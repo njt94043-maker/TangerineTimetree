@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TGT Reaper Post-Prod Cheat Sheet</title>
+<style>
+:root {
+  --bg: #1a1a1a;
+  --bg-alt: #232323;
+  --bg-code: #0d0d0d;
+  --fg: #e0e0e0;
+  --fg-dim: #999;
+  --teal: #1abc9c;
+  --teal-dim: #16a085;
+  --orange: #f39c12;
+  --orange-dim: #d68910;
+  --red: #ff4040;
+  --green: #4caf50;
+  --border: #333;
+  --shadow: rgba(0,0,0,0.4);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.wrap { max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+header {
+  border-bottom: 2px solid var(--teal);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+header h1 {
+  margin: 0 0 .35rem 0;
+  font-size: 1.7rem;
+  color: var(--teal);
+  letter-spacing: -0.01em;
+}
+header .subtitle {
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: .95rem;
+}
+header .meta {
+  margin-top: .6rem;
+  font-size: .8rem;
+  color: var(--fg-dim);
+}
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: .6rem 0;
+  margin-bottom: 1.5rem;
+  font-size: .85rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem .65rem;
+}
+nav a {
+  color: var(--teal);
+  text-decoration: none;
+  padding: .15rem .4rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+nav a:hover, nav a:active { background: var(--teal); color: var(--bg); }
+section {
+  margin-bottom: 2.4rem;
+}
+h2 {
+  color: var(--orange);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: .35rem;
+  margin: 1.6rem 0 .8rem;
+  font-size: 1.35rem;
+}
+h3 {
+  color: var(--teal);
+  margin: 1.4rem 0 .55rem;
+  font-size: 1.1rem;
+}
+h4 {
+  color: var(--fg);
+  margin: 1rem 0 .4rem;
+  font-size: .98rem;
+  font-weight: 600;
+}
+p { margin: .55rem 0; }
+code, kbd {
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, "Roboto Mono", monospace;
+  font-size: .88em;
+  background: var(--bg-code);
+  padding: .1em .35em;
+  border-radius: 3px;
+  color: var(--teal);
+}
+kbd { color: var(--orange); border: 1px solid var(--border); }
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .8rem 1rem;
+  overflow-x: auto;
+  font-size: .82rem;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: .8rem 0;
+  font-size: .88rem;
+}
+th, td {
+  padding: .42rem .55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  background: var(--bg-alt);
+  color: var(--orange);
+  font-weight: 600;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+tbody tr:hover { background: var(--bg-alt); }
+.param-name {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 600;
+  color: var(--teal);
+  white-space: nowrap;
+}
+.value {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--orange);
+  font-weight: 500;
+}
+.note {
+  background: var(--bg-alt);
+  border-left: 3px solid var(--teal);
+  padding: .55rem .85rem;
+  margin: .8rem 0;
+  font-size: .9rem;
+  border-radius: 0 3px 3px 0;
+}
+.note.warn { border-left-color: var(--orange); }
+.note.danger { border-left-color: var(--red); }
+.note .lbl {
+  display: inline-block;
+  font-weight: 600;
+  color: var(--teal);
+  text-transform: uppercase;
+  font-size: .72rem;
+  letter-spacing: 0.06em;
+  margin-right: .4rem;
+}
+.note.warn .lbl { color: var(--orange); }
+.note.danger .lbl { color: var(--red); }
+.chain-flow {
+  background: var(--bg-code);
+  padding: .6rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  margin: .6rem 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: .82rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  color: var(--teal);
+}
+.chain-flow .arrow { color: var(--fg-dim); margin: 0 .4em; }
+.chain-flow .plugin { color: var(--orange); }
+.col-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+@media (max-width: 700px) {
+  body { font-size: 14px; }
+  .wrap { padding: 1rem .7rem 3rem; }
+  header h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.18rem; }
+  h3 { font-size: 1.02rem; }
+  .col-2 { grid-template-columns: 1fr; }
+  table { font-size: .82rem; }
+  th, td { padding: .35rem .4rem; }
+  nav { font-size: .8rem; gap: .25rem .5rem; }
+  pre { padding: .6rem .8rem; font-size: .76rem; }
+  .chain-flow { font-size: .76rem; padding: .5rem .7rem; }
+}
+.tag {
+  display: inline-block;
+  padding: .08em .5em;
+  border-radius: 10px;
+  font-size: .7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--teal-dim);
+  color: var(--bg);
+  margin-right: .35em;
+  vertical-align: middle;
+}
+.tag.orange { background: var(--orange-dim); }
+.tag.red { background: var(--red); }
+.tag.green { background: var(--green); }
+.tag.grey { background: #555; color: var(--fg); }
+.muted { color: var(--fg-dim); }
+.tip {
+  font-style: italic;
+  color: var(--fg-dim);
+  font-size: .87rem;
+}
+ul, ol { padding-left: 1.4rem; }
+li { margin: .25rem 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
+.meta-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: .85rem;
+  color: var(--fg-dim);
+  margin-bottom: .8rem;
+}
+.meta-bar span strong { color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>TGT Reaper Post-Prod Cheat Sheet</h1>
+  <p class="subtitle">Pro-grade parameter reference for The Green Tangerine's live-multitrack post-production template. From E6330 raw 18ch capture to release-quality stereo mixdowns for video.</p>
+  <p class="meta">Living document — paired with <code>tools/post-prod/setup-postprod-fx.lua</code>. Last update: 2026-05-05 (Session 128).</p>
+</header>
+
+<nav>
+  <a href="#workflow">Workflow</a>
+  <a href="#topology">Topology</a>
+  <a href="#channels">Channels</a>
+  <a href="#james">James leveling</a>
+  <a href="#buses">Buses</a>
+  <a href="#master">Master</a>
+  <a href="#render">Render</a>
+  <a href="#gotchas">Gotchas</a>
+  <a href="#hotkeys">Hotkeys</a>
+  <a href="#troubleshooting">Troubleshooting</a>
+</nav>
+
+<!-- ====================================================== WORKFLOW -->
+<section id="workflow">
+<h2>1 · End-to-end workflow</h2>
+
+<p>Every gig follows the same path, from raw capture to released stereo bounces.</p>
+
+<div class="chain-flow">
+E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</span> <span class="arrow">→</span> <span class="plugin">build-postprod-rpp.py</span> <span class="arrow">→</span> open in Reaper <span class="arrow">→</span> <span class="plugin">setup-postprod-fx.lua</span> <span class="arrow">→</span> dial in params <span class="arrow">→</span> region per song <span class="arrow">→</span> render
+</div>
+
+<h3>Step-by-step</h3>
+<ol>
+  <li><strong>Sync the gig.</strong> On OptiPlex, terminal: <code>python D:/Gigs/pull-gig.py [YYYY-MM-DD]</code>. Defaults to today's date. Pulls 18ch WAVs + per-set <code>set-XXXX.RPP</code> files via Tailscale SSH from E6330.</li>
+  <li><strong>Build the post-prod project.</strong>
+    <ul>
+      <li><em>Single set:</em> <code>python D:/Gigs/build-postprod-rpp.py D:/Gigs/&lt;date&gt;/set-XXXX.RPP</code></li>
+      <li><em>Whole gig (multi-set):</em> <code>python D:/Gigs/build-postprod-rpp.py &lt;set1&gt;.RPP &lt;set2&gt;.RPP &lt;set3&gt;.RPP</code> (chronological order; auto-stitches with set boundaries marked, last short set auto-named "Encore")</li>
+    </ul>
+  </li>
+  <li><strong>Open the generated project</strong> in Reaper: <code>D:/Gigs/&lt;date&gt;/&lt;date&gt;-whole-gig-postprod.RPP</code> (or <code>&lt;set&gt;-postprod.RPP</code> for single-set).</li>
+  <li><strong>Run the FX installer.</strong> Actions → Show action list → Load… → <code>D:/Gigs/setup-postprod-fx.lua</code> → run. ~50 plugins auto-inserted across channels, buses, and master. Idempotent — safe to re-run.</li>
+  <li><strong>Dial in per-channel params.</strong> Use the tables below — click each channel/bus/master to set the recommended starting values. Save (<kbd>Ctrl+S</kbd>) when done so chains persist.</li>
+  <li><strong>Mark song boundaries.</strong> During playback at each song-start, press your bound hotkey (<kbd>M</kbd> if you bound <code>insert-named-marker.lua</code>) → type song name → marker drops. Or select a range, then <em>Insert → Region (named)</em>.</li>
+  <li><strong>Render.</strong> Path A (shared mix, per-song stereo bounces): <em>File → Render → Region Render Matrix</em>. Path B (per-song unique mixes): <code>python D:/Gigs/split-into-songs.py &lt;postprod.RPP&gt;</code>, then open each generated <code>songs/&lt;name&gt;.RPP</code> independently.</li>
+</ol>
+
+<div class="note">
+  <span class="lbl">Re-running</span>
+  Both Python scripts and the FX installer are idempotent. You can rerun them after editing the source set RPPs (e.g. if you re-pulled fresh recordings). The FX installer skips plugins already present on a track — only adds missing ones.
+</div>
+
+</section>
+
+<!-- ====================================================== TOPOLOGY -->
+<section id="topology">
+<h2>2 · Project topology</h2>
+
+<p>23 tracks in this exact order. Folder routing: children sum into their parent bus, parent sends to Master. The PRACTICE bus is muted by default (ch 17-18 are practice-mode refs, not in live mixdown).</p>
+
+<table>
+<thead><tr><th>Position</th><th>Track / Bus</th><th>Channels</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>1-3</td><td><strong>MUSIC BUS</strong> (folder)</td><td>1-2</td><td>Stereo backing tracks (phone/tablet → mini jack). Pre-mastered.</td></tr>
+<tr><td>4-6</td><td><strong>VOX BUS</strong> (folder)</td><td>3-4</td><td>James (lead, dynamic mic) + Adam BV (dynamic).</td></tr>
+<tr><td>7</td><td>05 Adam Guitar</td><td>5</td><td>Standalone (single-channel buses are pointless).</td></tr>
+<tr><td>8</td><td>06 Neil Bass</td><td>6</td><td>Standalone (DI).</td></tr>
+<tr><td>9</td><td>07 Spare</td><td>7</td><td>Standalone (often unused).</td></tr>
+<tr><td>10-12</td><td><strong>EAD BUS</strong> (folder)</td><td>8-9</td><td>Yamaha EAD pre-mixed e-drums (stereo).</td></tr>
+<tr><td>13-20</td><td><strong>DRUMS BUS</strong> (folder)</td><td>10-16</td><td>Acoustic kit only — kick, snare, 3 toms, OH L/R.</td></tr>
+<tr><td>21-23</td><td><strong>PRACTICE BUS</strong> (folder, MUTED)</td><td>17-18</td><td>Practice refs — not in mixdown.</td></tr>
+</tbody>
+</table>
+
+<h3>Routing invariants</h3>
+<div class="note danger">
+  <span class="lbl">Don't break</span>
+  Every track has <code>MAINSEND 1 0</code>. In Reaper folder context, <code>MAINSEND=1</code> on a child means "send to folder PARENT" — NOT to master directly. Setting <code>MAINSEND=0</code> on a child kills audio path entirely. The folder routing is the only path. If you reroute (e.g. for explicit sends), don't disable MAINSEND on existing children.
+</div>
+
+</section>
+
+<!-- ====================================================== CHANNELS -->
+<section id="channels">
+<h2>3 · Per-channel chains + parameters</h2>
+
+<p>Surgical work happens at the channel level: HPF removes rumble, gates kill bleed, comp tames dynamics. Bus and master add glue + colour on top.</p>
+
+<!-- =================== Music backing -->
+<h3>01-02 Music L / R (backing tracks) <span class="tag grey">Pre-mastered</span></h3>
+<p>Stereo backing already mixed and mastered upstream. <strong>Don't process.</strong> Adding any comp or EQ creates audible pumping against the live band.</p>
+<table>
+<thead><tr><th>Stage</th><th>Plugin</th><th>Purpose</th><th>Default</th></tr></thead>
+<tbody>
+<tr><td>—</td><td>(no per-channel FX inserted)</td><td>Pre-mastered material; just gain-match.</td><td>Track fader: -6 to -3 dB below vocal level.</td></tr>
+</tbody>
+</table>
+<div class="note">
+  <span class="lbl">Only exception</span>
+  If a venue's PA introduces audible boom in the backing track playback, drop a <code>ReaEQ HPF @ 60Hz, 12dB/oct</code> as track-1 FX. Don't compress.
+</div>
+
+<!-- =================== James Vox -->
+<h3>03 James Vox (lead) <span class="tag orange">Special: leveling architecture</span></h3>
+<p>The chain that solves James's distance/volume issue (he steps back when louder = quieter at mic). See <a href="#james">James leveling deep-dive</a> for the architecture explanation.</p>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaGate</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">MJUCjr</span> (leveler) <span class="arrow">→</span> <span class="plugin">TDR Nova</span> (de-ess) <span class="arrow">→</span> <span class="plugin">ReaEQ</span> (tone)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>ReaEQ #1</strong> (HPF + mud)</td><td class="param-name">Band 1 Type</td><td class="value">High Pass, 24 dB/oct</td><td>Stage rumble + mic handling.</td></tr>
+<tr><td class="param-name">Band 1 Freq</td><td class="value">100 Hz</td><td>Aggressive enough to keep stage low-end out of the vox.</td></tr>
+<tr><td class="param-name">Band 2 Bell</td><td class="value">250 Hz, -3 dB, Q 1.0</td><td>Tames live "boxiness" common on dynamic mics close-up.</td></tr>
+<tr><td rowspan="4"><strong>ReaGate</strong></td><td class="param-name">Threshold</td><td class="value">-45 dB</td><td>Cuts between-song bleed (cymbals, drum fills bleeding into vox mic).</td></tr>
+<tr><td class="param-name">Hysteresis</td><td class="value">6 dB</td><td>Open at -45, close at -51 — prevents gate chatter on quiet sustained notes.</td></tr>
+<tr><td class="param-name">Hold</td><td class="value">50 ms</td><td>Lets phrase tails through before gate closes.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">1 ms / 100 ms</td><td>Fast open (catch consonants), gentle close.</td></tr>
+<tr><td rowspan="4"><strong>ReaComp</strong> (FAST peak comp)</td><td class="param-name">Threshold</td><td class="value">-18 dB</td><td>Catches transients only; not aggressive on body.</td></tr>
+<tr><td class="param-name">Ratio</td><td class="value">3:1</td><td>Standard vocal control.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">10 ms / 80 ms</td><td>Fast enough to catch consonant peaks without destroying transient feel.</td></tr>
+<tr><td class="param-name">Knee</td><td class="value">6 dB (soft)</td><td>Gentle onset — avoids audible "snap" into compression.</td></tr>
+<tr><td colspan="3" class="tip">Gain reduction target: 3-5 dB on louder phrases.</td></tr>
+<tr><td rowspan="3"><strong>MJUCjr</strong> <span class="tag orange">LEVELER</span></td><td class="param-name">Comp</td><td class="value">30%</td><td><strong>This is the stage that solves James's distance issue.</strong> Slow vari-mu flattens the macro 6-12 dB swings inverse-square law gives him.</td></tr>
+<tr><td class="param-name">Recovery</td><td class="value">Slow</td><td>Long time constant — wants to ride averages, not peaks.</td></tr>
+<tr><td class="param-name">Drive / Output</td><td class="value">0% / 0 dB</td><td>Don't drive into saturation here; this is leveling, not colour.</td></tr>
+<tr><td colspan="4" class="tip">If still inconsistent, push Comp to 40-50%. If too squashed, drop to 20-25%.</td></tr>
+<tr><td rowspan="4"><strong>TDR Nova</strong> (de-ess, dynamic band)</td><td class="param-name">Band Mode</td><td class="value">Dynamic, Bell</td><td>Only attenuates when sibilant peaks cross threshold.</td></tr>
+<tr><td class="param-name">Frequency / Q</td><td class="value">5.5-9 kHz, Q 1.5</td><td>Sibilance zone for SM58-class dynamics.</td></tr>
+<tr><td class="param-name">Threshold / Ratio</td><td class="value">-28 dB / 3:1</td><td>Triggers only on harsh "sssss" peaks.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">0.5 ms / 50 ms</td><td>Fast enough to catch sibilants exactly.</td></tr>
+<tr><td rowspan="3"><strong>ReaEQ #2</strong> (post-comp tone)</td><td class="param-name">HF shelf</td><td class="value">+2 dB @ 10 kHz</td><td>Air the dynamic mic loses.</td></tr>
+<tr><td class="param-name">Mid bell</td><td class="value">+1.5 dB @ 3 kHz, Q 1.0</td><td>Vocal presence push.</td></tr>
+<tr><td class="param-name">(Optional cut)</td><td class="value">-1 dB @ 800 Hz, Q 1.5</td><td>If lead vocal sounds nasal or honky.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Adam BV -->
+<h3>04 Adam BV</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaGate</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">TDR Nova</span> <span class="arrow">→</span> <span class="plugin">ReaEQ</span>
+</div>
+<p>Same framework as James, simpler — no leveler since BV is steadier dynamically. Backed-off slightly so it sits behind lead.</p>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>ReaEQ #1</strong></td><td class="param-name">HPF / Bell cut</td><td class="value">110 Hz / -2 dB @ 300 Hz</td><td>Slightly more aggressive HPF than lead — BV doesn't need low-end fundamentals.</td></tr>
+<tr><td><strong>ReaGate</strong></td><td class="param-name">Threshold / Hysteresis / Hold</td><td class="value">-42 dB / 6 dB / 50 ms</td><td>Tighter (less open) — BV is quieter than lead, so a higher threshold avoids opening on bleed.</td></tr>
+<tr><td rowspan="3"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-16 dB / 2.5:1</td><td>Less aggressive than lead.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">12 ms / 100 ms</td><td>Slightly slower attack to preserve transient definition.</td></tr>
+<tr><td colspan="3" class="tip">~2-4 dB GR on louder lines.</td></tr>
+<tr><td><strong>TDR Nova</strong></td><td class="param-name">De-ess band</td><td class="value">6-9 kHz, ratio 2.5:1, thr -25 dB</td><td>Lighter touch than lead.</td></tr>
+<tr><td rowspan="2"><strong>ReaEQ #2</strong></td><td class="param-name">HF shelf</td><td class="value">+1.5 dB @ 8 kHz</td><td>Less air than lead — keep BV less prominent.</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-1.5 dB @ 1 kHz</td><td>Sit BV behind lead in midrange.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Adam Guitar -->
+<h3>05 Adam Guitar (electric, mic'd cab)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">ReaEQ</span>
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="2"><strong>ReaEQ #1</strong></td><td class="param-name">HPF</td><td class="value">90 Hz, 24 dB/oct</td><td>Clears bass guitar / kick space.</td></tr>
+<tr><td class="param-name">LPF</td><td class="value">8 kHz, 12 dB/oct</td><td>Tames mic'd cab fizz/buzz.</td></tr>
+<tr><td rowspan="2"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-16 dB / 2:1</td><td>Light — amp is already compressed via tube saturation.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">20 ms / 150 ms</td><td>Slow attack preserves pick attack.</td></tr>
+<tr><td rowspan="2"><strong>ReaEQ #2</strong></td><td class="param-name">Mid cut</td><td class="value">-2 dB @ 400 Hz, Q 1.0</td><td>Removes "boxy" room/cab honk.</td></tr>
+<tr><td class="param-name">Presence boost</td><td class="value">+1.5 dB @ 2.5 kHz</td><td>Bite + cut-through for rhythm guitar.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Neil Bass -->
+<h3>06 Neil Bass (DI)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">ReaXComp</span> (multiband) <span class="arrow">→</span> <span class="plugin">IVGI2</span>
+</div>
+<p>DI bass needs more shaping than mic'd bass — it's clean and harmonic-poor. Multiband splits low/high so low-end pumping doesn't squash the finger noise zone, and IVGI2 adds the harmonic content a clean DI lacks.</p>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="4"><strong>ReaEQ</strong></td><td class="param-name">HPF</td><td class="value">40 Hz, 24 dB/oct</td><td>Sub-fundamental rumble cleanup.</td></tr>
+<tr><td class="param-name">Low bell</td><td class="value">+1 dB @ 80 Hz</td><td>Slight thump bump.</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-2 dB @ 300 Hz</td><td>Removes muddy honk where bass + kick collide.</td></tr>
+<tr><td class="param-name">Presence boost</td><td class="value">+1.5 dB @ 2 kHz</td><td>Finger / pick definition.</td></tr>
+<tr><td rowspan="3"><strong>ReaComp</strong> (peak)</td><td class="param-name">Threshold / Ratio</td><td class="value">-14 dB / 4:1</td><td>Tames louder notes.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">15 ms / 120 ms</td><td>Slow enough to preserve attack.</td></tr>
+<tr><td colspan="3" class="tip">~4-6 dB GR.</td></tr>
+<tr><td rowspan="3"><strong>ReaXComp</strong> (multiband)</td><td class="param-name">Bands</td><td class="value">2 (split @ 200 Hz)</td><td>Low band = sub/body; high band = fingers.</td></tr>
+<tr><td class="param-name">Low band</td><td class="value">3:1 ratio, thr -16 dB</td><td>Tames sub pumping.</td></tr>
+<tr><td class="param-name">High band</td><td class="value">2:1 ratio, thr -18 dB</td><td>Smooths finger transients.</td></tr>
+<tr><td rowspan="2"><strong>IVGI2</strong> (saturation)</td><td class="param-name">Drive</td><td class="value">25%</td><td>Adds harmonic content to clean DI signal.</td></tr>
+<tr><td class="param-name">Mode</td><td class="value">II (warm)</td><td>Mode I = cleanest, II = warm/musical, III = aggressive.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== EAD -->
+<h3>08-09 Yamaha EAD L / R <span class="tag grey">Pre-blended</span></h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> (light)
+</div>
+<p>EAD is Yamaha's pre-mixed kick + ambient mic blend — already balanced. Treat as a stereo "kick layer" — minimal touch.</p>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>ReaEQ</strong></td><td class="param-name">HPF</td><td class="value">30 Hz, 12 dB/oct</td><td>Below kick fundamental, just rumble removal.</td></tr>
+<tr><td class="param-name">Low bell</td><td class="value">+1.5 dB @ 60 Hz</td><td>Slight thump emphasis.</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-1.5 dB @ 400 Hz</td><td>Removes mid-cardboard congestion.</td></tr>
+<tr><td rowspan="2"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-14 dB / 2:1</td><td>Just glue against acoustic kick (Ch 10).</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">20 ms / 100 ms</td><td>Slow attack — preserve EAD's natural transient.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Kick -->
+<h3>10 Kick (acoustic, dynamic mic on inside)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaGate</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">ReaEQ</span> (tone)
+</div>
+<p>Two-stage EQ approach: first cleans up, second shapes tone. The tone EQ is your "low-end punch + beater click" stage — same idea as parallel-track top/bottom split, achieved on a single track via two boosts.</p>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="2"><strong>ReaEQ #1</strong></td><td class="param-name">HPF</td><td class="value">35 Hz, 24 dB/oct</td><td>Below kick fundamental.</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-3 dB @ 350 Hz, Q 1.4</td><td>Removes "cardboard" tone.</td></tr>
+<tr><td rowspan="4"><strong>ReaGate</strong></td><td class="param-name">Threshold</td><td class="value">-30 dB</td><td>Aggressive — kicks are loud + percussive, won't trigger on bleed.</td></tr>
+<tr><td class="param-name">Hysteresis</td><td class="value">8 dB</td><td>Closes 8 dB below open — prevents OH/snare bleed pumping.</td></tr>
+<tr><td class="param-name">Hold</td><td class="value">80 ms</td><td>Lets kick decay/sustain through before closing.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">0.5 ms / 150 ms</td><td>Instant open, gentle close.</td></tr>
+<tr><td rowspan="3"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-14 dB / 4:1</td><td>Evens dynamic kick player.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">8 ms / 100 ms</td><td>Slightly slower than vox — preserves attack transient.</td></tr>
+<tr><td colspan="3" class="tip">~4 dB GR on louder hits.</td></tr>
+<tr><td rowspan="2"><strong>ReaEQ #2</strong> (tone)</td><td class="param-name">Low boost</td><td class="value">+2 dB shelf @ 60 Hz</td><td><strong>Bottom-end punch</strong> — sub-thump under acoustic kick.</td></tr>
+<tr><td class="param-name">Click boost</td><td class="value">+3 dB bell @ 3.5 kHz, Q 1.2</td><td><strong>Top-end click</strong> — beater attack cuts through mix.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Snare -->
+<h3>11 Snare (top, dynamic mic)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaGate</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> <span class="arrow">→</span> <span class="plugin">TDR Nova</span> (dyn)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="2"><strong>ReaEQ</strong></td><td class="param-name">HPF</td><td class="value">100 Hz, 24 dB/oct</td><td>Removes kick bleed (kick is on Ch 10).</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-2 dB @ 600 Hz</td><td>Removes "hollow" snare honk.</td></tr>
+<tr><td rowspan="3"><strong>ReaGate</strong></td><td class="param-name">Threshold</td><td class="value">-32 dB</td><td>Slightly less aggressive than kick — snare bleed pattern is different.</td></tr>
+<tr><td class="param-name">Hysteresis / Hold</td><td class="value">6 dB / 60 ms</td><td>Standard live drum gate behavior.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">0.3 ms / 80 ms</td><td>Fastest open — snare needs sharp transient.</td></tr>
+<tr><td rowspan="3"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-16 dB / 4:1</td><td>Heavy — snare benefits from compression character.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">5 ms / 60 ms</td><td>Catches transient quickly, releases for next hit.</td></tr>
+<tr><td colspan="3" class="tip">~5 dB GR.</td></tr>
+<tr><td rowspan="3"><strong>TDR Nova</strong> (dynamic ring tame)</td><td class="param-name">Band</td><td class="value">800 Hz - 1.2 kHz, Q 1.5</td><td>Snare ring/zing zone.</td></tr>
+<tr><td class="param-name">Mode / Threshold</td><td class="value">Dynamic / -20 dB</td><td>Only triggers on hard hits — preserves softer ghost notes.</td></tr>
+<tr><td class="param-name">Ratio</td><td class="value">2:1</td><td>Gentle dyn cut.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Toms -->
+<h3>12-14 Toms (Tom 1, Tom 2, Floor Tom)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaGate</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span>
+</div>
+<div class="note warn">
+  <span class="lbl">Most fragile chain</span>
+  Tom mics are 80% bleed. Gates HAVE TO have hold + hysteresis or cymbal bleed re-triggers and you get random ghost-tom hits in your mix. <strong>Always check tom gates per-gig</strong> — different rooms = different bleed levels. Don't trust set-and-forget defaults.
+</div>
+<table>
+<thead><tr><th>Tom</th><th>HPF</th><th>Mid cut</th><th>Top boost</th><th>Gate hold</th></tr></thead>
+<tbody>
+<tr><td>12 Tom 1 (high)</td><td class="value">70 Hz</td><td class="value">-3 dB @ 400 Hz, Q 1.5</td><td class="value">+2 dB @ 4 kHz</td><td class="value">250 ms</td></tr>
+<tr><td>13 Tom 2 (mid)</td><td class="value">60 Hz</td><td class="value">-3 dB @ 300 Hz, Q 1.5</td><td class="value">+2 dB @ 3.5 kHz</td><td class="value">300 ms</td></tr>
+<tr><td>14 Tom 3 (floor)</td><td class="value">50 Hz</td><td class="value">-2 dB @ 250 Hz, Q 1.5</td><td class="value">+2 dB @ 3 kHz</td><td class="value">350 ms</td></tr>
+</tbody>
+</table>
+<p>Common to all toms:</p>
+<table>
+<thead><tr><th>FX</th><th>Param</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><strong>ReaGate</strong></td><td class="param-name">Threshold / Hysteresis / Attack / Release</td><td class="value">-38 dB / 10 dB / 1 ms / 300 ms</td><td>10 dB hysteresis is critical — without it, cymbal bleed re-triggers.</td></tr>
+<tr><td rowspan="2"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-12 dB / 3:1</td><td>Tame loud rim hits.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">15 ms / 200 ms</td><td>Slower than snare — preserve tom decay.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Overheads -->
+<h3>15-16 Overheads L / R (condenser pair)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> <span class="arrow">→</span> <span class="plugin">ReaComp</span> (light) <span class="arrow">→</span> <span class="plugin">TDR Nova</span> (dyn)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>ReaEQ</strong></td><td class="param-name">HPF</td><td class="value">150 Hz, 24 dB/oct</td><td>Dump kick rumble — kick is mic'd separately on Ch 10. (If kick mic failed, drop HPF to 80 Hz so OH provides kick.)</td></tr>
+<tr><td class="param-name">Mid cut</td><td class="value">-2 dB @ 4 kHz, Q 1.0</td><td>Tames "harsh stick" attack.</td></tr>
+<tr><td class="param-name">HF shelf</td><td class="value">+1 dB @ 12 kHz</td><td>Adds air to cymbals.</td></tr>
+<tr><td rowspan="2"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-18 dB / 2:1</td><td>Light glue across kit.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">20 ms / 150 ms</td><td>Slow — don't squash dynamics, just cohere.</td></tr>
+<tr><td rowspan="2"><strong>TDR Nova</strong></td><td class="param-name">Band</td><td class="value">2-5 kHz, Q 1.0</td><td>Cymbal harshness zone.</td></tr>
+<tr><td class="param-name">Threshold / Ratio</td><td class="value">-22 dB / 2:1, dynamic</td><td>Catches cymbal stab on loud hits without dulling sustain.</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- ====================================================== JAMES -->
+<section id="james">
+<h2>4 · James leveling deep-dive</h2>
+
+<p>The problem: James moves <strong>further from the mic when he sings louder</strong>, so his loud parts come through paradoxically QUIETER than his quiet parts. Inverse-square law: doubling distance = -6 dB at the mic, so a 30 cm → 60 cm move = -6 dB, a 30 → 90 = -10 dB. Easy 6-12 dB swings. A single fast comp can't tame this — it's tracking transients, not averages.</p>
+
+<h3>The architecture: 3-stage compression</h3>
+<table>
+<thead><tr><th>Stage</th><th>Where</th><th>Plugin</th><th>Time constant</th><th>Job</th><th>Target GR</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Track (Ch 3)</td><td>ReaComp</td><td>FAST (10 ms / 80 ms)</td><td>Catch transient peaks (consonants, plosives).</td><td>3-5 dB</td></tr>
+<tr><td>2 <span class="tag orange">leveler</span></td><td>Track (Ch 3)</td><td><strong>MJUCjr</strong></td><td>SLOW vari-mu (recovery slow)</td><td><strong>Level the macro dynamic range</strong> from distance variation.</td><td>1-2 dB</td></tr>
+<tr><td>3</td><td>VOX BUS</td><td>DC1A3 + MJUCjr</td><td>Mid (DC1A3 Glue)</td><td>Final vocal-bus glue + warmth.</td><td>1-2 dB total</td></tr>
+</tbody>
+</table>
+
+<h3>Why MJUCjr specifically</h3>
+<p>Vari-mu compression has two properties that make it ideal for leveling:</p>
+<ul>
+  <li><strong>Soft, ratio-dependent compression curve</strong> — ratio gets gentler at lower input levels, harder at higher levels. Naturally wants to ride averages, not transients.</li>
+  <li><strong>Slow time constants don't sound like "compression"</strong> — they sound like a fader rider gently riding levels. No pumping, no "squashed" character.</li>
+</ul>
+
+<h3>If still inconsistent after dial-in</h3>
+<table>
+<tbody>
+<tr><td>Loud parts still quieter than soft</td><td>Push MJUCjr <code>Comp</code> to 40-50%. Recovery still slow.</td></tr>
+<tr><td>Vocal sounds squashed / unnatural</td><td>Drop MJUCjr <code>Comp</code> to 20-25%. Or switch Recovery to Mid.</td></tr>
+<tr><td>"Pumping" between phrases</td><td>Bus comp (DC1A3 in Glue mode) might be too aggressive. Lower its <code>Input</code> by 2-3 dB so GR is &lt;1 dB.</td></tr>
+<tr><td>Transients still poking out</td><td>ReaComp ratio to 4:1, attack to 5 ms. Don't go past that or transients distort.</td></tr>
+</tbody>
+</table>
+
+<h3>The "free fader rider" alternative</h3>
+<p>For songs where automation is worth it (singles, signature tunes), draw <strong>volume automation envelope</strong> on the James track riding the louder parts UP and quieter parts down to a target level (usually around -8 dBFS RMS). MJUCjr handles 80% of it; automation handles the other 20% surgically. <kbd>Track Envelope: Volume</kbd> action, then draw curve.</p>
+
+</section>
+
+<!-- ====================================================== BUSES -->
+<section id="buses">
+<h2>5 · Bus chains</h2>
+
+<h3>VOX BUS (ch 3-4)</h3>
+<div class="chain-flow">
+<span class="plugin">DC1A3</span> <span class="arrow">→</span> <span class="plugin">Valhalla Supermassive</span> (insert, ~20% mix) <span class="arrow">→</span> <span class="plugin">MJUCjr</span>
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>DC1A3</strong></td><td class="param-name">Input</td><td class="value">+3 dB</td><td>Drives into compression — drives the GR.</td></tr>
+<tr><td class="param-name">Mode</td><td class="value">Glue</td><td>Three modes: Glue (gentle bus), Punch (drum/bus), Open (preserve dynamics).</td></tr>
+<tr><td class="param-name">Mix</td><td class="value">100% (full insert)</td><td>This is glue, not parallel.</td></tr>
+<tr><td rowspan="4"><strong>Valhalla Supermassive</strong></td><td class="param-name">Mode</td><td class="value">Gemini</td><td>Modes are reverb-delay hybrids; Gemini is a versatile medium-density reverb. Andromeda for shimmer, Cassiopeia for dark plate, Triangulum for wide stereo.</td></tr>
+<tr><td class="param-name">Mix</td><td class="value">20%</td><td><strong>This is the key dial.</strong> Default is 100% wet — drag down to ~20% for "vocal verb tail" effect.</td></tr>
+<tr><td class="param-name">Density / Modulation</td><td class="value">~30% / ~10%</td><td>Lush enough to glue, not so wet it muddies.</td></tr>
+<tr><td colspan="3" class="tip">When Nathan wants to nerd out: try the SEND-bus alternative (route VOX BUS via Aux to a verb-only track with Supermassive at 100% wet). More flexibility, more setup.</td></tr>
+<tr><td rowspan="3"><strong>MJUCjr</strong> (warmth)</td><td class="param-name">Drive</td><td class="value">0%</td><td>No saturation here — just leveling.</td></tr>
+<tr><td class="param-name">Comp</td><td class="value">30%</td><td>Adds vari-mu vibe to the vocal bus sum.</td></tr>
+<tr><td class="param-name">Recovery</td><td class="value">Slow</td><td>Smooth across phrases.</td></tr>
+</tbody>
+</table>
+
+<h3>EAD BUS (ch 8-9)</h3>
+<div class="chain-flow">
+<span class="plugin">ReaComp</span> (PARALLEL — 30% wet)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td rowspan="5"><strong>ReaComp</strong> <span class="tag orange">parallel</span></td><td class="param-name">Threshold / Ratio</td><td class="value">-22 dB / 6:1</td><td>Aggressive — squash hard, blend wet over dry.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">5 ms / 80 ms</td><td>Fast — get the percussive thump.</td></tr>
+<tr><td class="param-name">Wet (FX panel slider)</td><td class="value">-10 dB (~30%)</td><td>The compressed signal level.</td></tr>
+<tr><td class="param-name">Dry (FX panel slider)</td><td class="value">0 dB (full)</td><td>The natural EAD passes through unchanged.</td></tr>
+<tr><td colspan="3" class="tip">If too thick, drop Wet to -12 dB. If you can't hear the "thump-under-kick" effect, raise Wet to -8 dB.</td></tr>
+</tbody>
+</table>
+
+<h3>DRUMS BUS (ch 10-16, acoustic kit)</h3>
+<div class="chain-flow">
+<span class="plugin">DC1A3</span> <span class="arrow">→</span> <span class="plugin">TENSjr</span> (tape)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td rowspan="3"><strong>DC1A3</strong></td><td class="param-name">Mode</td><td class="value">Glue</td><td>Pulls kit into one cohesive object.</td></tr>
+<tr><td class="param-name">Input</td><td class="value">+2 dB</td><td>Drive for ~2-3 dB GR.</td></tr>
+<tr><td class="param-name">Mix</td><td class="value">100%</td><td>Glue, not parallel.</td></tr>
+<tr><td rowspan="3"><strong>TENSjr</strong> (tape sat)</td><td class="param-name">Tape mode</td><td class="value">Studer</td><td>Modes: Studer (clean tape), Ampex (warm), MCI (aggressive). Studer is the safest "transparent" choice.</td></tr>
+<tr><td class="param-name">Drive</td><td class="value">20%</td><td>Softens transients (live drums = harsh).</td></tr>
+<tr><td class="param-name">Output</td><td class="value">0 dB</td><td>Compensate if drive boosted level.</td></tr>
+</tbody>
+</table>
+<div class="note">
+  <span class="lbl">Optional</span>
+  Add <code>Airwindows ConsoleX</code> at the end (sum point) for analog console summing colour. Modes: API, Neve, SSL, Helios. Modest setting (Drive 0 dB, just for character). Skip if CPU-conscious.
+</div>
+
+<h3>MUSIC BUS (ch 1-2) — intentionally empty</h3>
+<p>Backing tracks are pre-mastered. Adding compression creates pumping against the live band. Just gain-balance via the bus fader.</p>
+
+<h3>PRACTICE BUS (ch 17-18) — muted</h3>
+<p>Practice refs aren't in the live mixdown. Bus stays muted; ignore.</p>
+
+</section>
+
+<!-- ====================================================== MASTER -->
+<section id="master">
+<h2>6 · Master mastering chain</h2>
+
+<div class="chain-flow">
+<span class="plugin">SPAN</span> (pre) <span class="arrow">→</span> <span class="plugin">TDR SlickEQ</span> <span class="arrow">→</span> <span class="plugin">TDR Nova</span> <span class="arrow">→</span> <span class="plugin">TDR Kotelnikov</span> <span class="arrow">→</span> <span class="plugin">LoudMax</span> <span class="arrow">→</span> <span class="plugin">Youlean LM2</span>
+</div>
+
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="2"><strong>1. SPAN</strong> <span class="tag grey">analyser</span></td><td class="param-name">Mode preset</td><td class="value">Studio</td><td>Visual reference for spectrum coming in.</td></tr>
+<tr><td class="param-name">Slope</td><td class="value">4.5 dB/oct</td><td>Pink-noise-flat slope; closer to perception than 0 dB/oct.</td></tr>
+<tr><td rowspan="4"><strong>2. TDR VOS SlickEQ</strong></td><td class="param-name">Mode</td><td class="value">American</td><td>Three modes: American (Pultec-flavored), British (warm), German (clean). American is most flattering.</td></tr>
+<tr><td class="param-name">LF</td><td class="value">+1 dB @ 80 Hz, shelf</td><td>Subtle low-end emphasis.</td></tr>
+<tr><td class="param-name">MF</td><td class="value">flat (0 dB)</td><td>Don't carve mids unless dialing — mid surgical work belongs to TDR Nova next.</td></tr>
+<tr><td class="param-name">HF</td><td class="value">+1.5 dB @ 12 kHz, shelf</td><td>Air for streaming/video.</td></tr>
+<tr><td rowspan="6"><strong>3. TDR Nova</strong> <span class="tag grey">dynamic EQ</span></td><td class="param-name">Band 1 freq</td><td class="value">200-400 Hz, dynamic</td><td>Mud control — only attenuates when buildup peaks.</td></tr>
+<tr><td class="param-name">Band 1 thr / ratio</td><td class="value">-18 dB / 2:1</td><td>Gentle.</td></tr>
+<tr><td class="param-name">Band 2 freq</td><td class="value">2-4 kHz, dynamic</td><td>Harshness control.</td></tr>
+<tr><td class="param-name">Band 2 thr / ratio</td><td class="value">-16 dB / 1.5:1</td><td>Gentler still — only stabs trigger it.</td></tr>
+<tr><td class="param-name">Bands 3-4</td><td class="value">disabled by default</td><td>Add only if specific problem zones emerge.</td></tr>
+<tr><td colspan="3" class="tip">Live mixes have unpredictable midrange. Dynamic = surgical without static dulling.</td></tr>
+<tr><td rowspan="6"><strong>4. TDR Kotelnikov</strong> <span class="tag grey">mastering comp</span></td><td class="param-name">Threshold</td><td class="value">-12 dB</td><td>Catches loud peaks, leaves verses alone.</td></tr>
+<tr><td class="param-name">Ratio</td><td class="value">2:1</td><td>Transparent — Kotelnikov is famously clean.</td></tr>
+<tr><td class="param-name">Attack</td><td class="value">30 ms</td><td>Slow — preserves transient feel.</td></tr>
+<tr><td class="param-name">Release</td><td class="value">Auto</td><td>Smart-release = program-dependent. Best default.</td></tr>
+<tr><td class="param-name">Peak Crest</td><td class="value">2.5 (default)</td><td>Detector behavior.</td></tr>
+<tr><td colspan="3" class="tip">Target ~2-3 dB GR. If exceeded, lower Threshold by 2 dB.</td></tr>
+<tr><td rowspan="4"><strong>5. LoudMax</strong> <span class="tag orange">true-peak limiter</span></td><td class="param-name">Threshold</td><td class="value">-1.0 dB (start)</td><td>Drag down for loudness; -2 to -3 dB for streaming, -4 to -5 dB for club.</td></tr>
+<tr><td class="param-name">Output (ceiling)</td><td class="value">-1.0 dBTP</td><td><strong>True-peak ceiling.</strong> Streaming services demand -1 dBTP minimum to avoid post-codec clipping.</td></tr>
+<tr><td class="param-name">Link L/R</td><td class="value">on</td><td>Stereo coupled — preserves stereo image.</td></tr>
+<tr><td class="param-name">ISP</td><td class="value">on</td><td>Inter-sample peak detection — accuracy matters for digital delivery.</td></tr>
+<tr><td rowspan="3"><strong>6. Youlean LM2</strong> <span class="tag grey">LUFS verifier</span></td><td class="param-name">Target</td><td class="value">-14 LUFS (streaming) / -9 LUFS (club)</td><td>YouTube / Spotify / Apple Music = -14. Club / DJ = -9 to -10.</td></tr>
+<tr><td class="param-name">Integrated</td><td class="value">read after full play-through</td><td>This is the loudness number streaming services normalize to.</td></tr>
+<tr><td class="param-name">True Peak</td><td class="value">read max value</td><td>Should never exceed your LoudMax ceiling. If it does, lower LoudMax threshold.</td></tr>
+</tbody>
+</table>
+
+<h3>Render targets at a glance</h3>
+<table>
+<thead><tr><th>Target</th><th>LUFS</th><th>True Peak</th><th>Use case</th></tr></thead>
+<tbody>
+<tr><td>Streaming (YouTube, Spotify, Apple)</td><td class="value">-14 LUFS</td><td class="value">-1.0 dBTP</td><td>Most TGT video releases.</td></tr>
+<tr><td>Club / DJ / loud distribution</td><td class="value">-9 to -10 LUFS</td><td class="value">-1.0 dBTP</td><td>If gigging requires loud playback.</td></tr>
+<tr><td>Broadcast TV</td><td class="value">-23 LUFS</td><td class="value">-2.0 dBTP</td><td>Rarely relevant unless TV sync.</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- ====================================================== RENDER -->
+<section id="render">
+<h2>7 · Render</h2>
+
+<h3>Path A: shared mix, per-song stereo bounces</h3>
+<p>Your global mix applies; each region renders to its own stereo file. Best for normal release flow.</p>
+<ol>
+  <li>Mark song boundaries (Insert → Region or hotkey-bound script).</li>
+  <li><kbd>File → Render</kbd>.</li>
+  <li>Source: <strong>Master</strong>. Bounds: <strong>Project regions</strong>.</li>
+  <li>Click <strong>Region Render Matrix</strong> button.</li>
+  <li>Tick the Master column for every region you want bounced.</li>
+  <li>Format: WAV, 24-bit, 48 kHz. (Pre-set in the project's Render config.)</li>
+  <li>File pattern: <code>$project-$region.wav</code> → output goes to <code>mixdowns/</code> subfolder.</li>
+  <li><strong>Render</strong>. Each region becomes its own file.</li>
+</ol>
+
+<h3>Path B: per-song multitrack projects (unique mixes per song)</h3>
+<p>When a song needs surgical mix tweaks the global mix can't deliver.</p>
+<ol>
+  <li>Mark song regions in the post-prod project (same as Path A).</li>
+  <li>Save project (<kbd>Ctrl+S</kbd>).</li>
+  <li>Terminal: <code>python D:/Gigs/split-into-songs.py D:/Gigs/&lt;date&gt;/&lt;date&gt;-whole-gig-postprod.RPP</code></li>
+  <li>Generates <code>D:/Gigs/&lt;date&gt;/songs/&lt;song-slug&gt;.RPP</code> per region. Each opens with the same FX chains, items time-windowed.</li>
+  <li>Open each, dial in any per-song mix tweaks, render that song's stereo bounce.</li>
+</ol>
+
+<h3>Render output dial-in (per LoudMax + Youlean)</h3>
+<p>Two-pass workflow for hitting both -14 LUFS streaming and -9 LUFS club targets:</p>
+<ol>
+  <li>Set LoudMax Threshold for streaming (-2 to -3 dB), render once → <code>mixdowns/streaming/$project-$region.wav</code>.</li>
+  <li>Lower LoudMax Threshold to -4 or -5 dB for club, render again → <code>mixdowns/club/$project-$region.wav</code>.</li>
+  <li>Don't run two limiters in series — same chain, just different drive amounts. Compare both bounces in Youlean to verify integrated LUFS hits target.</li>
+</ol>
+
+</section>
+
+<!-- ====================================================== GOTCHAS -->
+<section id="gotchas">
+<h2>8 · Live multitrack gotchas</h2>
+
+<h3>Cymbal bleed on tom mics</h3>
+<p><strong>The #1 thing that breaks between gigs.</strong> Tom mics pick up 80% bleed. Different rooms = different bleed levels. Always check tom gates per-gig. Symptoms:</p>
+<ul>
+  <li>Random "ghost tom" hits in the mix → gate threshold too low; raise by 3-5 dB</li>
+  <li>Tom hits cut off too early → hold time too short; raise to 350-500 ms</li>
+  <li>Cymbal triggers gate occasionally → hysteresis too small; raise to 12-15 dB</li>
+</ul>
+
+<h3>Vocal mic monitor bleed pumps comp</h3>
+<p>Stage monitors leaking into vocal mic make compressor "breathe" between phrases. Symptoms: comp release is audible, vocal sounds "hollow" between words.</p>
+<ul>
+  <li>Raise vocal gate threshold by 3-5 dB so it closes between phrases.</li>
+  <li>Shorten ReaComp release to 50 ms so it recovers faster.</li>
+  <li>Sidechain HP filter on the vocal comp at 200 Hz so kick bleed doesn't drive it.</li>
+</ul>
+
+<h3>OH HPF: 80 vs 150 Hz vs 200 Hz</h3>
+<p>The OH HPF is a compromise. Rules of thumb:</p>
+<ul>
+  <li><strong>80 Hz</strong> — kick mic failed; OH IS your kick source.</li>
+  <li><strong>120-150 Hz</strong> — normal: OH gives cymbal body + room glue, kick mic on Ch 10 carries the punch.</li>
+  <li><strong>180-200 Hz</strong> — band is loud + kick is well-mic'd; aggressive HPF keeps low-end out of the OH summation.</li>
+</ul>
+
+<h3>EAD + acoustic kick phase cancellation</h3>
+<p>Yamaha EAD trigger has small latency vs close kick mic. If they sum constructively, all good. If they cancel, low-end disappears when both are unmuted.</p>
+<ul>
+  <li>Solo Kick (Ch 10), then unmute EAD (Ch 8-9). If low-end DROPS, flip phase on Kick: track header → click <code>φ</code> button OR <em>Track menu → Toggle phase</em>.</li>
+  <li>If still off, nudge Ch 10 timing forward by 5-15 samples (right-click item → Item properties → Length+Position).</li>
+</ul>
+
+<h3>Don't compress the Music bus</h3>
+<p>Backing tracks are already mastered to -8 LUFS or so. Compressing them creates audible pumping against the live drum hits. Even subtle 1-2 dB GR is audible. Just gain-match the bus fader.</p>
+
+<h3>Reverb on drums = sounds fake</h3>
+<p>Live recordings already have natural room ambience baked into OH mics. Adding reverb to the drum bus makes it sound like a studio multitrack pretending to be live. Don't.</p>
+
+<h3>Per-song bounces inherit master chain unchanged</h3>
+<p>Set the master mastering chain ONCE at the start of the post-prod session. Don't re-tune it per song. The shared mastering chain ensures all songs sound consistent — that's the whole point.</p>
+
+<h3>Headroom: leave -6 dB on master fader</h3>
+<p>Even with LoudMax catching peaks, leave the master fader at -6 dB to give yourself room for last-second EQ boosts without clipping. The mastering chain wants headroom on the way in.</p>
+
+</section>
+
+<!-- ====================================================== HOTKEYS -->
+<section id="hotkeys">
+<h2>9 · Hotkey + action reference</h2>
+
+<h3>Custom (TGT) actions</h3>
+<table>
+<thead><tr><th>Key</th><th>Action</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><kbd>M</kbd> (suggested binding)</td><td>insert-named-marker.lua</td><td>Prompts for song name → drops TGT-orange marker at play cursor. Bind via Action list right-click → Add to keymap.</td></tr>
+<tr><td>Action</td><td>song-marker-listener.lua</td><td>Background defer-loop polling <code>C:/tmp/song-markers/</code> for marker requests. Run once, leave running for the whole session.</td></tr>
+<tr><td>Action</td><td>setup-postprod-fx.lua</td><td>Re-run anytime to add missing plugins. Idempotent — won't duplicate.</td></tr>
+</tbody>
+</table>
+
+<h3>Reaper built-in (relevant for post-prod)</h3>
+<table>
+<thead><tr><th>Key</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td><kbd>Space</kbd></td><td>Play / Pause</td></tr>
+<tr><td><kbd>Ctrl + S</kbd></td><td>Save project</td></tr>
+<tr><td><kbd>Ctrl + Z</kbd></td><td>Undo (works on FX chain inserts too — undoes setup-postprod-fx)</td></tr>
+<tr><td><kbd>Ctrl + R</kbd></td><td>Render dialog</td></tr>
+<tr><td><kbd>R</kbd></td><td>Insert region from time selection</td></tr>
+<tr><td><kbd>Shift + M</kbd></td><td>Markers: Insert marker at current position (built-in, unnamed)</td></tr>
+<tr><td><kbd>Ctrl + Alt + M</kbd></td><td>Markers: Convert all markers to regions</td></tr>
+<tr><td><kbd>F</kbd></td><td>FX: Show track FX chain (selected track)</td></tr>
+<tr><td><kbd>Shift + F</kbd></td><td>FX: Show take FX chain</td></tr>
+<tr><td><kbd>?</kbd> (or <kbd>Ctrl + Shift + A</kbd>)</td><td>Show action list</td></tr>
+<tr><td><kbd>S</kbd></td><td>Item: Split at edit cursor</td></tr>
+<tr><td><kbd>Alt + drag region</kbd></td><td>Move region (Reaper)</td></tr>
+<tr><td><kbd>Ctrl + drag fader</kbd></td><td>Fine-tune fader (smaller increments)</td></tr>
+<tr><td><kbd>Ctrl + L</kbd></td><td>Toggle ripple-edit (per-track)</td></tr>
+<tr><td><kbd>Alt + Click FX</kbd></td><td>Bypass FX in chain</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- ====================================================== TROUBLE -->
+<section id="troubleshooting">
+<h2>10 · Troubleshooting</h2>
+
+<table>
+<thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+<tbody>
+<tr><td>No sound on playback (everything muted-feeling)</td><td>Audio device closed (check title bar)</td><td>Options → Preferences → Audio → Device → pick WASAPI + your output device.</td></tr>
+<tr><td>Items show OFFLINE in arrange view</td><td>Audio device closed when Reaper not focused</td><td>Click into Reaper to bring focus + open audio device. Items come online.</td></tr>
+<tr><td>"Sounds doubled / phasey" on EAD</td><td>Both Wet and Dry sliders at 0 dB on parallel comp</td><td>Wet to -10 dB, Dry stays 0 dB.</td></tr>
+<tr><td>James loud parts STILL quieter than soft</td><td>MJUCjr Comp too low</td><td>Push Comp to 40-50%. Verify Recovery is set to Slow.</td></tr>
+<tr><td>Vocal sounds squashed / unnatural</td><td>Too much serial compression</td><td>Drop MJUCjr Comp to 20%. Or bypass bus-level MJUCjr.</td></tr>
+<tr><td>Drums sound disconnected from mix</td><td>Folder routing broken (check track ISBUS)</td><td>Bus parent has <code>ISBUS 1 1</code>; last child has <code>ISBUS 2 -1</code>; in-between have <code>ISBUS 0 0</code>. If broken: regenerate via build-postprod-rpp.py.</td></tr>
+<tr><td>Master clipping</td><td>LoudMax ceiling above -1.0 dBTP, or Threshold too aggressive</td><td>Lock Output to -1.0 dBTP. Drop Threshold by 1-2 dB to reduce GR.</td></tr>
+<tr><td>Render too quiet</td><td>Youlean Integrated reading way below target</td><td>Lower LoudMax Threshold (more gain reduction) until Youlean reads -14 LUFS.</td></tr>
+<tr><td>Cymbal bleed triggers tom gates</td><td>Hysteresis too low</td><td>Tom gates: Hysteresis to 12-15 dB.</td></tr>
+<tr><td>FX installer says "MISSING=[plugin]"</td><td>Reaper VST scan stale; or plugin not actually installed</td><td>Options → Preferences → Plug-ins → VST → Re-scan. If still missing, check the plugin's install location.</td></tr>
+<tr><td>Set markers from build-postprod-rpp don't appear</td><td>Markers got dropped during open (rare)</td><td>Re-generate via build-postprod-rpp.py and re-open.</td></tr>
+<tr><td>Project takes &gt;30 sec to open</td><td>~50 plugins instantiating — normal on i7-3770</td><td>Patience. After first open, Reaper caches faster on subsequent.</td></tr>
+<tr><td>CPU stutter during playback</td><td>Per-channel + bus + master = ~50 plugins, taxing on older CPU</td><td>Render-to-stem then mix from stems if real-time playback isn't fluid.</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<hr>
+
+<p class="tip">When in doubt: trust the chain order, dial in to taste, render at -14 LUFS for streaming. The architecture is correct — the values are starting points.</p>
+
+<p class="meta-bar">
+<span><strong>Pipeline:</strong> tools/post-prod/</span>
+<span><strong>Working copies:</strong> D:/Gigs/</span>
+<span><strong>Last updated:</strong> S128 (2026-05-05)</span>
+</p>
+
+</div>
+</body>
+</html>
