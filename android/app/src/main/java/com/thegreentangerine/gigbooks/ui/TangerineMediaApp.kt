@@ -33,6 +33,7 @@ import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -102,9 +103,14 @@ fun TangerineMediaApp() {
 
     val openMenu = { scope.launch { drawerState.open() } }
 
+    // v1.2.4: disable nav swipe-to-open while Gig Mode has its own drawer up
+    // (one-drawer-at-a-time). Also auto-close the nav if we somehow have both.
+    LaunchedEffect(vm.gigDrawerOpen) {
+        if (vm.gigDrawerOpen && drawerState.isOpen) drawerState.close()
+    }
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = currentRoute != Screen.Splash.route,
+        gesturesEnabled = currentRoute != Screen.Splash.route && !vm.gigDrawerOpen,
         drawerContent = {
             ModalDrawerSheet(
                 drawerContainerColor = TangerineColors.surface,

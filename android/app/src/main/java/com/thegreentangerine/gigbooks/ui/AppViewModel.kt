@@ -43,6 +43,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** D-166: skip splash on Activity recreation/resume. */
     var splashDone by mutableStateOf(false)
 
+    /**
+     * v1.2.4: GigModeScreen sets this when its setlist or cameras drawer is
+     * open. TangerineMediaApp reads it to disable the nav-drawer's left-edge
+     * gesture (one-drawer-at-a-time invariant — Nathan's S129 spec).
+     */
+    var gigDrawerOpen by mutableStateOf(false)
+
     // ── Calendar ──────────────────────────────────────────────────────────────
     private val _today = LocalDate.now()
     var calViewYear  by mutableStateOf(_today.year);          private set

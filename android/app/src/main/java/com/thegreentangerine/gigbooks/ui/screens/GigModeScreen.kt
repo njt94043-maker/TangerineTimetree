@@ -12,8 +12,10 @@ import android.os.IBinder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,7 +24,9 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -83,8 +87,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -317,59 +323,17 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         return
     }
 
-    // S129 row 5: setlist drawer is now an Rtl-flipped right-side ModalNavigationDrawer.
-    // Drawer state ↔ openDrawer kept in sync both directions so:
-    //   - tapping the top-bar gig-name still works (writes openDrawer)
-    //   - swiping from the right edge opens the drawer (writes openDrawer back)
-    //   - tapping a setlist row dismisses the drawer (writes both)
-    val setlistDrawerState = rememberDrawerState(DrawerValue.Closed)
+    // v1.2.4: bail on nested ModalNavigationDrawer entirely (Rtl flip caused
+    // scrim placement bugs + left-edge gesture conflicts with the outer nav
+    // drawer). Setlist is now a custom slide-in panel in the same Box.
+    //
+    // Tell AppViewModel when our drawer is open so TangerineMediaApp can
+    // disable its nav-drawer gestures + close the nav if it's open. Enforces
+    // one-drawer-at-a-time across the whole app.
     LaunchedEffect(openDrawer) {
-        if (openDrawer == DrawerKind.Setlist && !setlistDrawerState.isOpen) setlistDrawerState.open()
-        else if (openDrawer != DrawerKind.Setlist && setlistDrawerState.isOpen) setlistDrawerState.close()
-    }
-    LaunchedEffect(setlistDrawerState.targetValue) {
-        when (setlistDrawerState.targetValue) {
-            DrawerValue.Open -> if (openDrawer != DrawerKind.Setlist) openDrawer = DrawerKind.Setlist
-            DrawerValue.Closed -> if (openDrawer == DrawerKind.Setlist) openDrawer = null
-        }
+        vm.gigDrawerOpen = openDrawer != null
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-      ModalNavigationDrawer(
-        drawerState = setlistDrawerState,
-        // v1.2.3: Material3's gesture region for the inner Rtl-flipped drawer
-        // intercepts left-edge swipes before they reach the OUTER nav drawer
-        // (TangerineMediaApp), breaking the nav swipe-to-open. Disable the
-        // built-in gestures and use the explicit right-edge detector below
-        // instead — clean separation of left vs right edge events.
-        gesturesEnabled = false,
-        drawerContent = {
-          CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-            ModalDrawerSheet(
-              drawerContainerColor = TangerineColors.surface,
-              drawerContentColor = TangerineColors.text,
-            ) {
-              SetlistDrawer(
-                entries = entries,
-                primaryListId = activeListId,
-                secondaryListId = pinnedSecondaryListId,
-                activeEntryId = activeEntryId,
-                onPickPrimary = { activeListId = it; pinnedSecondaryListId = null },
-                onTogglePinSecondary = { listId ->
-                  pinnedSecondaryListId = if (pinnedSecondaryListId == listId) null else listId
-                },
-                onTapEntry = { entry ->
-                  activeListId = entry.listId
-                  activeEntryId = entry.id
-                  service?.sendSongMarker(entry.title)
-                  openDrawer = null
-                },
-              )
-            }
-          }
-        },
-      ) {
-        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
     Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
     Column(modifier = Modifier.fillMaxSize()) {
         // ── Top bar ──
@@ -518,8 +482,18 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
 
         Spacer(Modifier.weight(1f))
 
+        // ── Cameras peek bar (v1.2.4 — inline, above bottom row) ──
+        // Was an overlay that fought the bottom-row buttons + Android's
+        // gesture region. Now part of the Column flow: a 36dp tappable
+        // strip with a centered drag handle. Tap or swipe-up opens.
+        CamerasPeekHandle(
+            modifier = Modifier.fillMaxWidth(),
+            peerCount = peerCount,
+            onOpen = { openDrawer = DrawerKind.Cameras },
+        )
+
         // ── Bottom row: gig controls (S129 rows 5+6 — pills removed,
-        //     setlist/cameras moved to edge-swipe drawers). ──
+        //     setlist via right-swipe, cameras via the peek above). ──
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -605,39 +579,45 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         }
     }
 
-    // ── Setlist right-edge swipe detector (v1.2.3) ──
-    // Replaces ModalNavigationDrawer's built-in right-edge gesture (which was
-    // disabled to free the nav drawer's left edge). Slim Box on the right
-    // edge listening for horizontal drag-left to open the setlist drawer.
-    Box(
-        modifier = Modifier
-            .align(Alignment.CenterEnd)
-            .fillMaxHeight()
-            .width(20.dp)
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures { _, dragAmount ->
-                    if (dragAmount < -8f && openDrawer == null) {
-                        openDrawer = DrawerKind.Setlist
+    // ── Setlist right-edge swipe detector (v1.2.4) ──
+    // Slim Box on the right edge — drag-left to open the setlist panel.
+    // Disabled while another drawer is open (one-at-a-time invariant).
+    if (openDrawer == null) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight()
+                .width(24.dp)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures { _, dragAmount ->
+                        if (dragAmount < -8f) openDrawer = DrawerKind.Setlist
                     }
-                }
-            },
-    )
+                },
+        )
+    }
 
-    // ── Cameras peek handle (v1.2.3 — pushed up off the system gesture bar) ──
-    // Sits 36dp above the literal bottom so Android's nav-gesture region
-    // doesn't claim swipes meant for the peek. Tap or short upward drag opens
-    // the cameras drawer.
-    CamerasPeekHandle(
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .padding(bottom = 36.dp),
-        peerCount = peerCount,
-        onOpen = { openDrawer = DrawerKind.Cameras },
+    // ── Custom slide-in setlist drawer (v1.2.4) ──
+    // Replaces the broken ModalNavigationDrawer + Rtl flip. Own scrim,
+    // own tap-to-dismiss, own drag-to-dismiss.
+    SlideInSetlistDrawer(
+        open = openDrawer == DrawerKind.Setlist,
+        entries = entries,
+        primaryListId = activeListId,
+        secondaryListId = pinnedSecondaryListId,
+        activeEntryId = activeEntryId,
+        onPickPrimary = { activeListId = it; pinnedSecondaryListId = null },
+        onTogglePinSecondary = { listId ->
+            pinnedSecondaryListId = if (pinnedSecondaryListId == listId) null else listId
+        },
+        onTapEntry = { entry ->
+            activeListId = entry.listId
+            activeEntryId = entry.id
+            service?.sendSongMarker(entry.title)
+            openDrawer = null
+        },
+        onDismiss = { openDrawer = null },
     )
-    }    // close Box wrapping Column + peeks
-        }    // close CompositionLocalProvider(Ltr)
-      }      // close ModalNavigationDrawer
-    }        // close CompositionLocalProvider(Rtl)
+    }    // close Box wrapping content + drawer + scrim
 
     // ── Cameras drawer ──
     if (openDrawer == DrawerKind.Cameras) {
@@ -825,40 +805,123 @@ private fun CamerasPeekHandle(
     peerCount: Int,
     onOpen: () -> Unit,
 ) {
-    // Thin horizontal handle bar, tap or swipe-up to open the cameras drawer.
-    // The pill is gone (S129 row 5), this is the discoverable affordance.
-    Box(
+    // v1.2.4: inline bar in the Column flow above the bottom-row gig controls.
+    // 36dp tall touch zone (well above accidental hit-test on system gesture
+    // bar) with a centered drag handle + optional peer-count badge. Tap or
+    // short upward drag opens the cameras drawer.
+    Row(
         modifier = modifier
-            .fillMaxWidth()
-            .height(18.dp)
+            .height(36.dp)
             .pointerInput(Unit) {
                 detectVerticalDragGestures { _, dragAmount ->
-                    if (dragAmount < -4f) onOpen()
+                    if (dragAmount < -3f) onOpen()
                 }
             }
             .clickable(onClick = onOpen),
-        contentAlignment = Alignment.TopCenter,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .width(56.dp)
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(TangerineColors.textMuted.copy(alpha = 0.45f)),
+        Box(
+            modifier = Modifier
+                .width(48.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(TangerineColors.textMuted.copy(alpha = 0.55f)),
+        )
+        if (peerCount > 0) {
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "${peerCount} cam${if (peerCount == 1) "" else "s"}",
+                fontFamily = JetBrainsMono,
+                fontSize = 9.sp,
+                color = TangerineColors.textMuted,
             )
-            if (peerCount > 0) {
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    "${peerCount} cam${if (peerCount == 1) "" else "s"}",
-                    fontFamily = JetBrainsMono,
-                    fontSize = 9.sp,
-                    color = TangerineColors.textMuted,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
         }
+    }
+}
+
+/**
+ * v1.2.4 custom slide-in right-side drawer.
+ *
+ * Replaces the broken nested ModalNavigationDrawer + Rtl flip. Owns its scrim,
+ * its open/close animation, its tap-to-dismiss + drag-right-to-dismiss.
+ * Cleanly separates from the app-level nav drawer (which is locked at the
+ * AppViewModel level when this is open). Must be called from within a Box.
+ */
+@Composable
+private fun BoxScope.SlideInSetlistDrawer(
+    open: Boolean,
+    entries: List<SetlistEntry>,
+    primaryListId: String,
+    secondaryListId: String?,
+    activeEntryId: String?,
+    onPickPrimary: (String) -> Unit,
+    onTogglePinSecondary: (String) -> Unit,
+    onTapEntry: (SetlistEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val drawerWidth = 320.dp
+    val density = LocalDensity.current
+    val drawerWidthPx = with(density) { drawerWidth.toPx() }
+    val offsetX = remember { Animatable(drawerWidthPx) }
+
+    LaunchedEffect(open) {
+        offsetX.animateTo(
+            if (open) 0f else drawerWidthPx,
+            animationSpec = tween(durationMillis = 250),
+        )
+    }
+
+    val isVisible = open || offsetX.value < drawerWidthPx
+    if (!isVisible) return
+
+    val scrimAlpha = ((drawerWidthPx - offsetX.value) / drawerWidthPx).coerceIn(0f, 1f) * 0.6f
+
+    // Scrim — covers the whole screen. Tap anywhere to dismiss.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = scrimAlpha))
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = onDismiss,
+            ),
+    )
+
+    // Drawer panel — right-aligned, animates X-offset in/out.
+    val dismissThresholdPx = with(density) { 80.dp.toPx() }
+    Box(
+        modifier = Modifier
+            .align(Alignment.CenterEnd)
+            .fillMaxHeight()
+            .width(drawerWidth)
+            .offset { IntOffset(offsetX.value.toInt(), 0) }
+            .background(TangerineColors.surface)
+            .pointerInput(Unit) {
+                // Drag-right-to-close: accumulate horizontal drag; dismiss
+                // when total > 80dp to the right.
+                var totalDx = 0f
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (totalDx > dismissThresholdPx) onDismiss()
+                        totalDx = 0f
+                    },
+                    onDragCancel = { totalDx = 0f },
+                ) { _, dragAmount ->
+                    if (dragAmount > 0) totalDx += dragAmount
+                }
+            },
+    ) {
+        SetlistDrawer(
+            entries = entries,
+            primaryListId = primaryListId,
+            secondaryListId = secondaryListId,
+            activeEntryId = activeEntryId,
+            onPickPrimary = onPickPrimary,
+            onTogglePinSecondary = onTogglePinSecondary,
+            onTapEntry = onTapEntry,
+        )
     }
 }
 
