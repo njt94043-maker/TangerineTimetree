@@ -19,9 +19,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -47,8 +51,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -59,6 +65,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
@@ -107,7 +114,10 @@ import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.ReaperOscClient
 import com.thegreentangerine.gigbooks.data.orchestrator.RecordError
 import com.thegreentangerine.gigbooks.data.supabase.SetlistEntriesRepository
+import com.thegreentangerine.gigbooks.data.supabase.SetlistEntryPracticeTracksRepository
+import com.thegreentangerine.gigbooks.data.supabase.models.SetlistActor
 import com.thegreentangerine.gigbooks.data.supabase.models.SetlistEntry
+import com.thegreentangerine.gigbooks.data.supabase.models.SetlistEntryPracticeTrack
 import com.thegreentangerine.gigbooks.data.xr18.CameraSettingsStore
 import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.ui.AppViewModel
@@ -231,12 +241,13 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     }
 
     LaunchedEffect(Unit) { SetlistEntriesRepository.start() }
+    LaunchedEffect(Unit) { SetlistEntryPracticeTracksRepository.start() }
     val entries by SetlistEntriesRepository.entries.collectAsState()
     val loading by SetlistEntriesRepository.loading.collectAsState()
     val repoError by SetlistEntriesRepository.error.collectAsState()
+    val allPracticeTracks by SetlistEntryPracticeTracksRepository.tracks.collectAsState()
 
     var activeListId by remember { mutableStateOf(SetlistEntry.LIST_STAPLES) }
-    var pinnedSecondaryListId by remember { mutableStateOf<String?>(null) }
     var activeEntryId by remember { mutableStateOf<String?>(null) }
     var openDrawer by remember { mutableStateOf<DrawerKind?>(null) }
     var fullscreenPeer by remember { mutableStateOf<OrchestratorPeerServer.PeerInfo?>(null) }
@@ -274,6 +285,14 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     }
     val activeEntry = activeList.firstOrNull { it.id == activeEntryId }
     val activeIdx = activeEntry?.let { activeList.indexOf(it) } ?: 0
+
+    // S130 W3b: per-version practice tracks for the active entry. Drives
+    // the chip on the BPM hero (only shown when ours_* exist) + the picker.
+    val activePracticeTracks = remember(activeEntry?.id, allPracticeTracks) {
+        SetlistEntryPracticeTracksRepository.tracksForEntry(activeEntry?.id)
+    }
+    val oursVersionsCount = activePracticeTracks.count { it.isOurs }
+    var practicePickerOpen by remember { mutableStateOf(false) }
 
     val isRecording = service?.isRecording?.collectAsState()?.value ?: false
     val target = service?.osc?.target?.collectAsState()?.value
@@ -419,6 +438,16 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                     .clip(RoundedCornerShape(20.dp))
                     .background(TangerineColors.green.copy(alpha = pulseAlpha * 0.10f)),
             )
+            // S130 W3b: practice-version chip — only when ours_* takes exist.
+            if (oursVersionsCount > 0) {
+                PracticeVersionsChip(
+                    count = oursVersionsCount,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp),
+                    onClick = { practicePickerOpen = true },
+                )
+            }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     if (bpm > 0) bpm.toString() else "—",
@@ -579,20 +608,59 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         }
     }
 
-    // ── Setlist right-edge swipe detector (v1.2.4) ──
-    // Slim Box on the right edge — drag-left to open the setlist panel.
-    // Disabled while another drawer is open (one-at-a-time invariant).
+    // ── Setlist right-edge swipe band (v1.2.10: widened to 96dp) ──
+    // 96dp-wide band on the right — drag-left to open the setlist panel.
+    // Uses Modifier.draggable(startDragImmediately = false) so taps under
+    // the band still propagate to children's clickables (ADVANCE button
+    // on its right edge, BPM hero, etc.). Disabled while another drawer
+    // is open (one-at-a-time invariant).
     if (openDrawer == null) {
+        var setlistDragAccum by remember { mutableStateOf(0f) }
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(24.dp)
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures { _, dragAmount ->
-                        if (dragAmount < -8f) openDrawer = DrawerKind.Setlist
-                    }
-                },
+                .fillMaxHeight(0.85f)  // leave bottom 15% for cameras band overlap-free
+                .width(96.dp)
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        setlistDragAccum += delta
+                        if (setlistDragAccum < -32f) {
+                            openDrawer = DrawerKind.Setlist
+                            setlistDragAccum = 0f
+                        }
+                    },
+                    onDragStarted = { setlistDragAccum = 0f },
+                    onDragStopped = { setlistDragAccum = 0f },
+                    startDragImmediately = false,
+                ),
+        )
+    }
+
+    // ── Cameras bottom-edge swipe band (v1.2.10: new 96dp band) ──
+    // 96dp-tall band on the bottom — drag-up to open the cameras drawer.
+    // Above the system gesture bar, mostly above the Start-gig button.
+    // Same draggable + startDragImmediately=false trick to keep taps live.
+    if (openDrawer == null) {
+        var camerasDragAccum by remember { mutableStateOf(0f) }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(0.85f)  // leave right 15% for setlist band overlap-free
+                .height(96.dp)
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta ->
+                        camerasDragAccum += delta
+                        if (camerasDragAccum < -32f) {
+                            openDrawer = DrawerKind.Cameras
+                            camerasDragAccum = 0f
+                        }
+                    },
+                    onDragStarted = { camerasDragAccum = 0f },
+                    onDragStopped = { camerasDragAccum = 0f },
+                    startDragImmediately = false,
+                ),
         )
     }
 
@@ -603,12 +671,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         open = openDrawer == DrawerKind.Setlist,
         entries = entries,
         primaryListId = activeListId,
-        secondaryListId = pinnedSecondaryListId,
         activeEntryId = activeEntryId,
-        onPickPrimary = { activeListId = it; pinnedSecondaryListId = null },
-        onTogglePinSecondary = { listId ->
-            pinnedSecondaryListId = if (pinnedSecondaryListId == listId) null else listId
-        },
+        onPickPrimary = { activeListId = it },
         onTapEntry = { entry ->
             activeListId = entry.listId
             activeEntryId = entry.id
@@ -708,6 +772,32 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 endConfirmOpen = false
                 service?.endGig()
             },
+        )
+    }
+
+    // ── S130 W3b: practice-versions picker ──
+    if (practicePickerOpen && activeEntry != null) {
+        val coroutineScope = rememberCoroutineScope()
+        val activeUserId = remember { vm.profileNames.keys.firstOrNull() ?: "drummer" }
+        val activeUserName = remember(activeUserId) { vm.profileNames[activeUserId] ?: "drummer" }
+        PracticeVersionsPickerSheet(
+            entry = activeEntry,
+            tracks = activePracticeTracks,
+            activeRef = activeEntry.practiceAudioRef,
+            onSelect = { track ->
+                val ref = track.msRefOrNull() ?: return@PracticeVersionsPickerSheet
+                coroutineScope.launch {
+                    SetlistEntriesRepository.updateField(
+                        id = activeEntry.id,
+                        field = "practice_audio_ref",
+                        value = ref,
+                        prev = activeEntry,
+                        actor = SetlistActor(activeUserId, activeUserName),
+                    )
+                }
+                practicePickerOpen = false
+            },
+            onDismiss = { practicePickerOpen = false },
         )
     }
 
@@ -861,10 +951,8 @@ private fun BoxScope.SlideInSetlistDrawer(
     open: Boolean,
     entries: List<SetlistEntry>,
     primaryListId: String,
-    secondaryListId: String?,
     activeEntryId: String?,
     onPickPrimary: (String) -> Unit,
-    onTogglePinSecondary: (String) -> Unit,
     onTapEntry: (SetlistEntry) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -924,10 +1012,8 @@ private fun BoxScope.SlideInSetlistDrawer(
         SetlistDrawer(
             entries = entries,
             primaryListId = primaryListId,
-            secondaryListId = secondaryListId,
             activeEntryId = activeEntryId,
             onPickPrimary = onPickPrimary,
-            onTogglePinSecondary = onTogglePinSecondary,
             onTapEntry = onTapEntry,
         )
     }
@@ -1010,14 +1096,11 @@ private fun GigSecondaryButton(
 private fun SetlistDrawer(
     entries: List<SetlistEntry>,
     primaryListId: String,
-    secondaryListId: String?,
     activeEntryId: String?,
     onPickPrimary: (String) -> Unit,
-    onTogglePinSecondary: (String) -> Unit,
     onTapEntry: (SetlistEntry) -> Unit,
 ) {
     val primaryList = entries.filter { it.listId == primaryListId }.sortedBy { it.position }
-    val secondaryList = secondaryListId?.let { id -> entries.filter { it.listId == id }.sortedBy { it.position } }
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
         Row(
@@ -1036,140 +1119,69 @@ private fun SetlistDrawer(
             )
         }
 
-        // List pills — primary + pinnable secondaries.
+        // ── 3-tab list selector (v1.2.11: replaced pin-second-list pills) ──
+        // Single source list at a time. Tap a tab to switch which list is shown.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             SetlistEntry.LIST_ORDER.forEach { listId ->
-                val isPrimary = listId == primaryListId
-                val isPinnedSecondary = listId == secondaryListId
+                val isActive = listId == primaryListId
                 val count = entries.count { it.listId == listId }
-                ListPill(
+                ListTabPill(
                     modifier = Modifier.weight(1f),
                     label = SetlistEntry.LIST_LABELS[listId] ?: listId,
                     count = count,
-                    role = when {
-                        isPrimary -> ListPillRole.Primary
-                        isPinnedSecondary -> ListPillRole.PinnedSecondary
-                        else -> ListPillRole.Available
-                    },
-                    onClick = {
-                        if (isPrimary) {
-                            // Tapping the primary pill is a no-op (already primary).
-                        } else if (isPinnedSecondary) {
-                            // Promote secondary → primary.
-                            onPickPrimary(listId)
-                        } else {
-                            // Toggle pin alongside.
-                            onTogglePinSecondary(listId)
-                        }
-                    },
-                    onLongClick = {
-                        // Long-press → make primary directly. (Not yet wired to a
-                        // gesture detector here; left as a future affordance.)
-                        onPickPrimary(listId)
-                    },
+                    isActive = isActive,
+                    onClick = { if (!isActive) onPickPrimary(listId) },
                 )
             }
         }
 
-        Text(
-            when {
-                secondaryList != null -> "${SetlistEntry.LIST_LABELS[primaryListId]} (primary) + ${SetlistEntry.LIST_LABELS[secondaryListId]} (alongside) — tap +list pill to pin/unpin, tap a pinned pill to promote.".replace(" — ", " — ")
-                else -> "Tap +Party / +Classic Rock to pin a second list alongside."
-            },
-            fontFamily = Karla, fontSize = 10.sp,
-            color = TangerineColors.textMuted.copy(alpha = 0.7f),
-            modifier = Modifier.padding(bottom = 6.dp),
-        )
-
-        if (secondaryList == null) {
-            // Single column.
-            LazyColumn(modifier = Modifier.fillMaxWidth().height(560.dp)) {
-                itemsIndexed(primaryList, key = { _, e -> e.id }) { idx, entry ->
-                    SetlistRow(
-                        entry = entry,
-                        position = idx + 1,
-                        state = rowState(idx, entry.id, activeEntryId, primaryList),
-                        onClick = { onTapEntry(entry) },
-                    )
-                }
-            }
-        } else {
-            // Two columns side-by-side. On a phone, this is tight — each column ~160dp.
-            Row(modifier = Modifier.fillMaxWidth().height(560.dp)) {
-                SetlistColumn(
-                    modifier = Modifier.weight(1f).padding(end = 4.dp),
-                    label = SetlistEntry.LIST_LABELS[primaryListId] ?: primaryListId,
-                    sub = "primary",
-                    list = primaryList,
-                    activeEntryId = activeEntryId,
-                    onTap = onTapEntry,
-                )
-                SetlistColumn(
-                    modifier = Modifier.weight(1f).padding(start = 4.dp),
-                    label = SetlistEntry.LIST_LABELS[secondaryListId] ?: secondaryListId,
-                    sub = "alongside",
-                    list = secondaryList,
-                    activeEntryId = activeEntryId,
-                    onTap = onTapEntry,
+        // Single-column list — bumped sizing for distance readability.
+        LazyColumn(modifier = Modifier.fillMaxWidth().height(620.dp)) {
+            itemsIndexed(primaryList, key = { _, e -> e.id }) { idx, entry ->
+                SetlistRow(
+                    entry = entry,
+                    position = idx + 1,
+                    state = rowState(idx, entry.id, activeEntryId, primaryList),
+                    onClick = { onTapEntry(entry) },
                 )
             }
         }
     }
 }
 
-private enum class ListPillRole { Primary, PinnedSecondary, Available }
-
 @Composable
-private fun ListPill(
+private fun ListTabPill(
     modifier: Modifier,
     label: String,
     count: Int,
-    role: ListPillRole,
+    isActive: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
 ) {
-    val bg = when (role) {
-        ListPillRole.Primary -> TangerineColors.orange.copy(alpha = 0.14f)
-        ListPillRole.PinnedSecondary -> TangerineColors.teal.copy(alpha = 0.12f)
-        ListPillRole.Available -> TangerineColors.surface
-    }
-    val border = when (role) {
-        ListPillRole.Primary -> TangerineColors.orange.copy(alpha = 0.6f)
-        ListPillRole.PinnedSecondary -> TangerineColors.teal.copy(alpha = 0.5f)
-        ListPillRole.Available -> TangerineColors.textMuted.copy(alpha = 0.2f)
-    }
-    val textColor = when (role) {
-        ListPillRole.Primary -> TangerineColors.orange
-        ListPillRole.PinnedSecondary -> TangerineColors.teal
-        ListPillRole.Available -> TangerineColors.textMuted
-    }
-    val prefix = when (role) {
-        ListPillRole.Primary -> ""
-        ListPillRole.PinnedSecondary -> "+ "
-        ListPillRole.Available -> "+ "
-    }
+    val bg = if (isActive) TangerineColors.orange.copy(alpha = 0.16f) else TangerineColors.surface
+    val border = if (isActive) TangerineColors.orange.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.25f)
+    val textColor = if (isActive) TangerineColors.orange else TangerineColors.textMuted
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .background(bg)
             .border(1.dp, border, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Text(
-            "$prefix$label",
-            fontFamily = Karla, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = textColor,
+            label,
+            fontFamily = Karla, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColor,
         )
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(6.dp))
         Text(
             count.toString(),
-            fontFamily = JetBrainsMono, fontSize = 10.sp,
-            color = textColor.copy(alpha = 0.6f),
+            fontFamily = JetBrainsMono, fontSize = 11.sp,
+            color = textColor.copy(alpha = 0.65f),
         )
     }
 }
@@ -1183,35 +1195,6 @@ private fun rowState(idx: Int, entryId: String, activeEntryId: String?, list: Li
         activeIdx >= 0 && idx < activeIdx -> RowState.Played
         activeIdx >= 0 && idx == activeIdx + 1 -> RowState.Queued
         else -> RowState.Default
-    }
-}
-
-@Composable
-private fun SetlistColumn(
-    modifier: Modifier,
-    label: String,
-    sub: String,
-    list: List<SetlistEntry>,
-    activeEntryId: String?,
-    onTap: (SetlistEntry) -> Unit,
-) {
-    Column(modifier = modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TangerineColors.text)
-            Spacer(Modifier.width(6.dp))
-            Text(sub, fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted)
-        }
-        Spacer(Modifier.height(4.dp))
-        LazyColumn {
-            itemsIndexed(list, key = { _, e -> e.id }) { idx, entry ->
-                SetlistRow(
-                    entry = entry,
-                    position = idx + 1,
-                    state = rowState(idx, entry.id, activeEntryId, list),
-                    onClick = { onTap(entry) },
-                )
-            }
-        }
     }
 }
 
@@ -1245,37 +1228,40 @@ private fun SetlistRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .padding(vertical = 3.dp)
+            .clip(RoundedCornerShape(10.dp))
             .background(bg)
-            .border(1.dp, border, RoundedCornerShape(8.dp))
+            .border(1.dp, border, RoundedCornerShape(10.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // v1.2.11: distance-readable sizing — pos 14sp, title 18sp, artist
+        // 14sp, BPM 14sp. Up from 11/13/10/11. ~40% larger glyphs without
+        // pushing rows off-screen (height(620.dp) above accommodates).
         Text(
             position.toString().padStart(2, '0'),
-            fontFamily = JetBrainsMono, fontSize = 11.sp, color = subColor,
-            modifier = Modifier.width(24.dp),
+            fontFamily = JetBrainsMono, fontSize = 14.sp, color = subColor,
+            modifier = Modifier.width(30.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 entry.title,
                 fontFamily = Karla, fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp, color = titleColor, maxLines = 1,
+                fontSize = 18.sp, color = titleColor, maxLines = 1,
             )
             if (!entry.artist.isNullOrBlank()) {
                 Text(
                     entry.artist,
-                    fontFamily = Karla, fontSize = 10.sp, color = subColor, maxLines = 1,
+                    fontFamily = Karla, fontSize = 14.sp, color = subColor, maxLines = 1,
                 )
             }
         }
         if (entry.bpm != null) {
             Text(
                 entry.bpm.toString(),
-                fontFamily = JetBrainsMono, fontSize = 11.sp, color = subColor,
-                modifier = Modifier.padding(start = 6.dp),
+                fontFamily = JetBrainsMono, fontSize = 14.sp, color = subColor,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
         if (entry.clickYN) {
@@ -1828,6 +1814,154 @@ private fun EmptyGigMode(onMenuClick: () -> Unit, loading: Boolean, errorMsg: St
                 Text(
                     "Setlist edits sync via Supabase Realtime. Check connectivity then re-open this screen.",
                     fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted,
+                )
+            }
+        }
+    }
+}
+
+// ─── S130 W3b: practice-versions chip + picker ───────────────────────────────
+
+@Composable
+private fun PracticeVersionsChip(
+    count: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = TangerineColors.purple.copy(alpha = 0.18f),
+        border = BorderStroke(1.dp, TangerineColors.purple.copy(alpha = 0.6f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.LibraryMusic,
+                contentDescription = null,
+                tint = TangerineColors.purple,
+                modifier = Modifier.size(14.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = "$count ours",
+                fontFamily = JetBrainsMono,
+                fontSize = 11.sp,
+                color = TangerineColors.purple,
+                letterSpacing = 1.sp,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PracticeVersionsPickerSheet(
+    entry: SetlistEntry,
+    tracks: List<SetlistEntryPracticeTrack>,
+    activeRef: String?,
+    onSelect: (SetlistEntryPracticeTrack) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = TangerineColors.surface,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                "PRACTICE TRACKS",
+                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                fontSize = 12.sp, color = TangerineColors.purple, letterSpacing = 2.sp,
+            )
+            Text(
+                entry.title,
+                fontFamily = Karla, fontWeight = FontWeight.Bold,
+                fontSize = 16.sp, color = TangerineColors.text,
+            )
+            if (!entry.artist.isNullOrBlank()) {
+                Text(
+                    entry.artist,
+                    fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted,
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            if (tracks.isEmpty()) {
+                Text(
+                    "No versions ingested yet.",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "MS ingest pipeline populates these from Reaper post-prod renders.",
+                    fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
+                )
+            } else {
+                tracks.forEach { t ->
+                    val isActive = t.msTrackId != null && t.msTrackId == activeRef
+                    PracticeVersionRow(track = t, isActive = isActive, onClick = { onSelect(t) })
+                    Spacer(Modifier.height(6.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PracticeVersionRow(
+    track: SetlistEntryPracticeTrack,
+    isActive: Boolean,
+    onClick: () -> Unit,
+) {
+    val accent = if (track.isOurs) TangerineColors.purple else TangerineColors.green
+    val canSelect = track.msTrackId != null
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = canSelect, onClick = onClick),
+        color = if (isActive) accent.copy(alpha = 0.18f) else TangerineColors.surfaceLight,
+        border = BorderStroke(1.dp, accent.copy(alpha = if (isActive) 0.7f else 0.25f)),
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    track.displayLabel(),
+                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp, color = accent, letterSpacing = 1.sp,
+                )
+                if (!track.gigAlbum.isNullOrBlank()) {
+                    Text(
+                        track.gigAlbum,
+                        fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
+                    )
+                }
+                if (!canSelect) {
+                    Text(
+                        "Schema-only — not yet ingested",
+                        fontFamily = JetBrainsMono, fontSize = 9.sp,
+                        color = TangerineColors.textMuted, letterSpacing = 0.5.sp,
+                    )
+                }
+            }
+            if (isActive) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = "active",
+                    tint = accent,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
