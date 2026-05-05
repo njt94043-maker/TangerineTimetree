@@ -214,13 +214,14 @@ class OrchestratorService : Service() {
 
     fun pauseSet() {
         scope.launch {
-            // Stop the per-set transport, then tell Reaper to save. Per S119
-            // every set is its own take and saved-on-disk before continuing.
+            // Stop per-set transport. We do NOT save here: pauses are often
+            // mid-set (talk between songs) and full-project saves on every
+            // pause add visible lag. Reaper holds state in RAM; durability
+            // happens at set boundaries (continueNewSet) and at endGig.
             osc.sendStop()
             peerServer.broadcastStopRec()
             CameraGate.stopLocalRecording()
             _isRecording.value = false
-            gigCmd.save()
             session.pause()
             updateNotification()
         }
@@ -243,6 +244,10 @@ class OrchestratorService : Service() {
     /** Set-boundary continue — marker dropped, set #++ . */
     fun continueNewSet() {
         scope.launch {
+            // Save the just-finished set BEFORE bumping the set number, so
+            // the saved .rpp captures the prior set's takes/markers cleanly.
+            // (v1.2.8: replaces per-pause save — pauses no longer trigger save.)
+            gigCmd.save()
             session.continueNewSet()
             osc.sendRecord()
             peerServer.broadcastStartRec(newSessionId())

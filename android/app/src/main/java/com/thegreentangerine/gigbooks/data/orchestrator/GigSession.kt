@@ -33,9 +33,10 @@ import kotlinx.coroutines.flow.asStateFlow
  *   - APK record-trigger: per-set OSC bundle (S120 cursor-at-end + record)
  *     and per-set stop. Drives Reaper recording AND peer phones.
  *   - Reaper project-state command via [GigCommandClient]:
- *       start -> name + save the .rpp at <gigs_dir>/<gig_name>/<gig_name>.rpp
- *       save  -> save (on every Pause / Continue / End — gig-recording-per-set
- *                lock from S119)
+ *       start -> open template + save-as <gigs_dir>/<gig_name>/<gig_name>.rpp
+ *       save  -> save (only on set-boundary Continue — v1.2.8 debounce; pauses
+ *                no longer save, since each Main_OnCommand 40026 serialises the
+ *                whole project and visibly lagged the wizard)
  *       stop  -> save (final). No auto-close.
  *   - Set-boundary marker: HTTP /song-marker with title "Set N" — only on
  *     the "Continue + new set" path. Reaper-side song-marker-listener.lua
