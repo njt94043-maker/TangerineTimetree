@@ -105,9 +105,32 @@ end
 
 local function start_project(name)
   local clean = sanitise(name)
+  -- F2 (S133 A1): without this guard a missing template silently saves an empty
+  -- project as the gig — undetectable from the drum throne, ruins the recording.
+  if not reaper.file_exists(TEMPLATE) then
+    reaper.ShowConsoleMsg(string.format("[gig-cmd] ERROR template missing: %s -- aborting start\n", TEMPLATE))
+    return
+  end
   local proj_dir = GIGS_DIR .. "/" .. clean
   ensure_dir(proj_dir)
   local target = proj_dir .. "/" .. clean .. ".rpp"
+  -- F3 (S133 A1): same gig name same week would silently overwrite the prior
+  -- recording. Auto-suffix to <name>-2.rpp / <name>-3.rpp on collision so the
+  -- worst-case data-loss path becomes "two RPPs in the dir" instead of "lost gig".
+  if reaper.file_exists(target) then
+    local suffix = 2
+    local candidate
+    repeat
+      candidate = proj_dir .. "/" .. clean .. "-" .. suffix .. ".rpp"
+      suffix = suffix + 1
+    until not reaper.file_exists(candidate) or suffix > 99
+    if suffix > 99 then
+      reaper.ShowConsoleMsg(string.format("[gig-cmd] ERROR collision exhausted at %s-99.rpp -- aborting start\n", clean))
+      return
+    end
+    reaper.ShowConsoleMsg(string.format("[gig-cmd] collision -- using %s\n", candidate))
+    target = candidate
+  end
   -- "noprompt:" prefix discards the currently-loaded project silently —
   -- so the auto-resumed prior gig doesn't taint the new one.
   reaper.Main_openProject("noprompt:" .. TEMPLATE)
