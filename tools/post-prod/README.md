@@ -47,6 +47,26 @@ Per-channel + per-bus + master FX chains installed
 | `split-into-songs.py` | Path B: reads regions from a post-prod RPP, emits one .RPP per region with all 18 items time-windowed to that region. Each opens with the same FX chains, lets you do a unique mix per song. |
 | `insert-named-marker.lua` | Manual hotkey-driven named marker drop at play cursor. Bind to a key (e.g. M); useful during post-prod playback to mark song starts. |
 | `song-marker-listener.lua` | Background defer-loop listener: polls `C:/tmp/song-markers/` (or `/tmp/song-markers/` on Linux) for marker-request `.txt` files, drops named TGT-orange markers at play cursor. APK drummer-prompter integration target — once APK is wired, prompter taps drop markers in the live recording. |
+| `gig-command-listener.lua` | Background defer-loop listener for gig-state commands (`start`/`save`/`stop`) from the APK orchestrator via the gig-command-server.py daemon. S138: F2 `reaper.file_exists` template guard before `Main_openProject`; F3 auto-suffix `<name>-2.rpp`/-3/-4 on collision (cap -99). Runtime verification deferred to rig contact (see [audit/shared/S138-SPRINT-1-RESULTS.md](../../../../Apps/Dev%20Team/audit/shared/S138-SPRINT-1-RESULTS.md)). |
+| `tgt-record-at-end.lua` | Manual fallback for the APK orchestrator's `/action/40043 + /action/1013` OSC bundle. Run from Reaper Action List when APK is unavailable. Belt-and-braces against set-2-overwrites-set-1 (S119 lock / S133 GD-16). |
+| `tgt-gig-and-practice.RPP` | Reaper project template — 18ch USB routing layout the listener `start_project` opens via `Main_openProject("noprompt:...")`. Source-of-truth lives here; runtime location is `~/.config/REAPER/ProjectTemplates/` on E6330 (sync'd via S140 install.sh when shipped). |
+| `pull-gig.py` | Pulls a gig's recordings + RPP from E6330 over Tailscale into `D:/Gigs/<date>/`. Nathan's existing tool, version-controlled S139. |
+| `rewrite-rpps-for-windows.py` | Rewrites Linux-encoded paths in `set-XXXX.RPP` files to Windows paths after `pull-gig.py`. Nathan's existing tool, version-controlled S139. |
+
+## Deploy / install on E6330
+
+Most files in this folder are mirrored to E6330 manually for now. S140 Task #0 will ship `tools/e6330/install.sh` + `verify` to automate this end-to-end.
+
+| File | Runtime location on E6330 | Install command (S140 will automate) |
+|------|---------------------------|--------------------------------------|
+| `gig-command-listener.lua` | `~/.config/REAPER/Scripts/` then loaded via Action List | `scp gig-command-listener.lua user@e6330.local:~/.config/REAPER/Scripts/` |
+| `song-marker-listener.lua` | Same | Same |
+| `tgt-record-at-end.lua` | Same | Same |
+| `tgt-gig-and-practice.RPP` | `~/.config/REAPER/ProjectTemplates/tgt-gig-and-practice.RPP` | `scp tgt-gig-and-practice.RPP user@e6330.local:~/.config/REAPER/ProjectTemplates/` |
+| `setup-postprod-fx.lua` | Loaded via Reaper Action List on the post-prod machine (OptiPlex) | local file ref |
+| `pull-gig.py` / `rewrite-rpps-for-windows.py` | OptiPlex (or wherever post-prod runs) — `D:/Gigs/` working copy | `cp pull-gig.py D:/Gigs/` |
+
+**Runtime location for `__startup.lua`** on E6330 is `~/.config/REAPER/Scripts/__startup.lua` — **not yet committed here** (S140 follow-up).
 
 ## Channel map (locked, matches XR18 USB inputs)
 
