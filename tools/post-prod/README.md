@@ -55,7 +55,23 @@ Per-channel + per-bus + master FX chains installed
 
 ## Deploy / install on E6330
 
-Most files in this folder are mirrored to E6330 manually for now. S140 Task #0 will ship `tools/e6330/install.sh` + `verify` to automate this end-to-end.
+**S140 shipped `tools/e6330/install.sh`.** From E6330 (after rsync/scp the repo there or `git pull`):
+
+```bash
+bash tools/e6330/install.sh verify    # read-only, checks runtime state vs repo
+bash tools/e6330/install.sh install   # deploys repo → runtime locations (sudo for /opt/tgt + /etc/systemd)
+```
+
+`verify` exits 0 on match, non-zero on drift. `install` is idempotent. Both reload+enable `gig-command-server.service` after.
+
+**Driving from OptiPlex:**
+
+```bash
+scp -rq /c/Apps/TGT/tools tangerine@e6330:/tmp/tgt/
+ssh tangerine@e6330 'cd /tmp/tgt && bash tools/e6330/install.sh verify'
+```
+
+The runtime locations install.sh writes to are documented in the table below.
 
 | File | Runtime location on E6330 | Install command (S140 will automate) |
 |------|---------------------------|--------------------------------------|
