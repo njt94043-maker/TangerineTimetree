@@ -1,0 +1,31 @@
+# S118: TGT gig-rig — Reaper appliance
+# S123: autostart now creates a dated gig project from the template at boot,
+# never relies on Reaper's lastproject (which would land in /tmp and vanish on
+# power cut). Audio + project survive reboot in ~/Documents/Gigs/<YYYY-MM-DD>/.
+
+# Disable screen blanking + power management (recording sessions = idle hands, active disk I/O)
+xset s off
+xset -dpms
+xset s noblank
+
+# Per-day gig project — fresh copy of the template if today's project doesn't yet exist.
+GIG_DATE=$(date +%Y-%m-%d)
+GIG_DIR="$HOME/Documents/Gigs/$GIG_DATE"
+GIG_PROJECT="$GIG_DIR/gig.RPP"
+TEMPLATE="$HOME/.config/REAPER/ProjectTemplates/tgt-gig-and-practice.RPP"
+
+mkdir -p "$GIG_DIR"
+if [ ! -f "$GIG_PROJECT" ] && [ -f "$TEMPLATE" ]; then
+  cp "$TEMPLATE" "$GIG_PROJECT"
+fi
+
+# Launch Reaper with the dated project explicitly. WAVs land in the same dir
+# (Reaper default recording path = next to the .RPP). Save (Ctrl+S) lands here too.
+# Saving with Save As to /tmp will still work but won't be the default path.
+if [ -f "$GIG_PROJECT" ]; then
+  reaper "$GIG_PROJECT" &
+else
+  # Fallback: bare reaper (will fail open of stale lastproject the same as before,
+  # but at least we tried)
+  reaper &
+fi
