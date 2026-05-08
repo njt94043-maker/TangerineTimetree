@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.thegreentangerine.gigbooks.R
+import com.thegreentangerine.gigbooks.data.supabase.GigLockRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -196,6 +197,10 @@ class OrchestratorService : Service() {
             // Reaper rename + save runs immediately so the named project exists
             // on disk. Recording transport stays idle until beginRecording().
             gigCmd.start(name)
+            // S141: flip gig_lock_state.is_locked = true so the cross-surface
+            // setlist authoring routes through pending_edits queue. Fire-and-forget
+            // per Sovereign Spec §B.5 — Supabase failure does not block gig.
+            GigLockRepository.setLocked(locked = true, gigLabel = name)
             updateNotification()
         }
     }
@@ -275,6 +280,10 @@ class OrchestratorService : Service() {
             }
             gigCmd.stop()  // final save (Reaper-side does not auto-close)
             session.end()
+            // S141: flip gig_lock_state.is_locked = false so cross-surface
+            // setlist authoring resumes direct writes (and S142 daemon, when
+            // shipped, will drain pending_edits at this point).
+            GigLockRepository.setLocked(locked = false)
             session.reset()  // free the wizard for the next gig
             updateNotification()
         }
