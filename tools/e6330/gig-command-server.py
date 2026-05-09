@@ -12,6 +12,13 @@ song-marker-listener.lua established the file-poll pattern as the bridge — thi
 daemon is the network-receive side of that same pattern, extended to gig-level
 state changes (start / save / stop) instead of just markers.
 
+S146: GET /gigs added to enumerate ~/Reaper/Gigs/ for the Media Server PWA's
+Gigs browser surface (B-D2 brain-dump item; brief at
+specs/tgt/s145-postprod-import-flow-brief.md). Each entry reports the gig
+date, RPP path, raw WAV count, total media size, and modified timestamp.
+This is read-only and authless — same trust model as the rest of this daemon
+(rig LAN trusted, port not exposed beyond hotspot).
+
 Endpoints:
     POST /gig
     Content-Type: application/json
@@ -23,8 +30,22 @@ Endpoints:
     Content-Type: application/json
     Body: {"title": "<song title>"}
 
+    GET /gigs                 (S146 — enumeration for MS PWA Gigs browser)
+    Response: {"ok": true, "gigs": [
+        {"name": "2026-05-09",
+         "rpp_path": "/home/tangerine/Reaper/Gigs/2026-05-09/2026-05-09.rpp",
+         "media_count": 18,
+         "size_bytes": 14200000000,
+         "modified_at": 1778459930},
+        ...
+    ]}
+
+    GET /healthz              (already present)
+    Response: {"ok": true, "queue_dir": "/tmp/gig-commands"}
+
 Responses:
-    200 {"ok": true, "queued": "<filename>"}
+    200 {"ok": true, "queued": "<filename>"}    (POST /gig, /song-marker)
+    200 {"ok": true, "gigs": [...]}              (GET /gigs)
     400 on bad JSON / missing fields / unknown action
     500 on filesystem error
 
@@ -63,6 +84,10 @@ QUEUE_DIR = Path("/tmp/gig-commands")
 SONG_MARKER_DIR = Path("/tmp/song-markers")
 VALID_ACTIONS = {"start", "save", "stop"}
 
+# S146: where the listener saves gig RPPs (matches gig-command-listener.lua's
+# gigs_dir_path()). Both must agree or GET /gigs returns nothing.
+GIGS_DIR = Path(os.path.expanduser("~/Reaper/Gigs"))
+
 
 def ensure_queue_dir() -> None:
     QUEUE_DIR.mkdir(parents=True, exist_ok=True)
@@ -86,7 +111,74 @@ class GigHandler(BaseHTTPRequestHandler):
         if self.path == "/healthz":
             self._json(200, {"ok": True, "queue_dir": str(QUEUE_DIR)})
             return
+        if self.path == "/gigs":
+            self._handle_list_gigs()
+            return
         self._json(404, {"ok": False, "error": "not found"})
+
+    def _handle_list_gigs(self) -> None:
+        """S146: enumerate ~/Reaper/Gigs/ for the MS PWA Gigs browser.
+
+        Each gig is a top-level directory under GIGS_DIR. Inside a gig dir we
+        expect either <name>.rpp (the auto-saved gig project, named after the
+        directory by gig-command-listener.lua's start_project) OR a single
+        gig.RPP file (the autostart-pattern fallback).
+
+        Skips directories that look like backups, hidden, or have no RPP."""
+        if not GIGS_DIR.exists():
+            self._json(200, {"ok": True, "gigs": []})
+            return
+
+        gigs: list[dict] = []
+        try:
+            for entry in sorted(GIGS_DIR.iterdir()):
+                if not entry.is_dir():
+                    continue
+                if entry.name.startswith(".") or entry.name.lower() == "backups":
+                    continue
+
+                # Find the RPP: prefer <dir-name>.rpp, then any *.rpp at depth 1
+                preferred = entry / f"{entry.name}.rpp"
+                if preferred.exists():
+                    rpp_path = preferred
+                else:
+                    rpps = list(entry.glob("*.rpp")) + list(entry.glob("*.RPP"))
+                    if not rpps:
+                        continue
+                    rpp_path = rpps[0]
+
+                # Media: count .wav under entry/Media/ (or entry/ if no Media subdir)
+                media_dir = entry / "Media"
+                wav_root = media_dir if media_dir.exists() else entry
+                media_count = 0
+                size_bytes = 0
+                try:
+                    for wav in wav_root.rglob("*.wav"):
+                        media_count += 1
+                        try:
+                            size_bytes += wav.stat().st_size
+                        except OSError:
+                            pass
+                except OSError:
+                    pass
+
+                try:
+                    modified_at = int(rpp_path.stat().st_mtime)
+                except OSError:
+                    modified_at = 0
+
+                gigs.append({
+                    "name": entry.name,
+                    "rpp_path": str(rpp_path),
+                    "media_count": media_count,
+                    "size_bytes": size_bytes,
+                    "modified_at": modified_at,
+                })
+        except OSError as e:
+            self._json(500, {"ok": False, "error": f"scan failed: {e}"})
+            return
+
+        self._json(200, {"ok": True, "gigs": gigs, "gigs_dir": str(GIGS_DIR)})
 
     def _read_json_body(self) -> Optional[dict]:
         length = int(self.headers.get("Content-Length") or 0)
