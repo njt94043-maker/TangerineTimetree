@@ -293,13 +293,11 @@ def write_song_rpp(
         new_header, count=1,
     )
 
+    # Overwrite-by-slug. Re-split is "regenerate from current markers"; the
+    # earlier append-numeric-suffix behaviour accumulated stale `*-2.RPP`,
+    # `*-3.RPP` etc. on every Re-split click from the PWA.
     slug = slugify(name)
     out_path = out_dir / f"{slug}.RPP"
-    n = 1
-    while out_path.exists():
-        n += 1
-        out_path = out_dir / f"{slug}-{n}.RPP"
-
     out_path.write_text(new_header + "".join(new_tracks) + footer, encoding="utf-8")
     return out_path
 
@@ -331,6 +329,14 @@ def main() -> None:
 
     out_dir = src.parent / "songs"
     out_dir.mkdir(exist_ok=True)
+
+    # Re-split is "regenerate from current markers". Wipe any stale top-level
+    # *.RPP files left from a previous run with different marker names; this
+    # avoids accumulating orphans after a song marker is renamed/deleted.
+    # Subdirectories (e.g. Reaper Backups/) are intentionally preserved.
+    for stale in out_dir.glob("*.RPP"):
+        if stale.is_file():
+            stale.unlink()
 
     for name, s, e in spans:
         out = write_song_rpp(src, header, tracks, footer, name, s, e, out_dir)
