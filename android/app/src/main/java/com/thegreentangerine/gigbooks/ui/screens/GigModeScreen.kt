@@ -608,18 +608,22 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         }
     }
 
-    // ── Setlist right-edge swipe band (v1.2.10: widened to 96dp) ──
+    // ── Setlist right-edge swipe band (S144 fix) ──
     // 96dp-wide band on the right — drag-left to open the setlist panel.
-    // Uses Modifier.draggable(startDragImmediately = false) so taps under
-    // the band still propagate to children's clickables (ADVANCE button
-    // on its right edge, BPM hero, etc.). Disabled while another drawer
-    // is open (one-at-a-time invariant).
+    // S131 used Modifier.draggable(startDragImmediately = false) on the
+    // (mistaken) belief that overlapping clickables would still get taps.
+    // They don't — Compose hit-tests the topmost overlapping element, so
+    // the band absorbs every tap inside its area. S144 restricts the band
+    // to the upper portion of the screen (above the prev/advance row) so
+    // the button row + Start-gig card receive their taps. Cameras drawer
+    // is opened via CamerasPeekHandle (inline in Column flow) instead of
+    // a sibling overlay — the duplicate 96dp bottom band has been removed.
     if (openDrawer == null) {
         var setlistDragAccum by remember { mutableStateOf(0f) }
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight(0.85f)  // leave bottom 15% for cameras band overlap-free
+                .align(Alignment.TopEnd)
+                .fillMaxHeight(0.54f)  // upper 54% only — clears prev/advance row at y≈1273
                 .width(96.dp)
                 .draggable(
                     orientation = Orientation.Horizontal,
@@ -632,33 +636,6 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                     },
                     onDragStarted = { setlistDragAccum = 0f },
                     onDragStopped = { setlistDragAccum = 0f },
-                    startDragImmediately = false,
-                ),
-        )
-    }
-
-    // ── Cameras bottom-edge swipe band (v1.2.10: new 96dp band) ──
-    // 96dp-tall band on the bottom — drag-up to open the cameras drawer.
-    // Above the system gesture bar, mostly above the Start-gig button.
-    // Same draggable + startDragImmediately=false trick to keep taps live.
-    if (openDrawer == null) {
-        var camerasDragAccum by remember { mutableStateOf(0f) }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth(0.85f)  // leave right 15% for setlist band overlap-free
-                .height(96.dp)
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    state = rememberDraggableState { delta ->
-                        camerasDragAccum += delta
-                        if (camerasDragAccum < -32f) {
-                            openDrawer = DrawerKind.Cameras
-                            camerasDragAccum = 0f
-                        }
-                    },
-                    onDragStarted = { camerasDragAccum = 0f },
-                    onDragStopped = { camerasDragAccum = 0f },
                     startDragImmediately = false,
                 ),
         )
