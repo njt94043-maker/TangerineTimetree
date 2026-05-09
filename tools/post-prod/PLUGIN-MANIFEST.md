@@ -10,7 +10,7 @@
 
 **Reaper side: complete.** The template references 16 plugins; all 16 are installed on OptiPlex. James 3-stage chain works, mastering chain works, vocal de-essing works (via TDR Nova dynamic EQ).
 
-**DaVinci side: greenfield.** Not yet installed. Free Resolve 19 is sufficient for the planned workflow (Reaper records + mixes audio → DaVinci assembles video + multicam + final bounce). Studio license (£295) would only be needed if you want to mix final audio in Fairlight using your Klanghelm/TDR/Valhalla VSTs. Recommend free first; revisit Studio after the first DaVinci-finished gig if Fairlight becomes the desired mixing surface.
+**DaVinci side: greenfield.** Decision: **install Free Resolve 20 now; upgrade to Studio (£295 one-off) when budget allows.** Free covers everything for the immediate workflow (multicam edit + colour + render); Studio's three workflow-relevant adds (Voice Isolation for crowd noise, VST-in-Fairlight for single-app workflow, H.265 hardware encoding) become real upgrades once £295 is spare. Architecture works on either; Studio just unlocks the optional features.
 
 ---
 
@@ -101,11 +101,25 @@ These are nice-to-haves, not coverage gaps. The current chain is professional-gr
 | Multi-user collaboration | ✗ | ✓ |
 | Magic Mask / AI features | ✗ | ✓ |
 
-### Recommendation
+### Decision: Free now, Studio upgrade when budget allows
 
-**Install Free Resolve 19 first.** Use it for video assembly + multicam edit + final bounce. Audio mixing stays in Reaper (using your existing 16-plugin chain), then export stereo bounce or stems and drop into DaVinci's timeline.
+**Install DaVinci Resolve 20 Free now.** It covers the immediate workflow:
+- Video assembly + multicam edit (up to 4 angles — we have 3 phones max)
+- Colour grading (full Color page)
+- Cuts / transitions / Fusion compositing
+- Fairlight built-in audio effects
+- Render up to 4K
 
-**Revisit Studio after the first 1-2 DaVinci-finished gigs** — if you find yourself wanting to mix final audio inside Fairlight (with your existing Klanghelm/TDR/Valhalla VSTs that you've spent time setting up in Reaper), Studio is the way to do that without rebuilding the chain. Otherwise, Free is plenty.
+What Free can't do (and what Studio (£295 one-off perpetual licence) adds when you upgrade):
+
+1. **Voice Isolation** — AI noise removal for crowd noise / room ambience on vocal mics. Live-pub recordings benefit; no equivalent in the Reaper chain. Single-feature value.
+2. **VST plugin support in Fairlight** — your existing 16-plugin Klanghelm/TDR/Valhalla setup would load inside DaVinci. Unblocks single-app workflow (mix audio + assemble video without leaving Resolve).
+3. **H.265 hardware encoding** — 3-4× faster renders. Felt on every video bounce.
+4. Voice Isolation, VST, H.265 hardware encoding — all upgrade-when-£295-spare items.
+
+Decision rationale: tight cashflow this month; workflow with Free is fine for tonight + next few gigs. £295 is one-off and doesn't go away — it'll still be there to spend later. Re-evaluate after first 1-2 DaVinci-finished gigs surface what's actually missed.
+
+**Use the v20 stable line (not v21 Public Beta)** for production work either way.
 
 ### DaVinci OFX plugin recommendations (none mandatory)
 
@@ -174,10 +188,10 @@ The .drp file itself can't be created without DaVinci installed. Once installed,
 |---|---|---|---|
 | 1 | Verify all 16 Reaper VSTs installed on OptiPlex | ✓ done (this audit) | — |
 | 2 | Extract whole-gig-template-v1.RPP from 2026-05-03 | ✓ done (S145 task 1) | — |
-| 3 | Decide: install Free DaVinci Resolve 19 | **pending Nathan** | — |
-| 4 | Install DaVinci Resolve 19 (Free) | not started | depends on (3) |
-| 5 | Build `tools/post-prod/davinci/tgt-live-gig-template.drp` | not started | depends on (4) |
-| 6 | Optional: install DaVinci Resolve Studio for VST-in-Fairlight | not started | depends on first DaVinci gig revealing the need |
+| 3 | Decide: DaVinci Resolve 20 (Free now, Studio upgrade later) | ✓ done — Free now, Studio upgrade when £295 spare |
+| 4 | Install DaVinci Resolve 20 Free | **pending Nathan** (download + install ~15 min) | — |
+| 5 | Build `tools/post-prod/davinci/tgt-live-gig-template.drp` (Fairlight 18-track XR18 layout + 3-cam multicam timeline + render presets) | not started | depends on (4) |
+| 6 | Future: upgrade to Studio when budget allows; document VST loading in Fairlight | future | budget-gated |
 
 ---
 
