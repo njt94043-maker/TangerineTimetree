@@ -18,6 +18,15 @@ Whole-gig mode (multiple inputs, given in chronological order):
 Folder-mode shortcut (whole-gig, auto-detect 3+ longest sets):
     python build-postprod-rpp.py D:/Gigs/2026-05-03 --whole-gig
 
+From-template mode (S145 — preferred; preserves all FX/buses/master chain):
+    python build-postprod-rpp.py \
+        --from-template tools/post-prod/templates/whole-gig-template-v1.RPP \
+        D:/Gigs/2026-05-09/set-XXX.RPP D:/Gigs/2026-05-09/set-YYY.RPP
+    -> uses the template's 23-track folder-bus structure with all FX chains
+       intact (per-channel HPF/gate/comp, bus glue, master mastering chain
+       including James 3-stage MJUCjr leveler). Items are slotted into the
+       template's tracks by channel match (NAME starts with "NN ...").
+
 What it adds either way:
   - 6 instrument-group folder buses (Music / Vox / Guitar / Bass / Drums / Practice)
   - MAINSEND=0 on every bus child (so audio flows ONLY through the bus, not
@@ -484,6 +493,123 @@ def build_whole_gig(sources: list[Path], labels: list[str] | None = None) -> Pat
     return out_path
 
 
+def build_from_template(template_path: Path, sources: list[Path],
+                        labels: list[str] | None = None,
+                        out_path: Path | None = None) -> Path:
+    """S145: build a post-prod RPP using a pre-mixed template's structure
+    (tracks, FX chains, buses, master chain) and slotting in items from
+    one or more source set RPPs. Multiple sources are concatenated
+    chronologically with set-boundary markers.
+
+    The template provides: track layout, ALL FX chains (per-channel +
+    bus + master), folder hierarchy (ISBUS / BUSCOMP), MAINSEND routing,
+    render preset, project NOTES. The sources provide: items only.
+
+    Match strategy: each non-bus track in the template has NAME like
+    "01 Music L (Gig)" — channel_of() returns 1; we look up channel 1's
+    items in each source by matching `channel_of()` on source tracks.
+    Bus parent tracks (no leading channel digit) are kept as-is.
+    """
+    template_text = template_path.read_text(encoding="utf-8")
+    template_header, template_tracks, template_footer = split_header_and_tracks(template_text)
+
+    # Parse each source: per-channel items + length
+    set_data: list[tuple[float, dict[int, list[str]]]] = []
+    for src in sources:
+        text = src.read_text(encoding="utf-8")
+        _, tracks, _ = split_header_and_tracks(text)
+        slen = max_item_length(tracks)
+        ch_to_items: dict[int, list[str]] = {}
+        for tb in tracks:
+            ch = channel_of(tb)
+            if ch is not None:
+                ch_to_items[ch] = get_items(tb)
+        set_data.append((slen, ch_to_items))
+
+    # Cumulative offsets (for whole-gig stitch)
+    offsets: list[float] = [0.0]
+    for length, _ in set_data[:-1]:
+        offsets.append(offsets[-1] + length)
+
+    # Auto-label: Set 1, Set 2, ..., Encore (heuristic: short last set in 3+)
+    if labels is None:
+        labels = [label_for_index(i, len(sources)) for i in range(len(sources))]
+        if (len(sources) >= 3
+                and set_data[-1][0] < 0.5 * max(s[0] for s in set_data[:-1])):
+            labels[-1] = "Encore"
+    boundaries = list(zip(offsets, labels))
+
+    # Slot items into template tracks
+    iid_counter = 1
+    new_tracks: list[str] = []
+    matched_channels: list[int] = []
+    skipped_channels: list[int] = []
+    for tb in template_tracks:
+        ch = channel_of(tb)
+        if ch is None:
+            # bus parent or unmatched — keep template's track verbatim
+            new_tracks.append(tb)
+            continue
+        new_items: list[str] = []
+        for (slen, ch_map), offset in zip(set_data, offsets):
+            for item in ch_map.get(ch, []):
+                shifted = shift_item_position(item, offset)
+                shifted = reset_item_iid(shifted, iid_counter)
+                shifted = reset_item_guids(shifted)
+                iid_counter += 1
+                new_items.append(shifted)
+        if new_items:
+            tb = replace_items(tb, new_items)
+            matched_channels.append(ch)
+        else:
+            skipped_channels.append(ch)
+        new_tracks.append(tb)
+
+    # Header tweaks: replace template's NOTES with this build's NOTES,
+    # insert set-boundary markers. Render preset is preserved from template
+    # (already 24-bit/48k per template extraction).
+    set_lines = "".join(
+        f"    |    {lbl}: {sources[i].name}  ({set_data[i][0]/60:.1f} min)\n"
+        for i, lbl in enumerate(labels)
+    )
+    notes_block = NOTES_BLOCK_WHOLE_GIG.format(set_lines=set_lines)
+    # Strip existing NOTES (which is the template's gig-context notes)
+    template_header = re.sub(
+        r"  <NOTES \d+ \d+\n(?:    \|[^\n]*\n)*  >\n",
+        "",
+        template_header,
+        count=1,
+    )
+    template_header = insert_notes(template_header, notes_block)
+    template_header = insert_set_markers(template_header, boundaries)
+
+    # Output naming: explicit --out wins; else auto per source layout
+    if out_path is None:
+        if len(sources) >= 2:
+            date_dir = sources[0].parent
+            out_path = date_dir / f"{date_dir.name}-whole-gig-postprod.RPP"
+        else:
+            out_path = sources[0].with_name(sources[0].stem + "-postprod.RPP")
+    out_path = Path(out_path)
+
+    out_path.write_text(template_header + "".join(new_tracks) + template_footer, encoding="utf-8")
+    (out_path.parent / "mixdowns").mkdir(exist_ok=True)
+
+    total_min = (offsets[-1] + set_data[-1][0]) / 60
+    print(f"Generated: {out_path}")
+    print(f"  Template:        {template_path}")
+    print(f"  Sources stitched: {len(sources)}")
+    for i, (lbl, off) in enumerate(zip(labels, offsets)):
+        slen_min = set_data[i][0] / 60
+        print(f"    {lbl:8s} @ {off/60:6.2f} min  (length {slen_min:.2f} min)  <- {sources[i].name}")
+    print(f"  Total length:    {total_min:.1f} min")
+    print(f"  Tracks (from template): {len(new_tracks)} (incl. all FX chains, buses, master chain)")
+    print(f"  Channels with items: {sorted(matched_channels)}")
+    if skipped_channels:
+        print(f"  Channels with no source items: {sorted(skipped_channels)} (template tracks left empty)")
+    return out_path
+
+
 def auto_detect_sets(date_dir: Path) -> list[Path]:
     """Find all set-*.RPP in dir over WHOLE_GIG_MIN_LENGTH_SECONDS, sorted chronologically."""
     candidates: list[tuple[Path, float]] = []
@@ -515,7 +641,35 @@ def main() -> None:
     parser.add_argument("--label", action="append", default=None,
                         help="Override auto-labels in whole-gig mode (repeat per source). "
                              "Default: 'Set 1', 'Set 2', ..., 'Encore' (heuristic on last).")
+    parser.add_argument("--from-template", type=str, default=None,
+                        help="Use this RPP as the structural template (track layout, FX "
+                             "chains, buses, master chain) and slot in items from sources. "
+                             "Default: build buses from scratch via regroup_into_buses().")
+    parser.add_argument("--out", type=str, default=None,
+                        help="Override output path (default: auto-named per source layout). "
+                             "Useful for round-trip testing without overwriting working files.")
     args = parser.parse_args()
+
+    # --from-template short-circuit (works with single OR multiple sources)
+    if args.from_template:
+        template = Path(args.from_template).resolve()
+        if not template.exists():
+            parser.error(f"Template not found: {template}")
+        if args.whole_gig:
+            if len(args.sources) != 1 or not Path(args.sources[0]).is_dir():
+                parser.error("--whole-gig with --from-template expects exactly one directory")
+            sources = auto_detect_sets(Path(args.sources[0]).resolve())
+            if len(sources) < 1:
+                parser.error(f"Auto-detect found 0 sets > {WHOLE_GIG_MIN_LENGTH_SECONDS}s "
+                             f"in {args.sources[0]}")
+        else:
+            sources = [Path(s).resolve() for s in args.sources]
+            for s in sources:
+                if not s.exists():
+                    parser.error(f"Source not found: {s}")
+        out_path = Path(args.out).resolve() if args.out else None
+        build_from_template(template, sources, args.label, out_path)
+        return
 
     if args.whole_gig:
         if len(args.sources) != 1 or not Path(args.sources[0]).is_dir():
