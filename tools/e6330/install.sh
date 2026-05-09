@@ -43,6 +43,7 @@ readonly FILES=(
   "tools/e6330/rig-files/openbox/autostart|HOME/.config/openbox/autostart|user"
   "tools/e6330/rig-files/profile/.profile|HOME/.profile|user"
   "tools/e6330/gig-command-server.py|/opt/tgt/gig-command-server.py|root"
+  "tools/e6330/wifi-switcher.py|/opt/tgt/wifi-switcher.py|root"
   "tools/e6330/gig-command-server.service|/etc/systemd/system/gig-command-server.service|root"
   "tools/e6330/rig-files/systemd/getty-autologin.conf|/etc/systemd/system/getty@tty1.service.d/autologin.conf|root"
 )

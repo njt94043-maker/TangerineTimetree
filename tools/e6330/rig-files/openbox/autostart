@@ -19,6 +19,10 @@ if [ ! -f "$GIG_PROJECT" ] && [ -f "$TEMPLATE" ]; then
   cp "$TEMPLATE" "$GIG_PROJECT"
 fi
 
+# WiFi Switcher GUI — gig-rig network manager (S144).
+# Alt+Tab from Reaper to this window when the hotspot drops/returns.
+DISPLAY=:0 python3 /opt/tgt/wifi-switcher.py >/tmp/wifi-switcher.log 2>&1 &
+
 # Launch Reaper with the dated project explicitly. WAVs land in the same dir
 # (Reaper default recording path = next to the .RPP). Save (Ctrl+S) lands here too.
 # Saving with Save As to /tmp will still work but won't be the default path.
