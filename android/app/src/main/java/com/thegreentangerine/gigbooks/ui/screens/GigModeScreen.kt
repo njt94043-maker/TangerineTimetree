@@ -108,6 +108,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thegreentangerine.gigbooks.data.orchestrator.CameraGate
+import com.thegreentangerine.gigbooks.data.recordings.RecordingsRepository
 import com.thegreentangerine.gigbooks.data.orchestrator.GigSession
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorPeerServer
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
@@ -225,7 +226,11 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         if (cameraEnabled && hasCamPerm && hasAudioPerm) {
             cameraManager.bind(lifecycleOwner, previewView = null, orchestratorSettings)
             CameraGate.manager = cameraManager
-            CameraGate.orchestratorOutputDir = File(context.filesDir, "orchestrator_recordings")
+            // S148: external app-specific dir (accessible via `adb pull`) so the
+            // post-prod video chain (pull-videos.py -> insert-videos.lua) can fetch
+            // these mp4s. Pre-S148 used context.filesDir which is private and
+            // invisible to adb on release builds.
+            CameraGate.orchestratorOutputDir = File(RecordingsRepository.videoBaseDir(context), "orchestrator_recordings")
         } else {
             CameraGate.manager = null
             runCatching { cameraManager.stopRecording() }

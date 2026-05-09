@@ -5,11 +5,21 @@
         name="tangerine_clips"
         path="TangerineClips/" />
 
-    <!-- v1.1.10 Recordings screen — shares orchestrator + peer MP4s via FileProvider -->
+    <!-- v1.1.10 Recordings screen — shares orchestrator + peer MP4s via FileProvider.
+         S148 added external-files-path entries: capture base dir migrated from
+         private filesDir to getExternalFilesDir(null) so adb pull can fetch the
+         mp4s for the post-prod video chain. files-path entries kept so FileProvider
+         can still share legacy pre-S148 recordings. -->
     <files-path
         name="orchestrator_recordings"
         path="orchestrator_recordings/" />
     <files-path
         name="peer_recordings"
+        path="peer_recordings/" />
+    <external-files-path
+        name="orchestrator_recordings_ext"
+        path="orchestrator_recordings/" />
+    <external-files-path
+        name="peer_recordings_ext"
         path="peer_recordings/" />
 </paths>

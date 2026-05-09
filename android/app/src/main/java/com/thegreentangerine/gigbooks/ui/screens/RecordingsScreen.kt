@@ -63,7 +63,7 @@ fun RecordingsScreen(onMenuClick: () -> Unit) {
     val context = LocalContext.current
     var refreshTick by remember { mutableIntStateOf(0) }
     val recordings by remember(refreshTick) {
-        mutableStateOf(RecordingsRepository.scan(context.filesDir))
+        mutableStateOf(RecordingsRepository.scan(context))
     }
     var pendingDelete by remember { mutableStateOf<RecordingsRepository.Recording?>(null) }
 

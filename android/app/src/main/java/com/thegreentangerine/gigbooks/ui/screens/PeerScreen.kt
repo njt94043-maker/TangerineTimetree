@@ -60,6 +60,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.thegreentangerine.gigbooks.data.orchestrator.PeerCameraService
 import com.thegreentangerine.gigbooks.data.orchestrator.PeerOrchestratorClient
+import com.thegreentangerine.gigbooks.data.recordings.RecordingsRepository
 import com.thegreentangerine.gigbooks.data.xr18.CameraSettingsStore
 import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.ui.AppViewModel
@@ -78,7 +79,9 @@ import java.io.File
  * back so the drummer's orchestrator drawer can show a live thumbnail. StopRec
  * finalises the recording.
  *
- * Output dir: `<filesDir>/peer_recordings`. File names include the orchestrator's
+ * Output dir: `<getExternalFilesDir(null)>/peer_recordings` (S148; was filesDir
+ * pre-S148 — that path is private and invisible to adb on release builds, which
+ * blocked the post-prod video pull chain). File names include the orchestrator's
  * sessionId so audio (Reaper) and per-peer video can be correlated post-gig.
  *
  * The same APK runs in either orchestrator OR peer mode depending on which drawer
@@ -165,7 +168,9 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     // Wire client callbacks → CameraRecordingManager. Output goes to a dedicated
     // peer dir so it doesn't collide with the legacy XR18 camera flow's files.
     DisposableEffect(client, cameraManager) {
-        val outputDir = File(context.filesDir, "peer_recordings")
+        // S148: external app-specific dir (see RecordingsRepository.videoBaseDir
+        // doc) so MS host's pull-videos.py can adb-pull the mp4s post-gig.
+        val outputDir = File(RecordingsRepository.videoBaseDir(context), "peer_recordings")
         client.onStartRec = { sessionId, sessionName ->
             lastSession = sessionId
             lastRecToggleMs = System.currentTimeMillis()

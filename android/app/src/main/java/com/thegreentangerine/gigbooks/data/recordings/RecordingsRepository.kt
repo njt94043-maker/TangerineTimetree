@@ -13,6 +13,14 @@ import java.io.File
  * Why this exists: post-S122 hotfix. Without an in-app file browser there's no way
  * to verify post-set captures from a release APK (run-as is blocked). The S122 gig
  * was lost partly because there was no visible signal that recording wasn't engaging.
+ *
+ * S148: video output base dir migrated from internal `filesDir` (private,
+ * `/data/data/<pkg>/files/`, invisible to adb on release builds) to external
+ * `getExternalFilesDir(null)` (`/sdcard/Android/data/<pkg>/files/`, accessible
+ * via `adb pull` without root or run-as). This unblocks the post-prod chain
+ * (pull-videos.py reads from this path). Legacy internal recordings remain
+ * visible in the in-app Recordings screen via the dual scan below; only NEW
+ * captures land at the external path.
  */
 object RecordingsRepository {
 
@@ -25,15 +33,32 @@ object RecordingsRepository {
         val modifiedMs: Long,
     )
 
-    fun scan(filesDir: File): List<Recording> {
+    /**
+     * S148: canonical base dir for new video captures. External app-specific
+     * storage when available (so adb pull works without root) — falls back to
+     * private filesDir on devices/emulators without external storage. Used by
+     * GigModeScreen (orchestrator) and PeerScreen (peer) to compute the
+     * per-role output dir, and by [scan] as one of the locations to walk.
+     */
+    fun videoBaseDir(context: Context): File =
+        context.getExternalFilesDir(null) ?: context.filesDir
+
+    fun scan(context: Context): List<Recording> {
         val out = mutableListOf<Recording>()
-        listOf(
-            File(filesDir, "orchestrator_recordings") to Source.Orchestrator,
-            File(filesDir, "peer_recordings") to Source.Peer,
-        ).forEach { (dir, source) ->
-            dir.listFiles()?.forEach { f ->
-                if (f.isFile && f.extension.equals("mp4", ignoreCase = true)) {
-                    out.add(Recording(f, source, f.length(), f.lastModified()))
+        // Scan both the new external base AND the legacy private filesDir so
+        // recordings made before the S148 update remain visible in-app.
+        // Distinct() so a device that returns the same path for both (rare,
+        // but possible) doesn't double-list every file.
+        val bases = listOf(videoBaseDir(context), context.filesDir).distinctBy { it.absolutePath }
+        bases.forEach { base ->
+            listOf(
+                File(base, "orchestrator_recordings") to Source.Orchestrator,
+                File(base, "peer_recordings") to Source.Peer,
+            ).forEach { (dir, source) ->
+                dir.listFiles()?.forEach { f ->
+                    if (f.isFile && f.extension.equals("mp4", ignoreCase = true)) {
+                        out.add(Recording(f, source, f.length(), f.lastModified()))
+                    }
                 }
             }
         }
