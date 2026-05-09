@@ -45,6 +45,12 @@ def parse_args():
     p.add_argument("date", nargs="?", default=datetime.date.today().isoformat(),
                    help="YYYY-MM-DD (default: today)")
     p.add_argument("--dest", default=str(DEFAULT_DEST), help="dest root (default D:\\Gigs)")
+    p.add_argument("--gig-name", default=None,
+                   help="Specific rig gig dir to pull (~/Reaper/Gigs/<name>/). "
+                        "Required when multiple gigs share the same date — the "
+                        "default mtime+largest-RPP heuristic picks the wrong one. "
+                        "When given, dest dir is named after the gig instead of "
+                        "the date so a date with multiple gigs doesn't collide.")
     return p.parse_args()
 
 
@@ -129,16 +135,41 @@ def find_host():
              "If Tailscale tray icon isn't connected, click it → Reconnect.")
 
 
-def scp_wavs(host: str, date: str, audio_dir: Path) -> list[Path]:
-    """SCP every WAV in REAPER Media matching the date prefix."""
+def scp_wavs(host: str, date: str, audio_dir: Path,
+             gig_name: str | None = None) -> list[Path]:
+    """SCP all WAVs for this gig.
+
+    Two paths:
+      - **gig-wizard era (S129+)**: when ``gig_name`` is supplied, recordings
+        live inside the gig project's Media subdir
+        (``~/Reaper/Gigs/<gig_name>/Media/*.wav``). This is where Reaper
+        records since the gig wizard switches the project on arm.
+      - **legacy** (pre-S129 / Reaper-default workflow): WAVs land in the
+        global ``~/Documents/REAPER Media/`` and are matched by the date
+        in their filename. Used as a fallback when no rig gig dir matches
+        the date.
+    """
     audio_dir.mkdir(parents=True, exist_ok=True)
     yymd = date[2:].replace("-", "")  # "2026-05-03" -> "260503"
-    glob = f"{REMOTE_MEDIA}/*-{yymd}_*.wav"
-    print(f"\nCopying WAVs matching {yymd}_*.wav ...")
-    r = subprocess.run(["scp", "-q", f"{host}:{glob}", str(audio_dir)], capture_output=True, text=True)
+
+    if gig_name:
+        # gig-wizard path. Reaper writes WAVs as `01-01 Music L (Gig)-260509_1432.wav`
+        # etc into the project's Media subdir; just copy them all.
+        glob = f"~/Reaper/Gigs/{gig_name}/Media/*.wav"
+        print(f"\nCopying WAVs from rig gig {gig_name}/Media/ ...")
+    else:
+        glob = f"{REMOTE_MEDIA}/*-{yymd}_*.wav"
+        print(f"\nCopying WAVs matching {yymd}_*.wav from {REMOTE_MEDIA}/ (legacy) ...")
+
+    r = subprocess.run(
+        ["scp", "-q", f"{host}:{glob}", str(audio_dir)],
+        capture_output=True, text=True,
+    )
     if r.returncode != 0:
-        # Empty match isn't a python error from scp, but other failures are
+        # scp doesn't error on empty match, so a real error is something else
         sys.exit(f"scp failed:\n{r.stderr}")
+
+    # Match WAVs by HHMM pattern (works for both source paths)
     wavs = sorted(audio_dir.glob(f"*-{yymd}_*.wav"))
     print(f"  {len(wavs)} WAVs in {audio_dir}")
     return wavs
@@ -291,13 +322,28 @@ def main():
         sys.exit(f"ERROR: bad date {date} (need YYYY-MM-DD)")
 
     dest_root = Path(args.dest)
-    dest = dest_root / date
+    # When pulling a specific named gig, dest dir uses the gig name so two
+    # gigs on the same date don't collide. Else use the date (legacy layout
+    # still expected by build-postprod-rpp.py auto-detect).
+    dest = dest_root / (args.gig_name if args.gig_name else date)
     audio = dest / "audio"
 
     host = find_host()
-    wavs = scp_wavs(host, date, audio)
+
+    if args.gig_name:
+        rig_gig = args.gig_name
+        print(f"Using explicitly-named rig gig: {rig_gig}")
+    else:
+        print("Looking for rig gig dir matching this date ...")
+        rig_gig = find_rig_gig_dir(host, date)
+        if rig_gig:
+            print(f"  found: {rig_gig}")
+        else:
+            print(f"  none — falling back to ~/Documents/REAPER Media/ (legacy)")
+
+    wavs = scp_wavs(host, date, audio, gig_name=rig_gig)
     if not wavs:
-        sys.exit(f"No WAVs matched {date} on E6330 (REAPER Media empty for that date).")
+        sys.exit(f"No WAVs matched {date} on E6330 (rig gig + legacy paths both empty).")
 
     # Group by HHMM session timestamp
     by_ts: dict[str, list[Path]] = {}
@@ -322,8 +368,7 @@ def main():
     # save (which song-marker-listener.lua's AddProjectMarker2 calls feed
     # into). Without this, build-postprod-rpp.py only sees set RPPs that were
     # synthesised from WAVs — zero markers.
-    print("\nLooking for rig gig dir matching this date ...")
-    rig_gig = find_rig_gig_dir(host, date)
+    print("\nFetching rig project file (marker source) ...")
     if rig_gig:
         rig_dest = dest / "rig-source.rpp"
         if scp_rig_rpp(host, rig_gig, rig_dest):
@@ -333,7 +378,7 @@ def main():
         else:
             print(f"  WARN: SCP failed for {rig_gig}.rpp — markers won't be available")
     else:
-        print(f"  no rig gig dir mtime'd {date} — markers won't be available")
+        print(f"  no rig gig dir for {date} — markers won't be available")
         print(f"  (post-prod set markers will be auto-named 'Set N'; no song markers)")
 
     print(f"\nDONE. Open from {dest}\\")

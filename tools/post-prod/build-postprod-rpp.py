@@ -493,13 +493,17 @@ def build_whole_gig(sources: list[Path], labels: list[str] | None = None) -> Pat
     return out_path
 
 
-# Matches MARKER lines, capturing position + name (quoted or unquoted) + is_region.
-# Used by lift_markers_from_rig() to extract APK-set song markers from the rig
-# project file pulled by pull-gig.py.
+# Matches MARKER lines, capturing position + name (quoted or unquoted) + is_region + color.
+# Reaper RPP marker format:
+#   MARKER <id> <pos> <name> <is_region:0|1> <color> ... [GUID] ...
+# is_region is the 4th field (right after name) per split-into-songs.py's
+# convention; a previous version of this regex put it 6th, which caused all
+# real point markers to be silently skipped (their <wantedregion?> trailing
+# 1 was being treated as is_region).
 _RIG_MARKER_RE = re.compile(
     r'^\s*MARKER\s+(?P<id>\d+)\s+(?P<pos>[\d.]+)\s+'
     r'(?:"(?P<qname>[^"]*)"|(?P<bname>\S+))'
-    r'\s+(?P<flags>\d+)\s+(?P<color>\d+)\s+(?P<is_region>\d)',
+    r'\s+(?P<is_region>\d)\s+(?P<color>\d+)',
     re.MULTILINE,
 )
 
