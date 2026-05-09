@@ -697,9 +697,13 @@ def build_from_template(template_path: Path, sources: list[Path],
                 # Match insert_set_markers' field layout: "id pos name 0 color 1"
                 extra += f"  MARKER {next_id} {pos:.6f} \"{name}\" 0 {color_field} 1\n"
                 next_id += 1
-            # insert_set_markers placed lines before <PROJBAY>; do the same here
-            if "<PROJBAY>" in template_header:
-                template_header = template_header.replace("<PROJBAY>", extra + "<PROJBAY>", 1)
+            # Match insert_set_markers' insertion pattern: search for the
+            # leading-spaces "  <PROJBAY" tag, insert before it. Reaper only
+            # parses MARKER lines that appear before the first non-marker
+            # block; markers placed AFTER the PROJBAY close get silently
+            # ignored.
+            if "  <PROJBAY" in template_header:
+                template_header = template_header.replace("  <PROJBAY", extra + "  <PROJBAY", 1)
             else:
                 template_header = template_header.rstrip() + "\n" + extra
             print(f"  Lifted {len(song_markers)} song marker(s) from rig project")
