@@ -493,9 +493,101 @@ def build_whole_gig(sources: list[Path], labels: list[str] | None = None) -> Pat
     return out_path
 
 
+# Matches MARKER lines, capturing position + name (quoted or unquoted) + is_region.
+# Used by lift_markers_from_rig() to extract APK-set song markers from the rig
+# project file pulled by pull-gig.py.
+_RIG_MARKER_RE = re.compile(
+    r'^\s*MARKER\s+(?P<id>\d+)\s+(?P<pos>[\d.]+)\s+'
+    r'(?:"(?P<qname>[^"]*)"|(?P<bname>\S+))'
+    r'\s+(?P<flags>\d+)\s+(?P<color>\d+)\s+(?P<is_region>\d)',
+    re.MULTILINE,
+)
+
+
+def lift_markers_from_rig(
+    rig_path: Path,
+    sources: list[Path],
+    offsets: list[float],
+    set_lengths: list[float],
+) -> list[tuple[float, str, int]]:
+    """Extract markers from the rig project + transpose them onto the merged
+    whole-gig timeline.
+
+    The rig RPP records all sets back-to-back on a single continuous
+    timeline; pull-gig.py splits that into per-HHMM set RPPs (POSITION=0
+    each). To preserve markers across the merge, we have to:
+
+      1. Read the rig RPP's items, build {wav_name: rig_position}.
+      2. For each set RPP source, look up any of its WAV references in
+         that map to discover the set's start position on the rig timeline.
+      3. For each rig marker, find which set window [rig_start, rig_start+
+         set_length) it falls in. Transpose:
+            merged_pos = merged_offset_of_set + (rig_pos - rig_start_of_set)
+
+    Returns [(merged_pos, name, color)] for every marker that maps cleanly.
+    Markers in inter-set gaps (sound check, set break) are silently dropped
+    — they don't belong to any audio segment that survives the merge.
+
+    Skipped: region edges (is_region=1) — split-into-songs.py handles
+    regions separately if any survive.
+    """
+    rig_text = rig_path.read_text(encoding="utf-8")
+
+    # 1. Build wav_name -> rig_position map by scanning rig items.
+    # Reuse the existing ITEM_RE (4-space-indent convention).
+    wav_to_rigpos: dict[str, float] = {}
+    for item_match in ITEM_RE.finditer(rig_text):
+        block = item_match.group(0)
+        pos_m = re.search(r"^\s*POSITION\s+([\d.]+)", block, re.MULTILINE)
+        src_m = re.search(r'FILE\s+"([^"]+)"', block)
+        if pos_m and src_m:
+            wav_name = Path(src_m.group(1)).name
+            # If a WAV appears in multiple items (overlap takes), keep the
+            # earliest position — that's the set's true start.
+            pos = float(pos_m.group(1))
+            if wav_name not in wav_to_rigpos or wav_to_rigpos[wav_name] > pos:
+                wav_to_rigpos[wav_name] = pos
+
+    # 2. Map each source set RPP to its rig timeline start
+    rig_starts: list[float | None] = []
+    for src in sources:
+        src_text = src.read_text(encoding="utf-8")
+        # Find any FILE reference; pull-gig.py writes them as `audio\<wavname>`
+        rig_pos: float | None = None
+        for ref in re.findall(r'FILE\s+"([^"]+)"', src_text):
+            wav_name = Path(ref.replace("\\", "/")).name
+            if wav_name in wav_to_rigpos:
+                rig_pos = wav_to_rigpos[wav_name]
+                break
+        rig_starts.append(rig_pos)
+
+    # 3. Extract markers + transpose
+    transposed: list[tuple[float, str, int]] = []
+    for m in _RIG_MARKER_RE.finditer(rig_text):
+        if int(m.group("is_region")) == 1:
+            continue
+        rig_pos = float(m.group("pos"))
+        name = m.group("qname") if m.group("qname") is not None else m.group("bname")
+        try:
+            color = int(m.group("color"))
+        except ValueError:
+            color = 17997043  # TGT orange default
+        # Find which set window contains it
+        for i, (rig_start, slen) in enumerate(zip(rig_starts, set_lengths)):
+            if rig_start is None:
+                continue
+            if rig_start <= rig_pos < rig_start + slen:
+                merged_pos = offsets[i] + (rig_pos - rig_start)
+                transposed.append((merged_pos, name, color))
+                break
+        # else: marker is in an inter-set gap; silently dropped
+    return transposed
+
+
 def build_from_template(template_path: Path, sources: list[Path],
                         labels: list[str] | None = None,
-                        out_path: Path | None = None) -> Path:
+                        out_path: Path | None = None,
+                        marker_source: Path | None = None) -> Path:
     """S145: build a post-prod RPP using a pre-mixed template's structure
     (tracks, FX chains, buses, master chain) and slotting in items from
     one or more source set RPPs. Multiple sources are concatenated
@@ -583,6 +675,33 @@ def build_from_template(template_path: Path, sources: list[Path],
     template_header = insert_notes(template_header, notes_block)
     template_header = insert_set_markers(template_header, boundaries)
 
+    # F1: lift APK-set song markers from the rig project (if pull-gig.py
+    # captured one alongside the WAVs) and inject them at the right merged
+    # timeline positions, so split-into-songs.py finds real song markers.
+    if marker_source is not None and marker_source.exists():
+        set_lengths = [slen for slen, _ in set_data]
+        song_markers = lift_markers_from_rig(
+            marker_source, sources, offsets, set_lengths,
+        )
+        if song_markers:
+            extra = ""
+            # Use IDs starting after the set-boundary markers we just wrote
+            next_id = len(boundaries) + 1
+            for pos, name, color in song_markers:
+                # Force-color flag (high-bit) per insert-named-marker.lua
+                color_field = color | 0x01000000 if color < 0x01000000 else color
+                # Match insert_set_markers' field layout: "id pos name 0 color 1"
+                extra += f"  MARKER {next_id} {pos:.6f} \"{name}\" 0 {color_field} 1\n"
+                next_id += 1
+            # insert_set_markers placed lines before <PROJBAY>; do the same here
+            if "<PROJBAY>" in template_header:
+                template_header = template_header.replace("<PROJBAY>", extra + "<PROJBAY>", 1)
+            else:
+                template_header = template_header.rstrip() + "\n" + extra
+            print(f"  Lifted {len(song_markers)} song marker(s) from rig project")
+        else:
+            print(f"  Marker source had no usable markers (or none mapped to a set window)")
+
     # Output naming: explicit --out wins; else auto per source layout
     if out_path is None:
         if len(sources) >= 2:
@@ -648,6 +767,12 @@ def main() -> None:
     parser.add_argument("--out", type=str, default=None,
                         help="Override output path (default: auto-named per source layout). "
                              "Useful for round-trip testing without overwriting working files.")
+    parser.add_argument("--marker-source", type=str, default=None,
+                        help="Path to rig project RPP (typically <gigdir>/rig-source.rpp "
+                             "from pull-gig.py). Markers are lifted + transposed onto the "
+                             "merged timeline so the post-prod RPP carries the song markers "
+                             "Nathan dropped via APK Gig Mode. Only effective with "
+                             "--from-template.")
     args = parser.parse_args()
 
     # --from-template short-circuit (works with single OR multiple sources)
@@ -668,7 +793,16 @@ def main() -> None:
                 if not s.exists():
                     parser.error(f"Source not found: {s}")
         out_path = Path(args.out).resolve() if args.out else None
-        build_from_template(template, sources, args.label, out_path)
+        marker_src = Path(args.marker_source).resolve() if args.marker_source else None
+        if marker_src is None:
+            # Convention: pull-gig.py drops `rig-source.rpp` next to the set RPPs.
+            # If the user didn't pass --marker-source, auto-discover it.
+            for s in sources:
+                cand = s.parent / "rig-source.rpp"
+                if cand.exists():
+                    marker_src = cand
+                    break
+        build_from_template(template, sources, args.label, out_path, marker_src)
         return
 
     if args.whole_gig:

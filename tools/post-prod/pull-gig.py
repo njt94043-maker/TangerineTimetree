@@ -48,6 +48,69 @@ def parse_args():
     return p.parse_args()
 
 
+def find_rig_gig_dir(host: str, date: str) -> str | None:
+    """Find the ~/Reaper/Gigs/<name>/ dir whose mtime is on <date>.
+
+    The orchestrator-arm path saves the project to <name>.rpp inside this
+    dir; APK-time song markers persist there. pull-gig.py uses this to
+    fetch the rig RPP as a sidecar marker source.
+
+    Returns None if 0 dirs match. Returns largest-by-RPP-size if 2+ match
+    (most likely the actual gig vs sound-check dirs).
+    """
+    cmd = [
+        "ssh", "-o", "BatchMode=yes", host,
+        # for each gig dir, print mtime YYYY-MM-DD + dirname + RPP size
+        f"for d in ~/Reaper/Gigs/*/; do "
+        f"  rpp=\"$d$(basename $d).rpp\"; "
+        f"  [ -f \"$rpp\" ] || continue; "
+        f"  mt=$(date -r \"$d\" +%Y-%m-%d); "
+        f"  sz=$(stat -c %s \"$rpp\"); "
+        f"  echo \"$mt $(basename $d) $sz\"; "
+        f"done"
+    ]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    matches: list[tuple[str, int]] = []
+    for line in r.stdout.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) != 3:
+            continue
+        mt, name, sz = parts
+        if mt == date:
+            try:
+                matches.append((name, int(sz)))
+            except ValueError:
+                continue
+    if not matches:
+        return None
+    if len(matches) > 1:
+        print(f"  multiple rig gig dirs on {date}, picking largest:")
+        for n, s in matches:
+            print(f"    {n}  ({s} bytes)")
+        matches.sort(key=lambda t: t[1], reverse=True)
+    return matches[0][0]
+
+
+def scp_rig_rpp(host: str, gig_name: str, dest_path: Path) -> bool:
+    """SCP ~/Reaper/Gigs/<gig_name>/<gig_name>.rpp to dest_path.
+
+    Returns True on success. Used as marker source for build-postprod-rpp.py
+    (the rig project preserves APK-set song markers at their absolute rig
+    timeline positions).
+    """
+    remote = f"{host}:~/Reaper/Gigs/{gig_name}/{gig_name}.rpp"
+    r = subprocess.run(
+        ["scp", "-q", remote, str(dest_path)],
+        capture_output=True, text=True, timeout=30,
+    )
+    return r.returncode == 0
+
+
 def find_host():
     print("Looking for E6330 ...")
     for cand in SSH_CANDIDATES:
@@ -252,6 +315,26 @@ def main():
         mins = length / 60.0
         marker = " <-- gig" if length >= 60 * 30 else ""  # 30+ min => probably the gig
         print(f"  set-{ts}.RPP  ({len(group)} tracks, {mins:.1f}min){marker}")
+
+    # F1: fetch the rig project's .rpp as a sidecar so markers Nathan dropped
+    # via APK Gig Mode survive the pull. The rig project at
+    # ~/Reaper/Gigs/<name>/<name>.rpp persists the markers via the orchestrator
+    # save (which song-marker-listener.lua's AddProjectMarker2 calls feed
+    # into). Without this, build-postprod-rpp.py only sees set RPPs that were
+    # synthesised from WAVs — zero markers.
+    print("\nLooking for rig gig dir matching this date ...")
+    rig_gig = find_rig_gig_dir(host, date)
+    if rig_gig:
+        rig_dest = dest / "rig-source.rpp"
+        if scp_rig_rpp(host, rig_gig, rig_dest):
+            size_kb = rig_dest.stat().st_size // 1024
+            print(f"  pulled rig RPP: {rig_gig}/{rig_gig}.rpp -> rig-source.rpp ({size_kb} KB)")
+            print(f"  -> build-postprod-rpp.py will lift markers from it")
+        else:
+            print(f"  WARN: SCP failed for {rig_gig}.rpp — markers won't be available")
+    else:
+        print(f"  no rig gig dir mtime'd {date} — markers won't be available")
+        print(f"  (post-prod set markers will be auto-named 'Set N'; no song markers)")
 
     print(f"\nDONE. Open from {dest}\\")
     print("All .RPPs use relative paths (audio/...), so you can move the whole folder.")
