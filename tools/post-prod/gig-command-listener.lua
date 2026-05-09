@@ -131,12 +131,31 @@ local function start_project(name)
     reaper.ShowConsoleMsg(string.format("[gig-cmd] collision -- using %s\n", candidate))
     target = candidate
   end
+  -- S144 fix — copy-then-open instead of open-then-save-as. The previous
+  -- pattern left Reaper's relative-path base on the template's directory,
+  -- so `RECORD_PATH "Media"` resolved to ~/.config/REAPER/ProjectTemplates/Media/
+  -- (across every gig — they'd overwrite). Filesystem-cp + open of the gig
+  -- copy makes Reaper see it at its real location from the start, matching
+  -- the autostart pattern that already worked. Channel WAVs land at
+  -- <gig-dir>/Media/ as designed.
+  local src = io.open(TEMPLATE, "rb")
+  if not src then
+    reaper.ShowConsoleMsg(string.format("[gig-cmd] ERROR cannot read template %s\n", TEMPLATE))
+    return
+  end
+  local content = src:read("*a")
+  src:close()
+  local dst = io.open(target, "wb")
+  if not dst then
+    reaper.ShowConsoleMsg(string.format("[gig-cmd] ERROR cannot write %s\n", target))
+    return
+  end
+  dst:write(content)
+  dst:close()
   -- "noprompt:" prefix discards the currently-loaded project silently —
   -- so the auto-resumed prior gig doesn't taint the new one.
-  reaper.Main_openProject("noprompt:" .. TEMPLATE)
-  -- options=0: Save As (re-binds active project filename to target).
-  reaper.Main_SaveProjectEx(0, target, 0)
-  reaper.ShowConsoleMsg(string.format("[gig-cmd] start -> %s (from template %s)\n", target, TEMPLATE))
+  reaper.Main_openProject("noprompt:" .. target)
+  reaper.ShowConsoleMsg(string.format("[gig-cmd] start -> %s (cp from %s)\n", target, TEMPLATE))
 end
 
 local function save_project()

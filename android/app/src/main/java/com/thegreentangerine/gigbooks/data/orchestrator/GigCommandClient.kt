@@ -11,6 +11,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.net.Socket
 import java.net.URL
 
 /**
@@ -87,6 +91,18 @@ class GigCommandClient(private val context: Context) {
         val url = URL("http://${tgt.host}:${tgt.port}$path")
 
         val ok = withContext(Dispatchers.IO) {
+            // S144 fix — interface-bound HTTP for private LAN destinations.
+            // When this device is the SoftAP host (e.g. S23 broadcasting
+            // `nathan's S23`), the SoftAP downlink (swlan0) isn't exposed
+            // as a Network on Samsung One UI, so the cm.allNetworks loop
+            // below finds zero candidates that can reach the AP subnet.
+            // We work around that by enumerating NetworkInterface directly,
+            // finding one whose subnet contains the target IP, and writing
+            // raw HTTP/1.1 over a socket bound to that interface's local
+            // address. Falls through to the cm.Networks loop for hostname
+            // targets (where InetAddress.getByName can't resolve .local).
+            if (tryPostInterfaceBound(url, body)) return@withContext true
+
             // Try the default network first (the home-WiFi happy path), then
             // fall back to every non-cellular candidate. Hotspot-host mode
             // keeps cellular as the default — direct IPs in the hotspot subnet
@@ -101,6 +117,88 @@ class GigCommandClient(private val context: Context) {
             tryPost(network = null, url = url, body = body)
         }
         _lastSendOk.value = ok
+    }
+
+    /**
+     * S144 fix — write HTTP/1.1 over a socket bound to a local interface
+     * whose subnet contains the target IP. This works for the SoftAP-host
+     * case where the AP downlink isn't a Network. Returns false when the
+     * target host isn't an IPv4 literal we can resolve locally (e.g. when
+     * target is still `e6330.local` because mDNS discovery hasn't yet
+     * pushed an IP into setTarget) — the existing cm.Networks loop is the
+     * fallback for that path.
+     */
+    private fun tryPostInterfaceBound(url: URL, body: String): Boolean {
+        return try {
+            val targetAddr = try { InetAddress.getByName(url.host) } catch (_: Exception) { null }
+                ?: return false
+            if (targetAddr.address.size != 4) return false  // IPv4 only
+
+            val localAddr = findInterfaceAddressInSubnet(targetAddr) ?: return false
+
+            Socket().use { socket ->
+                socket.bind(InetSocketAddress(localAddr, 0))
+                socket.connect(InetSocketAddress(targetAddr, url.port), 1500)
+                socket.soTimeout = 1500
+
+                val pathOrSlash = url.path.ifEmpty { "/" }
+                val bodyBytes = body.toByteArray(Charsets.UTF_8)
+                val request = buildString {
+                    append("POST ").append(pathOrSlash).append(" HTTP/1.1\r\n")
+                    append("Host: ").append(url.host).append(':').append(url.port).append("\r\n")
+                    append("Content-Type: application/json\r\n")
+                    append("Content-Length: ").append(bodyBytes.size).append("\r\n")
+                    append("Connection: close\r\n\r\n")
+                }
+                socket.getOutputStream().apply {
+                    write(request.toByteArray(Charsets.UTF_8))
+                    write(bodyBytes)
+                    flush()
+                }
+                val statusLine = socket.getInputStream().bufferedReader(Charsets.UTF_8).readLine()
+                    ?: return false
+                val code = statusLine.split(" ").getOrNull(1)?.toIntOrNull() ?: return false
+                if (code in 200..299) {
+                    true
+                } else {
+                    Log.w(TAG, "POST $url interface-bound -> HTTP $code")
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "POST $url interface-bound failed: ${e.message}")
+            false
+        }
+    }
+
+    /** Find a local IPv4 InetAddress whose subnet contains the target. */
+    private fun findInterfaceAddressInSubnet(target: InetAddress): InetAddress? {
+        val ifaces = NetworkInterface.getNetworkInterfaces() ?: return null
+        for (iface in ifaces.toList()) {
+            if (!iface.isUp || iface.isLoopback) continue
+            for (ifaceAddr in iface.interfaceAddresses) {
+                val addr = ifaceAddr.address ?: continue
+                if (addr.address.size != 4) continue
+                val prefix = ifaceAddr.networkPrefixLength.toInt()
+                if (sameSubnet(target.address, addr.address, prefix)) {
+                    return addr
+                }
+            }
+        }
+        return null
+    }
+
+    /** True if `a` and `b` share the first `prefixBits` bits. IPv4-only. */
+    private fun sameSubnet(a: ByteArray, b: ByteArray, prefixBits: Int): Boolean {
+        if (a.size != 4 || b.size != 4 || prefixBits !in 0..32) return false
+        val full = prefixBits / 8
+        for (i in 0 until full) {
+            if (a[i] != b[i]) return false
+        }
+        val rem = prefixBits % 8
+        if (rem == 0) return true
+        val mask = (0xff shl (8 - rem)) and 0xff
+        return (a[full].toInt() and mask) == (b[full].toInt() and mask)
     }
 
     /** Default network first, then every other non-cellular network with IPv4 INTERNET. */
