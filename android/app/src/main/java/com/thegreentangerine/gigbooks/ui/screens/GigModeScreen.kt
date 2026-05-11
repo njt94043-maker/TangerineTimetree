@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -1121,7 +1122,19 @@ private fun SetlistDrawer(
         }
 
         // Single-column list — bumped sizing for distance readability.
-        LazyColumn(modifier = Modifier.fillMaxWidth().height(620.dp)) {
+        //
+        // S149: per-list scroll state. Beddau-RFC gig surfaced a UX bug —
+        // switching Staples -> Party (to play Hound Dog) -> Staples reset the
+        // list scroll position to top, so Nathan lost his place mid-gig and
+        // had to swipe back down. Each list now keeps its own LazyListState in
+        // a remembered map keyed by listId, so toggling between Staples /
+        // Party / Classic Rock preserves where you were in each.
+        val listScrollStates = remember { mutableMapOf<String, LazyListState>() }
+        val scrollState = listScrollStates.getOrPut(primaryListId) { LazyListState() }
+        LazyColumn(
+            state = scrollState,
+            modifier = Modifier.fillMaxWidth().height(620.dp),
+        ) {
             itemsIndexed(primaryList, key = { _, e -> e.id }) { idx, entry ->
                 SetlistRow(
                     entry = entry,
