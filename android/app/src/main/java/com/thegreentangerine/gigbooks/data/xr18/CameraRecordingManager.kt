@@ -105,8 +105,20 @@ class CameraRecordingManager(private val context: Context) {
 
             val targetRotation = effectiveRotation(settings)
 
+            // Aspect ratio MUST match VideoCapture (16:9 for HD/FHD/UHD) across
+            // every UseCase that the user sees — peer's live PreviewView AND the
+            // orchestrator/peer thumbnail (ImageAnalysis) AND the recorded MP4
+            // (VideoCapture). Preview's default is 4:3, which means the peer
+            // would frame on a 4:3 viewfinder and the recording would crop
+            // different content. S123 fixed this for the thumbnail; S153 fixes
+            // it for the peer's local PreviewView too.
+            val sixteenNineResolution = ResolutionSelector.Builder()
+                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                .build()
+
             preview = previewView?.let { pv ->
                 Preview.Builder()
+                    .setResolutionSelector(sixteenNineResolution)
                     .setTargetRotation(targetRotation)
                     .build()
                     .also { it.surfaceProvider = pv.surfaceProvider }
@@ -130,18 +142,8 @@ class CameraRecordingManager(private val context: Context) {
                 .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))
                 .setTargetRotation(targetRotation)
                 .build()
-
-            // ImageAnalysis for preview frame capture (orchestrator/peer thumbnail).
-            // Aspect ratio MUST match VideoCapture (16:9 for HD/FHD/UHD) so the
-            // thumbnail shows the same framing as the recorded MP4 — Nathan's S123
-            // ask: WYSIWYG coverage for placement decisions. setTargetResolution()
-            // would have given a 4:3 frame from the sensor's ImageAnalysis surface,
-            // which is a different crop than VideoCapture and confuses placement.
-            val analysisResolution = ResolutionSelector.Builder()
-                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
-                .build()
             imageAnalysis = ImageAnalysis.Builder()
-                .setResolutionSelector(analysisResolution)
+                .setResolutionSelector(sixteenNineResolution)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(targetRotation)
                 .build()
