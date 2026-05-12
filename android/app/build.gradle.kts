@@ -14,8 +14,8 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 40
-        versionName = "1.2.19"
+        versionCode = 41
+        versionName = "1.2.21"
 
         ndk {
             abiFilters += listOf("arm64-v8a")

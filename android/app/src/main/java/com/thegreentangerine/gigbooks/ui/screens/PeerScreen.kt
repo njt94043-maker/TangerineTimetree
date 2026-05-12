@@ -6,10 +6,13 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.view.WindowManager
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +32,8 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.VideocamOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -50,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
@@ -107,6 +113,10 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     val scope = rememberCoroutineScope()
     val settings by settingsStore.observe(CameraSettingsStore.Role.Peer)
         .collectAsState(initial = PhoneSettings(cameraFacing = "back"))
+    val showPreview by settingsStore.observeShowPreview()
+        .collectAsState(initial = true)
+    val zoomRange by cameraManager.zoomRange.collectAsState()
+    val exposureCaps by cameraManager.exposureCaps.collectAsState()
     var settingsSheetOpen by remember { mutableStateOf(false) }
     var lastSession by remember { mutableStateOf<String?>(null) }
     var lastRecToggleMs by remember { mutableLongStateOf(0L) }
@@ -155,15 +165,22 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     // settings change (facing / resolution / framerate). Rotation is handled
     // separately below — it can be applied at runtime without a full rebind.
     // Both camera AND audio perms required — withAudioEnabled() throws without RECORD_AUDIO.
+    // previewView may be null when showPreview = false — Manager rebinds to
+    // hidden mode (no Preview UseCase, ImageAnalysis + VideoCapture only).
     LaunchedEffect(hasCameraPermission, hasAudioPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
-        val pv = previewView
-        if (hasCameraPermission && hasAudioPermission && pv != null) {
-            vm.bindCamera(lifecycleOwner, pv, settings)
+        if (hasCameraPermission && hasAudioPermission) {
+            vm.bindCamera(lifecycleOwner, previewView, settings)
         }
     }
     LaunchedEffect(settings.useAutoRotation, settings.rotationDegrees) {
         cameraManager.applyRotation(settings)
     }
+
+    // Apply rebind-free settings (zoom + exposure) when they change, without
+    // triggering a CameraX teardown. Both are mid-recording-safe per CameraX
+    // docs — §B.4 gig-safety upheld.
+    LaunchedEffect(settings.zoomRatio) { cameraManager.applyZoom(settings.zoomRatio) }
+    LaunchedEffect(settings.exposure) { cameraManager.applyExposure(settings.exposure) }
 
     // Wire client callbacks → CameraRecordingManager. Output goes to a dedicated
     // peer dir so it doesn't collide with the legacy XR18 camera flow's files.
@@ -199,6 +216,25 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     val phoneId by client.phoneId.collectAsState()
     val isRecording by cameraManager.isRecording.collectAsState()
 
+    // Once the gig starts (isRecording=true), let the peer screen sleep so the
+    // phone can run flat on its mount for hours. MainActivity holds
+    // FLAG_KEEP_SCREEN_ON app-wide (S125 multi-cam feedback) which made sense
+    // for the orchestrator's prompter view, but a peer-cam phone doesn't need
+    // its screen awake — recording continues via PeerCameraService foreground
+    // contract. Restore the flag when recording stops or the screen disposes
+    // so the next non-gig open (pairing/setup) still stays awake.
+    DisposableEffect(isRecording) {
+        val activity = context as? Activity
+        if (isRecording) {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     val statusText = when (state) {
         PeerOrchestratorClient.State.Idle -> "Idle"
         PeerOrchestratorClient.State.Discovering -> "Searching for orchestrator…"
@@ -230,6 +266,15 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                 color = TangerineColors.text,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = {
+                scope.launch { settingsStore.setShowPreview(!showPreview) }
+            }) {
+                Icon(
+                    if (showPreview) Icons.Default.Videocam else Icons.Default.VideocamOff,
+                    if (showPreview) "Hide preview" else "Show preview",
+                    tint = if (showPreview) TangerineColors.text else TangerineColors.textMuted,
+                )
+            }
             IconButton(onClick = { settingsSheetOpen = true }) {
                 Icon(Icons.Default.Tune, "Camera settings", tint = TangerineColors.text)
             }
@@ -300,11 +345,17 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                 }
             }
 
-            // Camera preview — fills space; red border + REC pill when recording
+            // Camera preview — 16:9 to match recorded MP4 (CameraX VideoCapture
+            // is 16:9 via QualitySelector). PreviewView is FIT_CENTER so the
+            // entire camera view is visible (no silent cropping); any aspect
+            // drift would letterbox instead. WYSIWYG with the recording.
+            // Hidden when showPreview = false — saves GPU + battery on
+            // mounted face-down phones; ImageAnalysis (separate UseCase)
+            // still streams JPEGs to the orchestrator drawer.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(4f / 3f)
+                    .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.Black)
                     .border(
@@ -313,12 +364,62 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                         RoundedCornerShape(12.dp),
                     ),
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        PreviewView(ctx).also { pv -> previewView = pv }
-                    },
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
-                )
+                if (showPreview) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PreviewView(ctx).also { pv ->
+                                pv.scaleType = PreviewView.ScaleType.FIT_CENTER
+                                previewView = pv
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(12.dp))
+                            // Pinch-zoom — rebind-free; on settle, persist
+                            // the new ratio back to PhoneSettings so the
+                            // sheet slider stays in sync and the value
+                            // survives screen rotations / app restarts.
+                            .pointerInput(zoomRange) {
+                                detectTransformGestures { _, _, zoom, _ ->
+                                    val range = zoomRange ?: return@detectTransformGestures
+                                    val current = cameraManager.currentZoomRatio()
+                                    val target = (current * zoom).coerceIn(range.min, range.max)
+                                    cameraManager.applyZoom(target)
+                                    scope.launch {
+                                        settingsStore.update(
+                                            CameraSettingsStore.Role.Peer,
+                                            settings.copy(zoomRatio = target),
+                                        )
+                                    }
+                                }
+                            },
+                    )
+                } else {
+                    // Preview off — sleep-friendly placeholder. Recording
+                    // can still be triggered remotely.
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.VideocamOff,
+                                contentDescription = null,
+                                tint = TangerineColors.textMuted,
+                                modifier = Modifier.size(28.dp),
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Preview off",
+                                fontFamily = Karla,
+                                color = TangerineColors.textMuted,
+                                fontSize = 12.sp,
+                            )
+                        }
+                    }
+                    // Make sure the manager still has its PreviewView (or
+                    // null) so it can bind ImageAnalysis + VideoCapture
+                    // without a Preview surface — orchestrator-style hidden
+                    // bind. Clearing the state triggers the rebind effect.
+                    LaunchedEffect(Unit) { previewView = null }
+                }
                 if (isRecording) {
                     Row(
                         modifier = Modifier
@@ -375,6 +476,8 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                 onChange = { new ->
                     scope.launch { settingsStore.update(CameraSettingsStore.Role.Peer, new) }
                 },
+                zoomRange = zoomRange,
+                exposureCaps = exposureCaps,
             )
         }
     }

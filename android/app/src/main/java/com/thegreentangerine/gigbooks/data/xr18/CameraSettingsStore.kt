@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -39,6 +40,8 @@ class CameraSettingsStore(private val context: Context) {
                 cameraFacing = prefs[keyFacing(role)] ?: def.cameraFacing,
                 useAutoRotation = prefs[keyAutoRotation(role)] ?: def.useAutoRotation,
                 rotationDegrees = prefs[keyRotation(role)] ?: def.rotationDegrees,
+                exposure = prefs[keyExposure(role)] ?: def.exposure,
+                zoomRatio = prefs[keyZoom(role)] ?: def.zoomRatio,
             )
         }
         // DataStore can emit identical PhoneSettings on initial load (empty prefs
@@ -56,7 +59,23 @@ class CameraSettingsStore(private val context: Context) {
             prefs[keyRotation(role)] = settings.rotationDegrees
             prefs[keyResolution(role)] = settings.resolution
             prefs[keyFramerate(role)] = settings.framerate
+            prefs[keyExposure(role)] = settings.exposure
+            prefs[keyZoom(role)] = settings.zoomRatio
         }
+    }
+
+    /**
+     * Peer-only preview-on-off toggle. Default true. When false, PeerScreen
+     * skips creating the live PreviewView — saves GPU + battery during long
+     * gigs when the phone is mounted face-down. The orchestrator drawer's
+     * thumbnail still streams (ImageAnalysis, separate UseCase).
+     */
+    fun observeShowPreview(): Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[keyShowPreview] ?: true }
+        .distinctUntilChanged()
+
+    suspend fun setShowPreview(value: Boolean) {
+        context.dataStore.edit { prefs -> prefs[keyShowPreview] = value }
     }
 
     private fun defaultFor(role: Role): PhoneSettings = when (role) {
@@ -69,4 +88,8 @@ class CameraSettingsStore(private val context: Context) {
     private fun keyRotation(role: Role) = intPreferencesKey("${role.name}_rotation")
     private fun keyResolution(role: Role) = stringPreferencesKey("${role.name}_resolution")
     private fun keyFramerate(role: Role) = intPreferencesKey("${role.name}_framerate")
+    private fun keyExposure(role: Role) = stringPreferencesKey("${role.name}_exposure")
+    private fun keyZoom(role: Role) = floatPreferencesKey("${role.name}_zoom")
+
+    private val keyShowPreview = booleanPreferencesKey("Peer_show_preview")
 }

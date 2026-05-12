@@ -127,7 +127,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return _cameraRecording!!
     }
 
-    fun bindCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView, settings: PhoneSettings = PhoneSettings()) {
+    fun bindCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView?, settings: PhoneSettings = PhoneSettings()) {
         cameraRecording.bind(lifecycleOwner, previewView, settings)
     }
 

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.thegreentangerine.gigbooks.data.xr18.CameraRecordingManager
 import com.thegreentangerine.gigbooks.data.xr18.PhoneSettings
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
@@ -37,6 +40,8 @@ fun CameraSettingsSheet(
     subtitle: String?,
     settings: PhoneSettings,
     onChange: (PhoneSettings) -> Unit,
+    zoomRange: CameraRecordingManager.ZoomRange? = null,
+    exposureCaps: CameraRecordingManager.ExposureCaps? = null,
     extras: (@Composable () -> Unit)? = null,
 ) {
     Column(
@@ -76,6 +81,73 @@ fun CameraSettingsSheet(
             selected = settings.framerate,
             onSelect = { onChange(settings.copy(framerate = it)) },
         )
+
+        // Zoom slider — rebind-free via cameraControl.setZoomRatio (§B.4
+        // gig-safety upheld; mid-recording-safe). Range is read from the
+        // camera at bind time, so first open shows "Zoom (1.0x)" until
+        // bind resolves the camera. Slider value drives PhoneSettings;
+        // PeerScreen also wires pinch-zoom to the same field.
+        if (zoomRange != null && zoomRange.max > zoomRange.min) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Zoom",
+                        fontFamily = Karla, fontSize = 11.sp,
+                        color = TangerineColors.textMuted,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "%.1fx".format(settings.zoomRatio.coerceIn(zoomRange.min, zoomRange.max)),
+                        fontFamily = JetBrainsMono, fontSize = 12.sp,
+                        color = TangerineColors.text,
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                Slider(
+                    value = settings.zoomRatio.coerceIn(zoomRange.min, zoomRange.max),
+                    onValueChange = { onChange(settings.copy(zoomRatio = it)) },
+                    valueRange = zoomRange.min..zoomRange.max,
+                    colors = SliderDefaults.colors(
+                        thumbColor = TangerineColors.orange,
+                        activeTrackColor = TangerineColors.orange,
+                        inactiveTrackColor = TangerineColors.textMuted.copy(alpha = 0.3f),
+                    ),
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        "%.1fx".format(zoomRange.min),
+                        fontFamily = JetBrainsMono, fontSize = 9.sp,
+                        color = TangerineColors.textMuted.copy(alpha = 0.7f),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        "%.1fx".format(zoomRange.max),
+                        fontFamily = JetBrainsMono, fontSize = 9.sp,
+                        color = TangerineColors.textMuted.copy(alpha = 0.7f),
+                    )
+                }
+            }
+        }
+
+        // Exposure compensation — rebind-free, mid-recording-safe via
+        // cameraControl.setExposureCompensationIndex. Display values are
+        // whole EV stops mapped to the camera's index granularity (most
+        // phones: 1/3 EV steps, so -2 EV = index -6). Hidden if camera
+        // reports no exposure-comp support.
+        if (exposureCaps != null) {
+            SegmentedRow(
+                label = "Exposure",
+                options = listOf(
+                    "-2" to "−2",
+                    "-1" to "−1",
+                    "Auto" to "Auto",
+                    "+1" to "+1",
+                    "+2" to "+2",
+                ),
+                selected = settings.exposure,
+                onSelect = { onChange(settings.copy(exposure = it)) },
+            )
+        }
 
         // Rotation: "Auto" (-1) follows the device's mount orientation. The
         // numeric overrides force a specific rotation if Auto picks wrong.

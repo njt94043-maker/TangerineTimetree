@@ -46,6 +46,23 @@ class CameraRecordingManager(private val context: Context) {
     private var preview: Preview? = null
     private var activeRecording: Recording? = null
     /**
+     * Captured from `provider.bindToLifecycle(...)` return — gates access to
+     * `cameraControl` (zoom, exposure, focus) and `cameraInfo` (zoom state,
+     * exposure caps). These are mid-recording-safe APIs per CameraX docs —
+     * no rebind needed when applied (§B.4 gig-safety guard upheld).
+     */
+    private var boundCamera: Camera? = null
+
+    /** Min/max zoom ratio of the currently-bound camera, read at bind time. */
+    data class ZoomRange(val min: Float, val max: Float)
+    private val _zoomRange = MutableStateFlow<ZoomRange?>(null)
+    val zoomRange: StateFlow<ZoomRange?> = _zoomRange
+
+    /** Exposure-compensation capabilities of the currently-bound camera. */
+    data class ExposureCaps(val minIndex: Int, val maxIndex: Int, val stepEv: Float)
+    private val _exposureCaps = MutableStateFlow<ExposureCaps?>(null)
+    val exposureCaps: StateFlow<ExposureCaps?> = _exposureCaps
+    /**
      * Live preview JPEG flow — emits at camera fps (whatever ImageAnalysis delivers).
      * Local-device consumers (Gig Mode self-tile) collect it for real-time preview;
      * network consumers (PeerOrchestratorClient) snapshot via [capturePreviewFrame]
@@ -167,11 +184,33 @@ class CameraRecordingManager(private val context: Context) {
             videoCapture?.let { useCases.add(it) }
             imageAnalysis?.let { useCases.add(it) }
 
-            provider.bindToLifecycle(
+            val camera = provider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
                 *useCases.toTypedArray(),
             )
+            boundCamera = camera
+
+            // Read zoom + exposure capabilities at bind time. ZoomState is a
+            // LiveData, so we snapshot .value (may be null on very first bind
+            // before CameraX has resolved the camera; gracefully degraded).
+            camera.cameraInfo.zoomState.value?.let { zs ->
+                _zoomRange.value = ZoomRange(zs.minZoomRatio, zs.maxZoomRatio)
+            }
+            val expState = camera.cameraInfo.exposureState
+            if (expState.isExposureCompensationSupported) {
+                val range = expState.exposureCompensationRange
+                val stepEv = expState.exposureCompensationStep.toFloat()  // Rational → Float
+                _exposureCaps.value = ExposureCaps(range.lower, range.upper, stepEv)
+            } else {
+                _exposureCaps.value = null
+            }
+
+            // Apply settings that don't require rebind. Both are
+            // mid-recording-safe via cameraControl per CameraX docs.
+            applyZoom(settings.zoomRatio)
+            applyExposure(settings.exposure)
+
             _isBound.value = true
         } catch (e: Exception) {
             Log.e(TAG, "Camera rebind failed: ${e.message}", e)
@@ -192,6 +231,54 @@ class CameraRecordingManager(private val context: Context) {
         preview?.targetRotation = rot
         videoCapture?.targetRotation = rot
         imageAnalysis?.targetRotation = rot
+    }
+
+    /**
+     * Apply zoom ratio. Mid-recording-safe — `cameraControl.setZoomRatio()`
+     * runs without rebind per CameraX docs (§B.4 gig-safety upheld). No-op
+     * if camera not bound, or if value is outside the camera's reported
+     * min/max (clamped silently rather than erroring — slider can race
+     * the bind).
+     */
+    fun applyZoom(ratio: Float) {
+        val cam = boundCamera ?: return
+        val range = _zoomRange.value
+        val clamped = if (range != null) ratio.coerceIn(range.min, range.max) else ratio
+        cam.cameraControl.setZoomRatio(clamped)  // ListenableFuture<Void>, fire-and-forget
+    }
+
+    /**
+     * Pinch-zoom helper — linear 0.0..1.0 maps across the camera's min/max
+     * zoom range. Use during pinch gestures; on settle, the caller should
+     * read [currentZoomRatio] and persist back to PhoneSettings.
+     */
+    fun applyLinearZoom(linear: Float) {
+        val cam = boundCamera ?: return
+        cam.cameraControl.setLinearZoom(linear.coerceIn(0f, 1f))
+    }
+
+    /** Current zoom ratio for write-back after pinch settle. */
+    fun currentZoomRatio(): Float = boundCamera?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1.0f
+
+    /**
+     * Apply exposure compensation. Maps display-EV strings ("-2"/"-1"/
+     * "Auto"/"+1"/"+2") to the camera's integer index via the device's
+     * exposure step. Mid-recording-safe. No-op if exposure unsupported
+     * (caps null) or camera not bound.
+     */
+    fun applyExposure(setting: String) {
+        val cam = boundCamera ?: return
+        val caps = _exposureCaps.value ?: return
+        val displayEv = when (setting) {
+            "-2" -> -2f
+            "-1" -> -1f
+            "+1" -> 1f
+            "+2" -> 2f
+            else -> 0f  // "Auto" + any unknown value
+        }
+        if (caps.stepEv == 0f) return
+        val index = (displayEv / caps.stepEv).toInt().coerceIn(caps.minIndex, caps.maxIndex)
+        cam.cameraControl.setExposureCompensationIndex(index)  // ListenableFuture<Integer>, fire-and-forget
     }
 
     /**

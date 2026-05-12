@@ -245,6 +245,10 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     LaunchedEffect(orchestratorSettings.useAutoRotation, orchestratorSettings.rotationDegrees) {
         cameraManager.applyRotation(orchestratorSettings)
     }
+    // Rebind-free zoom + exposure for the drummer-cam (S150 P2). Both
+    // mid-recording-safe via cameraControl. §B.4 gig-safety upheld.
+    LaunchedEffect(orchestratorSettings.zoomRatio) { cameraManager.applyZoom(orchestratorSettings.zoomRatio) }
+    LaunchedEffect(orchestratorSettings.exposure) { cameraManager.applyExposure(orchestratorSettings.exposure) }
 
     LaunchedEffect(Unit) { SetlistEntriesRepository.start() }
     LaunchedEffect(Unit) { SetlistEntryPracticeTracksRepository.start() }
@@ -800,6 +804,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 onChange = { new ->
                     scope.launch { settingsStore.update(CameraSettingsStore.Role.Orchestrator, new) }
                 },
+                zoomRange = cameraManager.zoomRange.collectAsState().value,
+                exposureCaps = cameraManager.exposureCaps.collectAsState().value,
             )
         }
     }
