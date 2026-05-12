@@ -83,11 +83,12 @@ data class PhoneSettings(
     val resolution: String = "1080p",
     val framerate: Int = 30,
     val exposure: String = "Auto",       // "-2" / "-1" / "Auto" / "+1" / "+2" — display EV; mapped to index at apply time
-    val stabilisation: String = "Off",
+    val stabilisation: String = "Off",   // "On" / "Off" — applied via VideoCapture.Builder.setVideoStabilizationEnabled, gated by camera's isStabilizationSupported
     val cameraFacing: String = "back",   // "back" or "front"
     val useAutoRotation: Boolean = true, // true = derive from device display rotation at bind time
     val rotationDegrees: Int = 0,        // 0 / 90 / 180 / 270 — only used when useAutoRotation = false
     val zoomRatio: Float = 1.0f,         // 1.0x default; clamped to camera's min/max at apply time
+    val qualityBucket: String = "Standard",  // "Eco" (4 Mbps) / "Standard" (10 Mbps) / "High" (20 Mbps); applied via Recorder.Builder.setTargetVideoEncodingBitRate
 )
 
 @Serializable

@@ -117,6 +117,10 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         .collectAsState(initial = true)
     val zoomRange by cameraManager.zoomRange.collectAsState()
     val exposureCaps by cameraManager.exposureCaps.collectAsState()
+    val stabilisationSupported by cameraManager.stabilisationSupported.collectAsState()
+    val freeStorageBytes = remember(settings.qualityBucket) {
+        runCatching { context.getExternalFilesDir(null)?.usableSpace }.getOrNull()
+    }
     var settingsSheetOpen by remember { mutableStateOf(false) }
     var lastSession by remember { mutableStateOf<String?>(null) }
     var lastRecToggleMs by remember { mutableLongStateOf(0L) }
@@ -478,6 +482,8 @@ fun PeerScreen(onMenuClick: () -> Unit) {
                 },
                 zoomRange = zoomRange,
                 exposureCaps = exposureCaps,
+                stabilisationSupported = stabilisationSupported,
+                freeStorageBytes = freeStorageBytes,
             )
         }
     }

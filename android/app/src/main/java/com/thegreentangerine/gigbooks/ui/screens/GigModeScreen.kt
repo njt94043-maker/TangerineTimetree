@@ -806,6 +806,10 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 },
                 zoomRange = cameraManager.zoomRange.collectAsState().value,
                 exposureCaps = cameraManager.exposureCaps.collectAsState().value,
+                stabilisationSupported = cameraManager.stabilisationSupported.collectAsState().value,
+                freeStorageBytes = runCatching {
+                    LocalContext.current.getExternalFilesDir(null)?.usableSpace
+                }.getOrNull(),
             )
         }
     }

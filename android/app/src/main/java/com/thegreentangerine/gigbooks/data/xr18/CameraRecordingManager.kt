@@ -38,6 +38,21 @@ class CameraRecordingManager(private val context: Context) {
 
     companion object {
         private const val TAG = "CameraRecording"
+
+        /**
+         * S150 P3 bitrate presets. Pre-approved values from brief §6.3.
+         * Falls back to Standard for any unrecognised bucket name so old
+         * peers without the qualityBucket field still get sensible defaults.
+         */
+        fun bitrateForBucket(bucket: String): Int = when (bucket) {
+            "Eco" -> 4_000_000
+            "High" -> 20_000_000
+            else -> 10_000_000  // Standard + any unknown
+        }
+
+        /** Approximate minutes-per-GB at a given bitrate. 1 GB ≈ 8 Gbits. */
+        fun minutesPerGb(bitrateBps: Int): Int =
+            if (bitrateBps <= 0) 0 else (8L * 1_000_000_000L / bitrateBps / 60L).toInt()
     }
 
     private var cameraProvider: ProcessCameraProvider? = null
@@ -62,6 +77,15 @@ class CameraRecordingManager(private val context: Context) {
     data class ExposureCaps(val minIndex: Int, val maxIndex: Int, val stepEv: Float)
     private val _exposureCaps = MutableStateFlow<ExposureCaps?>(null)
     val exposureCaps: StateFlow<ExposureCaps?> = _exposureCaps
+
+    /**
+     * Whether the currently-selected camera supports video stabilisation.
+     * Probed pre-bind via the static `Recorder.getVideoCapabilities(CameraInfo)`
+     * + `isStabilizationSupported()` chain so we can gate the UI toggle
+     * before binding. False until first rebind resolves a CameraInfo.
+     */
+    private val _stabilisationSupported = MutableStateFlow(false)
+    val stabilisationSupported: StateFlow<Boolean> = _stabilisationSupported
     /**
      * Live preview JPEG flow — emits at camera fps (whatever ImageAnalysis delivers).
      * Local-device consumers (Gig Mode self-tile) collect it for real-time preview;
@@ -151,13 +175,35 @@ class CameraRecordingManager(private val context: Context) {
             val safeFramerate = settings.framerate.coerceIn(15, 60)
             requestedFramerate = safeFramerate
 
+            // Resolve the CameraSelector against available CameraInfos so we can
+            // probe stabilisation capability BEFORE binding. `getVideoCapabilities`
+            // is a static method on Recorder, so this works without an active bind.
+            val cameraSelector = if (settings.cameraFacing == "front") {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            } else {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            }
+            val targetCameraInfo = cameraSelector.filter(provider.availableCameraInfos).firstOrNull()
+            val stabSupported = targetCameraInfo?.let {
+                runCatching { Recorder.getVideoCapabilities(it).isStabilizationSupported }.getOrDefault(false)
+            } ?: false
+            _stabilisationSupported.value = stabSupported
+
+            // Bitrate buckets per S150 P3 brief §6.3. Applied via
+            // Recorder.Builder.setTargetVideoEncodingBitRate(int) — rebind-class.
+            val bitrateBps = bitrateForBucket(settings.qualityBucket)
             val recorder = Recorder.Builder()
                 .setQualitySelector(QualitySelector.from(quality, FallbackStrategy.higherQualityOrLowerThan(quality)))
                 .setAudioSource(android.media.MediaRecorder.AudioSource.DEFAULT)  // Ensure audio is always recorded
+                .setTargetVideoEncodingBitRate(bitrateBps)
                 .build()
+            // Stabilisation only enabled when the camera actually supports it
+            // (per §6.4 + feedback--unfinished-not-orphan.md guard rule).
+            val stabilisationOn = (settings.stabilisation == "On") && stabSupported
             videoCapture = VideoCapture.Builder(recorder)
                 .setTargetFrameRate(android.util.Range(safeFramerate, safeFramerate))
                 .setTargetRotation(targetRotation)
+                .setVideoStabilizationEnabled(stabilisationOn)
                 .build()
             imageAnalysis = ImageAnalysis.Builder()
                 .setResolutionSelector(sixteenNineResolution)
@@ -172,12 +218,6 @@ class CameraRecordingManager(private val context: Context) {
                         imageProxy.close()
                     }
                 }
-
-            val cameraSelector = if (settings.cameraFacing == "front") {
-                CameraSelector.DEFAULT_FRONT_CAMERA
-            } else {
-                CameraSelector.DEFAULT_BACK_CAMERA
-            }
 
             val useCases = mutableListOf<UseCase>()
             preview?.let { useCases.add(it) }

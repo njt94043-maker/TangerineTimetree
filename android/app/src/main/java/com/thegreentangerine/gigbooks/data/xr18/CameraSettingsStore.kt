@@ -42,6 +42,8 @@ class CameraSettingsStore(private val context: Context) {
                 rotationDegrees = prefs[keyRotation(role)] ?: def.rotationDegrees,
                 exposure = prefs[keyExposure(role)] ?: def.exposure,
                 zoomRatio = prefs[keyZoom(role)] ?: def.zoomRatio,
+                qualityBucket = prefs[keyQualityBucket(role)] ?: def.qualityBucket,
+                stabilisation = prefs[keyStabilisation(role)] ?: def.stabilisation,
             )
         }
         // DataStore can emit identical PhoneSettings on initial load (empty prefs
@@ -61,6 +63,8 @@ class CameraSettingsStore(private val context: Context) {
             prefs[keyFramerate(role)] = settings.framerate
             prefs[keyExposure(role)] = settings.exposure
             prefs[keyZoom(role)] = settings.zoomRatio
+            prefs[keyQualityBucket(role)] = settings.qualityBucket
+            prefs[keyStabilisation(role)] = settings.stabilisation
         }
     }
 
@@ -90,6 +94,8 @@ class CameraSettingsStore(private val context: Context) {
     private fun keyFramerate(role: Role) = intPreferencesKey("${role.name}_framerate")
     private fun keyExposure(role: Role) = stringPreferencesKey("${role.name}_exposure")
     private fun keyZoom(role: Role) = floatPreferencesKey("${role.name}_zoom")
+    private fun keyQualityBucket(role: Role) = stringPreferencesKey("${role.name}_quality_bucket")
+    private fun keyStabilisation(role: Role) = stringPreferencesKey("${role.name}_stabilisation")
 
     private val keyShowPreview = booleanPreferencesKey("Peer_show_preview")
 }

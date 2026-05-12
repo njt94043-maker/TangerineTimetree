@@ -42,6 +42,8 @@ fun CameraSettingsSheet(
     onChange: (PhoneSettings) -> Unit,
     zoomRange: CameraRecordingManager.ZoomRange? = null,
     exposureCaps: CameraRecordingManager.ExposureCaps? = null,
+    stabilisationSupported: Boolean = false,
+    freeStorageBytes: Long? = null,
     extras: (@Composable () -> Unit)? = null,
 ) {
     Column(
@@ -69,7 +71,7 @@ fun CameraSettingsSheet(
         )
 
         SegmentedRow(
-            label = "Quality",
+            label = "Resolution",
             options = listOf("720p" to "720p", "1080p" to "1080p", "4K" to "4K"),
             selected = settings.resolution,
             onSelect = { onChange(settings.copy(resolution = it)) },
@@ -81,6 +83,57 @@ fun CameraSettingsSheet(
             selected = settings.framerate,
             onSelect = { onChange(settings.copy(framerate = it)) },
         )
+
+        // Bitrate bucket (S150 P3 §6.3). Pre-approved values from brief:
+        // Eco 4 Mbps / Standard 10 Mbps / High 20 Mbps. Rebind-class (the
+        // Recorder is rebuilt) — mid-recording changes blocked by the
+        // CameraRecordingManager rebind guard.
+        SegmentedRow(
+            label = "Quality",
+            options = listOf("Eco" to "Eco", "Standard" to "Std", "High" to "High"),
+            selected = settings.qualityBucket,
+            onSelect = { onChange(settings.copy(qualityBucket = it)) },
+        )
+
+        // Stabilisation toggle (S150 P3 §6.4). Hidden when the selected
+        // camera doesn't support it — per feedback--unfinished-not-orphan.md
+        // the capability guard ships in this commit, not deferred. Rebind-
+        // class via VideoCapture.Builder.setVideoStabilizationEnabled.
+        if (stabilisationSupported) {
+            SegmentedRow(
+                label = "Stabilisation",
+                options = listOf("Off" to "Off", "On" to "On"),
+                selected = settings.stabilisation,
+                onSelect = { onChange(settings.copy(stabilisation = it)) },
+            )
+        }
+
+        // Storage estimator + free-space warning (S150 P3). Reads
+        // getExternalFilesDir().usableSpace from the caller. Warning fires
+        // at <1.5× the rough need for a 90 min set at current bitrate.
+        val bitrateBps = CameraRecordingManager.bitrateForBucket(settings.qualityBucket)
+        val minPerGb = CameraRecordingManager.minutesPerGb(bitrateBps)
+        val freeGb = freeStorageBytes?.let { it.toDouble() / 1_000_000_000.0 } ?: 0.0
+        val freeMinutes = (freeGb * minPerGb).toInt()
+        val warnThresholdMin = (90 * 1.5).toInt()  // 90 min set × 1.5× buffer
+        Column {
+            Text(
+                "~$minPerGb min per GB at this quality",
+                fontFamily = Karla, fontSize = 10.sp,
+                color = TangerineColors.textMuted.copy(alpha = 0.7f),
+            )
+            if (freeStorageBytes != null) {
+                val warn = freeMinutes < warnThresholdMin
+                Text(
+                    "%.1f GB free → ~%d min available%s".format(
+                        freeGb, freeMinutes,
+                        if (warn) " ⚠ low for a long set" else "",
+                    ),
+                    fontFamily = Karla, fontSize = 10.sp,
+                    color = if (warn) TangerineColors.orange else TangerineColors.textMuted.copy(alpha = 0.7f),
+                )
+            }
+        }
 
         // Zoom slider — rebind-free via cameraControl.setZoomRatio (§B.4
         // gig-safety upheld; mid-recording-safe). Range is read from the
