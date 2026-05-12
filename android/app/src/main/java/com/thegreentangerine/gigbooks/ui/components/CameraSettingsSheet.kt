@@ -63,6 +63,20 @@ fun CameraSettingsSheet(
             onSelect = { onChange(settings.copy(cameraFacing = it)) },
         )
 
+        SegmentedRow(
+            label = "Quality",
+            options = listOf("720p" to "720p", "1080p" to "1080p", "4K" to "4K"),
+            selected = settings.resolution,
+            onSelect = { onChange(settings.copy(resolution = it)) },
+        )
+
+        SegmentedRow(
+            label = "Frame rate",
+            options = listOf(24 to "24", 30 to "30", 60 to "60"),
+            selected = settings.framerate,
+            onSelect = { onChange(settings.copy(framerate = it)) },
+        )
+
         // Rotation: "Auto" (-1) follows the device's mount orientation. The
         // numeric overrides force a specific rotation if Auto picks wrong.
         val rotationKey = if (settings.useAutoRotation) -1 else settings.rotationDegrees

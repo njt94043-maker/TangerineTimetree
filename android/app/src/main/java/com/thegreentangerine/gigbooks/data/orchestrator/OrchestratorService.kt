@@ -54,6 +54,7 @@ class OrchestratorService : Service() {
     val osc = ReaperOscClient()
     val gigCmd by lazy { GigCommandClient(this) }
     val session = GigSession()
+    private val bookendTone by lazy { BookendTonePlayer(this) }
     private lateinit var discovery: OrchestratorDiscovery
     val discoveryFlow get() = discovery.discovered
     val isSearching get() = discovery.isSearching
@@ -209,6 +210,7 @@ class OrchestratorService : Service() {
     fun beginRecording() {
         scope.launch {
             session.beginRecording()
+            scope.launch { bookendTone.playSetStart() }  // fire-and-forget; OSC must not wait
             osc.sendRecord()
             peerServer.broadcastStartRec(newSessionId())
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
@@ -254,6 +256,7 @@ class OrchestratorService : Service() {
             // (v1.2.8: replaces per-pause save — pauses no longer trigger save.)
             gigCmd.save()
             session.continueNewSet()
+            scope.launch { bookendTone.playSetStart() }  // fire-and-forget; OSC must not wait
             osc.sendRecord()
             peerServer.broadcastStartRec(newSessionId())
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
@@ -278,6 +281,7 @@ class OrchestratorService : Service() {
                 CameraGate.stopLocalRecording()
                 _isRecording.value = false
             }
+            scope.launch { bookendTone.playSetEnd() }  // fire-and-forget; gig save must not wait
             gigCmd.stop()  // final save (Reaper-side does not auto-close)
             session.end()
             // S141: flip gig_lock_state.is_locked = false so cross-surface
