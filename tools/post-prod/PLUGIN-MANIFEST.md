@@ -20,7 +20,9 @@
 
 | Track | Chain | Coverage role |
 |---|---|---|
-| MUSIC BUS / 01-02 / 17-18 | (no FX) | Backing tracks — muted on live mixdown by design |
+| 01-02 TD-4 L/R | ReaEQ → ReaComp → ReaEQ | Roland TD-4 stereo e-kit — HPF + tone-shape + glue comp |
+| TD-4 BUS | DC1A3 | Light bus glue on pre-summed Roland module output |
+| MUSIC BUS / 17-18 | (no FX) | All music (backing / practice / venue break) — pre-mastered |
 | VOX BUS | DC1A3 → ValhallaSupermassive → MJUCjr | Glue + reverb insert + final vocal-bus leveler |
 | 03 James Vox | ReaEQ → ReaGate → ReaComp → **MJUCjr** → TDR Nova → ReaEQ | The 3-stage chain (track ReaComp + track MJUCjr + bus DC1A3+MJUCjr); TDR Nova as de-esser |
 | 04 Adam BV | ReaEQ → ReaGate → ReaComp → TDR Nova → ReaEQ | Standard chain + de-esser |
@@ -143,18 +145,20 @@ Once DaVinci is installed, we'll create a **TGT Live Gig Template (.drp)** seede
 **Fairlight track layout** matching our 18-channel XR18 USB map (so an exported Reaper stem set drops in 1:1):
 
 ```
-Track 1-2   Music L/R       (stereo, muted on final bounce — backing tracks reference)
+Track 1-2   TD-4 L/R        (stereo — Roland TD-4 e-kit, silent on acoustic days)
 Track 3     James Vox       (mono)
 Track 4     Adam BV         (mono)
 Track 5     Adam Guitar     (mono)
 Track 6     Neil Bass       (mono)
 Track 7     Spare           (mono, often empty)
 Track 8-9   EAD L/R         (stereo bus)
-Track 10-16 Drums acoustic  (mono each — kick, snare, toms, OH)
-Track 17-18 Music L/R       (Practice — muted)
-Bus 1       VOX BUS         (3-4 → bus)
-Bus 2       DRUMS BUS       (10-16 → bus)
+Track 10-16 Drums acoustic  (mono each — kick, snare, toms, OH; silent on TD-4 days)
+Track 17-18 Music L/R       (stereo — all music: backing / practice / venue break)
+Bus 1       TD-4 BUS        (1-2 → bus)
+Bus 2       VOX BUS         (3-4 → bus)
 Bus 3       EAD BUS         (8-9 → bus)
+Bus 4       DRUMS BUS       (10-16 → bus)
+Bus 5       MUSIC BUS       (17-18 → bus)
 Master      Final stereo bus
 ```
 

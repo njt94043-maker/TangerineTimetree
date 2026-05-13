@@ -20,6 +20,10 @@
 --   * Overheads   HPF 150Hz, comp 2:1 ~ -18dB ~ 2dB GR
 --   * Bass        HPF 40Hz, comp 4:1 ~ -14dB ~ 4-6dB GR
 --   * Guitar      HPF 90Hz LPF 8kHz, comp 2:1 ~ -16dB
+--   * TD-4 L/R    HPF 35Hz; tame 80Hz (-2dB shelf), 300-400Hz (-2-4dB bell), 2-3kHz
+--                 (-1-3dB bell if biting); +1-2dB shelf @ 10kHz for air; comp 2:1
+--                 ~ -16dB slow attack (Roland kits are headphone-voiced — boomy +
+--                 brittle through a PA; aim for translation not surgery)
 --
 -- JAMES VOX LEVELING (Ch 3): serial 2-stage compression — fast ReaComp catches
 -- peaks, slow MJUCjr after handles the macro dynamic range from him moving away
@@ -30,8 +34,11 @@
 -- PER-CHANNEL CHAINS — keyed by exact track NAME
 -- ============================================================================
 local CHANNEL_CHAINS = {
-  -- Music backing (1-2): pre-mastered, leave clean
-  -- (no per-channel FX)
+  -- Roland TD-4 (1-2): stereo-summed e-kit. HPF + tone-shape + glue comp.
+  -- Roland kits are headphone-voiced → boomy + brittle on a PA; chain aims
+  -- to tame sub, scoop mud, shave bite, add air. Stays light — not surgical.
+  ["01 TD-4 L"] = { {"ReaEQ"}, {"ReaComp"}, {"ReaEQ"} },
+  ["02 TD-4 R"] = { {"ReaEQ"}, {"ReaComp"}, {"ReaEQ"} },
 
   -- Lead vocal — 2-stage compression for distance variation, then de-ess + tone
   ["03 James Vox"] = {
@@ -59,7 +66,8 @@ local CHANNEL_CHAINS = {
   },
 
   -- 07 Spare: no FX
-  -- 17-18 Practice: no FX (muted anyway)
+  -- 17-18 Music (backing tracks / practice / venue break): no FX — pre-mastered.
+  --   Per-song mute decision happens at mixdown, not auto-muted at install time.
 
   -- Yamaha EAD — pre-blended, light touch only
   ["08 EAD L"] = { {"ReaEQ"}, {"ReaComp"} },
@@ -89,7 +97,12 @@ local CHANNEL_CHAINS = {
 -- BUS CHAINS — keyed by bus parent track NAME
 -- ============================================================================
 local BUS_CHAINS = {
-  -- Music: pre-mastered, no processing (intentional — adding comp pumps against vox)
+  -- TD-4 BUS (1-2): pre-summed inside the Roland module; bus-level glue only.
+  ["TD-4 BUS"] = {
+    {"DC1A", "DC1A3", "DC1A 3", "Klanghelm DC1A"},        -- light glue (~1-2dB GR)
+  },
+
+  -- MUSIC BUS (17-18): pre-mastered, no processing (adding comp pumps against vox)
   -- ["MUSIC BUS"] = {},
 
   ["VOX BUS"] = {
@@ -108,8 +121,6 @@ local BUS_CHAINS = {
     {"DC1A", "DC1A3", "DC1A 3", "Klanghelm DC1A"},        -- glue
     {"TENSjr", "TENS jr"},                                -- tape saturation
   },
-
-  -- Practice: muted, no FX
 }
 
 -- ============================================================================

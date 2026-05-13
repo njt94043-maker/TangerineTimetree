@@ -8,13 +8,14 @@
     |    Encore: set-260503_2013.RPP  (5.2 min)
     |
     |  TRACK STRUCTURE (folder buses + standalones):
-    |    MUSIC BUS    ch 1-2   |  VOX BUS    ch 3-4
+    |    TD-4 BUS     ch 1-2   (Roland TD-4 e-kit — used when acoustic kit unavailable)
+    |    VOX BUS      ch 3-4
     |    05 Adam Guitar          (standalone)
     |    06 Neil Bass            (standalone)
     |    07 Spare                (standalone)
     |    EAD BUS      ch 8-9    (Yamaha EAD — pre-mixed e-drums)
     |    DRUMS BUS    ch 10-16  (acoustic kit: kick, snare, toms, OH)
-    |    PRACTICE     ch 17-18  (MUTED)
+    |    MUSIC BUS    ch 17-18  (all music: backing tracks / practice / venue break)
     |
     |  ROUTING: folder children send to their bus parent via Reaper folder
     |  routing; bus parent sends to Master. Per-channel chains do surgical
@@ -393,7 +394,7 @@
   <PROJBAY
   >
   <TRACK {6129DE71-84C2-4577-B15D-41445D7658EE}
-    NAME "MUSIC BUS"
+    NAME "TD-4 BUS"
     PEAKCOL 10271770
     BEAT -1
     AUTOMODE 0
@@ -418,7 +419,7 @@
     MAINSEND 1 0
   >
   <TRACK {9CBB6BCA-3FCA-49E6-ACBC-528FEFBFF6D7}
-    NAME "01 Music L (Gig)"
+    NAME "01 TD-4 L"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -443,7 +444,7 @@
     MAINSEND 1 0
   >
   <TRACK {C7CFC409-D16D-49CE-B4D1-7EC266A929B1}
-    NAME "02 Music R (Gig)"
+    NAME "02 TD-4 R"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -1680,7 +1681,7 @@
     >
   >
   <TRACK {86843D38-3F46-4CF9-B892-F929780BC9DC}
-    NAME "PRACTICE BUS"
+    NAME "MUSIC BUS"
     PEAKCOL 4210752
     BEAT -1
     AUTOMODE 0
@@ -1705,7 +1706,7 @@
     MAINSEND 1 0
   >
   <TRACK {6790909B-45DE-4442-996E-96DA2D6BE95F}
-    NAME "17 Music L (Practice)"
+    NAME "17 Music L"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -1730,7 +1731,7 @@
     MAINSEND 1 0
   >
   <TRACK {5F6474B2-B063-4922-BCD8-26CEA90A73AF}
-    NAME "18 Music R (Practice)"
+    NAME "18 Music R"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0

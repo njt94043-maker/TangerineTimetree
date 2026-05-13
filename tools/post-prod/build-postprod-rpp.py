@@ -28,7 +28,8 @@ From-template mode (S145 — preferred; preserves all FX/buses/master chain):
        template's tracks by channel match (NAME starts with "NN ...").
 
 What it adds either way:
-  - 6 instrument-group folder buses (Music / Vox / Guitar / Bass / Drums / Practice)
+  - Folder buses by group (TD-4 / Vox / EAD / Drums / Music) + standalones
+    (Guitar / Bass / Spare)
   - MAINSEND=0 on every bus child (so audio flows ONLY through the bus, not
     double-routed to master); MAINSEND=1 retained on bus parents and standalone tracks
   - Render preset writing to `mixdowns\\$project-$region.wav` at 24-bit / 48kHz
@@ -42,7 +43,7 @@ import uuid
 from pathlib import Path
 
 CH_BUS = {
-    1: "Music", 2: "Music",
+    1: "TD-4", 2: "TD-4",                              # Roland TD-4 e-kit (when acoustic kit unavailable)
     3: "Vox",   4: "Vox",
     5: None,            # Adam Guitar — standalone (single-ch bus is pointless)
     6: None,            # Neil Bass — standalone
@@ -50,18 +51,18 @@ CH_BUS = {
     8: "EAD",   9: "EAD",                              # Yamaha EAD — own bus
     10: "Drums", 11: "Drums", 12: "Drums", 13: "Drums",
     14: "Drums", 15: "Drums", 16: "Drums",             # acoustic kit only
-    17: "Practice", 18: "Practice",
+    17: "Music", 18: "Music",                          # all music: backing / practice / venue break
 }
 
 # None-group (ch 5, 6, 7) sits between Vox and EAD in display order
-BUS_ORDER = ["Music", "Vox", None, "EAD", "Drums", "Practice"]
+BUS_ORDER = ["TD-4", "Vox", None, "EAD", "Drums", "Music"]
 
 BUS_COLOR = {
-    "Music":    0x9CBC1A,   # teal
+    "TD-4":     0x40A0FF,   # warm orange (e-kit primary)
     "Vox":      0xF39C12,   # orange
-    "EAD":      0xC080FF,   # purple (e-drums)
+    "EAD":      0xC080FF,   # purple (e-drums overlay)
     "Drums":    0xFF80AA,   # pink (acoustic kit)
-    "Practice": 0x404040,   # dark grey (muted)
+    "Music":    0x9CBC1A,   # teal (music feed)
 }
 
 # How many longest sets to combine in --whole-gig auto-detect mode
@@ -251,13 +252,14 @@ def patch_render_block(header: str) -> str:
 
 
 _NOTES_TRACK_STRUCTURE = '''    |  TRACK STRUCTURE (folder buses + standalones):
-    |    MUSIC BUS    ch 1-2   |  VOX BUS    ch 3-4
+    |    TD-4 BUS     ch 1-2   (Roland TD-4 e-kit — used when acoustic kit unavailable)
+    |    VOX BUS      ch 3-4
     |    05 Adam Guitar          (standalone)
     |    06 Neil Bass            (standalone)
     |    07 Spare                (standalone)
     |    EAD BUS      ch 8-9    (Yamaha EAD — pre-mixed e-drums)
     |    DRUMS BUS    ch 10-16  (acoustic kit: kick, snare, toms, OH)
-    |    PRACTICE     ch 17-18  (MUTED)
+    |    MUSIC BUS    ch 17-18  (all music: backing tracks / practice / venue break)
     |
     |  ROUTING: folder children send to their bus parent via Reaper folder
     |  routing; bus parent sends to Master. Per-channel chains do surgical
@@ -365,8 +367,6 @@ def regroup_into_buses(track_blocks: list[str]) -> list[str]:
                 # silences the audio path entirely. (Reaper's folder routing replaces
                 # the meaning of MAINSEND for tracks inside folders.)
                 tb = set_mainsend(tb, True)
-                if bus_name == "Practice":
-                    tb = set_mute(tb, True)
                 new_tracks.append(tb)
 
     for tb in unmatched:
@@ -602,7 +602,7 @@ def build_from_template(template_path: Path, sources: list[Path],
     render preset, project NOTES. The sources provide: items only.
 
     Match strategy: each non-bus track in the template has NAME like
-    "01 Music L (Gig)" — channel_of() returns 1; we look up channel 1's
+    "01 TD-4 L" — channel_of() returns 1; we look up channel 1's
     items in each source by matching `channel_of()` on source tracks.
     Bus parent tracks (no leading channel digit) are kept as-is.
     """

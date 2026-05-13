@@ -153,7 +153,7 @@ def scp_wavs(host: str, date: str, audio_dir: Path,
     yymd = date[2:].replace("-", "")  # "2026-05-03" -> "260503"
 
     if gig_name:
-        # gig-wizard path. Reaper writes WAVs as `01-01 Music L (Gig)-260509_1432.wav`
+        # gig-wizard path. Reaper writes WAVs as `01-01 TD-4 L-260509_1432.wav`
         # etc into the project's Media subdir; just copy them all.
         glob = f"~/Reaper/Gigs/{gig_name}/Media/*.wav"
         print(f"\nCopying WAVs from rig gig {gig_name}/Media/ ...")

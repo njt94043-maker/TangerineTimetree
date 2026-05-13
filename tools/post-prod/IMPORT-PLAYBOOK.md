@@ -60,7 +60,7 @@ python tools/post-prod/build-postprod-rpp.py \
 (`--whole-gig D:/Gigs/2026-05-09` also works if you prefer auto-detect.)
 
 Output: `D:/Gigs/2026-05-09/2026-05-09-whole-gig-postprod.RPP` — a fully-FX'd Reaper project with:
-- 23 tracks in correct folder-bus structure (MUSIC / VOX / EAD / DRUMS / PRACTICE)
+- 23 tracks in correct folder-bus structure (TD-4 / VOX / EAD / DRUMS / MUSIC)
 - All 17 FX chains intact (per-channel HPF/gate/comp + bus glue + mastering chain incl. James 3-stage MJUCjr)
 - All sets concatenated chronologically with set-boundary MARKERs (Set 1 / Set 2 / Encore)
 - Render preset set to 24-bit/48k stereo writing to `D:/Gigs/2026-05-09/mixdowns/$project-$region.wav`

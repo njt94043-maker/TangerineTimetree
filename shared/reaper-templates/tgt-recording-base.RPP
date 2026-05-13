@@ -16,7 +16,7 @@
     |      /song_marker s "song name"   (custom, needs ReaScript binding)
     |
     |  CHANNEL MAP (XR18 USB inputs 1-18):
-    |    1-2  Music L/R (Gig backing - mini jack from phone/tablet)
+    |    1-2  TD-4 L/R (Roland TD-4 e-kit - used when acoustic kit unavailable)
     |    3    James Vox
     |    4    Adam BV
     |    5    Adam Guitar
@@ -29,9 +29,10 @@
     |    13   Tom 2
     |    14   Tom 3
     |    15-16 OH L/R
-    |    17-18 Music L/R (Home Practice - stems-minus-click L, click R)
+    |    17-18 Music L/R (ALL music: backing tracks / practice / venue break)
     |
-    |  GIG: ch 1-16 active. Practice: ch 17-18 (instead of 1-2) + drum mics.
+    |  TD-4 days: ch 1-2 carry e-kit; ch 8-16 (acoustic kit + EAD) silent.
+    |  Acoustic days: ch 1-2 silent; ch 8-16 active. Ch 17-18 always carry music feeds.
   >
   RIPPLE 0 0
   GROUPOVERRIDE 0 0 0 0
@@ -136,7 +137,7 @@
   <PROJBAY
   >
   <TRACK {00000001-0000-0000-0000-000000000000}
-    NAME "01 Music L (Gig)"
+    NAME "01 TD-4 L"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -162,7 +163,7 @@
     MAINSEND 1 0
   >
   <TRACK {00000002-0000-0000-0000-000000000000}
-    NAME "02 Music R (Gig)"
+    NAME "02 TD-4 R"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -552,7 +553,7 @@
     MAINSEND 1 0
   >
   <TRACK {00000011-0000-0000-0000-000000000000}
-    NAME "17 Music L (Practice)"
+    NAME "17 Music L"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
@@ -578,7 +579,7 @@
     MAINSEND 1 0
   >
   <TRACK {00000012-0000-0000-0000-000000000000}
-    NAME "18 Music R (Practice)"
+    NAME "18 Music R"
     PEAKCOL 16576
     BEAT -1
     AUTOMODE 0

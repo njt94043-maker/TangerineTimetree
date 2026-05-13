@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TGT Reaper Post-Prod Cheat Sheet</title>
+<title>TGT Mix Cheat Sheet — Live (X Air) + Post-Prod (Reaper)</title>
 <style>
 :root {
   --bg: #1a1a1a;
@@ -234,15 +234,16 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
 <div class="wrap">
 
 <header>
-  <h1>TGT Reaper Post-Prod Cheat Sheet</h1>
-  <p class="subtitle">Pro-grade parameter reference for The Green Tangerine's live-multitrack post-production template. From E6330 raw 18ch capture to release-quality stereo mixdowns for video.</p>
-  <p class="meta">Living document — paired with <code>tools/post-prod/setup-postprod-fx.lua</code>. Last update: 2026-05-05 (Session 128).</p>
+  <h1>TGT Mix Cheat Sheet</h1>
+  <p class="subtitle">Pro-grade parameter reference for The Green Tangerine's rig — live FOH (X Air on XR18) and post-prod (Reaper on E6330 captures). Same 18 channels, two different jobs.</p>
+  <p class="meta">Living document — live recipes for X Air on iPad/Android; post-prod chain paired with <code>tools/post-prod/setup-postprod-fx.lua</code>. Last update: 2026-05-13 (Session 156).</p>
 </header>
 
 <nav>
   <a href="#workflow">Workflow</a>
   <a href="#topology">Topology</a>
-  <a href="#channels">Channels</a>
+  <a href="#live-foh">Live FOH (X Air)</a>
+  <a href="#channels">Post-prod channels</a>
   <a href="#james">James leveling</a>
   <a href="#buses">Buses</a>
   <a href="#master">Master</a>
@@ -289,19 +290,19 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 <section id="topology">
 <h2>2 · Project topology</h2>
 
-<p>23 tracks in this exact order. Folder routing: children sum into their parent bus, parent sends to Master. The PRACTICE bus is muted by default (ch 17-18 are practice-mode refs, not in live mixdown).</p>
+<p>23 tracks in this exact order. Folder routing: children sum into their parent bus, parent sends to Master. The MUSIC bus (ch 17-18) carries all music feeds — backing tracks, practice refs, venue break music — and is no longer auto-muted; per-song mute decisions happen in mixdown.</p>
 
 <table>
 <thead><tr><th>Position</th><th>Track / Bus</th><th>Channels</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td>1-3</td><td><strong>MUSIC BUS</strong> (folder)</td><td>1-2</td><td>Stereo backing tracks (phone/tablet → mini jack). Pre-mastered.</td></tr>
+<tr><td>1-3</td><td><strong>TD-4 BUS</strong> (folder)</td><td>1-2</td><td>Roland TD-4 e-kit (stereo summed inside module). Silent on acoustic days.</td></tr>
 <tr><td>4-6</td><td><strong>VOX BUS</strong> (folder)</td><td>3-4</td><td>James (lead, dynamic mic) + Adam BV (dynamic).</td></tr>
 <tr><td>7</td><td>05 Adam Guitar</td><td>5</td><td>Standalone (single-channel buses are pointless).</td></tr>
 <tr><td>8</td><td>06 Neil Bass</td><td>6</td><td>Standalone (DI).</td></tr>
 <tr><td>9</td><td>07 Spare</td><td>7</td><td>Standalone (often unused).</td></tr>
-<tr><td>10-12</td><td><strong>EAD BUS</strong> (folder)</td><td>8-9</td><td>Yamaha EAD pre-mixed e-drums (stereo).</td></tr>
-<tr><td>13-20</td><td><strong>DRUMS BUS</strong> (folder)</td><td>10-16</td><td>Acoustic kit only — kick, snare, 3 toms, OH L/R.</td></tr>
-<tr><td>21-23</td><td><strong>PRACTICE BUS</strong> (folder, MUTED)</td><td>17-18</td><td>Practice refs — not in mixdown.</td></tr>
+<tr><td>10-12</td><td><strong>EAD BUS</strong> (folder)</td><td>8-9</td><td>Yamaha EAD pre-mixed e-drums (stereo). Silent on TD-4 days.</td></tr>
+<tr><td>13-20</td><td><strong>DRUMS BUS</strong> (folder)</td><td>10-16</td><td>Acoustic kit — kick, snare, 3 toms, OH L/R. Silent on TD-4 days.</td></tr>
+<tr><td>21-23</td><td><strong>MUSIC BUS</strong> (folder)</td><td>17-18</td><td>All music: backing tracks / practice / venue break. Pre-mastered.</td></tr>
 </tbody>
 </table>
 
@@ -313,24 +314,306 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 </section>
 
-<!-- ====================================================== CHANNELS -->
-<section id="channels">
-<h2>3 · Per-channel chains + parameters</h2>
+<!-- ====================================================== LIVE FOH (X AIR) -->
+<section id="live-foh">
+<h2>3 · Live FOH on X Air</h2>
 
-<p>Surgical work happens at the channel level: HPF removes rumble, gates kill bleed, comp tames dynamics. Bus and master add glue + colour on top.</p>
+<p>X Air is the iPad / Android control for the XR18. Recipes below are starting points for the TGT rig — adjust per room. Live priorities differ from post-prod: <strong>translation through the PA, feedback resistance, fast dynamic control</strong>. Post-prod (next section) is surgical and unhurried; live is broad strokes you set once at soundcheck.</p>
 
-<!-- =================== Music backing -->
-<h3>01-02 Music L / R (backing tracks) <span class="tag grey">Pre-mastered</span></h3>
-<p>Stereo backing already mixed and mastered upstream. <strong>Don't process.</strong> Adding any comp or EQ creates audible pumping against the live band.</p>
+<h3>X Air channel-strip block flow</h3>
+
+<div class="chain-flow">
+<span class="plugin">Gain</span> <span class="arrow">→</span> <span class="plugin">HPF</span> <span class="arrow">→</span> <span class="plugin">Gate</span> <span class="arrow">→</span> <span class="plugin">Insert FX</span> <span class="arrow">→</span> <span class="plugin">EQ</span> (4-band PEQ) <span class="arrow">→</span> <span class="plugin">Comp</span> <span class="arrow">→</span> <span class="plugin">Sends</span> <span class="arrow">→</span> <span class="plugin">Pan / Fader</span>
+</div>
+
+<p>Tap a channel name → opens its strip. Each block opens its detail page on tap. Stereo-link pairs (Setup → Linking) mirror every change across both channels — link <code>1+2</code>, <code>8+9</code>, <code>15+16</code>, <code>17+18</code> by default.</p>
+
+<div class="note">
+  <span class="lbl">Soundcheck order</span>
+  Gain first (target -18 dBFS at the instrument's loudest dynamic), then HPF, then EQ, then Comp. Once dialled, ride the fader — don't fight the channel processing during a set.
+</div>
+
+<!-- =================== Live: TD-4 -->
+<h3>01-02 TD-4 L / R <span class="tag grey">Stereo linked</span></h3>
+<p>Roland TD-4 outputs stereo summed L/R only — no per-pad outs. Whole kit arrives pre-mixed inside the module; chain is bus-style. Module voicings are headphone-tuned → boomy + brittle through a wedding PA. Tame at the channel.</p>
 <table>
-<thead><tr><th>Stage</th><th>Plugin</th><th>Purpose</th><th>Default</th></tr></thead>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
 <tbody>
-<tr><td>—</td><td>(no per-channel FX inserted)</td><td>Pre-mastered material; just gain-match.</td><td>Track fader: -6 to -3 dB below vocal level.</td></tr>
+<tr><td rowspan="2"><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS at loudest pattern</td><td>Digital headroom.</td></tr>
+<tr><td class="param-name">Phantom +48V</td><td class="value">OFF</td><td>Line-level input from TD-4.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">35 Hz</td><td>Sub-rumble the PA can't reproduce.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">—</td><td class="value">OFF</td><td>E-kit has no bleed.</td></tr>
+<tr><td rowspan="5"><strong>EQ</strong> (4-band)</td><td class="param-name">Band 1 (LF shelf)</td><td class="value">-2 dB @ 80 Hz</td><td>Tame Roland's hyped kick body.</td></tr>
+<tr><td class="param-name">Band 2 (LMF bell)</td><td class="value">-3 dB @ 350 Hz, Q 1.0</td><td>Cardboard / boxy mud.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">-2 dB @ 2.5 kHz, Q 1.0 (only if biting)</td><td>Stick-attack / cymbal harshness.</td></tr>
+<tr><td class="param-name">Band 4 (HF shelf)</td><td class="value">+1.5 dB @ 10 kHz</td><td>Air — samples are already crispy.</td></tr>
+<tr><td class="param-name">Visual curve check</td><td class="value">Gentle U-tilt, not surgical</td><td>You're shaping a mix, not fixing a mic.</td></tr>
+<tr><td rowspan="3"><strong>Comp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-16 dB / 2:1</td><td>Glue only.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">30 ms / 150 ms</td><td>Slow attack preserves transients.</td></tr>
+<tr><td class="param-name">GR target</td><td class="value">2-3 dB peaks</td><td>Roland already comped internally — don't squash.</td></tr>
+<tr><td><strong>Pan</strong></td><td class="param-name">L = -50 / R = +50</td><td class="value">Or both 0 if mono PA</td><td>Most wedding PAs are mono — sum it.</td></tr>
 </tbody>
 </table>
 <div class="note">
-  <span class="lbl">Only exception</span>
-  If a venue's PA introduces audible boom in the backing track playback, drop a <code>ReaEQ HPF @ 60Hz, 12dB/oct</code> as track-1 FX. Don't compress.
+  <span class="lbl">At the module first</span>
+  Pick a flatter "studio" kit voicing on the TD-4 (not "rock"/"electronic"), ambience knob → 0, flatten master EQ smile. Fixing at source is cheaper than fighting downstream.
+</div>
+
+<!-- =================== Live: James Vox -->
+<h3>03 James Vox <span class="tag orange">Lead vocal</span></h3>
+<p>Dynamic mic. James has distance/volume variation (steps back when loud) — live, you ride the fader; the post-prod chain handles it with a 2-stage leveler.</p>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS at speaking voice</td><td>Headroom for loud-part peaks without clipping.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq / slope</td><td class="value">100 Hz, 24 dB/oct</td><td>Proximity rumble + stage thump + feedback resistance.</td></tr>
+<tr><td rowspan="4"><strong>Gate</strong></td><td class="param-name">Threshold</td><td class="value">-45 dB</td><td>Open on vocal, closed between songs.</td></tr>
+<tr><td class="param-name">Range</td><td class="value">-20 dB</td><td>Partial close — never fully muted (open feel).</td></tr>
+<tr><td class="param-name">Attack / Hold</td><td class="value">1 ms / 50 ms</td><td>Catches consonants without chopping.</td></tr>
+<tr><td class="param-name">Release</td><td class="value">100 ms</td><td>Natural decay.</td></tr>
+<tr><td rowspan="4"><strong>EQ</strong> (4-band)</td><td class="param-name">Band 1 (LF shelf)</td><td class="value">OFF (HPF doing low-end)</td><td>Don't double-cut.</td></tr>
+<tr><td class="param-name">Band 2 (LMF bell)</td><td class="value">-3 dB @ 300 Hz, Q 1.0</td><td>Boxy chest resonance.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">+2 dB @ 4 kHz, Q 0.8</td><td>Presence / intelligibility through PA.</td></tr>
+<tr><td class="param-name">Band 4 (HF shelf)</td><td class="value">+1 dB @ 10 kHz</td><td>Air.</td></tr>
+<tr><td rowspan="3"><strong>Comp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-20 dB / 3:1</td><td>Tame transients; preserve dynamics.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">5 ms / 80 ms</td><td>Catch peaks; quick recovery for next phrase.</td></tr>
+<tr><td class="param-name">Makeup gain</td><td class="value">+4 to +6 dB</td><td>Compensate for ratio reduction.</td></tr>
+<tr><td><strong>Sends</strong></td><td class="param-name">FX1 (Reverb)</td><td class="value">~-12 dB pre-fader</td><td>Hall reverb tap; see FX rack below.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Adam BV -->
+<h3>04 Adam BV <span class="tag teal">Backup vocal</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS</td><td>Standard.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq / slope</td><td class="value">120 Hz, 24 dB/oct</td><td>BV sits behind lead — less low energy needed.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">Threshold / range / hold</td><td class="value">-42 dB / -20 dB / 60 ms</td><td>Same idea as James.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 2</td><td class="value">-2 dB @ 300 Hz, Q 1.0</td><td>Boxy tame.</td></tr>
+<tr><td class="param-name">Band 3</td><td class="value">+1.5 dB @ 4 kHz, Q 0.8</td><td>Sit with lead vocal.</td></tr>
+<tr><td class="param-name">Band 4</td><td class="value">OFF</td><td>Don't compete with lead's air.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack / Release</td><td class="value">-18 dB / 2:1 / 5 ms / 80 ms</td><td>Lighter than lead.</td></tr>
+<tr><td><strong>Sends</strong></td><td class="param-name">FX1</td><td class="value">~-15 dB pre-fader</td><td>Less reverb than lead — keep BV close.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Guitar -->
+<h3>05 Adam Guitar <span class="tag teal">Cab mic</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS at full strum</td><td>Standard.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">90 Hz</td><td>Below guitar's low E (82 Hz) — leave room.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">—</td><td class="value">OFF</td><td>Sustained chords get chopped by a gate.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 2 (LMF bell)</td><td class="value">+1.5 dB @ 700 Hz, Q 1.5</td><td>Cab body / midrange punch.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">-3 dB @ 4 kHz, Q 1.0</td><td>Harshness / pick attack tame.</td></tr>
+<tr><td class="param-name">Band 4 (HF shelf)</td><td class="value">-2 dB @ 8 kHz</td><td>Ice-pick tame on dynamic mic.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack / Release</td><td class="value">-16 dB / 2:1 / 20 ms / 150 ms</td><td>Slow — preserve strum dynamics.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Bass -->
+<h3>06 Neil Bass <span class="tag teal">DI</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS, hard pluck</td><td>Bass DIs are quieter than mics.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">40 Hz</td><td>Don't kill the low fundamentals.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">—</td><td class="value">OFF</td><td>Bass sustain matters.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 2 (LMF bell)</td><td class="value">-2 dB @ 250 Hz, Q 1.0</td><td>Mud cut.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">+1.5 dB @ 800 Hz, Q 0.8</td><td>Pick / note definition.</td></tr>
+<tr><td class="param-name">Band 4 (HF shelf)</td><td class="value">-2 dB @ 6 kHz</td><td>DI brightness tame.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack / Release</td><td class="value">-16 dB / 4:1 / 10 ms / 80 ms</td><td>Tighter than guitar — DI peaks can be brutal on small PA.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Spare -->
+<h3>07 Spare <span class="tag grey">Unused by default</span></h3>
+<p>HPF 80 Hz, gate / comp / EQ off until needed. Activate per-use; reset between gigs.</p>
+
+<!-- =================== Live: EAD -->
+<h3>08-09 EAD L / R <span class="tag grey">Stereo linked</span></h3>
+<p>Yamaha EAD is pre-blended internally — light touch only. Silent on TD-4 days.</p>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">40 Hz</td><td>Sub clean.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">—</td><td class="value">OFF</td><td>Module is clean.</td></tr>
+<tr><td rowspan="2"><strong>EQ</strong></td><td class="param-name">Band 2</td><td class="value">-1 dB @ 250 Hz, Q 1.0 (only if warm)</td><td>EAD is usually well-tuned out of the box.</td></tr>
+<tr><td class="param-name">Band 4</td><td class="value">+1 dB @ 12 kHz (optional)</td><td>Air.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio</td><td class="value">-18 dB / 2:1, slow</td><td>Bus glue.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Kick -->
+<h3>10 Kick <span class="tag teal">Inside dynamic mic</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS, hardest hit</td><td>Kick peaks are short — leave headroom.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">40 Hz, 24 dB/oct</td><td>Sub mic doesn't capture; PA can't reproduce.</td></tr>
+<tr><td rowspan="4"><strong>Gate</strong></td><td class="param-name">Threshold</td><td class="value">-25 dB</td><td>Kill snare + tom bleed.</td></tr>
+<tr><td class="param-name">Range</td><td class="value">-25 dB (full close)</td><td>You want silence between hits.</td></tr>
+<tr><td class="param-name">Attack</td><td class="value">0.5 ms</td><td>Catch the click.</td></tr>
+<tr><td class="param-name">Hold / Release</td><td class="value">80 ms / 50 ms</td><td>Decay before next hit.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 1 (LF bell)</td><td class="value">+3 dB @ 60 Hz, Q 0.8</td><td>Body / thump.</td></tr>
+<tr><td class="param-name">Band 2 (LMF bell)</td><td class="value">-4 dB @ 350 Hz, Q 1.0</td><td>Cardboard mud SCOOP.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">+2 dB @ 3.5 kHz, Q 1.0</td><td>Beater click — cuts through PA.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack / Release</td><td class="value">-10 dB / 4:1 / 5 ms / 80 ms</td><td>Tighten transient consistency.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Snare -->
+<h3>11 Snare <span class="tag teal">Top dynamic mic</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">120 Hz, 24 dB/oct</td><td>Kick bleed kill (kick on Ch 10).</td></tr>
+<tr><td rowspan="3"><strong>Gate</strong></td><td class="param-name">Threshold / Range</td><td class="value">-30 dB / -20 dB</td><td>Partial close — keep some room sound.</td></tr>
+<tr><td class="param-name">Attack / Hold</td><td class="value">0.5 ms / 60 ms</td><td>Snare attack is fast.</td></tr>
+<tr><td class="param-name">Release</td><td class="value">50 ms</td><td>Tight.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 1 (LF bell)</td><td class="value">+2 dB @ 200 Hz, Q 0.8</td><td>Body — but if PA is small, drop this.</td></tr>
+<tr><td class="param-name">Band 2 (LMF bell)</td><td class="value">-3 dB @ 350 Hz, Q 1.0</td><td>Boxy scoop.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">+2.5 dB @ 5 kHz, Q 1.0</td><td>Crack / snap.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack / Release</td><td class="value">-12 dB / 4:1 / 5 ms / 60 ms</td><td>Tighten dynamics.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Toms -->
+<h3>12-14 Tom 1 / 2 / 3 <span class="tag teal">Per-tom dynamic mic</span></h3>
+<p>Same chain on each tom; tune Band 1 frequency to each tom's fundamental.</p>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">70 Hz</td><td>Tom fundamentals start ~90-120 Hz.</td></tr>
+<tr><td rowspan="3"><strong>Gate</strong></td><td class="param-name">Threshold / Range</td><td class="value">-35 dB / -25 dB</td><td>Tom mics pick up everything when not played.</td></tr>
+<tr><td class="param-name">Attack / Hold</td><td class="value">0.5 ms / <strong>250 ms</strong></td><td><strong>Long hold</strong> — tom decay is long; short hold chops the tail.</td></tr>
+<tr><td class="param-name">Release</td><td class="value">100 ms</td><td>Smooth fade after hold.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 1 (LF bell)</td><td class="value">+2 dB @ tom fundamental, Q 0.8</td><td>Tom 1 ~120 Hz, Tom 2 ~90 Hz, Tom 3 ~70 Hz.</td></tr>
+<tr><td class="param-name">Band 2</td><td class="value">-3 dB @ 400 Hz, Q 1.0</td><td>Mud scoop.</td></tr>
+<tr><td class="param-name">Band 3</td><td class="value">+1.5 dB @ 4 kHz, Q 1.0</td><td>Stick attack.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio</td><td class="value">-14 dB / 3:1, slow attack</td><td>Tame fill peaks.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: OH -->
+<h3>15-16 OH L / R <span class="tag grey">Stereo linked overhead pair</span></h3>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">200 Hz, 24 dB/oct</td><td>Kick + tom bleed — those are mic'd separately.</td></tr>
+<tr><td><strong>Gate</strong></td><td class="param-name">—</td><td class="value">OFF</td><td>Cymbals decay; never gate OH.</td></tr>
+<tr><td rowspan="3"><strong>EQ</strong></td><td class="param-name">Band 1 (LF shelf)</td><td class="value">-1 dB @ 250 Hz</td><td>Mud.</td></tr>
+<tr><td class="param-name">Band 3 (HMF bell)</td><td class="value">-2 dB @ 1.5 kHz, Q 1.5</td><td>Cymbal ring zone.</td></tr>
+<tr><td class="param-name">Band 4 (HF shelf)</td><td class="value">+1.5 dB @ 10 kHz</td><td>Air.</td></tr>
+<tr><td><strong>Comp</strong></td><td class="param-name">Thr / Ratio / Attack</td><td class="value">-18 dB / 2:1 / 30 ms</td><td>Slow attack preserves cymbal hits.</td></tr>
+</tbody>
+</table>
+
+<!-- =================== Live: Music -->
+<h3>17-18 Music L / R <span class="tag grey">Stereo linked, pre-mastered</span></h3>
+<p>All music feeds (backing tracks / practice / venue break music) come through here from phone/tablet via mini jack. Already mixed + mastered upstream — minimal processing.</p>
+<table>
+<thead><tr><th>Block</th><th>Setting</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td><strong>Gain</strong></td><td class="param-name">Trim</td><td class="value">-18 dBFS at source loudest</td><td>Headroom.</td></tr>
+<tr><td><strong>HPF</strong></td><td class="param-name">Freq</td><td class="value">30 Hz (or 60 Hz if PA is boomy)</td><td>Just a safety cut.</td></tr>
+<tr><td><strong>Gate / Comp</strong></td><td class="param-name">—</td><td class="value">BOTH OFF</td><td>Don't process mastered audio.</td></tr>
+<tr><td><strong>EQ</strong></td><td class="param-name">—</td><td class="value">Flat by default</td><td>If PA is harsh: -1 dB shelf @ 8 kHz; if boomy: +HPF freq.</td></tr>
+<tr><td><strong>Mute</strong></td><td class="param-name">Per-song</td><td class="value">Mute during band-original songs; unmute for backing-track / break songs</td><td>Live decision per setlist.</td></tr>
+</tbody>
+</table>
+
+<h3>Bus / DCA / Send layout</h3>
+
+<table>
+<thead><tr><th>Element</th><th>Assignment</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td><strong>Bus 1-2</strong></td><td>Drummer wedge monitor</td><td>Pre-fader sends: vocals + click + cue mix. Use vocals + bass + click — the band's reference.</td></tr>
+<tr><td><strong>Bus 3-4</strong></td><td>Band IEM / wedge</td><td>Pre-fader: everyone's vocal + their own instrument loud.</td></tr>
+<tr><td><strong>Bus 5</strong></td><td>FX1 send (Reverb)</td><td>Vocal hall reverb. Pre-fader so reverb level is fader-independent.</td></tr>
+<tr><td><strong>Bus 6</strong></td><td>FX2 send (Slap delay)</td><td>Vocal slap. Pre-fader.</td></tr>
+<tr><td><strong>DCA 1</strong></td><td>Drums (TD-4 L/R + EAD + acoustic kit chs)</td><td>Single fader rides entire kit.</td></tr>
+<tr><td><strong>DCA 2</strong></td><td>Vox (James + Adam)</td><td>Vocal-group fader for choruses / quiet sections.</td></tr>
+<tr><td><strong>DCA 3</strong></td><td>Inst (Guitar + Bass + Music)</td><td>Backline group.</td></tr>
+</tbody>
+</table>
+
+<h3>FX rack defaults</h3>
+
+<table>
+<thead><tr><th>FX slot</th><th>Type</th><th>Settings</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td><strong>FX1</strong></td><td>Hall reverb</td><td>Decay 1.8s, predelay 30 ms, HPF 200 Hz, LPF 8 kHz</td><td>Vocal send (lead heavier than BV).</td></tr>
+<tr><td><strong>FX2</strong></td><td>Slap delay</td><td>120 ms, 0% feedback, 25% mix</td><td>Vocal send — sparingly, for spoken/intro sections.</td></tr>
+<tr><td><strong>FX3</strong></td><td>Stereo chorus</td><td>Rate 0.5 Hz, depth 30%, mix 20%</td><td>Optional guitar wash.</td></tr>
+<tr><td><strong>FX4</strong></td><td>(Free)</td><td>—</td><td>Reserve for tap-tempo delay or doubler if needed.</td></tr>
+</tbody>
+</table>
+
+<h3>Wedding venue tweaks <span class="tag orange">Small PA, intimate room</span></h3>
+
+<ul>
+  <li><strong>Mono the master</strong> — most wedding PAs are point-source or summed mono. Pan stereo pairs to centre; X Air's Master Pan = 0.</li>
+  <li><strong>HPF +20 Hz</strong> on most channels — small PAs distort on low-end before they distort on top.</li>
+  <li><strong>Heavier vocal comp</strong> — ratio 4:1 instead of 3:1, makeup +6 dB. Wedding crowds are chatty; the vocal needs to sit confidently on top of room noise.</li>
+  <li><strong>Lower master output</strong> — wedding crowds don't want club-loud. Use stage volume + reflected room sound to fill; FOH carries the vocals and a bit of kick + bass top.</li>
+  <li><strong>No FX1/FX2 on dance-floor songs</strong> — reverb tail blurs the rhythm in small rooms. Dry vocal punches harder.</li>
+  <li><strong>Test the music feed early</strong> — venue breaks rely on Ch 17-18 unmuted. Soundcheck the playback level before the first set.</li>
+</ul>
+
+<h3>Feedback frequencies to watch</h3>
+
+<p>If a monitor or vocal channel rings, identify the frequency by ear or via Real-Time Analyser (X Air → Utility → RTA on a channel), then notch with a narrow Q (3-5), -6 to -10 dB cut at the offending freq. Common culprits:</p>
+
+<table>
+<thead><tr><th>Range</th><th>Source</th><th>Notch action</th></tr></thead>
+<tbody>
+<tr><td>100-120 Hz</td><td>Stage thump / monitor floor coupling</td><td>HPF up to 120 Hz on vocal channel, OR narrow notch.</td></tr>
+<tr><td>250-300 Hz</td><td>Vocal mic boxy resonance</td><td>Q 4, -8 dB cut on EQ Band 2.</td></tr>
+<tr><td>800 Hz - 1.2 kHz</td><td>Vocal mic ring</td><td>Q 5, -8 dB cut on EQ Band 3.</td></tr>
+<tr><td>4-6 kHz</td><td>Sibilance interacting with PA tweeters</td><td>Q 4, -6 dB cut on EQ Band 4 area.</td></tr>
+<tr><td>8-10 kHz</td><td>Cymbal-bleed feedback (rare)</td><td>Shelf -2 dB on OH; check mic distance first.</td></tr>
+</tbody>
+</table>
+
+<div class="note">
+  <span class="lbl">Auto-EQ for monitors</span>
+  X Air's Auto-EQ feature (Mon bus → EQ → Auto) runs pink-noise + measurement to flatten a monitor's room response. Use on Bus 1 + Bus 3 monitor sends, NOT on FOH master — Auto-EQ assumes a measurement mic at the listening position, which makes sense for monitors (drummer's head) but not for FOH (a moving crowd).
+</div>
+
+</section>
+
+<!-- ====================================================== CHANNELS -->
+<section id="channels">
+<h2>4 · Post-prod channel chains + parameters</h2>
+
+<p>Surgical work happens at the channel level: HPF removes rumble, gates kill bleed, comp tames dynamics. Bus and master add glue + colour on top.</p>
+
+<!-- =================== TD-4 e-kit -->
+<h3>01-02 TD-4 L / R (Roland e-kit) <span class="tag grey">Stereo summed</span></h3>
+<p>Roland TD-4 outputs stereo L/R only — no per-pad outs. Whole kit (kick, snare, toms, cymbals) arrives pre-mixed inside the module, so all channel EQ is bus-style: you cannot fix one drum without affecting the others. Module voicings are headphone-tuned and translate <strong>boomy + brittle</strong> through a PA; the chain below tames sub-rumble, scoops mud, shaves bite, and adds air — translation, not surgery.</p>
+<div class="chain-flow">
+<span class="plugin">ReaEQ</span> (HPF + tone) <span class="arrow">→</span> <span class="plugin">ReaComp</span> (glue) <span class="arrow">→</span> <span class="plugin">ReaEQ</span> (post-tone)
+</div>
+<table>
+<thead><tr><th>FX</th><th>Parameter</th><th>Value</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td rowspan="5"><strong>ReaEQ</strong> (pre-comp)</td><td class="param-name">HPF</td><td class="value">35 Hz, 24 dB/oct</td><td>Sub rumble the PA can't reproduce.</td></tr>
+<tr><td class="param-name">Low shelf</td><td class="value">-2 dB @ 80 Hz</td><td>Tame Roland's hyped kick body.</td></tr>
+<tr><td class="param-name">Bell cut</td><td class="value">-2 to -4 dB @ 300-400 Hz, Q 1.0</td><td>Boxy / cardboard mud.</td></tr>
+<tr><td class="param-name">Bell cut</td><td class="value">-1 to -3 dB @ 2-3 kHz</td><td>Only if cymbals / stick attack are biting.</td></tr>
+<tr><td class="param-name">High shelf</td><td class="value">+1 to +2 dB @ 10 kHz</td><td>Air — gentle, samples are already crispy.</td></tr>
+<tr><td rowspan="3"><strong>ReaComp</strong></td><td class="param-name">Threshold / Ratio</td><td class="value">-16 dB / 2:1</td><td>Glue only — keep kit sat in the mix.</td></tr>
+<tr><td class="param-name">Attack / Release</td><td class="value">~30 ms / 150 ms</td><td>Slow attack preserves transients.</td></tr>
+<tr><td class="param-name">GR target</td><td class="value">2-3 dB peak</td><td>Don't squash — Roland already compressed internally.</td></tr>
+<tr><td><strong>ReaEQ</strong> (post-comp)</td><td class="param-name">Tone shape</td><td class="value">Track-by-track</td><td>Final polish after comp settles dynamics.</td></tr>
+</tbody>
+</table>
+<div class="note">
+  <span class="lbl">At source</span>
+  Pick a flatter "studio" kit voicing (not "rock"/"electronic") on the TD-4 module, set its ambience knob to 0 (venue adds its own reverb), and flatten any factory master-EQ smile curve. Fixing it at the module is cheaper than fighting it downstream.
 </div>
 
 <!-- =================== James Vox -->
@@ -540,7 +823,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== JAMES -->
 <section id="james">
-<h2>4 · James leveling deep-dive</h2>
+<h2>5 · James leveling deep-dive (post-prod)</h2>
 
 <p>The problem: James moves <strong>further from the mic when he sings louder</strong>, so his loud parts come through paradoxically QUIETER than his quiet parts. Inverse-square law: doubling distance = -6 dB at the mic, so a 30 cm → 60 cm move = -6 dB, a 30 → 90 = -10 dB. Easy 6-12 dB swings. A single fast comp can't tame this — it's tracking transients, not averages.</p>
 
@@ -578,7 +861,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== BUSES -->
 <section id="buses">
-<h2>5 · Bus chains</h2>
+<h2>6 · Post-prod bus chains</h2>
 
 <h3>VOX BUS (ch 3-4)</h3>
 <div class="chain-flow">
@@ -635,17 +918,17 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
   Add <code>Airwindows ConsoleX</code> at the end (sum point) for analog console summing colour. Modes: API, Neve, SSL, Helios. Modest setting (Drive 0 dB, just for character). Skip if CPU-conscious.
 </div>
 
-<h3>MUSIC BUS (ch 1-2) — intentionally empty</h3>
-<p>Backing tracks are pre-mastered. Adding compression creates pumping against the live band. Just gain-balance via the bus fader.</p>
+<h3>TD-4 BUS (ch 1-2) — light glue only</h3>
+<p>Roland module already does internal compression. One bus-level glue compressor (DC1A3, ~1-2 dB GR) is enough to seat the kit in the mix without squashing it further. Silent + skipped on acoustic-kit days.</p>
 
-<h3>PRACTICE BUS (ch 17-18) — muted</h3>
-<p>Practice refs aren't in the live mixdown. Bus stays muted; ignore.</p>
+<h3>MUSIC BUS (ch 17-18) — intentionally empty</h3>
+<p>All music (backing tracks, practice refs, venue break) is pre-mastered upstream. Adding compression creates pumping against the live band. Just gain-balance via the bus fader; per-song mute decisions happen at the channel, not the bus.</p>
 
 </section>
 
 <!-- ====================================================== MASTER -->
 <section id="master">
-<h2>6 · Master mastering chain</h2>
+<h2>7 · Master mastering chain (post-prod)</h2>
 
 <div class="chain-flow">
 <span class="plugin">SPAN</span> (pre) <span class="arrow">→</span> <span class="plugin">TDR SlickEQ</span> <span class="arrow">→</span> <span class="plugin">TDR Nova</span> <span class="arrow">→</span> <span class="plugin">TDR Kotelnikov</span> <span class="arrow">→</span> <span class="plugin">LoudMax</span> <span class="arrow">→</span> <span class="plugin">Youlean LM2</span>
@@ -696,7 +979,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== RENDER -->
 <section id="render">
-<h2>7 · Render</h2>
+<h2>8 · Render</h2>
 
 <h3>Path A: shared mix, per-song stereo bounces</h3>
 <p>Your global mix applies; each region renders to its own stereo file. Best for normal release flow.</p>
@@ -733,7 +1016,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== GOTCHAS -->
 <section id="gotchas">
-<h2>8 · Live multitrack gotchas</h2>
+<h2>9 · Post-prod gotchas</h2>
 
 <h3>Cymbal bleed on tom mics</h3>
 <p><strong>The #1 thing that breaks between gigs.</strong> Tom mics pick up 80% bleed. Different rooms = different bleed levels. Always check tom gates per-gig. Symptoms:</p>
@@ -767,7 +1050,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 </ul>
 
 <h3>Don't compress the Music bus</h3>
-<p>Backing tracks are already mastered to -8 LUFS or so. Compressing them creates audible pumping against the live drum hits. Even subtle 1-2 dB GR is audible. Just gain-match the bus fader.</p>
+<p>Music feeds on ch 17-18 (backing tracks / practice refs / venue break) are already mastered to -8 LUFS or so. Compressing them creates audible pumping against the live drum hits. Even subtle 1-2 dB GR is audible. Just gain-match the bus fader.</p>
 
 <h3>Reverb on drums = sounds fake</h3>
 <p>Live recordings already have natural room ambience baked into OH mics. Adding reverb to the drum bus makes it sound like a studio multitrack pretending to be live. Don't.</p>
@@ -782,7 +1065,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== HOTKEYS -->
 <section id="hotkeys">
-<h2>9 · Hotkey + action reference</h2>
+<h2>10 · Reaper hotkey + action reference</h2>
 
 <h3>Custom (TGT) actions</h3>
 <table>
@@ -820,7 +1103,7 @@ E6330 capture <span class="arrow">→</span> <span class="plugin">pull-gig.py</s
 
 <!-- ====================================================== TROUBLE -->
 <section id="troubleshooting">
-<h2>10 · Troubleshooting</h2>
+<h2>11 · Troubleshooting</h2>
 
 <table>
 <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
