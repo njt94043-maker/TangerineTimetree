@@ -95,11 +95,13 @@ class OrchestratorPeerServer {
     }
 
     /** Fan-out: tell every paired peer to start recording. */
-    fun broadcastStartRec(sessionId: String) {
+    fun broadcastStartRec(sessionId: String, gigName: String = "", gigDate: String = "") {
         val payload = PhoneProtocol.serializePayload(StartRecPayload(
             sessionId = sessionId,
             sessionName = "gig-set",
             timestamp = System.currentTimeMillis(),
+            gigName = gigName,
+            gigDate = gigDate.ifBlank { null },
         ))
         broadcast(PhoneMessageType.StartRec, payload)
         scope.launch {

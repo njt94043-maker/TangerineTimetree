@@ -60,6 +60,20 @@ def parse_args():
              "Useful when a phone has older mp4s from prior gigs you don't "
              "want re-pulled. Default: pull everything.")
     p.add_argument(
+        "--gig-name", dest="gig_name", default=None,
+        help="S155: only pull mp4s whose filename starts with '<slug>__' where "
+             "slug is this gig name run through the same sanitiser the APK "
+             "uses ([A-Za-z0-9._-] kept, others -> '_'). Pre-S155 mp4s have no "
+             "prefix and are skipped — use --since or omit --gig-name to "
+             "backfill them. Default: no gig-name filter.")
+    p.add_argument(
+        "--gig-date", dest="gig_date", default=None,
+        help="F4: YYYYMMDD; when combined with --gig-name, narrows the prefix "
+             "filter to '<slug>-<YYYYMMDD>__' (exact-date match). Use when "
+             "two gigs share a name across different days. Without it, "
+             "--gig-name matches any date via '<slug>-\\d{8}__' OR the "
+             "legacy '<slug>__' (pre-F4 APKs).")
+    p.add_argument(
         "--device", default=None,
         help="Limit pull to one adb serial (use `adb devices` to see them). "
              "Default: pull from every connected device.")
@@ -67,6 +81,58 @@ def parse_args():
         "--adb", default="adb",
         help="Path to adb executable. Default 'adb' (must be on PATH).")
     return p.parse_args()
+
+
+def slugify_gig_name(name: str, gig_date: str | None = None) -> str:
+    """Mirror of CameraRecordingManager.slugifyGigName in the APK (S155/F4/F5).
+
+    F5: separator is DASH (`-`) — matches the rig dir naming convention used by
+    pull-gig.py and the D:/Gigs/<name>/ layout. Sanitises to [A-Za-z0-9._];
+    collapses every other run (including spaces) to a single dash; trims
+    leading/trailing dash + underscore; blank -> 'nogig'. F4: when gig_date is
+    a YYYYMMDD string, appends '-<YYYYMMDD>'.
+    """
+    if not name or not name.strip():
+        name_slug = "nogig"
+    else:
+        sanitised = re.sub(r"[^A-Za-z0-9._-]+", "-", name).strip("-_")
+        name_slug = sanitised or "nogig"
+    if gig_date and re.match(r"^\d{8}$", gig_date):
+        return f"{name_slug}-{gig_date}"
+    return name_slug
+
+
+def gig_match_pattern(gig_name: str, gig_date: str | None) -> "re.Pattern[str]":
+    """Build the regex used to filter remote mp4s by filename prefix.
+
+    F5: lenient on the in-slug separator — matches BOTH the new dash-slug
+    (F5+) AND the legacy S155 underscore-slug. Lets a freshly-deployed MS
+    host still pull mp4s from a not-yet-updated APK that wrote
+    'testing_2-...' instead of 'testing-2-...'.
+
+    - With both name + date: prefix matches '<sluggish>-<YYYYMMDD>__' where
+      `<sluggish>` is the name with every non-alphanumeric run treated as
+      `[-_]+` (so 'testing 2' matches either 'testing-2' or 'testing_2').
+    - With name only: also allows an optional '-\\d{8}' date band before '__'.
+    """
+    # Build the per-segment regex from the human-typed gig name. Split on the
+    # same chars the slugifier collapses; every gap matches `[-_]+`. Then
+    # within each segment, ALSO loosen any embedded `-` or `_` to `[-_]+` so a
+    # name typed as "testing-2" matches both `testing-2-` (F5) and
+    # `testing_2-` (pre-F5 APK output that escaped because the user typed a
+    # space and the old slug used `_`).
+    raw_parts = [p for p in re.split(r"[^A-Za-z0-9._-]+", gig_name) if p]
+    if not raw_parts:
+        raw_parts = ["nogig"]
+    def loosen(part: str) -> str:
+        # Split each segment on its OWN dashes/underscores and rejoin with
+        # `[-_]+`; escape the alphanumeric runs literally.
+        sub_runs = [re.escape(s) for s in re.split(r"[-_]+", part) if s]
+        return r"[-_]+".join(sub_runs) if sub_runs else re.escape(part)
+    sluggish = r"[-_]+".join(loosen(p) for p in raw_parts)
+    if gig_date and re.match(r"^\d{8}$", gig_date):
+        return re.compile(rf"^{sluggish}-{gig_date}__")
+    return re.compile(rf"^{sluggish}(?:-\d{{8}})?__")
 
 
 def progress(pct: float, msg: str) -> None:
@@ -174,6 +240,11 @@ def main() -> None:
         since_epoch = int(datetime.datetime.fromisoformat(
             args.since + "T00:00:00").timestamp())
 
+    if args.gig_date and not re.match(r"^\d{8}$", args.gig_date):
+        sys.exit(f"ERROR: bad --gig-date {args.gig_date!r} (need YYYYMMDD)")
+
+    gig_re = gig_match_pattern(args.gig_name, args.gig_date) if args.gig_name else None
+
     progress(0.02, "looking for adb devices...")
     serials = list_devices(args.adb)
     if args.device:
@@ -199,6 +270,8 @@ def main() -> None:
                 if since_epoch is not None and mt < since_epoch:
                     continue
                 fname = remote_path.rsplit("/", 1)[-1]
+                if gig_re is not None and not gig_re.match(fname):
+                    continue
                 local_path = device_dir / fname
                 plan.append((serial, model, remote_path, local_path, 0))
 
@@ -210,6 +283,10 @@ def main() -> None:
         print(f"  hint: confirm APK >= S148 (writes to "
               f"/sdcard/Android/data/{PACKAGE}/files/) -- pre-S148 APKs use "
               f"private filesDir which adb cannot read on release builds.")
+        if gig_re is not None:
+            print(f"  hint: --gig-name filter active (regex '{gig_re.pattern}'). "
+                  f"Pre-S155 mp4s (no gig-name prefix) are skipped. Omit "
+                  f"--gig-name to backfill old recordings.")
         return
 
     progress(0.10, f"plan: {len(plan)} mp4 file(s) across {len(serials)} device(s)")

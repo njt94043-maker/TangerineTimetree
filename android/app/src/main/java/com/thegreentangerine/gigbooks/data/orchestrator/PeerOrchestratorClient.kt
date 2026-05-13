@@ -83,8 +83,11 @@ class PeerOrchestratorClient(private val context: Context) {
     private val _phoneId = MutableStateFlow<String?>(null)
     val phoneId: StateFlow<String?> = _phoneId
 
-    /** Called when the orchestrator broadcasts StartRec. Caller wires this to start camera recording. */
-    var onStartRec: ((sessionId: String, sessionName: String) -> Unit)? = null
+    /** Called when the orchestrator broadcasts StartRec. Caller wires this to start camera recording.
+     *  S155: also carries the orchestrator's current gigName so the peer can prefix
+     *  its mp4 filename and the MS host post-prod pull can filter per-gig.
+     *  F4: gigDate (YYYYMMDD) appended to slug to disambiguate same-name gigs across days. */
+    var onStartRec: ((sessionId: String, sessionName: String, gigName: String, gigDate: String?) -> Unit)? = null
 
     /** Called when the orchestrator broadcasts StopRec. */
     var onStopRec: (() -> Unit)? = null
@@ -328,7 +331,12 @@ class PeerOrchestratorClient(private val context: Context) {
             PhoneMessageType.StartRec -> {
                 val payload = PhoneProtocol.deserializePayload<StartRecPayload>(msg.payload)
                 _state.value = State.Recording
-                onStartRec?.invoke(payload?.sessionId ?: "", payload?.sessionName ?: "gig-set")
+                onStartRec?.invoke(
+                    payload?.sessionId ?: "",
+                    payload?.sessionName ?: "gig-set",
+                    payload?.gigName ?: "",
+                    payload?.gigDate,
+                )
                 sendInternal(PhoneProtocol.createMessage(
                     type = PhoneMessageType.RecStarted,
                     phoneId = _phoneId.value,

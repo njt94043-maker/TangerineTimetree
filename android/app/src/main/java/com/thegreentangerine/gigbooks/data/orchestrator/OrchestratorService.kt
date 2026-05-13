@@ -148,12 +148,14 @@ class OrchestratorService : Service() {
     fun startRecording() {
         scope.launch {
             val sessionId = newSessionId()
+            val gigName = session.gigName
+            val gigDate = session.gigDate
             // Reaper first (the source of truth), then peer fan-out, then local
             // orchestrator camera if Gig Mode wired CameraGate. All within the
             // same dispatcher tick so latency is dominated by network, not code.
             osc.sendRecord()
-            peerServer.broadcastStartRec(sessionId)
-            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId)
+            peerServer.broadcastStartRec(sessionId, gigName, gigDate)
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
             _isRecording.value = true
             updateNotification()
         }
@@ -211,9 +213,15 @@ class OrchestratorService : Service() {
         scope.launch {
             session.beginRecording()
             scope.launch { bookendTone.playSetStart() }  // fire-and-forget; OSC must not wait
+            // S155: single sessionId per record event — peer + local cam previously
+            // diverged because each called newSessionId() independently, breaking
+            // file-name correlation. Same fix in continueSameSet / continueNewSet.
+            val sessionId = newSessionId()
+            val gigName = session.gigName
+            val gigDate = session.gigDate
             osc.sendRecord()
-            peerServer.broadcastStartRec(newSessionId())
-            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            peerServer.broadcastStartRec(sessionId, gigName, gigDate)
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
             _isRecording.value = true
             updateNotification()
         }
@@ -238,11 +246,14 @@ class OrchestratorService : Service() {
     fun continueSameSet() {
         scope.launch {
             session.continueSameSet()
+            val sessionId = newSessionId()
+            val gigName = session.gigName
+            val gigDate = session.gigDate
             // Cursor-at-end-then-record bundle (S120 lock) — new take starts
             // strictly after the previous so they don't overwrite.
             osc.sendRecord()
-            peerServer.broadcastStartRec(newSessionId())
-            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            peerServer.broadcastStartRec(sessionId, gigName, gigDate)
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
             _isRecording.value = true
             updateNotification()
         }
@@ -257,9 +268,12 @@ class OrchestratorService : Service() {
             gigCmd.save()
             session.continueNewSet()
             scope.launch { bookendTone.playSetStart() }  // fire-and-forget; OSC must not wait
+            val sessionId = newSessionId()
+            val gigName = session.gigName
+            val gigDate = session.gigDate
             osc.sendRecord()
-            peerServer.broadcastStartRec(newSessionId())
-            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = newSessionId())
+            peerServer.broadcastStartRec(sessionId, gigName, gigDate)
+            CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
             // Drop the named "Set N" marker via HTTP file-drop (Reaper-side
             // song-marker-listener.lua picks it up). OSC fallback if HTTP fails.
             val markerTitle = "Set ${session.setNumber}"

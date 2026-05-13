@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.thegreentangerine.gigbooks.data.xr18.CameraRecordingManager
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
@@ -122,7 +123,14 @@ fun GigStartWizard(
                         label = "Start gig",
                         accent = TangerineColors.orange,
                         enabled = canStart,
-                        onClick = { onStart(fieldValue.text.trim()) },
+                        onClick = {
+                        // F5: canonicalise here so the slug flowing through
+                        // session.gigName → phone files → rig dir → MS host
+                        // is the SAME string everywhere. Prevents the
+                        // "testing 2" → APK "testing_2" / rig "testing-2"
+                        // split that masked recordings from the pull filter.
+                        onStart(CameraRecordingManager.slugifyForWizard(fieldValue.text))
+                    },
                     )
                 }
             }

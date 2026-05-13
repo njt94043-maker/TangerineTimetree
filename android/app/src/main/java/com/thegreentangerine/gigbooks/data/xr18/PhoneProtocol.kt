@@ -99,6 +99,7 @@ data class StartRecPayload(
     val gigId: String? = null,
     val venueName: String? = null,
     val gigDate: String? = null,
+    val gigName: String = "",
 )
 
 @Serializable

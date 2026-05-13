@@ -192,11 +192,17 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         // S148: external app-specific dir (see RecordingsRepository.videoBaseDir
         // doc) so MS host's pull-videos.py can adb-pull the mp4s post-gig.
         val outputDir = File(RecordingsRepository.videoBaseDir(context), "peer_recordings")
-        client.onStartRec = { sessionId, sessionName ->
+        client.onStartRec = { sessionId, sessionName, gigName, gigDate ->
             lastSession = sessionId
             lastRecToggleMs = System.currentTimeMillis()
             runCatching {
-                cameraManager.startRecording(outputDir, sessionName.ifBlank { "gig-set" }, sessionId)
+                cameraManager.startRecording(
+                    outputDir,
+                    sessionName.ifBlank { "gig-set" },
+                    sessionId,
+                    gigName,
+                    gigDate,
+                )
             }
         }
         client.onStopRec = {

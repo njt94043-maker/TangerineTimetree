@@ -49,6 +49,7 @@ class GigSession {
     data class Snapshot(
         val state: State = State.IDLE,
         val gigName: String = "",
+        val gigDate: String = "",   // F4: YYYYMMDD; set at arm() so the slug stays stable across sets even past midnight
         val setNumber: Int = 0,
     )
 
@@ -57,6 +58,7 @@ class GigSession {
 
     val state: State get() = _snapshot.value.state
     val gigName: String get() = _snapshot.value.gigName
+    val gigDate: String get() = _snapshot.value.gigDate
     val setNumber: Int get() = _snapshot.value.setNumber
 
     /** Wizard finishes -> ARMED. Project named + saved, transport idle. */
@@ -64,8 +66,21 @@ class GigSession {
         _snapshot.value = Snapshot(
             state = State.ARMED,
             gigName = name,
+            gigDate = todayYyyyMmDd(),
             setNumber = 0,
         )
+    }
+
+    companion object {
+        /** F4: YYYYMMDD for the device's current local date. Stable for the gig
+         *  even if the clock crosses midnight mid-gig — slug stays fixed. */
+        fun todayYyyyMmDd(): String {
+            val cal = java.util.Calendar.getInstance()
+            val y = cal.get(java.util.Calendar.YEAR)
+            val m = cal.get(java.util.Calendar.MONTH) + 1
+            val d = cal.get(java.util.Calendar.DAY_OF_MONTH)
+            return "%04d%02d%02d".format(y, m, d)
+        }
     }
 
     /** ARMED -> ACTIVE_SET (set 1). Only valid from ARMED. */

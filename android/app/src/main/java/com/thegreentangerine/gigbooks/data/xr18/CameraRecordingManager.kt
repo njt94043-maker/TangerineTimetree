@@ -53,6 +53,40 @@ class CameraRecordingManager(private val context: Context) {
         /** Approximate minutes-per-GB at a given bitrate. 1 GB ≈ 8 Gbits. */
         fun minutesPerGb(bitrateBps: Int): Int =
             if (bitrateBps <= 0) 0 else (8L * 1_000_000_000L / bitrateBps / 60L).toInt()
+
+        /**
+         * S155 / F4 / F5: sanitise a gig name + date into the filename prefix
+         * used in `<gigSlug>__<role>_<sessId>_<ts>.mp4`. Keeps [A-Za-z0-9._]
+         * verbatim and collapses every other run (including spaces) to a
+         * single DASH. Dash is the rig + MS host convention — using anything
+         * else (S155's `_`) means the APK slug doesn't agree with the
+         * D:/Gigs/<name>/ dir for inputs like "testing 2" → rig "testing-2"
+         * but phone "testing_2" → pull-videos filter misses. F5 aligns both.
+         *
+         * F4: when `gigDate` is a YYYYMMDD string (8 digits), it's appended as
+         * `<name>-<YYYYMMDD>`.
+         *
+         * The companion `slugifyForWizard()` applies the same rule but is
+         * used at gig-name-entry time so what the user types and what the
+         * filesystem stores stay aligned everywhere (phone files, rig dir,
+         * MS host dir, Reaper RPP name).
+         */
+        fun slugifyGigName(name: String, gigDate: String? = null): String {
+            val nameSlug = if (name.isBlank()) "nogig" else
+                name.replace(Regex("[^A-Za-z0-9._-]+"), "-")
+                    .trim('-', '_')
+                    .ifEmpty { "nogig" }
+            val date = gigDate?.takeIf { it.matches(Regex("^\\d{8}$")) }
+            return if (date != null) "$nameSlug-$date" else nameSlug
+        }
+
+        /**
+         * F5: canonicalise the user-typed gig name at the wizard so it flows
+         * unchanged through rig dir, phone files, Reaper RPP, MS host. Same
+         * rule as slugifyGigName but without the date suffix (date is
+         * appended at recording time, not naming time).
+         */
+        fun slugifyForWizard(name: String): String = slugifyGigName(name, null)
     }
 
     private var cameraProvider: ProcessCameraProvider? = null
@@ -349,18 +383,33 @@ class CameraRecordingManager(private val context: Context) {
      * Start video recording to the given output directory.
      * Returns the output file.
      * @param sessionId Optional session ID from StartRecPayload for file naming and sync correlation.
+     * @param gigName Active gig name (from GigSession on the orchestrator, or the
+     *   StartRecPayload's `gigName` on the peer). Prepended to the filename so the
+     *   MS host post-prod pull can filter per-gig instead of dragging in every mp4
+     *   the phone has ever recorded. Blank -> "nogig" so the file is still pullable
+     *   for ad-hoc tests; sanitised so only [A-Za-z0-9._-] survive.
      */
-    fun startRecording(outputDir: File, sessionName: String, sessionId: String? = null): File {
+    fun startRecording(
+        outputDir: File,
+        sessionName: String,
+        sessionId: String? = null,
+        gigName: String = "",
+        gigDate: String? = null,
+    ): File {
         val capture = videoCapture ?: throw IllegalStateException("Camera not bound")
         currentSessionId = sessionId
         outputDir.mkdirs()
 
-        // Include sessionId in filename if provided, for easy correlation with audio files
-        val namePart = if (!sessionId.isNullOrBlank()) {
+        val gigSlug = slugifyGigName(gigName, gigDate)
+        // Include sessionId in filename if provided, for easy correlation with audio files.
+        // Filename shape: <gigSlug>__<role>_<sessId>_<ts>.mp4 (S155 — pull-videos.py
+        // matches on the "<gigSlug>__" prefix to scope per-gig pulls).
+        val tail = if (!sessionId.isNullOrBlank()) {
             "${sessionName}_${sessionId}_${System.currentTimeMillis()}"
         } else {
             "${sessionName}_${System.currentTimeMillis()}"
         }
+        val namePart = "${gigSlug}__${tail}"
         val file = File(outputDir, "$namePart.mp4")
         val outputOptions = FileOutputOptions.Builder(file).build()
 

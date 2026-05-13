@@ -1,4 +1,4 @@
--- TGT video insertion (S148)
+-- TGT video insertion (S148, F3 sentinel S155)
 --
 -- Adds VIDEO items to the open Reaper project for every mp4 in the project
 -- directory's video/ subdir. Pairs with pull-videos.py (which adb-pulls phone
@@ -36,6 +36,44 @@ local function log(msg)
   reaper.ShowConsoleMsg(msg .. "\n")
 end
 
+-- F3: write a sentinel JSON the MS host can poll. The MS host fires the GET
+-- and Reaper's /_/<cmd> returns 200 instantly regardless of script outcome;
+-- without this sentinel the auto-insert step appears to succeed even when the
+-- lua silently bailed (no project open / no video dir / etc). Writes to the
+-- project root if available, otherwise to a fixed fallback path the host can
+-- still find (D:/Gigs/.last-insert-result.json) — gives a signal even in the
+-- "no project open" failure path.
+local function write_sentinel(path_hint, payload_tbl)
+  local json_lines = { "{" }
+  local first = true
+  local function add(k, v_str)
+    if not first then json_lines[#json_lines] = json_lines[#json_lines] .. "," end
+    first = false
+    table.insert(json_lines, '  "' .. k .. '": ' .. v_str)
+  end
+  add("timestamp", tostring(os.time()))
+  add("status", '"' .. (payload_tbl.status or "unknown") .. '"')
+  add("gig_path", '"' .. (payload_tbl.gig_path or ""):gsub('\\', '/'):gsub('"', '\\"') .. '"')
+  add("inserted_count", tostring(payload_tbl.inserted_count or 0))
+  add("track_count", tostring(payload_tbl.track_count or 0))
+  add("message", '"' .. (payload_tbl.message or ""):gsub('\\', '\\\\'):gsub('"', '\\"') .. '"')
+  table.insert(json_lines, "}")
+  local body = table.concat(json_lines, "\n")
+
+  -- Always try the gig-root path first (preferred for the host's poll), then
+  -- fall back to a stable D:/Gigs/ path if the gig dir doesn't exist.
+  local candidates = {}
+  if path_hint and path_hint ~= "" then
+    table.insert(candidates, path_hint .. "/.last-insert-result.json")
+  end
+  table.insert(candidates, "D:/Gigs/.last-insert-result.json")
+  for _, p in ipairs(candidates) do
+    local f = io.open(p, "w")
+    if f then f:write(body); f:close(); return p end
+  end
+  return nil
+end
+
 -- ---------------------------------------------------------------------------
 -- Locate the project's video/ subdir.
 -- GetProjectPath returns either the full path including "Audio Files" subdir,
@@ -44,6 +82,10 @@ end
 -- ---------------------------------------------------------------------------
 local proj_path = reaper.GetProjectPath("")
 if proj_path == "" then
+  write_sentinel(nil, {
+    status = "no_project",
+    message = "No project open (or unsaved). Save the gig RPP first.",
+  })
   reaper.ShowMessageBox(
     "No project open (or unsaved). Save the project first so the script knows " ..
     "where to find video/ files.",
@@ -73,6 +115,12 @@ while true do
 end
 
 if #device_dirs == 0 then
+  write_sentinel(proj_path, {
+    status = "empty_video_dir",
+    gig_path = proj_path,
+    message = "No device folders under " .. video_root ..
+      ". Run pull-videos.py first.",
+  })
   reaper.ShowMessageBox(
     "No device folders under " .. video_root .. "/.\n\n" ..
     "Run pull-videos.py first (or click 'Pull videos' in the MS PWA), then " ..
@@ -107,6 +155,12 @@ for _, device in ipairs(device_dirs) do
 end
 
 if #plan == 0 then
+  write_sentinel(proj_path, {
+    status = "no_videos",
+    gig_path = proj_path,
+    message = "Device folders exist under " .. video_root ..
+      " but no .mp4 files inside.",
+  })
   reaper.ShowMessageBox(
     "Found device folders under " .. video_root ..
     " but no .mp4 files inside any of them.\n\n" ..
@@ -164,3 +218,12 @@ reaper.Undo_EndBlock(
 log(string.format("\nDONE: inserted %d video item(s) across %d new track(s).",
   total_items, #plan))
 log("Drag each track's items to align with audio (set-start clap or visual sync).")
+
+write_sentinel(proj_path, {
+  status = "ok",
+  gig_path = proj_path,
+  inserted_count = total_items,
+  track_count = #plan,
+  message = string.format("inserted %d video(s) across %d new track(s)",
+    total_items, #plan),
+})

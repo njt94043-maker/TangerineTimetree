@@ -37,7 +37,12 @@ object CameraGate {
     val lastError: StateFlow<RecordError?> = _lastError
     fun clearError() { _lastError.value = null }
 
-    fun startLocalRecording(sessionName: String, sessionId: String): Boolean {
+    fun startLocalRecording(
+        sessionName: String,
+        sessionId: String,
+        gigName: String = "",
+        gigDate: String? = null,
+    ): Boolean {
         if (!_enabled.value) {
             // Not an error — Nathan toggled the self-cam off on the Cameras drawer
             // tile. Clear any stale error so the UI doesn't yell.
@@ -57,10 +62,10 @@ object CameraGate {
             return false
         }
         return try {
-            mgr.startRecording(dir, sessionName.ifBlank { "orchestrator" }, sessionId)
+            mgr.startRecording(dir, sessionName.ifBlank { "orchestrator" }, sessionId, gigName, gigDate)
             _isRecording.value = true
             _lastError.value = null
-            Log.i(TAG, "local camera recording started (session=$sessionId, dir=$dir)")
+            Log.i(TAG, "local camera recording started (session=$sessionId, gig=$gigName, date=$gigDate, dir=$dir)")
             true
         } catch (e: Exception) {
             Log.e(TAG, "startRecording failed: ${e.message}", e)
