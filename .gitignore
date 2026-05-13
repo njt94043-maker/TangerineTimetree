@@ -57,3 +57,8 @@ native/modules/*/android/build/
 ERROR
 backups/
 concept-pack/
+
+# tools/post-prod test artifacts (S155)
+tools/post-prod/__pycache__/
+tools/post-prod/tests/__pycache__/
+tools/post-prod/templates/*.RPP.bak

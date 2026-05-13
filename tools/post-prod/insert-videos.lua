@@ -54,6 +54,11 @@ local function write_sentinel(path_hint, payload_tbl)
   add("timestamp", tostring(os.time()))
   add("status", '"' .. (payload_tbl.status or "unknown") .. '"')
   add("gig_path", '"' .. (payload_tbl.gig_path or ""):gsub('\\', '/'):gsub('"', '\\"') .. '"')
+  -- F6: capture the actual RPP filename so the host can tell whether the
+  -- user opened the FX-laden post-prod RPP or the raw rig set RPP — both
+  -- live in the same gig dir so gig_path alone doesn't distinguish them.
+  add("rpp_filename", '"' .. (payload_tbl.rpp_filename or ""):gsub('\\', '/'):gsub('"', '\\"') .. '"')
+  add("is_postprod_rpp", (payload_tbl.is_postprod_rpp == true) and "true" or "false")
   add("inserted_count", tostring(payload_tbl.inserted_count or 0))
   add("track_count", tostring(payload_tbl.track_count or 0))
   add("message", '"' .. (payload_tbl.message or ""):gsub('\\', '\\\\'):gsub('"', '\\"') .. '"')
@@ -81,9 +86,27 @@ end
 -- trailing "Audio Files" component if present so we land at <project_root>/.
 -- ---------------------------------------------------------------------------
 local proj_path = reaper.GetProjectPath("")
+-- F6: also capture the RPP filename. EnumProjects(-1, "") returns (project,
+-- projfn) for the active project. projfn is the full path on disk, or "" if
+-- the project has never been saved. We extract just the basename for the
+-- sentinel (host can prefix with gig_path if it needs the full path).
+local _proj, _projfn = reaper.EnumProjects(-1, "")
+local rpp_filename = ""
+if _projfn and _projfn ~= "" then
+  rpp_filename = _projfn:match("[^/\\]+$") or _projfn
+end
+-- A "post-prod" RPP is recognised by the suffix `postprod` anywhere in the
+-- filename (covers both `<gig>-whole-gig-postprod.RPP` and per-set
+-- `set-XXXX-postprod.RPP` shapes that build-postprod-rpp.py produces).
+-- Anything else (raw `set-XXXX.RPP`, `rig-source.rpp`, hand-named files) is
+-- treated as "not a postprod RPP" and the host surfaces that as a warning.
+local is_postprod_rpp = rpp_filename:lower():find("postprod", 1, true) ~= nil
+
 if proj_path == "" then
   write_sentinel(nil, {
     status = "no_project",
+    rpp_filename = rpp_filename,
+    is_postprod_rpp = is_postprod_rpp,
     message = "No project open (or unsaved). Save the gig RPP first.",
   })
   reaper.ShowMessageBox(
@@ -118,6 +141,8 @@ if #device_dirs == 0 then
   write_sentinel(proj_path, {
     status = "empty_video_dir",
     gig_path = proj_path,
+    rpp_filename = rpp_filename,
+    is_postprod_rpp = is_postprod_rpp,
     message = "No device folders under " .. video_root ..
       ". Run pull-videos.py first.",
   })
@@ -158,6 +183,8 @@ if #plan == 0 then
   write_sentinel(proj_path, {
     status = "no_videos",
     gig_path = proj_path,
+    rpp_filename = rpp_filename,
+    is_postprod_rpp = is_postprod_rpp,
     message = "Device folders exist under " .. video_root ..
       " but no .mp4 files inside.",
   })
@@ -222,6 +249,8 @@ log("Drag each track's items to align with audio (set-start clap or visual sync)
 write_sentinel(proj_path, {
   status = "ok",
   gig_path = proj_path,
+  rpp_filename = rpp_filename,
+  is_postprod_rpp = is_postprod_rpp,
   inserted_count = total_items,
   track_count = #plan,
   message = string.format("inserted %d video(s) across %d new track(s)",
