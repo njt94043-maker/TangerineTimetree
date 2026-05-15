@@ -1,10 +1,12 @@
 # TGT — Project Constitution
 
+> **Cross-project context:** Read `C:\Apps\Dev Team\CLAUDE.md` first when working across projects (portfolio index, sovereign rules, shared infra).
+
 ## What Is This?
 Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps + one future + one shelved, sharing one Supabase backend. **All apps are one family** — same dark neumorphic theme, same fonts, same visual language. Different features but shared metadata must be consistent (D-156).
 - **GigBooks** (android/) — Jetpack Compose + C++/Oboe native app for calendar, songs, setlists, live mode, practice mode
 - **Tangerine Timetree** (web/) — React/Vite PWA for full band management (invoicing, quotes, calendar, stage prompter, public site)
-- **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. **Entry point for the whole ecosystem** — feeds songs into web app via import pipeline, practice tracks into future ClickTrack. Capture is the metadata superset (D-154).
+- **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. **Entry point for the whole ecosystem** — feeds songs into web app via import pipeline, practice tracks into future ClickTrack. Capture is the metadata superset (D-154). **Rename pending**: the name "TGT Capture" will transfer to the S129 fan-capture app when that ships; this tool will be renamed (target name TBD). See Sovereign Spec v3.1 §A1.
 - **ClickTrack** (future, not yet in repo) — Personal practice tool for Nathan. Techniques, sticking patterns, fills, polyrhythms, limb independence. Will consume Capture's practice_category, instrument_focus, difficulty fields. **Not built yet but integration points must be considered now** (D-155).
 - **Native** (native/) — **SHELVED**. Former React Native/Expo app. Archived at `D:/tgt/gigbooks-react-native-backup-2026-03-08.7z`. Still in git history.
 
