@@ -23,6 +23,13 @@ fi
 # Alt+Tab from Reaper to this window when the hotspot drops/returns.
 DISPLAY=:0 python3 /opt/tgt/wifi-switcher.py >/tmp/wifi-switcher.log 2>&1 &
 
+# Mixing Station — XR18 mix control (S160). Alt+Tab between Reaper / MS / WiFi.
+# XR18 IP + scenes persist in ~/.config/MixingStation/ across reboot.
+# Launched before Reaper so it can settle on its preferred window position.
+if [ -x /opt/tgt/mixing-station/launch.sh ]; then
+  /opt/tgt/mixing-station/launch.sh &
+fi
+
 # Launch Reaper with the dated project explicitly. WAVs land in the same dir
 # (Reaper default recording path = next to the .RPP). Save (Ctrl+S) lands here too.
 # Saving with Save As to /tmp will still work but won't be the default path.
