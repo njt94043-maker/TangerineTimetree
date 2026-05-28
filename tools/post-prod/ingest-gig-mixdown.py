@@ -78,6 +78,10 @@ import librosa
 import requests
 import soundfile as sf
 
+# advice/04 §A item 2 — service key now lives in the DPAPI store, not .env.
+sys.path.insert(0, r"C:\apps\Dev Team\scripts")
+from dev_secrets import get_secret  # noqa: E402
+
 ENV_PATH = Path(r"C:/Apps/TGT/.env")
 MS_API_BASE = "https://e6330:9443/api"  # placeholder — actual MS HTTP endpoint TBD
 STEM_NAMES = ["full", "drums", "guitar", "bass", "vox1", "vox2", "vox_bus"]
@@ -352,9 +356,11 @@ def main(argv: list[str]) -> int:
 
     env = load_env(ENV_PATH)
     url = env.get("SUPABASE_URL") or "https://jlufqgslgjowfaqmqlds.supabase.co"
-    key = env.get("SUPABASE_SERVICE_ROLE_KEY") or env.get("SUPABASE_PUBLISHABLE_KEY")
+    # Service key from DPAPI (preferred), publishable key from .env as fallback.
+    key = get_secret("SUPABASE_SERVICE_ROLE_KEY") or env.get("SUPABASE_PUBLISHABLE_KEY")
     if not key:
-        sys.exit("ERROR: SUPABASE_SERVICE_ROLE_KEY (or PUBLISHABLE_KEY) missing in env")
+        sys.exit("ERROR: SUPABASE_SERVICE_ROLE_KEY (DPAPI) / "
+                 "SUPABASE_PUBLISHABLE_KEY (.env) both missing")
     supa = Supa(url=url, key=key)
 
     print(f"Gig album: {gig_album}")

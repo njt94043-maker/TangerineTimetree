@@ -33,19 +33,17 @@ except ImportError as e:
 # CONFIG
 # ---------------------------------------------------------------------------
 SUPABASE_URL = "https://jlufqgslgjowfaqmqlds.supabase.co"
-SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
-# Load from .env if not in environment
-ENV_FILE = os.path.join(ROOT_DIR, ".env")
-if not SERVICE_KEY and os.path.exists(ENV_FILE):
-    with open(ENV_FILE) as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith("SUPABASE_SERVICE_ROLE_KEY="):
-                SERVICE_KEY = line.split("=", 1)[1]
+# advice/04 §A item 2 (S182) — service key now lives in the DPAPI store, not
+# .env. The legacy .env-line scan is gone; dev_secrets.get_secret() looks at
+# the process env first (Cloud Run / CI), then the DPAPI store.
+sys.path.insert(0, r"C:\apps\Dev Team\scripts")
+from dev_secrets import get_secret  # noqa: E402
 
+SERVICE_KEY = get_secret("SUPABASE_SERVICE_ROLE_KEY") or ""
 if not SERVICE_KEY:
-    print("ERROR: SUPABASE_SERVICE_ROLE_KEY not found in .env or environment")
+    print("ERROR: SUPABASE_SERVICE_ROLE_KEY not in DPAPI store or environment")
+    print("       Run: python C:/apps/Dev\\ Team/scripts/dev_secrets.py list")
     sys.exit(1)
 
 HEADERS = {
