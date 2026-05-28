@@ -40,9 +40,10 @@ end
 -- and Reaper's /_/<cmd> returns 200 instantly regardless of script outcome;
 -- without this sentinel the auto-insert step appears to succeed even when the
 -- lua silently bailed (no project open / no video dir / etc). Writes to the
--- project root if available, otherwise to a fixed fallback path the host can
--- still find (D:/Gigs/.last-insert-result.json) — gives a signal even in the
--- "no project open" failure path.
+-- project root only. If no project is open, write_sentinel returns nil and
+-- the host's 8s poll correctly times out with a "no sentinel written" warning
+-- — same UX as any other write failure (S182: dropped the stale D:/Gigs
+-- fallback that pre-dated the S170 GigsRoot config + S162 Acer migration).
 local function write_sentinel(path_hint, payload_tbl)
   local json_lines = { "{" }
   local first = true
@@ -65,14 +66,12 @@ local function write_sentinel(path_hint, payload_tbl)
   table.insert(json_lines, "}")
   local body = table.concat(json_lines, "\n")
 
-  -- Always try the gig-root path first (preferred for the host's poll), then
-  -- fall back to a stable D:/Gigs/ path if the gig dir doesn't exist.
-  local candidates = {}
+  -- Write to the gig-root only. No fallback — if path_hint is empty (no
+  -- project open) or the write fails, return nil and the host's 8s poll
+  -- handles the timeout cleanly. Previous D:/Gigs fallback was stale post
+  -- S170 (GigsRoot configurable, default C:\Gigs on the Acer per S162).
   if path_hint and path_hint ~= "" then
-    table.insert(candidates, path_hint .. "/.last-insert-result.json")
-  end
-  table.insert(candidates, "D:/Gigs/.last-insert-result.json")
-  for _, p in ipairs(candidates) do
+    local p = path_hint .. "/.last-insert-result.json"
     local f = io.open(p, "w")
     if f then f:write(body); f:close(); return p end
   end
