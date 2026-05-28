@@ -153,12 +153,11 @@ cd capture/backend && .venv/Scripts/python.exe -m uvicorn main:app --host 127.0.
 cd capture/ui && npx vite --port 5174      # Frontend
 # Or use launcher: capture/start-silent.vbs (both backend + UI)
 
-# Seed scripts (S182: service key now lives in DPAPI store, not .env).
-# Python consumers (scripts/seed_supabase.py, tools/post-prod/ingest-gig-mixdown.py,
-#   Dev Team tools/e2e/*.py) auto-resolve via `from dev_secrets import get_secret`.
-# Node .cjs scripts still take SUPABASE_SERVICE_ROLE_KEY from process env — load it
-# into the current shell first:
-#   $env:SUPABASE_SERVICE_ROLE_KEY = python "C:/apps/Dev Team/scripts/dev_secrets.py" get SUPABASE_SERVICE_ROLE_KEY
+# Seed scripts (S182: service key lives in the DPAPI store, not .env).
+# All consumers (Python + Node) auto-resolve the key — Python via
+# `from dev_secrets import get_secret`; Node via child_process.execSync of
+# `python "C:/apps/Dev Team/scripts/dev_secrets.py" get SUPABASE_SERVICE_ROLE_KEY`.
+# Cloud Run / CI keeps working because both paths check process.env first.
 node --max-old-space-size=512 web/scripts/seed-venues-clients.cjs
 node --max-old-space-size=512 web/scripts/fix-venue-text.cjs
 ```

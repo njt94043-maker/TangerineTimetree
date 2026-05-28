@@ -1,7 +1,20 @@
 const { createClient } = require('@supabase/supabase-js');
-// Requires SUPABASE_SERVICE_ROLE_KEY env var
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!serviceKey) { console.error('Set SUPABASE_SERVICE_ROLE_KEY env var'); process.exit(1); }
+const { execSync } = require('child_process');
+
+// S182 advice/04 §A item 2 — env var wins (Cloud Run / CI), else DPAPI store.
+let serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!serviceKey) {
+  try {
+    serviceKey = execSync(
+      'python "C:/apps/Dev Team/scripts/dev_secrets.py" get SUPABASE_SERVICE_ROLE_KEY',
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+    ).trim();
+  } catch (e) {
+    console.error('SUPABASE_SERVICE_ROLE_KEY not in env or DPAPI store.');
+    console.error('Check: python "C:/apps/Dev Team/scripts/dev_secrets.py" list');
+    process.exit(1);
+  }
+}
 const sb = createClient('https://jlufqgslgjowfaqmqlds.supabase.co', serviceKey);
 
 (async () => {
