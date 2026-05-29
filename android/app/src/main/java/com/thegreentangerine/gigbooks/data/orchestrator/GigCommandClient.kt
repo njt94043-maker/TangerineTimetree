@@ -5,9 +5,13 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.util.Log
+import com.thegreentangerine.gigbooks.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import java.net.HttpURLConnection
@@ -18,17 +22,25 @@ import java.net.Socket
 import java.net.URL
 
 /**
- * HTTP client for the E6330 gig-command-server.py daemon (S129 row 6).
+ * HTTP client for the MS host gig-command bridge (S186, replaces the dead
+ * E6330 gig-command-server.py per v3 charter §"DROP").
  *
  * Why HTTP not OSC: Reaper's OSC bindings are wired to numeric Reaper actions,
  * not arbitrary Lua scripts that take string args (like a project name). The
  * S128 file-poll listener pattern is what handles project-level state changes;
  * this client is just the network leg that gets a JSON command from the APK
- * onto the E6330's filesystem so the gig-command-listener.lua picks it up.
+ * onto the laptop's filesystem so the gig-command-listener.lua picks it up.
  *
- * Target: e6330.local:8666 by default. Auto-discovery hook is identical to
- * [ReaperOscClient] — when the orchestrator's mDNS discovery resolves the
- * Reaper-host, that host is reused here on port 8666.
+ * Target (S192 batch-D retarget): MS host on the laptop. Defaults come from
+ * BuildConfig:
+ *   - release: GIG_HOST_DEFAULT="tgt-host.local", GIG_PORT_DEFAULT=9200
+ *   - debug:   GIG_HOST_DEFAULT="localhost",      GIG_PORT_DEFAULT=9200
+ * Mounted endpoints unchanged from the dead E6330 daemon: POST /gig + POST
+ * /song-marker. See [GigCommandBridgeEndpoints] in TangerineMediaServer/Api.
+ *
+ * Auto-discovery still wins: when the orchestrator's mDNS discovery resolves
+ * the Reaper-host, that host is pushed via [setTarget] (port stays at
+ * GIG_PORT_DEFAULT — the MS host's fixed bridge port).
  *
  * **v1.2.6: network-binding fix.** When the APK is hosting a hotspot, the
  * default Android network is cellular — `URL.openConnection()` routes via
@@ -38,10 +50,17 @@ import java.net.URL
  * We try every non-cellular network with IPv4 + INTERNET capability in turn,
  * accepting the first 2xx response.
  *
- * Fire-and-forget: APK does not wait for Reaper to actually rename / save.
- * lastSendOk surfaces transport success only.
+ * **S192 batch-D: persistent command queue.** On POST failure the command
+ * (path + body) lands in [GigCommandQueue] backed by SharedPreferences.
+ * When the next POST succeeds — or when [flushQueue] is invoked from a
+ * connectivity/online event — the queue drains oldest-first. A failed
+ * drain attempt leaves the queue intact. Markers fired during a hotspot
+ * drop window no longer evaporate.
  */
-class GigCommandClient(private val context: Context) {
+class GigCommandClient(
+    private val context: Context,
+    private val queue: GigCommandQueue = GigCommandQueue(context),
+) {
 
     companion object {
         private const val TAG = "GigCommandClient"
@@ -49,15 +68,21 @@ class GigCommandClient(private val context: Context) {
 
     data class Target(val host: String, val port: Int)
 
-    private val _target = MutableStateFlow(Target("e6330.local", 8666))
+    private val _target = MutableStateFlow(
+        Target(BuildConfig.GIG_HOST_DEFAULT, BuildConfig.GIG_PORT_DEFAULT)
+    )
     val target: StateFlow<Target> = _target
 
     private val _lastSendOk = MutableStateFlow<Boolean?>(null)
     val lastSendOk: StateFlow<Boolean?> = _lastSendOk
 
-    private val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val _queuedCount = MutableStateFlow(queue.size())
+    val queuedCount: StateFlow<Int> = _queuedCount
 
-    fun setTarget(host: String, port: Int = 8666) {
+    private val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    fun setTarget(host: String, port: Int = BuildConfig.GIG_PORT_DEFAULT) {
         _target.value = Target(host.trim(), port)
     }
 
@@ -87,10 +112,53 @@ class GigCommandClient(private val context: Context) {
     )
 
     private suspend fun postJson(path: String, body: String) {
+        val ok = sendOnce(path, body)
+        _lastSendOk.value = ok
+        if (ok) {
+            // Opportunistically drain the queue when a fresh POST succeeds —
+            // the network leg is proven up so any previously-failed commands
+            // have a real shot at landing now. drainQueue() is fire-and-forget
+            // (uses its own IO scope) — does not block the calling coroutine.
+            scope.launch { drainQueue() }
+        } else {
+            queue.enqueue(path, body)
+            _queuedCount.value = queue.size()
+            Log.w(TAG, "POST $path queued (queue size=${_queuedCount.value})")
+        }
+    }
+
+    /**
+     * Public flush hook — call from a connectivity-restored broadcast or
+     * UI "retry queued commands" button. Safe to call repeatedly. Returns
+     * count of commands successfully sent (the ones that failed remain
+     * in the queue).
+     */
+    suspend fun flushQueue(): Int = drainQueue()
+
+    /**
+     * Drain the persistent queue oldest-first. Stops at the first send
+     * failure (network is presumably still down; spamming the wire helps
+     * nobody). Successfully-sent commands are removed; failed ones stay.
+     */
+    private suspend fun drainQueue(): Int {
+        var sent = 0
+        while (true) {
+            val head = queue.peek() ?: break
+            val ok = sendOnce(head.path, head.body)
+            if (!ok) break
+            queue.removeHead()
+            sent++
+            _queuedCount.value = queue.size()
+        }
+        return sent
+    }
+
+    /** One POST attempt with the full network-binding cascade. Pure I/O. */
+    private suspend fun sendOnce(path: String, body: String): Boolean {
         val tgt = _target.value
         val url = URL("http://${tgt.host}:${tgt.port}$path")
 
-        val ok = withContext(Dispatchers.IO) {
+        return withContext(Dispatchers.IO) {
             // S144 fix — interface-bound HTTP for private LAN destinations.
             // When this device is the SoftAP host (e.g. S23 broadcasting
             // `nathan's S23`), the SoftAP downlink (swlan0) isn't exposed
@@ -116,7 +184,6 @@ class GigCommandClient(private val context: Context) {
             // correctly even when our network-pick logic doesn't find anything).
             tryPost(network = null, url = url, body = body)
         }
-        _lastSendOk.value = ok
     }
 
     /**

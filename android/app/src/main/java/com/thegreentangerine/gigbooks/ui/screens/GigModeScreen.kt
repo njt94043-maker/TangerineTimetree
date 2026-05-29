@@ -711,10 +711,12 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 onAutoDiscoverChange = { service?.setAutoDiscover(it) },
                 onManualHostChange = { host, port ->
                     // v1.2.4 hotfix: also point the HTTP gig-command client at
-                    // the same host (port stays fixed at 8666). Otherwise the
-                    // gig wizard fires HTTP at e6330.local:8666 which won't
-                    // resolve when mDNS isn't propagating (S23 hotspot AP-mode
-                    // multicast is flaky).
+                    // the same host. Port stays at the MS host's fixed bridge
+                    // port (BuildConfig.GIG_PORT_DEFAULT, currently 9200 per
+                    // S186). Without this, the gig wizard would still fire HTTP
+                    // at the default host even after Nathan manually pinned the
+                    // OSC target — broken on rigs where mDNS isn't propagating
+                    // (S23 hotspot AP-mode multicast is flaky).
                     service?.osc?.setTarget(host, port)
                     service?.gigCmd?.setTarget(host)
                 },

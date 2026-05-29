@@ -17,6 +17,15 @@ android {
         versionCode = 45
         versionName = "1.2.26"
 
+        // S186 / D-batchD-1: APK no longer targets the dead E6330 box. Default
+        // points at the MS host bridge on the laptop (POST /gig + /song-marker
+        // mounted on the MS host's existing port). Hostname is mDNS-resolvable
+        // by default; debug builds default to localhost for emulator/dev runs.
+        // Runtime override still wins: ReaperConfigPane writes through
+        // GigCommandClient.setTarget(host, port) for manual host pinning.
+        buildConfigField("String", "GIG_HOST_DEFAULT", "\"tgt-host.local\"")
+        buildConfigField("int", "GIG_PORT_DEFAULT", "9200")
+
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -60,6 +69,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            // Debug builds default to localhost so emulator + adb-reverse rigs work
+            // without DNS. Release uses the mDNS hostname set in defaultConfig.
+            buildConfigField("String", "GIG_HOST_DEFAULT", "\"localhost\"")
         }
     }
 
@@ -136,4 +150,8 @@ dependencies {
 
     // DataStore (camera settings persistence)
     implementation(libs.datastore.preferences)
+
+    // Unit tests
+    testImplementation(libs.junit)
+    testImplementation(libs.coroutines.test)
 }

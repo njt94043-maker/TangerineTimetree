@@ -55,6 +55,7 @@ class OrchestratorService : Service() {
     val gigCmd by lazy { GigCommandClient(this) }
     val session = GigSession()
     private val bookendTone by lazy { BookendTonePlayer(this) }
+    val battery by lazy { BatteryMonitor(this) }
     private lateinit var discovery: OrchestratorDiscovery
     val discoveryFlow get() = discovery.discovered
     val isSearching get() = discovery.isSearching
@@ -92,6 +93,10 @@ class OrchestratorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        // S192 batch-D: battery monitor starts with the service so the gig-mode
+        // UI has a live LiveData/StateFlow to subscribe to before the user
+        // ever opens the wizard.
+        battery.start()
         discovery = OrchestratorDiscovery(this)
         discovery.start()
         publisher = OrchestratorPublisher(this)
@@ -137,6 +142,7 @@ class OrchestratorService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
+        battery.stop()
         discovery.stop()
         publisher.unregister()
         peerServer.shutdown()
