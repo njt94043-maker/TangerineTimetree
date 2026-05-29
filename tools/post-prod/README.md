@@ -43,7 +43,7 @@ Per-channel + per-bus + master FX chains installed
 | File | Purpose |
 |------|---------|
 | `build-postprod-rpp.py` | Wraps one or more `set-XXXX.RPP` files into a post-prod project: 18ch grouped into folder buses (TD-4 / Vox / EAD / Drums / Music + standalones for Guitar / Bass / Spare), MAINSEND routing for submix, render preset to `mixdowns/$project-$region.wav` 24-bit/48k, set-boundary markers in whole-gig mode. |
-| `setup-postprod-fx.lua` | ReaScript: walks the open project, installs per-channel chains (HPF/gate/comp surgical work), bus chains (glue/colour), Master mastering chain. Idempotent. Handles James's distance/volume issue with serial 2-stage comp (ReaComp → MJUCjr leveler). |
+| `setup-postprod-fx.lua` | **Bootstrapper for FRESH post-prod projects that DON'T come from the S145 template** (i.e. `build-postprod-rpp.py` without `--from-template`). ReaScript: walks the open project, installs per-channel chains (HPF/gate/comp surgical work), bus chains (glue/colour), Master mastering chain. Idempotent. Handles James's distance/volume issue with serial 2-stage comp (ReaComp → MJUCjr leveler). **Still relevant** (S192 audit) — preferred path is `build-postprod-rpp.py --from-template` (chains already baked-in), but kept for (a) projects built from scratch outside the rig channel map, (b) recovering projects with stripped FX chains. Header comment in the file documents the role + when to reach for it. |
 | `split-into-songs.py` | Path B: reads regions from a post-prod RPP, emits one .RPP per region with all 18 items time-windowed to that region. Each opens with the same FX chains, lets you do a unique mix per song. |
 | `insert-named-marker.lua` | Manual hotkey-driven named marker drop at play cursor. Bind to a key (e.g. M); useful during post-prod playback to mark song starts. |
 | `song-marker-listener.lua` | Background defer-loop listener: polls `C:/tmp/song-markers/` (or `/tmp/song-markers/` on Linux) for marker-request `.txt` files, drops named TGT-orange markers at play cursor. APK drummer-prompter integration target — once APK is wired, prompter taps drop markers in the live recording. |
@@ -117,6 +117,10 @@ Without stage 2 (MJUCjr leveler), James's loud parts come through QUIETER than h
 
 ## See also
 
+- [TEMPLATE-MANUAL-SETUP.md](TEMPLATE-MANUAL-SETUP.md) — **one-off Nathan-side checklist** to define the 4 named render presets (`gig-mixdown` / `cover-mixdown` / `social-clip` / `stem-prep`) in Reaper. Do this once per laptop. ~10–15 min.
+- [PLUGIN-MANIFEST.md](PLUGIN-MANIFEST.md) — authoritative plugin source-of-truth (the setup spec's §2 mirrors it).
+- [IMPORT-PLAYBOOK.md](IMPORT-PLAYBOOK.md) — one-page operator guide.
 - [proj-tgt--reaper-postprod-plan.md](../../../../Users/OptiPlex/.claude/projects/C--Apps-Dev-Team/memory/proj-tgt--reaper-postprod-plan.md) — locked install + chain plan (S124)
 - [proj-tgt--reaper-theme-plan.md](../../../../Users/OptiPlex/.claude/projects/C--Apps-Dev-Team/memory/proj-tgt--reaper-theme-plan.md) — theme plan (S124)
+- [setup spec](../../../../Apps/Dev%20Team/specs/tgt/reaper-postprod-setup.md) — Reaper environment + plugin manifest + mastering template setup (reconciled S192).
 - Session 128 wrap (the session this pipeline shipped)

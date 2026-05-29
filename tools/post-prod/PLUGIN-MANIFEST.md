@@ -1,6 +1,6 @@
 # TGT Post-Prod Plugin Manifest
 
-*S145 — what plugins our post-prod actually needs, what's installed, what's recommended, what's missing. Source of truth for both Reaper-side and DaVinci-side chains.*
+*S145 — what plugins our post-prod actually needs, what's installed, what's recommended, what's missing. **Authoritative source of truth** for Reaper-side and DaVinci-side chains. The setup spec ([`specs/tgt/reaper-postprod-setup.md`](../../../../Apps/Dev%20Team/specs/tgt/reaper-postprod-setup.md) §2) mirrors this file — if they disagree, THIS WINS and the spec gets updated. (Reconciled S192 / batch A G6.)*
 
 *Audit performed against `tools/post-prod/templates/whole-gig-template-v1.RPP` (extracted from 2026-05-03 hand-mixed gig). All plugin-presence checks against `C:/Program Files/Common Files/VST3/`.*
 
@@ -8,7 +8,7 @@
 
 ## TL;DR
 
-**Reaper side: complete.** The template references 16 plugins; all 16 are installed on OptiPlex. James 3-stage chain works, mastering chain works, vocal de-essing works (via TDR Nova dynamic EQ).
+**Reaper side: complete.** The template references 16 plugins (12 third-party install + 4 Cockos stock bundled with Reaper); all 16 are installed on OptiPlex. James 3-stage chain works, mastering chain works, vocal de-essing works (via TDR Nova dynamic EQ).
 
 **DaVinci side: greenfield.** Decision: **install Free Resolve 20 now; upgrade to Studio (£295 one-off) when budget allows.** Free covers everything for the immediate workflow (multicam edit + colour + render); Studio's three workflow-relevant adds (Voice Isolation for crowd noise, VST-in-Fairlight for single-app workflow, H.265 hardware encoding) become real upgrades once £295 is spare. Architecture works on either; Studio just unlocks the optional features.
 

@@ -1,5 +1,27 @@
 -- TGT post-prod FX chain installer (v2 — per-channel + bus + master)
 --
+-- STATUS (S192 audit, batch A / G7):
+--   ROLE: bootstrapper for FRESH post-prod RPPs that do NOT come from the
+--         S145 `whole-gig-template-v1.RPP` template (i.e. `build-postprod-rpp.py`
+--         WITHOUT `--from-template`). Builds the same chains the template
+--         already carries baked-in.
+--   IS THIS WHAT BUILT THE TEMPLATE? Effectively yes — the live template was
+--         extracted (via `scripts/strip-rpp-items.py`) from a 2026-05-03
+--         hand-mixed gig RPP whose FX chains match this script's intent
+--         (per-channel HPF/gate/comp + bus glue + master mastering chain incl.
+--         James 3-stage MJUCjr). Re-running this script on a project opened
+--         from the template is a no-op for any already-present plugin (idempotent
+--         via `TrackFX_AddByName` with instantiate=-1).
+--   STILL NEEDED? YES — kept for two real cases:
+--         1. Building a post-prod project FROM SCRATCH (no template), e.g. a
+--            one-off recording outside the rig's 18ch channel map. The script
+--            wires the standard chains in one Action-menu run.
+--         2. RECOVERING a project where FX chains were stripped/lost or where
+--            channels were renamed and chains need re-applying by NAME match.
+--         The preferred S145 path is `build-postprod-rpp.py --from-template`
+--         (`IMPORT-PLAYBOOK.md` Step 3) — that bypasses this script entirely.
+--   NOT STALE — keep. Update both sides if the template's chains diverge.
+--
 -- Walks the open project, matches tracks by NAME, inserts:
 --   - PER-CHANNEL chains (HPF/gate/comp surgical work) per the locked plan
 --   - BUS chains (glue + colour)
