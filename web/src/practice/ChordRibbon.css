@@ -1,0 +1,58 @@
+/* Chord ribbon — mockup parity with .ctx-ribbon from
+   Dev Team/mockups/tgt-web--band-practice-stem-mixer.html. Sits inside the
+   transport region above the scrubber. All selectors prefixed pm-ctx- to
+   stay inside the practice-mixer namespace. */
+
+.pm-ctx-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.74rem;
+  min-height: 18px;
+}
+
+.pm-ctx-section {
+  font-weight: 700;
+  color: var(--pm-color-practice, #bb86fc);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.pm-ctx-chord {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--pm-color-text, #d0d0dc);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-ctx-chord b {
+  color: var(--pm-color-tangerine, #f39c12);
+  font-weight: 700;
+  margin: 0 1px;
+}
+
+.pm-ctx-empty {
+  color: var(--pm-color-text-muted, #4a4a60);
+  font-family: 'Karla', sans-serif;
+  font-size: 0.68rem;
+  font-style: italic;
+}
+
+.pm-ctx-key {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--pm-color-text-muted, #4a4a60);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.pm-ctx-key-shift {
+  color: var(--pm-color-tangerine, #f39c12);
+  margin-left: 4px;
+  font-weight: 700;
+}

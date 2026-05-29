@@ -18,6 +18,7 @@ import {
 } from './presets';
 import { faderToGain, formatDb } from './fader';
 import { transpose, formatSemitones } from './transpose';
+import ChordRibbon from './ChordRibbon';
 import './PracticeMixer.css';
 
 const MEMBER_STORAGE_KEY = 'tgt.practice.member';
@@ -510,6 +511,13 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
         </div>
 
         <div className="pm-transport">
+          {/* Batch C: read-only chord ribbon (now / next 3 + key). Hidden when entry has no chord_text and no key. */}
+          <ChordRibbon
+            entry={entry}
+            currentTime={currentTime}
+            duration={duration}
+            semitones={semitones}
+          />
           <Scrubber
             currentTime={currentTime}
             duration={duration}
