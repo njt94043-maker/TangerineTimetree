@@ -766,6 +766,7 @@ function SongDetail({
             Picking a track from the Media Server library is on the MS PWA.
             Web stores the ref but doesn't browse.
           </div>
+          <PractiseLink entry={entry} />
         </div>
         <div className="setlists-detail-section setlists-detail-wide">
           <div className="setlists-detail-label">Lyrics / chords / drum notes</div>
@@ -779,6 +780,31 @@ function SongDetail({
         <button className="setlists-btn-primary" onClick={handleSave} disabled={!dirty}>Save changes</button>
       </div>
     </div>
+  );
+}
+
+// S190 Slice 2: surface the band-practice mixer when this entry has refs.
+// The published refs come from the MS PWA's "Publish stems" button which
+// writes practice_audio_ref + practice_stems_refs after R2 upload.
+function PractiseLink({ entry }: { entry: SetlistEntry }) {
+  const refs = entry.practice_stems_refs as { demucs?: object; multitrack?: object } | null;
+  const hasStems = !!(refs && (refs.demucs || refs.multitrack));
+  const hasAudio = !!entry.practice_audio_ref;
+  if (!hasStems && !hasAudio) {
+    return (
+      <div className="setlists-detail-hint" style={{ marginTop: 8 }}>
+        No stems published yet — open the MS PWA Songs view and hit Publish.
+      </div>
+    );
+  }
+  return (
+    <a
+      href={`/practice/${entry.id}`}
+      className="setlists-btn-primary"
+      style={{ display: 'inline-block', marginTop: 10, textDecoration: 'none' }}
+    >
+      ▶ Practise this song
+    </a>
   );
 }
 

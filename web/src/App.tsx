@@ -10,6 +10,7 @@ import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
 import { PublicSite } from './components/PublicSite';
 import { QrLanding } from './components/QrLanding';
+import { PracticeMixerPage } from './practice/PracticeMixer';
 import { LoginModal } from './components/LoginModal';
 import { Calendar } from './components/Calendar';
 import { GigList } from './components/GigList';
@@ -65,6 +66,11 @@ export default function App() {
   if (path.startsWith('/qr') || path.startsWith('/scan')) {
     return <QrLanding />;
   }
+  // S190 Slice 2: band-practice stem mixer. Bypasses splash + main-app
+  // chrome (full-bleed phone surface), but still requires auth — the band
+  // already uses TGT Web (no second login per the brief), and Supabase RLS
+  // on setlist_entries needs an authenticated session to read the row.
+  const isPractice = path.startsWith('/practice/');
 
   if (!splashDone) {
     return (
@@ -91,6 +97,12 @@ export default function App() {
         )}
       </>
     );
+  }
+
+  // Practice mixer renders authed but without the main-app chrome — it's a
+  // full-bleed phone surface for band members already signed in.
+  if (isPractice) {
+    return <PracticeMixerPage />;
   }
 
   return (

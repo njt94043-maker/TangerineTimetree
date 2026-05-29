@@ -1,0 +1,237 @@
+/* Band Practice Stem Mixer — phone-frame surface. Mockup parity from
+   Dev Team/mockups/tgt-web--band-practice-stem-mixer.html. All selectors
+   prefixed pm- to keep the practice surface self-contained. */
+
+.pm-root {
+  --pm-bg-primary: #08080c;
+  --pm-bg-card: #111118;
+  --pm-bg-card-light: #16161f;
+  --pm-bg-input: #0c0c12;
+  --pm-color-tangerine: #f39c12;
+  --pm-color-green: #00e676;
+  --pm-color-practice: #bb86fc;
+  --pm-color-text: #d0d0dc;
+  --pm-color-text-dim: #7a7a94;
+  --pm-color-text-muted: #4a4a60;
+  --pm-color-danger: #ff5252;
+  --pm-color-info: #5B8DEF;
+  --pm-glow-tangerine: 0 0 8px rgba(243,156,18,0.4), 0 0 20px rgba(243,156,18,0.15);
+  --pm-glow-green: 0 0 8px rgba(0,230,118,0.4), 0 0 20px rgba(0,230,118,0.15);
+  --pm-glow-practice: 0 0 8px rgba(187,134,252,0.4), 0 0 20px rgba(187,134,252,0.15);
+  --pm-glow-danger: 0 0 8px rgba(255,82,82,0.35), 0 0 20px rgba(255,82,82,0.12);
+  --pm-shadow-raised: 4px 4px 12px rgba(0,0,0,0.8), -1px -1px 1px rgba(40,40,60,0.12);
+  --pm-shadow-inset: inset 2px 2px 6px rgba(0,0,0,0.7), inset -1px -1px 1px rgba(40,40,60,0.08);
+  --pm-radius-card: 16px;
+
+  background: #050507;
+  color: var(--pm-color-text);
+  font-family: 'Karla', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px 12px;
+}
+
+/* Phone frame — band uses iPhone Safari (S129) */
+.pm-phone {
+  width: 100%; max-width: 414px;
+  height: min(860px, calc(100vh - 40px));
+  height: min(860px, calc(100dvh - 40px));
+  background: var(--pm-bg-primary);
+  border-radius: 32px;
+  box-shadow: 0 0 0 10px #16161f, 0 30px 80px rgba(0,0,0,0.8);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+
+/* On narrow phone viewports drop the frame chrome — real iPhones don't need
+   the simulated bezel. */
+@media (max-width: 480px) {
+  .pm-root { padding: 0; }
+  .pm-phone { max-width: none; height: 100vh; height: 100dvh; border-radius: 0; box-shadow: none; }
+}
+
+.pm-statusbar {
+  height: 30px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px; font-size: 0.72rem; color: var(--pm-color-text-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pm-header {
+  flex-shrink: 0; padding: 6px 16px 10px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--pm-bg-card-light);
+}
+.pm-back-btn { background: none; border: none; color: var(--pm-color-text-dim); font-size: 1.4rem; cursor: pointer; line-height: 1; padding: 4px 6px; }
+.pm-header-titles { flex: 1; min-width: 0; }
+.pm-header-song { font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-header-artist { color: var(--pm-color-text-dim); font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-setlist-pill { font-size: 0.62rem; font-weight: 700; padding: 3px 9px; border-radius: 10px; background: rgba(243,156,18,0.14); color: var(--pm-color-tangerine); flex-shrink: 0; }
+.pm-brand-green { color: var(--pm-color-green); }
+.pm-brand-orange { color: var(--pm-color-tangerine); }
+
+.pm-scroll-body { flex: 1; overflow-y: auto; padding: 12px 14px 8px; min-height: 0; -webkit-overflow-scrolling: touch; }
+.pm-scroll-body::-webkit-scrollbar { width: 0; }
+
+.pm-block-label {
+  font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--pm-color-text-muted); margin: 4px 2px 7px;
+}
+
+/* Grade selector */
+.pm-grade-seg {
+  display: flex; gap: 3px; padding: 3px; background: var(--pm-bg-card);
+  border-radius: 10px; box-shadow: var(--pm-shadow-inset);
+}
+.pm-grade-opt {
+  flex: 1; text-align: center; padding: 8px 6px; border: none; background: none;
+  color: var(--pm-color-text-muted); font: inherit; font-size: 0.78rem; font-weight: 700;
+  border-radius: 8px; cursor: pointer; transition: all 0.15s; line-height: 1.25;
+}
+.pm-grade-opt small { display: block; font-size: 0.62rem; font-weight: 400; font-family: 'JetBrains Mono', monospace; opacity: 0.7; }
+.pm-grade-opt.active { background: var(--pm-bg-card-light); color: var(--pm-color-tangerine); box-shadow: var(--pm-glow-tangerine); }
+.pm-grade-opt:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Member pills */
+.pm-member-row { display: flex; gap: 8px; margin-top: 4px; }
+.pm-member-pill {
+  flex: 1; padding: 9px 4px; border: 1px solid var(--pm-bg-card-light); background: var(--pm-bg-card);
+  color: var(--pm-color-text-dim); font: inherit; font-size: 0.82rem; font-weight: 700;
+  border-radius: 12px; cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.pm-member-pill small { display: block; font-size: 0.6rem; font-weight: 400; color: var(--pm-color-text-muted); }
+.pm-member-pill.active { color: var(--pm-color-tangerine); border-color: rgba(243,156,18,0.5); background: rgba(243,156,18,0.08); }
+.pm-member-pill.active small { color: var(--pm-color-tangerine); }
+
+/* Preset chips */
+.pm-preset-scroll { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; margin: 0 -2px; }
+.pm-preset-scroll::-webkit-scrollbar { height: 0; }
+.pm-preset-chip {
+  flex-shrink: 0; padding: 7px 13px; border: 1px solid var(--pm-bg-card-light); background: var(--pm-bg-card);
+  color: var(--pm-color-text-dim); font: inherit; font-size: 0.76rem; font-weight: 700;
+  border-radius: 20px; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+}
+.pm-preset-chip.active { background: var(--pm-color-practice); color: #000; border-color: var(--pm-color-practice); box-shadow: var(--pm-glow-practice); }
+.pm-preset-chip:disabled { opacity: 0.3; cursor: not-allowed; }
+.pm-preset-chip .pm-mt-only { font-size: 0.56rem; opacity: 0.7; }
+.pm-preset-note { font-size: 0.68rem; color: var(--pm-color-text-muted); margin: 8px 2px 0; line-height: 1.4; }
+
+/* Stem strips card */
+.pm-stems-card {
+  background: var(--pm-bg-card); border-radius: var(--pm-radius-card);
+  box-shadow: var(--pm-shadow-raised); padding: 12px 8px 10px; margin-top: 4px;
+}
+.pm-strip-grid {
+  display: flex; gap: 6px; justify-content: center;
+  overflow-x: auto; padding-bottom: 4px;
+  height: 320px;
+}
+.pm-strip-grid::-webkit-scrollbar { height: 4px; }
+.pm-strip-grid::-webkit-scrollbar-thumb { background: #2A2A3A; border-radius: 2px; }
+
+.pm-stem-strip {
+  --pm-accent: var(--pm-color-tangerine);
+  display: flex; flex-direction: column; align-items: stretch; gap: 5px;
+  padding: 7px 4px; background: var(--pm-bg-input); border-radius: 10px;
+  box-shadow: var(--pm-shadow-inset);
+  flex: 1 1 0; min-width: 52px; max-width: 70px;
+}
+.pm-stem-color-tag { width: 100%; height: 3px; border-radius: 2px; background: var(--pm-accent); flex-shrink: 0; }
+.pm-stem-name { font-size: 10px; font-weight: 700; text-align: center; color: var(--pm-color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pm-stem-strip.bv .pm-stem-name { color: var(--pm-color-practice); }
+
+.pm-fader-meter-row { display: flex; align-items: stretch; gap: 3px; flex: 1; min-height: 0; padding: 2px 2px; justify-content: center; }
+.pm-meter { width: 6px; border-radius: 2px; background: var(--pm-bg-card-light); position: relative; overflow: hidden; flex-shrink: 0; }
+.pm-meter-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, var(--pm-color-green) 0%, var(--pm-color-green) 55%, #cddc39 65%, #ffc107 78%, var(--pm-color-danger) 95%); border-radius: 2px; transition: height 0.1s; }
+.pm-fader-container { flex: 1; min-width: 32px; display: flex; align-items: center; justify-content: center; padding: 6px 0; position: relative; }
+/* Unity mark at 75% — App.css fader benchmark */
+.pm-fader-container::after {
+  content: ''; position: absolute; left: 6px; right: 6px; top: 25%; height: 1px;
+  background: var(--pm-accent); opacity: 0.45; pointer-events: none; z-index: 1;
+}
+/* v2-fader benchmark: 6px wide, 28×14 thumb, 2px accent inset */
+.pm-fader {
+  -webkit-appearance: slider-vertical; appearance: slider-vertical;
+  writing-mode: vertical-lr; direction: rtl;
+  width: 6px; height: 100%; min-height: 120px;
+  background: var(--pm-bg-card-light); border-radius: 3px; outline: none; cursor: pointer;
+}
+.pm-fader::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 28px; height: 14px; border-radius: 2px;
+  background: linear-gradient(135deg, #777 0%, #333 100%); cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.5); box-shadow: 0 0 0 2px var(--pm-accent) inset;
+}
+.pm-fader::-moz-range-thumb {
+  width: 28px; height: 14px; border-radius: 2px;
+  background: linear-gradient(135deg, #777 0%, #333 100%); cursor: pointer;
+  border: 1px solid rgba(0,0,0,0.5); box-shadow: 0 0 0 2px var(--pm-accent) inset;
+}
+.pm-stem-strip.muted .pm-fader { opacity: 0.4; }
+.pm-stem-strip.muted .pm-meter-fill { opacity: 0.25; }
+.pm-fader-db { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--pm-color-text-dim); text-align: center; }
+
+.pm-stem-btns { display: flex; gap: 3px; justify-content: center; flex-shrink: 0; }
+.pm-stem-btn {
+  width: 24px; height: 24px; border: 1px solid rgba(243,156,18,0.2); border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; cursor: pointer;
+  background: rgba(243,156,18,0.06); color: rgba(208,208,220,0.5); transition: all 0.15s; padding: 0;
+}
+.pm-mute-btn.active { background: var(--pm-color-danger); color: #fff; box-shadow: var(--pm-glow-danger); border-color: transparent; }
+.pm-solo-btn.active { background: var(--pm-color-tangerine); color: #000; box-shadow: var(--pm-glow-tangerine); border-color: transparent; }
+
+.pm-cloud-status {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 9px 12px; border-radius: 10px;
+  background: var(--pm-bg-card); font-size: 0.7rem; color: var(--pm-color-text-dim);
+}
+.pm-cs-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--pm-color-green); box-shadow: var(--pm-glow-green); flex-shrink: 0; }
+.pm-cs-dot.loading { background: var(--pm-color-tangerine); box-shadow: var(--pm-glow-tangerine); }
+.pm-cs-dot.error { background: var(--pm-color-danger); box-shadow: var(--pm-glow-danger); }
+.pm-cs-cache { margin-left: auto; color: var(--pm-color-text-muted); font-family: 'JetBrains Mono', monospace; }
+
+/* Transport */
+.pm-transport {
+  flex-shrink: 0; border-top: 1px solid var(--pm-bg-card-light);
+  background: var(--pm-bg-card); padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+}
+.pm-scrub-row { display: flex; align-items: center; gap: 8px; }
+.pm-t-time { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--pm-color-text-muted); flex-shrink: 0; min-width: 32px; text-align: center; }
+.pm-scrub { flex: 1; height: 16px; position: relative; cursor: pointer; touch-action: none; }
+.pm-scrub-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 5px; border-radius: 3px; background: var(--pm-bg-card-light); }
+.pm-scrub-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--pm-color-tangerine); border-radius: 3px; }
+.pm-scrub-loop { position: absolute; top: -3px; bottom: -3px; background: rgba(187,134,252,0.22); border-left: 2px solid var(--pm-color-practice); border-right: 2px solid var(--pm-color-practice); border-radius: 2px; display: none; }
+.pm-scrub-loop.on { display: block; }
+.pm-scrub-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); }
+.pm-transport-controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 10px; }
+.pm-t-btn { background: none; border: none; color: var(--pm-color-text-dim); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
+.pm-t-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pm-t-btn.loop.on { color: var(--pm-color-practice); }
+.pm-t-loop-label { font-size: 0.6rem; font-weight: 700; }
+.pm-t-play {
+  width: 52px; height: 52px; border-radius: 50%; background: var(--pm-color-tangerine); color: #000;
+  display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: none; cursor: pointer;
+  box-shadow: var(--pm-glow-tangerine);
+}
+.pm-t-play:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+/* Drag popup — non-negotiable on every fader (Nathan) */
+.pm-fader-popup {
+  position: fixed; z-index: 1000; display: none;
+  background: var(--pm-bg-card); border: 1px solid var(--pm-color-tangerine); border-radius: 6px;
+  padding: 7px 11px; box-shadow: 0 6px 20px rgba(0,0,0,0.8), var(--pm-glow-tangerine);
+  pointer-events: none; min-width: 92px;
+}
+.pm-fader-popup.visible { display: block; }
+.pm-fader-popup-label { font-size: 0.66rem; font-weight: 700; color: var(--pm-color-text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.pm-fader-popup-value { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 700; color: var(--pm-color-tangerine); }
+
+/* Loading + error states */
+.pm-loading, .pm-error {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 32px 24px; text-align: center; color: var(--pm-color-text-dim); font-size: 0.9rem;
+}
+.pm-error { color: var(--pm-color-danger); }
+.pm-error a { color: var(--pm-color-tangerine); }
