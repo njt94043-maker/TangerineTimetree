@@ -20,7 +20,10 @@ export class TrackPlayer {
   private buffer: AudioBuffer | null = null;
   private shifter: PitchShifter | null = null;
   private gainNode: GainNode | null = null;
+  private analyser: AnalyserNode | null = null;
+  private analyserBuffer: Uint8Array<ArrayBuffer> | null = null;
   private speed = 1.0;
+  private semitones = 0;
   private loop: LoopRegion | null = null;
   private playing = false;
   private startOffset = 0;   // Track time offset at start
@@ -81,6 +84,38 @@ export class TrackPlayer {
     }
   }
 
+  /**
+   * Set pitch shift in semitones (independent of tempo). Range clamped to
+   * ±12 semitones for safety; the practice mixer UI caps at ±6 per S190
+   * brief but the engine accepts the wider range.
+   */
+  setSemitones(n: number): void {
+    this.semitones = Math.max(-12, Math.min(12, n));
+    if (this.shifter) {
+      this.shifter.pitchSemitones = this.semitones;
+    }
+  }
+
+  getSemitones(): number {
+    return this.semitones;
+  }
+
+  /**
+   * Sample current peak level in dB (or -Infinity when silent / not playing).
+   * Cheap rAF-friendly read of the analyser's time-domain data.
+   */
+  getMeterDb(): number {
+    if (!this.analyser || !this.analyserBuffer || !this.playing) return -Infinity;
+    this.analyser.getByteTimeDomainData(this.analyserBuffer);
+    let peak = 0;
+    for (let i = 0; i < this.analyserBuffer.length; i++) {
+      const v = Math.abs(this.analyserBuffer[i] - 128) / 128;
+      if (v > peak) peak = v;
+    }
+    if (peak <= 0.001) return -Infinity;
+    return 20 * Math.log10(peak);
+  }
+
   setLoop(region: LoopRegion | null): void {
     this.loop = region;
   }
@@ -98,10 +133,18 @@ export class TrackPlayer {
     const ctx = AudioEngine.getContext();
     const masterGain = AudioEngine.getMasterGain();
 
-    // Create gain node
+    // Create gain node + parallel analyser (observe-only branch — never in
+    // the output path, mirrors AudioEngine's main-bus analyser pattern from
+    // S56 to avoid muting scheduled OscillatorNodes).
     this.gainNode = ctx.createGain();
     this.gainNode.gain.value = 1.0;
     this.gainNode.connect(masterGain);
+
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 1024;
+    this.analyser.smoothingTimeConstant = 0.3;
+    this.analyserBuffer = new Uint8Array(this.analyser.fftSize) as Uint8Array<ArrayBuffer>;
+    this.gainNode.connect(this.analyser);   // parallel observer — does NOT gate audio
 
     // Create PitchShifter
     this.shifter = new PitchShifter(ctx, this.buffer, 4096, () => {
@@ -110,6 +153,7 @@ export class TrackPlayer {
       AudioEngine.emitSongComplete();
     });
     this.shifter.tempo = this.speed;
+    this.shifter.pitchSemitones = this.semitones;
     this.shifter.connect(this.gainNode);
 
     // Seek to position if specified
@@ -179,6 +223,11 @@ export class TrackPlayer {
     if (this.gainNode) {
       this.gainNode.disconnect();
       this.gainNode = null;
+    }
+    if (this.analyser) {
+      this.analyser.disconnect();
+      this.analyser = null;
+      this.analyserBuffer = null;
     }
   }
 

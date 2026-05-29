@@ -192,6 +192,53 @@
 .pm-cs-dot.error { background: var(--pm-color-danger); box-shadow: var(--pm-glow-danger); }
 .pm-cs-cache { margin-left: auto; color: var(--pm-color-text-muted); font-family: 'JetBrains Mono', monospace; }
 
+/* Practice tools (Slice 3) — tempo / key / click */
+.pm-ptools { display: flex; gap: 8px; margin-top: 4px; }
+.pm-ptool {
+  flex: 1; min-width: 0; padding: 9px 10px; background: var(--pm-bg-card);
+  border-radius: 12px; box-shadow: var(--pm-shadow-inset);
+}
+.pm-ptool-top { display: flex; align-items: baseline; gap: 4px; margin-bottom: 8px; }
+.pm-ptool-name {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--pm-color-text-muted);
+}
+.pm-ptool-val {
+  margin-left: auto; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; font-weight: 700; color: var(--pm-color-tangerine); white-space: nowrap;
+}
+.pm-ptool-slider {
+  width: 100%; appearance: none; -webkit-appearance: none;
+  height: 5px; border-radius: 3px; background: var(--pm-bg-card-light); outline: none;
+}
+.pm-ptool-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: #ddd; box-shadow: 0 0 0 2px var(--pm-color-tangerine) inset; cursor: pointer;
+}
+.pm-ptool-slider::-moz-range-thumb {
+  width: 16px; height: 16px; border: none; border-radius: 50%;
+  background: #ddd; box-shadow: 0 0 0 2px var(--pm-color-tangerine) inset; cursor: pointer;
+}
+.pm-stepper { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.pm-stepper button {
+  width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--pm-bg-card-light);
+  background: var(--pm-bg-input); color: var(--pm-color-text); font-size: 1rem;
+  cursor: pointer; line-height: 1; padding: 0;
+}
+.pm-stepper button:hover:not(:disabled) { border-color: var(--pm-color-tangerine); }
+.pm-stepper button:disabled { opacity: 0.35; cursor: not-allowed; }
+.pm-stepper span { font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; font-weight: 700; }
+.pm-click-toggle {
+  width: 100%; padding: 6px; border-radius: 8px; border: 1px solid var(--pm-bg-card-light);
+  background: var(--pm-bg-input); color: var(--pm-color-text-dim);
+  font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+}
+.pm-click-toggle.on {
+  background: var(--pm-color-green); color: #000; border-color: transparent;
+  box-shadow: var(--pm-glow-green);
+}
+.pm-click-toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* Transport */
 .pm-transport {
   flex-shrink: 0; border-top: 1px solid var(--pm-bg-card-light);
@@ -202,9 +249,23 @@
 .pm-scrub { flex: 1; height: 16px; position: relative; cursor: pointer; touch-action: none; }
 .pm-scrub-track { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 5px; border-radius: 3px; background: var(--pm-bg-card-light); }
 .pm-scrub-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--pm-color-tangerine); border-radius: 3px; }
-.pm-scrub-loop { position: absolute; top: -3px; bottom: -3px; background: rgba(187,134,252,0.22); border-left: 2px solid var(--pm-color-practice); border-right: 2px solid var(--pm-color-practice); border-radius: 2px; display: none; }
-.pm-scrub-loop.on { display: block; }
-.pm-scrub-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); }
+.pm-scrub-loop {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  height: 11px; background: rgba(187,134,252,0.18);
+  border-left: 2px solid var(--pm-color-practice);
+  border-right: 2px solid var(--pm-color-practice);
+  border-radius: 2px; pointer-events: none;
+}
+.pm-scrub-loop.on {
+  background: rgba(187,134,252,0.28);
+  box-shadow: var(--pm-glow-practice);
+}
+.pm-scrub-marker {
+  position: absolute; top: 50%; transform: translate(-1px, -50%);
+  width: 2px; height: 11px; background: var(--pm-color-practice);
+  box-shadow: var(--pm-glow-practice); pointer-events: none;
+}
+.pm-scrub-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); pointer-events: none; }
 .pm-transport-controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 10px; }
 .pm-t-btn { background: none; border: none; color: var(--pm-color-text-dim); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
 .pm-t-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -216,6 +277,23 @@
   box-shadow: var(--pm-glow-tangerine);
 }
 .pm-t-play:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+/* A-B loop markers in the transport */
+.pm-ab-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--pm-bg-card-light); background: var(--pm-bg-input);
+  color: var(--pm-color-practice); font: inherit; font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; line-height: 1; padding: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+.pm-ab-btn:hover:not(:disabled) {
+  border-color: var(--pm-color-practice); box-shadow: var(--pm-glow-practice);
+}
+.pm-ab-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.pm-t-clear {
+  font-size: 1rem; color: var(--pm-color-text-muted); padding: 4px 8px;
+}
+.pm-t-clear:hover { color: var(--pm-color-danger); }
 
 /* Drag popup — non-negotiable on every fader (Nathan) */
 .pm-fader-popup {

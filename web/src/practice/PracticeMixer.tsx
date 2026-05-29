@@ -10,12 +10,14 @@ import type { SetlistEntry, SetlistListId } from '@shared/supabase/types';
 import { SETLIST_LIST_LABELS } from '@shared/supabase/types';
 import { StemMixer, type StemLabel } from '../audio/StemMixer';
 import { AudioEngine } from '../audio/AudioEngine';
+import { ClickScheduler } from '../audio/ClickScheduler';
 import {
   GRADES, PRESETS, type Grade, type MemberId,
   applyPreset, defaultPresetIdFor, effectiveMuted,
   emptyMixState, findPreset, type MixState, type Preset,
 } from './presets';
 import { faderToGain, formatDb } from './fader';
+import { transpose, formatSemitones } from './transpose';
 import './PracticeMixer.css';
 
 const MEMBER_STORAGE_KEY = 'tgt.practice.member';
@@ -173,7 +175,29 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
   const [stemsReady, setStemsReady] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Slice 3: practice tools — tempo (50–100%, pitch-preserved), key (±6
+  // semitones, tempo-preserved), constant-BPM click, A-B loop.
+  const [tempoPct, setTempoPct] = useState(100);
+  const [semitones, setSemitones] = useState(0);
+  const [clickOn, setClickOn] = useState(false);
+  const [loopA, setLoopA] = useState<number | null>(null);
+  const [loopB, setLoopB] = useState<number | null>(null);
+  const [loopOn, setLoopOn] = useState(false);
+
   const mixerRef = useRef<StemMixer | null>(null);
+  const clickRef = useRef<ClickScheduler | null>(null);
+  // Per-stem meter DOM refs — tick loop writes height directly to avoid
+  // re-rendering the strip grid every frame.
+  const meterRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const setMeterRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) meterRefs.current.set(id, el);
+    else meterRefs.current.delete(id);
+  }, []);
+
+  // Base BPM for click + key-display chord transposition. Click is OFF by
+  // default; without a BPM it stays hidden.
+  const baseBpm = entry.bpm ?? null;
+  const baseKey = entry.notes?.match(/\bkey\s*[:=]?\s*([A-G][#b]?m?)/i)?.[1] ?? 'A';
 
   // Build the list of stems we can actually load for the current grade.
   const playableStems = useMemo(() => {
@@ -231,6 +255,30 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     }
   }, [state, playableStems, stemsReady]);
 
+  // ── Tempo: drive both stem playback rate and click BPM ────────────────
+  useEffect(() => {
+    mixerRef.current?.setSpeed(tempoPct / 100);
+    if (clickRef.current && baseBpm) {
+      clickRef.current.configure({ bpm: baseBpm * (tempoPct / 100) });
+    }
+  }, [tempoPct, baseBpm]);
+
+  // ── Key: pitch shift independent of tempo ──────────────────────────────
+  useEffect(() => {
+    mixerRef.current?.setSemitones(semitones);
+  }, [semitones]);
+
+  // ── Loop region: feed StemMixer when the loop is engaged ──────────────
+  useEffect(() => {
+    const mixer = mixerRef.current;
+    if (!mixer) return;
+    if (loopOn && loopA !== null && loopB !== null && loopB > loopA) {
+      mixer.setLoop({ start: loopA, end: loopB });
+    } else {
+      mixer.setLoop(null);
+    }
+  }, [loopOn, loopA, loopB]);
+
   // ── Transport ──────────────────────────────────────────────────────────
   const play = useCallback(async () => {
     const mixer = mixerRef.current;
@@ -239,26 +287,49 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     mixer.play(currentTime > 0 ? currentTime : undefined);
     setPlaying(true);
     AudioEngine.setState('playing');
+    // Slice 3: click ticks with transport when enabled
+    if (clickOn && clickRef.current && baseBpm) {
+      clickRef.current.configure({ bpm: baseBpm * (tempoPct / 100) });
+      clickRef.current.setMuted(false);
+      clickRef.current.start();
+    }
     AudioEngine.startTick(() => {
       const pos = mixer.getPosition();
       setCurrentTime(pos);
-      if (pos >= mixer.getDuration() - 0.05) {
+      // Loop wraparound — StemMixer handles seek; we keep currentTime fresh
+      mixer.checkLoop();
+      // Per-stem meter DOM updates (no React re-render)
+      for (const s of playableStems) {
+        const el = meterRefs.current.get(s.id);
+        if (!el) continue;
+        const db = mixer.getMeterDb(s.label);
+        // Map -60..0 dB → 0..100% with a light non-linear curve so quiet
+        // signals get a visible nudge without clipping at 0 dB.
+        const norm = db === -Infinity ? 0 : Math.max(0, Math.min(1, (db + 60) / 60));
+        el.style.height = `${Math.round(norm * 100)}%`;
+      }
+      if (pos >= mixer.getDuration() - 0.05 && !(loopOn && loopA !== null && loopB !== null)) {
         mixer.pause();
+        clickRef.current?.stop();
         setPlaying(false);
         setCurrentTime(0);
         AudioEngine.stopTick();
         AudioEngine.setState('idle');
+        // Zero meters on stop
+        for (const el of meterRefs.current.values()) el.style.height = '0%';
       }
     });
-  }, [stemsReady, currentTime]);
+  }, [stemsReady, currentTime, clickOn, baseBpm, tempoPct, loopOn, loopA, loopB, playableStems]);
 
   const pause = useCallback(() => {
     const mixer = mixerRef.current;
     if (!mixer) return;
     mixer.pause();
+    clickRef.current?.stop();
     setPlaying(false);
     AudioEngine.stopTick();
     AudioEngine.setState('paused');
+    for (const el of meterRefs.current.values()) el.style.height = '0%';
   }, []);
 
   const seek = useCallback((sec: number) => {
@@ -270,6 +341,39 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
   }, []);
 
   const restart = useCallback(() => seek(0), [seek]);
+
+  // ── A-B loop handlers ──────────────────────────────────────────────────
+  const setMarkerA = useCallback(() => setLoopA(currentTime), [currentTime]);
+  const setMarkerB = useCallback(() => setLoopB(currentTime), [currentTime]);
+  const clearLoop = useCallback(() => {
+    setLoopA(null);
+    setLoopB(null);
+    setLoopOn(false);
+  }, []);
+  const toggleLoop = useCallback(() => setLoopOn(v => !v), []);
+
+  // ── Click engine lifecycle ────────────────────────────────────────────
+  useEffect(() => {
+    clickRef.current = new ClickScheduler();
+    return () => {
+      clickRef.current?.stop();
+      clickRef.current = null;
+    };
+  }, []);
+
+  // Toggling click mid-playback: start/stop without restarting transport
+  useEffect(() => {
+    const click = clickRef.current;
+    if (!click || !baseBpm) return;
+    if (clickOn && playing) {
+      click.configure({ bpm: baseBpm * (tempoPct / 100) });
+      click.setMuted(false);
+      if (!click.isActive()) click.start();
+    } else {
+      click.setMuted(true);
+      click.stop();
+    }
+  }, [clickOn, playing, baseBpm, tempoPct]);
 
   // ── Member / preset / grade handlers ──────────────────────────────────
   const handleMember = useCallback((m: MemberId) => {
@@ -372,7 +476,7 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
                   mute={!!state.mute[s.id]}
                   solo={!!state.solo[s.id]}
                   effectivelyMuted={effectiveMuted(s.id, state)}
-                  playing={playing}
+                  meterRef={(el) => setMeterRef(s.id, el)}
                   onLevel={(v) => {
                     dispatch({ type: 'set_level', id: s.id, value: v });
                     if (presetId !== 'custom') setPresetId('custom');
@@ -390,6 +494,18 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
             </div>
           </div>
 
+          <div className="pm-block-label" style={{ marginTop: 14 }}>Practice tools</div>
+          <PracticeTools
+            tempoPct={tempoPct}
+            onTempoChange={setTempoPct}
+            semitones={semitones}
+            onSemitonesChange={setSemitones}
+            clickOn={clickOn}
+            onClickToggle={() => setClickOn(v => !v)}
+            baseBpm={baseBpm}
+            baseKey={baseKey}
+          />
+
           <CloudStatus ready={stemsReady} error={loadError} />
         </div>
 
@@ -397,10 +513,20 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
           <Scrubber
             currentTime={currentTime}
             duration={duration}
+            loopA={loopA}
+            loopB={loopB}
+            loopOn={loopOn}
             onSeek={seek}
           />
           <div className="pm-transport-controls">
             <button className="pm-t-btn" onClick={restart} title="Restart" disabled={!stemsReady}>↺</button>
+            <button
+              className="pm-ab-btn"
+              onClick={setMarkerA}
+              disabled={!stemsReady}
+              title="Set A marker at current position"
+              aria-label="Set loop start"
+            >A</button>
             <button
               className="pm-t-play"
               onClick={playing ? pause : play}
@@ -409,9 +535,24 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
             >
               {playing ? '❚❚' : '▶'}
             </button>
-            <button className="pm-t-btn loop" disabled title="A–B loop ships in Slice 3">
+            <button
+              className="pm-ab-btn"
+              onClick={setMarkerB}
+              disabled={!stemsReady}
+              title="Set B marker at current position"
+              aria-label="Set loop end"
+            >B</button>
+            <button
+              className={`pm-t-btn loop ${loopOn ? 'on' : ''}`}
+              onClick={toggleLoop}
+              disabled={!stemsReady || loopA === null || loopB === null || loopB <= loopA}
+              title={loopA === null || loopB === null ? 'Tap A then B to set the loop region' : (loopOn ? 'Loop on — tap to disable' : 'Loop off — tap to enable')}
+            >
               <span>⟲</span><span className="pm-t-loop-label">A–B</span>
             </button>
+            {(loopA !== null || loopB !== null) && (
+              <button className="pm-t-btn pm-t-clear" onClick={clearLoop} title="Clear loop markers" aria-label="Clear loop">×</button>
+            )}
           </div>
         </div>
       </div>
@@ -476,23 +617,22 @@ function PresetNote({ grade }: { grade: Grade }) {
 }
 
 function StemStrip({
-  stem, level, mute, solo, effectivelyMuted, playing,
-  onLevel, onMute, onSolo,
+  stem, level, mute, solo, effectivelyMuted,
+  meterRef, onLevel, onMute, onSolo,
 }: {
   stem: { id: string; name: string; accent: string; bv?: boolean };
   level: number;
   mute: boolean;
   solo: boolean;
   effectivelyMuted: boolean;
-  playing: boolean;
+  meterRef: (el: HTMLDivElement | null) => void;
   onLevel: (value: number) => void;
   onMute: () => void;
   onSolo: () => void;
 }) {
-  // Slice 2 punts on per-stem analyser meters — show the fader value as a
-  // static meter bar while playing so the visual stays alive without faking
-  // audio levels. Real meters land with Slice 3 (per S190 brief).
-  const meterHeight = effectivelyMuted || !playing ? 0 : Math.round(level * 78);
+  // Slice 3: meter height driven by the rAF tick loop via meterRef
+  // (writes style.height directly to bypass React re-renders for ~60 fps
+  // updates). Initial height = 0 — first tick fills it in.
   const popupRef = useRef<HTMLDivElement>(null);
 
   const showPopup = (clientX: number, clientY: number) => {
@@ -517,7 +657,7 @@ function StemStrip({
       <div className="pm-stem-name">{stem.name}</div>
       <div className="pm-fader-meter-row">
         <div className="pm-meter">
-          <div className="pm-meter-fill" style={{ height: `${meterHeight}%` }} />
+          <div ref={meterRef} className="pm-meter-fill" style={{ height: '0%' }} />
         </div>
         <div className="pm-fader-container">
           <input
@@ -575,9 +715,12 @@ function CloudStatus({ ready, error }: { ready: boolean; error: string | null })
   );
 }
 
-function Scrubber({ currentTime, duration, onSeek }: {
+function Scrubber({ currentTime, duration, loopA, loopB, loopOn, onSeek }: {
   currentTime: number;
   duration: number;
+  loopA: number | null;
+  loopB: number | null;
+  loopOn: boolean;
   onSeek: (sec: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -590,6 +733,10 @@ function Scrubber({ currentTime, duration, onSeek }: {
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     onSeek(ratio * duration);
   };
+
+  const loopStart = loopA !== null && duration > 0 ? Math.min(100, (loopA / duration) * 100) : null;
+  const loopEnd = loopB !== null && duration > 0 ? Math.min(100, (loopB / duration) * 100) : null;
+  const loopWidth = loopStart !== null && loopEnd !== null ? Math.max(0, loopEnd - loopStart) : null;
 
   return (
     <div className="pm-scrub-row">
@@ -609,9 +756,95 @@ function Scrubber({ currentTime, duration, onSeek }: {
       >
         <div className="pm-scrub-track" />
         <div className="pm-scrub-fill" style={{ width: `${pct}%` }} />
+        {loopStart !== null && loopWidth !== null && (
+          <div
+            className={`pm-scrub-loop ${loopOn ? 'on' : ''}`}
+            style={{ left: `${loopStart}%`, width: `${loopWidth}%` }}
+          />
+        )}
+        {loopStart !== null && loopWidth === null && (
+          // Only A set so far — render a single marker
+          <div className="pm-scrub-marker" style={{ left: `${loopStart}%` }} title="A" />
+        )}
         <div className="pm-scrub-playhead" style={{ left: `${pct}%` }} />
       </div>
       <span className="pm-t-time">{formatTime(duration)}</span>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Practice tools panel — Slice 3: tempo / key / click
+// ──────────────────────────────────────────────────────────────────────────
+
+function PracticeTools({
+  tempoPct, onTempoChange,
+  semitones, onSemitonesChange,
+  clickOn, onClickToggle,
+  baseBpm, baseKey,
+}: {
+  tempoPct: number;
+  onTempoChange: (v: number) => void;
+  semitones: number;
+  onSemitonesChange: (v: number) => void;
+  clickOn: boolean;
+  onClickToggle: () => void;
+  baseBpm: number | null;
+  baseKey: string;
+}) {
+  const effectiveBpm = baseBpm ? Math.round(baseBpm * tempoPct / 100) : null;
+  const effectiveKey = transpose(baseKey, semitones);
+
+  return (
+    <div className="pm-ptools">
+      <div className="pm-ptool">
+        <div className="pm-ptool-top">
+          <span className="pm-ptool-name">Tempo</span>
+          <span className="pm-ptool-val">{tempoPct}%{effectiveBpm ? ` · ${effectiveBpm}` : ''}</span>
+        </div>
+        <input
+          className="pm-ptool-slider"
+          type="range"
+          min={50}
+          max={100}
+          step={1}
+          value={tempoPct}
+          onChange={(e) => onTempoChange(parseInt(e.target.value, 10))}
+        />
+      </div>
+      <div className="pm-ptool">
+        <div className="pm-ptool-top">
+          <span className="pm-ptool-name">Key</span>
+          <span className="pm-ptool-val">{effectiveKey} · {formatSemitones(semitones)}</span>
+        </div>
+        <div className="pm-stepper">
+          <button
+            onClick={() => onSemitonesChange(Math.max(-6, semitones - 1))}
+            disabled={semitones <= -6}
+            aria-label="Key down"
+          >−</button>
+          <span>{formatSemitones(semitones)} st</span>
+          <button
+            onClick={() => onSemitonesChange(Math.min(6, semitones + 1))}
+            disabled={semitones >= 6}
+            aria-label="Key up"
+          >+</button>
+        </div>
+      </div>
+      <div className="pm-ptool">
+        <div className="pm-ptool-top">
+          <span className="pm-ptool-name">Click</span>
+          <span className="pm-ptool-val">{effectiveBpm ? `${effectiveBpm} BPM` : 'no BPM'}</span>
+        </div>
+        <button
+          className={`pm-click-toggle ${clickOn ? 'on' : ''}`}
+          onClick={onClickToggle}
+          disabled={!baseBpm}
+          title={baseBpm ? '' : 'Set this entry’s BPM in the setlist to enable click'}
+        >
+          {clickOn ? 'On' : 'Off'}
+        </button>
+      </div>
     </div>
   );
 }

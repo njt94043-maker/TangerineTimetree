@@ -24,6 +24,7 @@ export interface StemChannel {
 export class StemMixer {
   private channels: StemChannel[] = [];
   private speed = 1.0;
+  private semitones = 0;
   private loop: LoopRegion | null = null;
 
   /**
@@ -87,6 +88,30 @@ export class StemMixer {
 
   getSpeed(): number {
     return this.speed;
+  }
+
+  /**
+   * Set pitch shift in semitones, independent of tempo. Applied to every
+   * stem so the mix stays balanced.
+   */
+  setSemitones(n: number): void {
+    this.semitones = n;
+    for (const ch of this.channels) {
+      ch.player.setSemitones(n);
+    }
+  }
+
+  getSemitones(): number {
+    return this.semitones;
+  }
+
+  /**
+   * Read per-stem peak level in dB for meter rendering.
+   * Returns -Infinity when the stem isn't playing or has no signal.
+   */
+  getMeterDb(label: StemLabel): number {
+    const ch = this.channels.find(c => c.label === label);
+    return ch ? ch.player.getMeterDb() : -Infinity;
   }
 
   setLoop(region: LoopRegion | null): void {
