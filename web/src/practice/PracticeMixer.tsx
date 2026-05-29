@@ -19,14 +19,20 @@ import {
 import { faderToGain, formatDb } from './fader';
 import { transpose, formatSemitones } from './transpose';
 import ChordRibbon from './ChordRibbon';
+import { fetchBeatmap, sectionColor, type Beatmap, type BeatmapSection } from './beatmap';
 import './PracticeMixer.css';
 
 const MEMBER_STORAGE_KEY = 'tgt.practice.member';
 
-// Shape we expect for setlist_entries.practice_stems_refs JSON.
+// Shape we expect for setlist_entries.practice_stems_refs JSON. S191 batch B:
+// `beatmap` is the URL to the .beats.json sidecar uploaded by the MS host
+// publish flow (StemPublishService → R2 → setlist_entries.practice_stems_refs.beatmap).
+// `multitrack` is the per-stem URL set for the 6-stem grade (D-batchB-schema-1
+// canonical layout: drums / bass / guitar / lead / bv / other).
 interface StemRefs {
   demucs?: Partial<Record<'vocals' | 'drums' | 'bass' | 'other', string>>;
   multitrack?: Partial<Record<'drums' | 'bass' | 'guitar' | 'lead' | 'bv' | 'other', string>>;
+  beatmap?: string;
 }
 
 function parseStemRefs(value: unknown): StemRefs | null {
@@ -50,6 +56,42 @@ function formatTime(sec: number): string {
   const m = Math.floor(sec / 60);
   const s = Math.floor(sec % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Wire a ClickScheduler to either beatmap-driven (`loadBeatMap`) or constant-BPM
+ * playback. Beatmap path scales beats by setSpeed; constant path scales BPM by
+ * tempoPct. Centralised so the three callers (play/tempo-change/click-toggle)
+ * stay consistent — see [[feedback--build-glue-not-parity]].
+ */
+function configureClickEngine(
+  click: ClickScheduler,
+  beatmap: Beatmap | null,
+  baseBpm: number,
+  tempoPct: number,
+): void {
+  if (beatmap && beatmap.beats.length > 0) {
+    click.loadBeatMap(beatmap.beats);
+    click.setSpeed(tempoPct / 100);
+    // Configure with the sidecar's BPM as a fallback (used when the beat map
+    // is exhausted — ClickScheduler falls back to constant BPM).
+    click.configure({ bpm: baseBpm * (tempoPct / 100) });
+  } else {
+    click.clearBeatMap();
+    click.configure({ bpm: baseBpm * (tempoPct / 100) });
+  }
+}
+
+/** Locate the section that contains `currentTime`. Returns null when no match. */
+function findCurrentSection(
+  sections: BeatmapSection[] | undefined,
+  currentTime: number,
+): BeatmapSection | null {
+  if (!sections || sections.length === 0) return null;
+  for (const s of sections) {
+    if (currentTime >= s.startSec && currentTime < s.endSec) return s;
+  }
+  return null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -158,14 +200,15 @@ export function PracticeMixerPage() {
 // ──────────────────────────────────────────────────────────────────────────
 
 function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs }) {
-  // Demucs is the only grade with real audio in Slice 2. Multitrack chip is
-  // shown disabled with "needs MT" badging per the locked spec.
-  const [grade, setGrade] = useState<Grade>('demucs');
+  // S191 batch B: default to multitrack when a gig render is published, else fall
+  // back to Demucs. The grade chip in the UI still lets the band switch.
+  const initialGrade: Grade = refs.multitrack ? 'multitrack' : 'demucs';
+  const [grade, setGrade] = useState<Grade>(initialGrade);
   const [member, setMemberState] = useState<MemberId>(loadMember);
-  const [presetId, setPresetId] = useState<string>(() => defaultPresetIdFor(loadMember(), 'demucs'));
+  const [presetId, setPresetId] = useState<string>(() => defaultPresetIdFor(loadMember(), initialGrade));
   const [state, dispatch] = useReducer(mixReducer, undefined, () => {
     const start = emptyMixState();
-    const preset = findPreset('demucs', defaultPresetIdFor(loadMember(), 'demucs'));
+    const preset = findPreset(initialGrade, defaultPresetIdFor(loadMember(), initialGrade));
     return preset ? applyPreset(start, preset) : start;
   });
 
@@ -184,6 +227,11 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
   const [loopOn, setLoopOn] = useState(false);
+  // S191 batch B: beatmap loaded from refs.beatmap (R2 .beats.json sidecar).
+  // Drives ClickScheduler.loadBeatMap for the click engine; drives section
+  // overlay rendering on the scrub-bar; drives current-section label in the
+  // chord ribbon. Null until fetch completes or when refs.beatmap is absent.
+  const [beatmap, setBeatmap] = useState<Beatmap | null>(null);
 
   const mixerRef = useRef<StemMixer | null>(null);
   const clickRef = useRef<ClickScheduler | null>(null);
@@ -195,22 +243,48 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     else meterRefs.current.delete(id);
   }, []);
 
-  // Base BPM for click + key-display chord transposition. Click is OFF by
-  // default; without a BPM it stays hidden.
-  const baseBpm = entry.bpm ?? null;
+  // Base BPM for click + key-display chord transposition. S191 batch B: when
+  // the beatmap sidecar provides a tempo (top-level bpm or first tempoMap
+  // segment), use it as a fallback so click works on songs without a
+  // setlist-level BPM set. entry.bpm wins when present (user override).
+  const baseBpm = entry.bpm ?? (beatmap?.tempoMap?.[0]?.bpm ?? beatmap?.bpm) ?? null;
   const baseKey = entry.notes?.match(/\bkey\s*[:=]?\s*([A-G][#b]?m?)/i)?.[1] ?? 'A';
 
   // Build the list of stems we can actually load for the current grade.
+  // S191 batch B: multitrack grade now loads when refs.multitrack is populated —
+  // StemLabel was widened with 'lead' | 'bv' so all 6 stems flow through the
+  // existing StemMixer + TrackPlayer surface (no parallel engine — build-glue-not-parity).
   const playableStems = useMemo(() => {
-    if (grade !== 'demucs') return [];
-    const demucs = refs.demucs ?? {};
     const stems: Array<{ id: string; label: StemLabel; url: string }> = [];
-    for (const s of GRADES.demucs.stems) {
-      const url = demucs[s.id as keyof typeof demucs];
-      if (url) stems.push({ id: s.id, label: s.id as StemLabel, url });
+    if (grade === 'multitrack') {
+      const mt = refs.multitrack ?? {};
+      for (const s of GRADES.multitrack.stems) {
+        const url = mt[s.id as keyof typeof mt];
+        if (url) stems.push({ id: s.id, label: s.id as StemLabel, url });
+      }
+    } else {
+      const demucs = refs.demucs ?? {};
+      for (const s of GRADES.demucs.stems) {
+        const url = demucs[s.id as keyof typeof demucs];
+        if (url) stems.push({ id: s.id, label: s.id as StemLabel, url });
+      }
     }
     return stems;
   }, [grade, refs]);
+
+  // ── Fetch beatmap sidecar from R2 when refs.beatmap is set ────────────
+  // One fetch per practice session — the sidecar is tiny JSON, no need for
+  // cache-busting; ClickScheduler reads from beatmap.beats on every click toggle.
+  useEffect(() => {
+    let cancelled = false;
+    setBeatmap(null);
+    if (!refs.beatmap) return;
+    (async () => {
+      const bm = await fetchBeatmap(refs.beatmap!);
+      if (!cancelled) setBeatmap(bm);
+    })();
+    return () => { cancelled = true; };
+  }, [refs.beatmap]);
 
   // ── Load stems on mount / grade change ─────────────────────────────────
   useEffect(() => {
@@ -260,9 +334,9 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
   useEffect(() => {
     mixerRef.current?.setSpeed(tempoPct / 100);
     if (clickRef.current && baseBpm) {
-      clickRef.current.configure({ bpm: baseBpm * (tempoPct / 100) });
+      configureClickEngine(clickRef.current, beatmap, baseBpm, tempoPct);
     }
-  }, [tempoPct, baseBpm]);
+  }, [tempoPct, baseBpm, beatmap]);
 
   // ── Key: pitch shift independent of tempo ──────────────────────────────
   useEffect(() => {
@@ -288,9 +362,11 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     mixer.play(currentTime > 0 ? currentTime : undefined);
     setPlaying(true);
     AudioEngine.setState('playing');
-    // Slice 3: click ticks with transport when enabled
+    // Slice 3: click ticks with transport when enabled. S191 batch B: when a
+    // beatmap is loaded, the scheduler fires on the sidecar's per-beat timestamps
+    // (handles tempo changes for free). Otherwise fall back to constant BPM.
     if (clickOn && clickRef.current && baseBpm) {
-      clickRef.current.configure({ bpm: baseBpm * (tempoPct / 100) });
+      configureClickEngine(clickRef.current, beatmap, baseBpm, tempoPct);
       clickRef.current.setMuted(false);
       clickRef.current.start();
     }
@@ -320,7 +396,7 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
         for (const el of meterRefs.current.values()) el.style.height = '0%';
       }
     });
-  }, [stemsReady, currentTime, clickOn, baseBpm, tempoPct, loopOn, loopA, loopB, playableStems]);
+  }, [stemsReady, currentTime, clickOn, baseBpm, tempoPct, loopOn, loopA, loopB, playableStems, beatmap]);
 
   const pause = useCallback(() => {
     const mixer = mixerRef.current;
@@ -353,6 +429,15 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
   }, []);
   const toggleLoop = useCallback(() => setLoopOn(v => !v), []);
 
+  // S191 batch B: tap a section overlay → set loop to its bounds + engage.
+  const loopSection = useCallback((s: BeatmapSection) => {
+    setLoopA(s.startSec);
+    setLoopB(s.endSec);
+    setLoopOn(true);
+    // Snap playhead to section start so the loop engages immediately.
+    seek(s.startSec);
+  }, [seek]);
+
   // ── Click engine lifecycle ────────────────────────────────────────────
   useEffect(() => {
     clickRef.current = new ClickScheduler();
@@ -367,14 +452,14 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     const click = clickRef.current;
     if (!click || !baseBpm) return;
     if (clickOn && playing) {
-      click.configure({ bpm: baseBpm * (tempoPct / 100) });
+      configureClickEngine(click, beatmap, baseBpm, tempoPct);
       click.setMuted(false);
       if (!click.isActive()) click.start();
     } else {
       click.setMuted(true);
       click.stop();
     }
-  }, [clickOn, playing, baseBpm, tempoPct]);
+  }, [clickOn, playing, baseBpm, tempoPct, beatmap]);
 
   // ── Member / preset / grade handlers ──────────────────────────────────
   const handleMember = useCallback((m: MemberId) => {
@@ -392,8 +477,9 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
     if (preset) dispatch({ type: 'apply_preset', preset });
   }, [grade]);
 
-  // Member/preset bootstrap if grade changes (Slice 2: multitrack is locked
-  // so this only runs if a future Slice opens it).
+  // Member/preset bootstrap if grade changes. S191 batch B: multitrack now
+  // ships enabled when refs.multitrack is present — this swaps the preset to a
+  // grade-valid one (BV-bound presets are dropped when leaving multitrack).
   useEffect(() => {
     let next = presetId;
     if (!findPreset(grade, next)) next = 'full';
@@ -511,12 +597,14 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
         </div>
 
         <div className="pm-transport">
-          {/* Batch C: read-only chord ribbon (now / next 3 + key). Hidden when entry has no chord_text and no key. */}
+          {/* Batch C: read-only chord ribbon (now / next 3 + key). Hidden when entry has no chord_text and no key.
+              S191 batch B: when a beatmap with sections is loaded, surface the current section name. */}
           <ChordRibbon
             entry={entry}
             currentTime={currentTime}
             duration={duration}
             semitones={semitones}
+            sectionLabel={findCurrentSection(beatmap?.sections, currentTime)?.label ?? null}
           />
           <Scrubber
             currentTime={currentTime}
@@ -525,6 +613,8 @@ function PracticeMixer({ entry, refs }: { entry: SetlistEntry; refs: StemRefs })
             loopB={loopB}
             loopOn={loopOn}
             onSeek={seek}
+            sections={beatmap?.sections}
+            onLoopSection={loopSection}
           />
           <div className="pm-transport-controls">
             <button className="pm-t-btn" onClick={restart} title="Restart" disabled={!stemsReady}>↺</button>
@@ -723,13 +813,17 @@ function CloudStatus({ ready, error }: { ready: boolean; error: string | null })
   );
 }
 
-function Scrubber({ currentTime, duration, loopA, loopB, loopOn, onSeek }: {
+function Scrubber({ currentTime, duration, loopA, loopB, loopOn, onSeek, sections, onLoopSection }: {
   currentTime: number;
   duration: number;
   loopA: number | null;
   loopB: number | null;
   loopOn: boolean;
   onSeek: (sec: number) => void;
+  /** S191 batch B: when present, render a thin band of coloured rects above the
+   *  scrub-track. Tapping a rect calls onLoopSection(s). */
+  sections?: BeatmapSection[];
+  onLoopSection?: (s: BeatmapSection) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
@@ -763,6 +857,32 @@ function Scrubber({ currentTime, duration, loopA, loopB, loopOn, onSeek }: {
         aria-valuenow={currentTime}
       >
         <div className="pm-scrub-track" />
+        {sections && sections.length > 0 && duration > 0 && (
+          <div className="pm-scrub-sections" aria-hidden>
+            {sections.map((s, i) => {
+              const left = (s.startSec / duration) * 100;
+              const width = ((s.endSec - s.startSec) / duration) * 100;
+              const isCurrent = currentTime >= s.startSec && currentTime < s.endSec;
+              return (
+                <button
+                  key={`${i}-${s.label}`}
+                  type="button"
+                  className={`pm-scrub-seg ${isCurrent ? 'current' : ''}`}
+                  style={{ left: `${left}%`, width: `${width}%`, background: sectionColor(s.kind) }}
+                  title={`${s.label} — tap to loop`}
+                  onClick={(e) => {
+                    // Stop pointer-bubbling into the scrub track's seek handler.
+                    e.stopPropagation();
+                    onLoopSection?.(s);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <span className="pm-scrub-seg-label">{s.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="pm-scrub-fill" style={{ width: `${pct}%` }} />
         {loopStart !== null && loopWidth !== null && (
           <div

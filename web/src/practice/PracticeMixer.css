@@ -265,7 +265,38 @@
   width: 2px; height: 11px; background: var(--pm-color-practice);
   box-shadow: var(--pm-glow-practice); pointer-events: none;
 }
-.pm-scrub-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); pointer-events: none; }
+.pm-scrub-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.6); pointer-events: none; z-index: 3; }
+
+/* S191 batch B — section overlay on the scrub-bar. Thin band of coloured
+   rects above the track; tap to loop. Mockup colours: verse=blue, chorus=orange,
+   bridge=purple, intro/outro=grey, break=teal, solo=green (see beatmap.ts). */
+.pm-scrub-sections {
+  position: absolute; left: 0; right: 0; top: 2px;
+  display: flex; height: 5px; pointer-events: none;
+}
+.pm-scrub-seg {
+  position: absolute; top: 0; height: 100%;
+  padding: 0; border: none;
+  border-radius: 2px;
+  opacity: 0.5; cursor: pointer;
+  pointer-events: auto;     /* override the wrapper's none */
+  transition: opacity 0.15s, transform 0.15s;
+  font-size: 0; color: transparent;   /* hide label until hover */
+  display: flex; align-items: center; justify-content: center;
+}
+.pm-scrub-seg:hover, .pm-scrub-seg:focus-visible {
+  opacity: 0.9;
+  transform: scaleY(1.4);
+  outline: none;
+}
+.pm-scrub-seg.current { opacity: 0.95; }
+.pm-scrub-seg-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px; font-weight: 700;
+  color: rgba(0,0,0,0.85); white-space: nowrap; overflow: hidden;
+}
+.pm-scrub-seg:hover .pm-scrub-seg-label, .pm-scrub-seg:focus-visible .pm-scrub-seg-label {
+  font-size: 9px;
+}
 .pm-transport-controls { display: flex; align-items: center; justify-content: center; gap: 22px; margin-top: 10px; }
 .pm-t-btn { background: none; border: none; color: var(--pm-color-text-dim); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 4px 8px; }
 .pm-t-btn:disabled { opacity: 0.35; cursor: not-allowed; }

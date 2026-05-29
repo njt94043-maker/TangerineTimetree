@@ -1,5 +1,32 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — S191 batch B (2026-05-30). DO NOT RUN.
+
+This script writes to `setlist_entry_practice_tracks`, which is verified empty
+(0 rows in production) — the path was scaffolded in S129 W3 but never adopted.
+The replacement path is the MS host's `StemPublishService`
+(C:/Apps/XR18Studio/src/TangerineMediaServer/Publish/StemPublishService.cs) →
+Cloudflare R2 → `setlist_entries.practice_stems_refs` (jsonb on the existing
+setlist_entries row, with `demucs` / `multitrack` / `beatmap` sub-keys). The
+publish flow is triggered from the MS host PWA Publish panel, not by walking
+local folders.
+
+Other things this script gets wrong vs. the locked S190 mockup + S191 schema:
+- 7-stem layout (full / drums / guitar / bass / vox1 / vox2 / vox_bus) — the
+  canonical multitrack grade is 6 stems (drums / bass / guitar / lead / bv /
+  other; D-batchB-schema-1).
+- Per-version-label slot model (`ours_a` / `ours_b` / `ours_c`) — replaced by
+  single-shape practice_stems_refs jsonb that re-publish overwrites (D-stem-3).
+- Uploads to Supabase Storage `practice-tracks` bucket — replaced by R2
+  (zero-egress, 10 GB free; D-stem-1).
+
+Retained for reference only — DO NOT DELETE (per
+[[feedback--unfinished-not-orphan]]). If someone genuinely wants the multitrack
+publish path, drive it from the PWA Publish panel which calls
+POST /api/library/songs/{id}/publish-stems → StemPublishService.PublishAsync.
+
+—— Original docstring (S129 W3, no longer accurate) ——————————————————————————
+
 S129 W3 — gig multitrack mixdown → setlist_entry_practice_tracks ingest.
 
 Walks a Reaper post-prod folder of per-song renders (output of either Region
@@ -394,4 +421,13 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    # S191 batch B deprecation guard — see module docstring. The replacement is
+    # the MS host PWA Publish panel → StemPublishService → R2 →
+    # setlist_entries.practice_stems_refs (jsonb). Don't run this script.
+    sys.exit(
+        "ingest-gig-mixdown.py is DEPRECATED (S191 batch B). The target table "
+        "setlist_entry_practice_tracks has 0 rows in production. Use the MS "
+        "host PWA Publish panel instead. See module docstring for context."
+    )
+    # Unreachable; kept so the historical entrypoint is still grep-able.
     raise SystemExit(main(sys.argv))

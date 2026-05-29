@@ -10,7 +10,12 @@
 
 import { TrackPlayer, type LoopRegion } from './TrackPlayer';
 
-export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other';
+// S191 batch B (D-batchB-schema-1): widened with 'lead' + 'bv' so the practice mixer's
+// multitrack grade (drums / bass / guitar / lead / bv / other — matches the S190 mockup)
+// can flow through the same loadStems()/setStemGain() surface as Demucs. Additive only —
+// existing callers (legacy useAudioEngine which sources labels from the songs-table
+// schema that doesn't have lead/bv) keep working unchanged.
+export type StemLabel = 'drums' | 'bass' | 'vocals' | 'guitar' | 'keys' | 'backing' | 'other' | 'lead' | 'bv';
 
 export interface StemChannel {
   label: StemLabel;
