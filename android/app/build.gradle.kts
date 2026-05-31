@@ -8,14 +8,13 @@ plugins {
 android {
     namespace = "com.thegreentangerine.gigbooks"
     compileSdk = 36
-    ndkVersion = "27.1.12297006"
 
     defaultConfig {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 45
-        versionName = "1.2.26"
+        versionCode = 46
+        versionName = "1.2.27"
 
         // S186 / D-batchD-1: APK no longer targets the dead E6330 box. Default
         // points at the MS host bridge on the laptop (POST /gig + /song-marker
@@ -26,29 +25,17 @@ android {
         buildConfigField("String", "GIG_HOST_DEFAULT", "\"tgt-host.local\"")
         buildConfigField("int", "GIG_PORT_DEFAULT", "9200")
 
+        // Constrain bundled native libs (ML Kit, CameraX, datastore) to arm64-v8a —
+        // every band phone is arm64. Independent of the (removed) clickengine NDK
+        // build; without it the APK ships unused x86/x86_64/armeabi-v7a variants (+14MB).
         ndk {
             abiFilters += listOf("arm64-v8a")
-        }
-
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-                arguments += "-DANDROID_STL=c++_shared"
-            }
         }
     }
 
     buildFeatures {
         compose = true
         buildConfig = true
-        prefab = true
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
     }
 
     signingConfigs {
@@ -122,9 +109,6 @@ dependencies {
 
     // Coroutines
     implementation(libs.coroutines.android)
-
-    // Oboe (for prefab C++ headers)
-    implementation(libs.oboe)
 
     // Image loading
     implementation(libs.coil.compose)
