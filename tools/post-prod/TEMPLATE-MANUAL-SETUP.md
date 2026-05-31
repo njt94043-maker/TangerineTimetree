@@ -60,7 +60,7 @@ Same as `gig-mixdown` EXCEPT:
 3. **File name:** `$project_drumcover_$date` (or `$project_cover_$date` — pick one and be consistent).
 4. **Save preset:** "Save preset…" → **`cover-mixdown`**.
 
-> **NOTE — derived template undecided.** This preset is fine for the rendering case. The spec also mentions a *separate* `cover-mixdown.RPP` derived template (a stripped-down version of the master). **NOT BUILT YET.** Tracked as open decision `D-batchA-derived-2` in the setup spec — needs Nathan input on whether a derived RPP is wanted or whether the preset alone is enough.
+> **NOTE — derived template DECLINED (S195).** This preset is the whole solution for the cover-mixdown case. The separate `cover-mixdown.RPP` derived template (`D-batchA-derived-2`) was declined — the preset alone is enough; no parallel RPP.
 
 ---
 
@@ -73,7 +73,7 @@ Same source/bounds as `cover-mixdown` (or use selected time range for a clip exc
 4. **File name:** `$project_clip_$date`
 5. **Save preset:** **`social-clip`**.
 
-> **Same derived-template caveat as Step 3.** A separate `social-clip.RPP` template would let you build a focus mix (just vocal + drums + bass for a short cut, for example). NOT BUILT YET. Open decision `D-batchA-derived-3`.
+> **Derived template DECLINED (S195).** A separate `social-clip.RPP` focus-mix template (`D-batchA-derived-3`) was declined — the preset alone covers the social-clip case. If you ever want a true focus mix (e.g. vocal+drums+bass only), use a time selection + track solos at render time rather than a parallel template.
 
 ---
 
@@ -111,11 +111,19 @@ Reaper renders "Tracks (selected only)" with `Tracks (stems)` for the source. Th
 10. **Render bus FX:** **DEPENDS** — for `drums` / `other` you WANT the bus glue (DC1A3, TENSjr) baked in. For `lead` / `bv` you do NOT want the VOX BUS reverb baked in (PracticeMixer adds its own ambient if wanted). So either render in two passes (vocals first with bus FX off, then the rest with bus FX on) or use track-level snapshots to bypass VOX BUS chain before the vocal pass.
 11. **Save preset:** **`stem-prep`**.
 
-### 5c — Optional one-time setup that makes stem-prep faster
+### 5c — One-time setup: `STEM-PREP DRUM SUM` tap bus (DECISION RESOLVED — DO THIS)
 
-Create a hidden helper folder bus in the template called `STEM-PREP DRUM SUM` that receives sends from DRUMS BUS / EAD BUS / TD-4 BUS at unity, sends to Master at unity (so normal playback is unchanged), and is the SINGLE source you solo for the `drums` stem render. Saves you the sum-three-files post-step every render.
+`D-batchA-derived-1` is **adopted** (S195). Build this tap bus once into the template so the `drums` stem renders in a single solo+render instead of the manual sum-three-files step every time. It lives inside `whole-gig-template-v1.RPP`, so every project built from the template inherits it.
 
-**Don't add this blindly** — it adds a track to every post-prod project derived from the template. Decide first whether you'd rather do the post-render sum OR live with the extra bus. Logged as open decision `D-batchA-derived-1` in the setup spec.
+**Steps (in Reaper, template open):**
+1. Add a new track at the bottom of the bus area. Name it **`STEM-PREP DRUM SUM`**.
+2. **Turn its Master/parent send OFF** (click the track's route button → uncheck "Master/parent send", or right-click the track → toggle it off). ⚠ This is critical — the three drum buses already feed Master, so if the sum bus ALSO fed Master you'd hear the drums doubled (+6 dB) in normal playback. With master-send off, the bus is silent during normal playback and every other render.
+3. On `STEM-PREP DRUM SUM`, add three **receives** (route button → "Add new receive"), one each from **DRUMS BUS**, **EAD BUS**, **TD-4 BUS**. Leave each at unity (0 dB), post-fader.
+4. Save the template.
+
+**Then for the `drums` stem render:** solo ONLY `STEM-PREP DRUM SUM` (instead of soloing the three drum buses) and render — that single file IS `drums.wav`. On TD-4 days only TD-4 carries audio, on acoustic days only DRUMS+EAD do; the sum captures whatever is present either way. No post-render sum step.
+
+> The original spec sketched this as "sends to Master at unity" — that was wrong (it would double the drums in playback). The correct design is master-send OFF + solo-only-for-render, as above.
 
 ---
 
@@ -143,13 +151,13 @@ If any preset is missing values: re-save it (Presets → Save preset → same na
 
 ---
 
-## Open decisions (need Nathan, blocking nothing today)
+## Open decisions — RESOLVED (S195)
 
-- `D-batchA-derived-1` — build the `STEM-PREP DRUM SUM` helper bus into the template? (yes = faster stem-prep renders, extra track in every project; no = manual post-render sum of 3 drum files).
-- `D-batchA-derived-2` — build a derived `cover-mixdown.RPP` template (stripped subset of master), or is the render-preset enough?
-- `D-batchA-derived-3` — build a derived `social-clip.RPP` template (focus mix), or is the render-preset enough?
+- `D-batchA-derived-1` — **ADOPTED.** Build the `STEM-PREP DRUM SUM` tap bus (Step 5c above). Faster stem-prep renders outweigh the one extra (silent) track per project.
+- `D-batchA-derived-2` — **DECLINED.** No derived `cover-mixdown.RPP`; the `cover-mixdown` render preset (Step 3) is enough.
+- `D-batchA-derived-3` — **DECLINED.** No derived `social-clip.RPP`; the `social-clip` render preset (Step 4) is enough.
 
-Defaults if Nathan doesn't decide: leave as-is. Render presets alone cover both the cover and social-clip cases for the foreseeable workflow.
+Rationale: keep the single template + named presets; the one adopted change lives inside the template, not as parallel RPP files. Also update Step 3/Step 4 NOTE callouts mentally — those derived templates are now declined, not "undecided."
 
 ---
 
