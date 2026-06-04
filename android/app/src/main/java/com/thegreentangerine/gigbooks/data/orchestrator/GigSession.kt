@@ -51,6 +51,7 @@ class GigSession {
         val gigName: String = "",
         val gigDate: String = "",   // F4: YYYYMMDD; set at arm() so the slug stays stable across sets even past midnight
         val setNumber: Int = 0,
+        val armedTracks: Set<Int> = emptySet(),  // S202: record-arm set chosen in the wizard; persists across sets via copy()
     )
 
     private val _snapshot = MutableStateFlow(Snapshot())
@@ -60,14 +61,16 @@ class GigSession {
     val gigName: String get() = _snapshot.value.gigName
     val gigDate: String get() = _snapshot.value.gigDate
     val setNumber: Int get() = _snapshot.value.setNumber
+    val armedTracks: Set<Int> get() = _snapshot.value.armedTracks
 
     /** Wizard finishes -> ARMED. Project named + saved, transport idle. */
-    fun arm(name: String) {
+    fun arm(name: String, armedTracks: Set<Int>) {
         _snapshot.value = Snapshot(
             state = State.ARMED,
             gigName = name,
             gigDate = todayYyyyMmDd(),
             setNumber = 0,
+            armedTracks = armedTracks,
         )
     }
 

@@ -53,6 +53,18 @@ class ReaperOscClient {
         encodeMessage("/song_marker", stringArg = title),
     )
 
+    /**
+     * S202: arm exactly [armedTracks]; disarm the rest. One bundle, processed
+     * on a single tick so the whole arm set lands atomically. Reaper accepts
+     * `/track/N/recarm <float>` (1.0 = arm, 0.0 = disarm); addressing is
+     * absolute (`/track/10` -> track 10, no bank offset).
+     */
+    suspend fun sendRecArm(armedTracks: Set<Int>, totalTracks: Int = 18) = sendBundle(
+        *(1..totalTracks).map { n ->
+            encodeMessage("/track/$n/recarm", floatArg = if (n in armedTracks) 1f else 0f)
+        }.toTypedArray()
+    )
+
     private suspend fun sendBundle(vararg messages: ByteArray) = sendPacket(encodeBundle(messages.toList()))
 
     private suspend fun sendPacket(packet: ByteArray) {
@@ -69,8 +81,8 @@ class ReaperOscClient {
         _lastSendOk.value = ok
     }
 
-    /** OSC 1.0 message: address + null-terminated, padded to 4-byte boundary; type tag ',si…' likewise; each arg likewise. */
-    private fun encodeMessage(address: String, intArg: Int? = null, stringArg: String? = null): ByteArray {
+    /** OSC 1.0 message: address + null-terminated, padded to 4-byte boundary; type tag ',if s…' likewise; each arg likewise. Tag order is fixed: int, float, string. */
+    private fun encodeMessage(address: String, intArg: Int? = null, floatArg: Float? = null, stringArg: String? = null): ByteArray {
         val tagChars = StringBuilder(",")
         val argsBytes = mutableListOf<ByteArray>()
         if (intArg != null) {
@@ -78,6 +90,14 @@ class ReaperOscClient {
             argsBytes += ByteArray(4).also {
                 it[0] = (intArg ushr 24).toByte(); it[1] = (intArg ushr 16).toByte()
                 it[2] = (intArg ushr 8).toByte();  it[3] = intArg.toByte()
+            }
+        }
+        if (floatArg != null) {
+            tagChars.append('f')
+            val bits = java.lang.Float.floatToIntBits(floatArg)
+            argsBytes += ByteArray(4).also {
+                it[0] = (bits ushr 24).toByte(); it[1] = (bits ushr 16).toByte()
+                it[2] = (bits ushr 8).toByte();  it[3] = bits.toByte()
             }
         }
         if (stringArg != null) {

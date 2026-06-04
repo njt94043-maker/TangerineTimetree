@@ -16,6 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,18 +47,22 @@ import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
  * coroutine and feeds it as `prefill`). The drummer can edit, or if the gig
  * isn't on the calendar, type one in manually.
  *
- * Tapping [Start gig] fires the [onStart] callback with the chosen name —
- * caller is responsible for: (1) firing the Reaper-rename HTTP, (2) firing
- * the per-set OSC record, and (3) flipping the GigSession state.
+ * Tapping [Start gig] fires the [onStart] callback with the chosen name and
+ * the computed record-arm set (S202) — caller is responsible for: (1) firing
+ * the Reaper-rename HTTP, (2) firing the per-set OSC record-arm + record, and
+ * (3) flipping the GigSession state.
  */
 @Composable
 fun GigStartWizard(
     prefill: String,
     onCancel: () -> Unit,
-    onStart: (name: String) -> Unit,
+    onStart: (name: String, armedTracks: Set<Int>) -> Unit,
 ) {
     var fieldValue by remember(prefill) { mutableStateOf(TextFieldValue(prefill)) }
     val canStart = fieldValue.text.trim().isNotEmpty()
+
+    // S202: channel-arm presets. Sensible GIG defaults — full acoustic kit + music.
+    var presetState by remember { mutableStateOf(ArmPresetState()) }
 
     Dialog(
         onDismissRequest = onCancel,
@@ -70,7 +77,12 @@ fun GigStartWizard(
                 .border(1.dp, TangerineColors.orange.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                 .padding(20.dp),
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
                 Text(
                     "START GIG",
                     fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
@@ -108,6 +120,12 @@ fun GigStartWizard(
                     )
                 }
                 Spacer(Modifier.height(18.dp))
+                ChannelArmPresetSelector(
+                    mode = ArmPresetMode.GIG,
+                    state = presetState,
+                    onState = { presetState = it },
+                )
+                Spacer(Modifier.height(18.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -129,7 +147,17 @@ fun GigStartWizard(
                         // is the SAME string everywhere. Prevents the
                         // "testing 2" → APK "testing_2" / rig "testing-2"
                         // split that masked recordings from the pull filter.
-                        onStart(CameraRecordingManager.slugifyForWizard(fieldValue.text))
+                        onStart(
+                            CameraRecordingManager.slugifyForWizard(fieldValue.text),
+                            computeArmedTracks(
+                                ArmPresetMode.GIG,
+                                presetState.kitType,
+                                presetState.overheads,
+                                presetState.fullKit,
+                                presetState.music,
+                                presetState.ead,
+                            ),
+                        )
                     },
                     )
                 }

@@ -743,10 +743,10 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         GigStartWizard(
             prefill = startPrefill,
             onCancel = { startWizardOpen = false },
-            onStart = { name ->
+            onStart = { name, armedTracks ->
                 startWizardOpen = false
                 // v1.2.3: wizard arms only — separate Begin button starts recording
-                service?.armGig(name)
+                service?.armGig(name, armedTracks)
             },
         )
     }

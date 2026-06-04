@@ -202,9 +202,9 @@ class OrchestratorService : Service() {
     // genuine set boundaries.
 
     /** Wizard saves project + arms — does NOT start recording. */
-    fun armGig(name: String) {
+    fun armGig(name: String, armedTracks: Set<Int>) {
         scope.launch {
-            session.arm(name)
+            session.arm(name, armedTracks)
             // Reaper rename + save runs immediately so the named project exists
             // on disk. Recording transport stays idle until beginRecording().
             gigCmd.start(name)
@@ -227,6 +227,11 @@ class OrchestratorService : Service() {
             val sessionId = newSessionId()
             val gigName = session.gigName
             val gigDate = session.gigDate
+            // S202: arm the chosen channel set immediately before record. Sent
+            // here (not at armGig) so it lands after the project has loaded and
+            // the ARMED review has passed. Arm state persists in Reaper memory
+            // across sets, so continue* paths don't re-send.
+            osc.sendRecArm(session.armedTracks)
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId, gigName, gigDate)
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
