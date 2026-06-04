@@ -161,6 +161,20 @@ Rationale: keep the single template + named presets; the one adopted change live
 
 ---
 
+## Gig-recording rig (Windows / Acer) — durable facts (S200)
+
+Distinct from the post-prod presets above: this is the **live capture** rig (phone APK → Reaper + Media Server on the Acer). Recorded the hard way in S200; keep these so a rebuild doesn't relearn them:
+
+- **Audio device:** ASIO driver `X-AIR ASIO Driver` @ **48000 Hz**. In `REAPER.ini` `[audioconfig]`: `mode=3`, `asio_driver_name=X-AIR ASIO Driver`, `asio_srate=48000`, `asio_srate_use=1`, `asio_input0=0`, **`asio_input1=17`**. The `asio_input1` value is the catch: it's the *last* input channel index, so `17` = channels 0–17 = the **18** XR18 inputs. A leftover 2-channel default (`asio_input1=1`) silently caps capture at 2 inputs even though the driver loads fine.
+- **OSC (phone RECORD/STOP):** in `REAPER.ini` `[reaper]`: `csurf_cnt=1` and `csurf_0=OSC "TGT-OSC" 5 8000 9000 0 "" "Default.ReaperOSC"` — receives on **UDP 8000**, pattern `Default.ReaperOSC`. Flag `5` = receive-enabled (proven). RECORD = OSC bundle `/action 40043` + `/action 1013`; stop = `/stop`.
+- **⚠️ Edit `REAPER.ini` only while Reaper is CLOSED.** Reaper rewrites the ini from memory on exit, so any edit made while it's running is silently overwritten on quit. Kill `reaper.exe`, edit, relaunch; quit via File→Quit (it persists config on a clean exit, not on a force-kill).
+- **Recordings land in `C:\Gigs`** (the recorder's local working drive, backed up separately). **`D:` is backup-only** — do *not* point the listener at `D:\Gigs`. Set in `gig-command-listener.lua` `gigs_dir_path()`.
+- **Listeners:** `gig-command-listener.lua` + `song-marker-listener.lua` in `%APPDATA%\REAPER\Scripts\TGT\`, auto-launched by `%APPDATA%\REAPER\Scripts\__startup.lua`. Template at `%APPDATA%\REAPER\ProjectTemplates\tgt-gig-and-practice.RPP` (18 record-armed tracks).
+- **Media Server host** (HTTP bridge on `:9200`, routes `POST /gig` + `/song-marker` → the `C:\tmp\gig-commands` / `C:\tmp\song-markers` drop dirs): canonical install is `C:\Apps\windows\TangerineMediaServer\` (autostarted via the HKCU `Run\TangerineMediaServer` key). Must be a **current** build containing `GigCommandBridgeEndpoints`, published **self-contained** (`dotnet publish -c Release -r win-x64 --self-contained true`) — framework-dependent breaks the apphost. `deploy-mediaserver.ps1` only refreshes the PWA `wwwroot`, **not** the host binary; rebuild + copy the publish output into the install tree separately.
+- **Firewall:** inbound rules `TGT Reaper OSC` (UDP 8000) and `TGT Gig Bridge` (TCP 9200), scoped to `LocalSubnet`, so the phone on the LAN can reach the rig.
+
+---
+
 ## See also
 
 - [README.md](README.md) — pipeline overview + script roles

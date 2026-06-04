@@ -40,18 +40,22 @@ local function poll_dir_path()
 end
 
 local function gigs_dir_path()
-  local os_name = reaper.GetOS()
-  local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
-  if os_name:match("Win") then
-    return home .. "/Reaper/Gigs"
+  -- S200 fix-up (Windows Acer rig): record onto C: — the recorder's local working
+  -- drive (backed up separately). NOT the D: post-prod/backup tree (D: is
+  -- backup-only; live gigs must land on C:).
+  if reaper.GetOS():match("Win") then
+    return "C:/Gigs"
   else
+    local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
     return home .. "/Reaper/Gigs"
   end
 end
 
 local function template_path()
-  local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
-  return home .. "/.config/REAPER/ProjectTemplates/tgt-gig-and-practice.RPP"
+  -- S200: resolve inside Reaper's resource dir (%APPDATA%/REAPER/ProjectTemplates
+  -- on Windows). The old hardcoded ~/.config/REAPER path was Linux-only and
+  -- aborted every gig-start on Windows.
+  return reaper.GetResourcePath() .. "/ProjectTemplates/tgt-gig-and-practice.RPP"
 end
 
 local POLL_DIR = poll_dir_path()

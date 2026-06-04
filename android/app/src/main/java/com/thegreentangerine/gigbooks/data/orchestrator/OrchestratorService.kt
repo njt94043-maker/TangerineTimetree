@@ -41,6 +41,8 @@ class OrchestratorService : Service() {
     companion object {
         const val CHANNEL_ID = "tgt_orchestrator"
         const val NOTIFICATION_ID = 9200
+        /** Reaper's OSC receive port is fixed by the rig config; the discovered SRV port is the MS HTTP bridge (9200). */
+        const val REAPER_OSC_PORT = 8000
     }
 
     inner class LocalBinder : Binder() {
@@ -74,7 +76,7 @@ class OrchestratorService : Service() {
             // Re-apply latest discovered target if present. OSC follows discovery
             // verbatim; gigCmd uses the same host on its own fixed HTTP port.
             discovery.discovered.value?.let {
-                osc.setTarget(it.host, it.port)
+                osc.setTarget(it.host, REAPER_OSC_PORT)
                 gigCmd.setTarget(it.host)
             }
         }
@@ -108,7 +110,7 @@ class OrchestratorService : Service() {
         scope.launch {
             discovery.discovered.collect { d ->
                 if (d != null && _autoDiscover.value) {
-                    osc.setTarget(d.host, d.port)
+                    osc.setTarget(d.host, REAPER_OSC_PORT)
                     gigCmd.setTarget(d.host)
                 }
             }

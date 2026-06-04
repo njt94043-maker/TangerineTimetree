@@ -12,11 +12,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * mDNS / NSD-based auto-discovery of the E6330 Reaper appliance.
+ * mDNS / NSD-based auto-discovery of the Tangerine Media Server host on the LAN.
  *
- * Listens for `_osc._udp.` services on the current network, picks the one
- * whose name starts with "TGT Reaper" (advertised by avahi on the E6330),
- * resolves its IP+port, and exposes [discovered]. Re-runs whenever the
+ * Listens for `_tangerine-media._tcp.` services on the current network (advertised
+ * by the Media Server with the machine name as the instance), resolves the
+ * service's numeric IP+port, and exposes [discovered]. Re-runs whenever the
  * default network changes (home WiFi → S23 hotspot, etc.).
  *
  * The APK NEVER needs a manual host config in the normal path. Manual override
@@ -26,8 +26,10 @@ class OrchestratorDiscovery(private val context: Context) {
 
     companion object {
         private const val TAG = "OrchestratorDiscovery"
-        private const val SERVICE_TYPE = "_osc._udp."
-        private const val SERVICE_NAME_PREFIX = "TGT Reaper"
+        private const val SERVICE_TYPE = "_tangerine-media._tcp."
+        // The Media Server advertises this TGT-specific type with the machine name as
+        // the instance (see ServiceAdvertiser.cs). Any instance of this type IS our
+        // host, so we no longer filter by an instance-name prefix.
     }
 
     data class Discovered(val name: String, val host: String, val port: Int)
@@ -81,9 +83,7 @@ class OrchestratorDiscovery(private val context: Context) {
             }
             override fun onServiceFound(info: NsdServiceInfo) {
                 Log.d(TAG, "Service found: ${info.serviceName} (${info.serviceType})")
-                if (info.serviceName.startsWith(SERVICE_NAME_PREFIX)) {
-                    resolveService(info)
-                }
+                resolveService(info)
             }
             override fun onServiceLost(info: NsdServiceInfo) {
                 Log.d(TAG, "Service lost: ${info.serviceName}")
