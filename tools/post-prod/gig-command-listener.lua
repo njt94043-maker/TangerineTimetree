@@ -58,9 +58,20 @@ local function template_path()
   return reaper.GetResourcePath() .. "/ProjectTemplates/tgt-gig-and-practice.RPP"
 end
 
+local function covers_dir_path()
+  if reaper.GetOS():match("Win") then return "C:/Covers" else
+    local home = os.getenv("HOME") or os.getenv("USERPROFILE") or ""
+    return home .. "/Reaper/Covers" end
+end
+local function take_template_path()
+  return reaper.GetResourcePath() .. "/ProjectTemplates/tgt-take-mode.RPP"
+end
+
 local POLL_DIR = poll_dir_path()
 local GIGS_DIR = gigs_dir_path()
 local TEMPLATE = template_path()
+local COVERS_DIR    = covers_dir_path()
+local TAKE_TEMPLATE = take_template_path()
 
 local function ensure_dir(path)
   reaper.RecursiveCreateDirectory(path, 0)
@@ -93,7 +104,9 @@ end
 local function parse_command(text)
   local action = text:match('"action"%s*:%s*"([^"]+)"')
   local name = text:match('"project_name"%s*:%s*"([^"]*)"') or ""
-  return action, name
+  local track_path = text:match('"track_path"%s*:%s*"([^"]*)"') or ""
+  local title = text:match('"title"%s*:%s*"([^"]*)"') or ""
+  return action, name, track_path, title
 end
 
 local function sanitise(name)
@@ -173,20 +186,153 @@ local function stop_project()
   reaper.ShowConsoleMsg("[gig-cmd] stop (saved)\n")
 end
 
-local function process(action, name)
-  if action == "start" then
-    start_project(name)
-  elseif action == "save" then
-    save_project()
-  elseif action == "stop" then
-    stop_project()
-  else
-    reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action)))
+-- ===== Take-mode (S203, Slice 2) =====
+-- Additive: builds a per-song cover project from a track_path. Imports the 4
+-- Demucs stems onto named backing tracks, builds a per-beat tempo map from the
+-- song's beatmap so the native metronome locks to the recording, enables the
+-- click. Drum-mic record tracks stay disarmed (arming = Slice 3/4).
+
+local function dirname(p)  return p:match("^(.*)[/\\][^/\\]*$") or "" end
+local function basename(p) return p:match("[^/\\]+$") or p end
+local function strip_ext(n) return (n:gsub("%.[^.]+$","")) end
+
+local function resolve_song_paths(track_path)
+  local dir  = dirname(track_path)
+  local base = strip_ext(basename(track_path))
+  local stems_dir = dir .. "/" .. base .. "_stems"
+  if not reaper.file_exists(stems_dir .. "/drums.wav") then
+    local alt = dir .. "/" .. base .. " stems"
+    if reaper.file_exists(alt .. "/drums.wav") then stems_dir = alt end
   end
+  local beats = dir .. "/" .. base .. ".beats.json"
+  if not reaper.file_exists(beats) then
+    local alt = track_path .. ".beats.json"
+    if reaper.file_exists(alt) then beats = alt end
+  end
+  return stems_dir, beats
+end
+
+local function read_beats(path)
+  local fh = io.open(path, "r"); if not fh then return nil end
+  local txt = fh:read("*a"); fh:close()
+  local arr = txt:match('"beats"%s*:%s*%[(.-)%]'); if not arr then return nil end
+  local beats = {}
+  for num in arr:gmatch("[%-%d%.eE]+") do
+    local v = tonumber(num); if v then beats[#beats+1] = v end
+  end
+  local bpb = tonumber(txt:match('"beats_per_bar"%s*:%s*([%-%d]+)'))
+           or tonumber(txt:match('"beatsPerBar"%s*:%s*([%-%d]+)')) or 4
+  if bpb < 1 then bpb = 4 end
+  return beats, bpb
+end
+
+local function find_track_by_name(name)
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    local _, nm = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+    if nm == name then return tr end
+  end
+  return nil
+end
+
+local function import_stem(track_name, file)
+  if not reaper.file_exists(file) then
+    reaper.ShowConsoleMsg("[take] missing stem: " .. file .. "\n"); return end
+  local tr = find_track_by_name(track_name)
+  if not tr then
+    reaper.ShowConsoleMsg("[take] no track: " .. track_name .. "\n"); return end
+  local item = reaper.AddMediaItemToTrack(tr)
+  local take = reaper.AddTakeToMediaItem(item)
+  local src  = reaper.PCM_Source_CreateFromFile(file)   -- references the original; no copy
+  reaper.SetMediaItemTake_Source(take, src)
+  local len = reaper.GetMediaSourceLength(src)
+  reaper.SetMediaItemInfo_Value(item, "D_POSITION", 0.0)
+  reaper.SetMediaItemInfo_Value(item, "D_LENGTH", len)
+  reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", track_name, true)
+  reaper.UpdateItemInProject(item)
+end
+
+local function build_tempo_map(beats, bpb)
+  local n = #beats
+  if n < 2 then return false end
+  -- Lead-in: tempo from t=0 so the FIRST beat line lands exactly on beats[1].
+  local first_bpm = 60.0 / beats[1]
+  if first_bpm < 20  then first_bpm = 20  end
+  if first_bpm > 400 then first_bpm = 400 end
+  reaper.SetTempoTimeSigMarker(0, -1, 0.0, -1, -1, first_bpm, 0, 0, false)
+  -- One pure (timepos) tempo point per beat. bpm = 60 / (gap to next beat).
+  for i = 1, n do
+    local dur = (i < n) and (beats[i+1] - beats[i]) or (beats[i] - beats[i-1])
+    if dur <= 0.05 or dur >= 4 then dur = 0.5 end   -- guard bad detections
+    local bpm = 60.0 / dur
+    reaper.SetTempoTimeSigMarker(0, -1, beats[i], -1, -1, bpm, 0, 0, false)
+  end
+  reaper.UpdateTimeline()
+  return true
+end
+
+local function ensure_metronome_on()
+  if reaper.GetToggleCommandState(40364) ~= 1 then
+    reaper.Main_OnCommand(40364, 0)   -- Options: Toggle metronome (idempotent enable)
+  end
+end
+
+local function take_load(track_path, title)
+  if track_path == "" then reaper.ShowConsoleMsg("[take] no track_path\n"); return end
+  if not reaper.file_exists(TAKE_TEMPLATE) then
+    reaper.ShowConsoleMsg("[take] ERROR template missing: " .. TAKE_TEMPLATE .. " -- aborting\n"); return end
+  local clean = sanitise(title ~= "" and title or strip_ext(basename(track_path)))
+  local proj_dir = COVERS_DIR .. "/" .. clean
+  local target   = proj_dir .. "/" .. clean .. ".rpp"
+
+  -- Re-select an existing song -> just open its project (add-take is Slice 3).
+  if reaper.file_exists(target) then
+    reaper.Main_openProject("noprompt:" .. target)
+    reaper.ShowConsoleMsg("[take] reopened existing " .. target .. "\n")
+    return
+  end
+
+  ensure_dir(proj_dir)
+  -- copy-then-open (same pattern as start_project: keeps relative Media path correct)
+  local src = io.open(TAKE_TEMPLATE, "rb"); if not src then
+    reaper.ShowConsoleMsg("[take] cannot read template\n"); return end
+  local content = src:read("*a"); src:close()
+  local dst = io.open(target, "wb"); if not dst then
+    reaper.ShowConsoleMsg("[take] cannot write " .. target .. "\n"); return end
+  dst:write(content); dst:close()
+  reaper.Main_openProject("noprompt:" .. target)
+
+  local stems_dir, beats_path = resolve_song_paths(track_path)
+  reaper.Undo_BeginBlock()
+  import_stem("Bass",        stems_dir .. "/bass.wav")
+  import_stem("Vocals",      stems_dir .. "/vocals.wav")
+  import_stem("Other",       stems_dir .. "/other.wav")
+  import_stem("Drums (ref)", stems_dir .. "/drums.wav")
+  local dtr = find_track_by_name("Drums (ref)")
+  if dtr then reaper.SetMediaTrackInfo_Value(dtr, "B_MUTE", 1) end  -- re-assert mute
+
+  local beats, bpb = read_beats(beats_path)
+  local ok = beats and build_tempo_map(beats, bpb) or false
+  reaper.Undo_EndBlock("TGT take-load", -1)
+
+  ensure_metronome_on()
+  reaper.Main_OnCommand(40026, 0)   -- Save
+  reaper.ShowConsoleMsg(string.format(
+    "[take] built %s | stems=%s | beats=%s (%s)\n",
+    target, stems_dir, beats_path, ok and (#beats .. " beats") or "NO BEATMAP"))
+end
+
+local function process(action, name, track_path, title)
+  if action == "start" then start_project(name)
+  elseif action == "save" then save_project()
+  elseif action == "stop" then stop_project()
+  elseif action == "take-load" then take_load(track_path, title)
+  else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
 ensure_dir(POLL_DIR)
 ensure_dir(GIGS_DIR)
+ensure_dir(COVERS_DIR)
 reaper.ShowConsoleMsg("[gig-cmd-listener] watching " .. POLL_DIR .. "\n")
 reaper.ShowConsoleMsg("[gig-cmd-listener] gigs dir " .. GIGS_DIR .. "\n")
 reaper.ShowConsoleMsg("[gig-cmd-listener] poll interval " .. POLL_INTERVAL_SEC .. "s\n\n")
@@ -200,9 +346,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name = parse_command(content)
+        local action, name, track_path, title = parse_command(content)
         if action then
-          process(action, name)
+          process(action, name, track_path, title)
         end
         os.remove(full)
       end
