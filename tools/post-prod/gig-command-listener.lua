@@ -30,6 +30,11 @@
 
 local POLL_INTERVAL_SEC = 0.2
 
+local TAKE_GAP_SEC = 4.0    -- S205: wiggle room (s) between takes so nothing overwrites
+local TAKE_EPS     = 0.001
+local TAKE_BACKING = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true, ["Click"]=true }
+local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested, 2 recording-seen
+
 local function poll_dir_path()
   local os_name = reaper.GetOS()
   if os_name:match("Win") then
@@ -106,7 +111,8 @@ local function parse_command(text)
   local name = text:match('"project_name"%s*:%s*"([^"]*)"') or ""
   local track_path = text:match('"track_path"%s*:%s*"([^"]*)"') or ""
   local title = text:match('"title"%s*:%s*"([^"]*)"') or ""
-  return action, name, track_path, title
+  local arm = text:match('"arm"%s*:%s*"([^"]*)"') or ""
+  return action, name, track_path, title, arm
 end
 
 local function sanitise(name)
@@ -329,11 +335,142 @@ local function take_load(track_path, title)
     target, stems_dir, click_state))
 end
 
-local function process(action, name, track_path, title)
+-- ===== Take-mode Slice 3 (S205): take mechanic =====
+-- "record a take": jump past the last take + gap, copy the stem block forward,
+-- arm the requested drum mics (BY NAME-prefix, template-order-independent), record
+-- at the new block start, and save when recording stops. Reuses the take project +
+-- TIME-timebase items from Slice 2; does NOT use the gig 40043 jump-to-end bundle.
+
+local function take_track_name(tr)
+  local _, nm = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
+  return nm
+end
+
+local function take_item_end(it)
+  return reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+       + reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+end
+
+local function take_rightmost_item(tr)
+  local best, bestpos = nil, -1
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, j)
+    local p  = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    if p > bestpos then bestpos = p; best = it end
+  end
+  return best
+end
+
+-- Clone an item onto its own track at newpos, referencing the SAME source file
+-- (no copy), pinned to TIME timebase. Mirrors import_stem's item construction.
+local function take_clone_item(it, tr, newpos)
+  local take = reaper.GetActiveTake(it) or reaper.GetMediaItemTake(it, 0)
+  if not take then return end
+  local src  = reaper.GetMediaItemTake_Source(take)
+  local fn   = reaper.GetMediaSourceFileName(src, "")
+  local len  = reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+  local _, nm = reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", "", false)
+  local nit  = reaper.AddMediaItemToTrack(tr)
+  local ntk  = reaper.AddTakeToMediaItem(nit)
+  local nsrc = reaper.PCM_Source_CreateFromFile(fn)
+  reaper.SetMediaItemTake_Source(ntk, nsrc)
+  reaper.SetMediaItemInfo_Value(nit, "D_POSITION", newpos)
+  reaper.SetMediaItemInfo_Value(nit, "D_LENGTH", len)
+  reaper.SetMediaItemInfo_Value(nit, "C_BEATATTACHMODE", 0)  -- time, never stretch
+  reaper.GetSetMediaItemTakeInfo_String(ntk, "P_NAME", nm or "", true)
+  reaper.UpdateItemInProject(nit)
+end
+
+-- arm csv "10,11,15,16" -> set of channel numbers; default = full acoustic kit
+local function take_parse_arm(csv)
+  local s = {}
+  if csv and csv ~= "" then
+    for num in csv:gmatch("%d+") do s[tonumber(num)] = true end
+  else
+    for _, n in ipairs({10,11,12,13,14,15,16}) do s[n] = true end
+  end
+  return s
+end
+
+-- Arm by NAME-prefix: "10 Kick"->10 matched against the requested set. Backing
+-- tracks (no numeric prefix) are FORCED disarmed. (Finding #2.)
+local function take_arm(arm_set)
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    local nm = take_track_name(tr)
+    if TAKE_BACKING[nm] then
+      reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", 0)
+    else
+      local chan = tonumber(nm:match("^(%d+)"))
+      if chan then
+        reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", arm_set[chan] and 1 or 0)
+      end
+    end
+  end
+end
+
+local function take_record(arm_csv)
+  -- Gather the latest stem block from the backing tracks.
+  local latest = {}            -- { {tr=, it=}, ... }
+  local block_start, block_end = nil, 0.0
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    if TAKE_BACKING[take_track_name(tr)] then
+      local it = take_rightmost_item(tr)
+      if it then
+        latest[#latest+1] = { tr = tr, it = it }
+        local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+        local e = take_item_end(it)
+        if block_start == nil or p < block_start then block_start = p end
+        if e > block_end then block_end = e end
+      end
+    end
+  end
+  if #latest == 0 then
+    reaper.ShowConsoleMsg("[take] no stems loaded -- open a song (take-load) first; aborting record\n")
+    return
+  end
+
+  -- Rightmost end across the drum-mic (non-backing) record tracks.
+  local max_drum_end = 0.0
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    if not TAKE_BACKING[take_track_name(tr)] then
+      for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+        local e = take_item_end(reaper.GetTrackMediaItem(tr, j))
+        if e > max_drum_end then max_drum_end = e end
+      end
+    end
+  end
+
+  reaper.Undo_BeginBlock()
+  local record_at
+  if max_drum_end <= block_start + TAKE_EPS then
+    record_at = block_start                       -- first take: record against the existing block
+  else
+    record_at = math.max(block_end, max_drum_end) + TAKE_GAP_SEC
+    for _, b in ipairs(latest) do                 -- copy the stem block forward
+      local off = reaper.GetMediaItemInfo_Value(b.it, "D_POSITION") - block_start
+      take_clone_item(b.it, b.tr, record_at + off)
+    end
+  end
+  reaper.SetEditCurPos(record_at, true, false)
+  take_arm(take_parse_arm(arm_csv))
+  reaper.Undo_EndBlock("TGT take-record", -1)
+
+  reaper.Main_OnCommand(40026, 0)                 -- Save the prep (copied stems + arm)
+  reaper.Main_OnCommand(1013, 0)                  -- Transport: Record (at cursor)
+  take_phase = 1
+  reaper.ShowConsoleMsg(string.format(
+    "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
+end
+
+local function process(action, name, track_path, title, arm)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
   elseif action == "take-load" then take_load(track_path, title)
+  elseif action == "take-record" then take_record(arm)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -353,11 +490,21 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title = parse_command(content)
+        local action, name, track_path, title, arm = parse_command(content)
         if action then
-          process(action, name, track_path, title)
+          process(action, name, track_path, title, arm)
         end
         os.remove(full)
+      end
+    end
+    if take_phase ~= 0 then
+      local st = reaper.GetPlayState()                 -- bit 4 (=4) set while recording
+      if take_phase == 1 and (st & 4) == 4 then
+        take_phase = 2
+      elseif take_phase == 2 and (st & 4) == 0 then
+        reaper.Main_OnCommand(40026, 0)                -- save the finished take
+        reaper.ShowConsoleMsg("[take] recording stopped -> saved\n")
+        take_phase = 0
       end
     end
   end
