@@ -186,11 +186,13 @@ local function stop_project()
   reaper.ShowConsoleMsg("[gig-cmd] stop (saved)\n")
 end
 
--- ===== Take-mode (S203, Slice 2) =====
+-- ===== Take-mode (S203 Slice 2; S204 wi-3) =====
 -- Additive: builds a per-song cover project from a track_path. Imports the 4
--- Demucs stems onto named backing tracks, builds a per-beat tempo map from the
--- song's beatmap so the native metronome locks to the recording, enables the
--- click. Drum-mic record tracks stay disarmed (arming = Slice 3/4).
+-- Demucs stems onto named backing tracks plus the pre-rendered 48k click WAV
+-- onto the "Click" track. Items load on TIME timebase (template TIMELOCKMODE 0 +
+-- per-item C_BEATATTACHMODE 0) so nothing stretches; the rendered click replaces
+-- the old native-metronome + tempo-map path and stays locked to the recording.
+-- Drum-mic record tracks stay disarmed (arming = Slice 4).
 
 local function dirname(p)  return p:match("^(.*)[/\\][^/\\]*$") or "" end
 local function basename(p) return p:match("[^/\\]+$") or p end
@@ -209,7 +211,8 @@ local function resolve_song_paths(track_path)
     local alt = track_path .. ".beats.json"
     if reaper.file_exists(alt) then beats = alt end
   end
-  return stems_dir, beats
+  local click = dir .. "/" .. base .. ".click.wav"
+  return stems_dir, beats, click
 end
 
 local function read_beats(path)
@@ -248,6 +251,7 @@ local function import_stem(track_name, file)
   local len = reaper.GetMediaSourceLength(src)
   reaper.SetMediaItemInfo_Value(item, "D_POSITION", 0.0)
   reaper.SetMediaItemInfo_Value(item, "D_LENGTH", len)
+  reaper.SetMediaItemInfo_Value(item, "C_BEATATTACHMODE", 0)  -- 0 = time; never stretch with tempo
   reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", track_name, true)
   reaper.UpdateItemInProject(item)
 end
@@ -302,7 +306,7 @@ local function take_load(track_path, title)
   dst:write(content); dst:close()
   reaper.Main_openProject("noprompt:" .. target)
 
-  local stems_dir, beats_path = resolve_song_paths(track_path)
+  local stems_dir, _, click_path = resolve_song_paths(track_path)
   reaper.Undo_BeginBlock()
   import_stem("Bass",        stems_dir .. "/bass.wav")
   import_stem("Vocals",      stems_dir .. "/vocals.wav")
@@ -311,15 +315,18 @@ local function take_load(track_path, title)
   local dtr = find_track_by_name("Drums (ref)")
   if dtr then reaper.SetMediaTrackInfo_Value(dtr, "B_MUTE", 1) end  -- re-assert mute
 
-  local beats, bpb = read_beats(beats_path)
-  local ok = beats and build_tempo_map(beats, bpb) or false
+  -- S204 wi-3: import the pre-rendered 48k click instead of building a tempo map
+  -- + native metronome. With items on TIME timebase the click WAV already encodes
+  -- the beats and plays locked to the stems. build_tempo_map / ensure_metronome_on
+  -- / read_beats stay defined (may return for a visual grid) but are not called here.
+  import_stem("Click", click_path)   -- graceful: logs + skips if the WAV is missing
   reaper.Undo_EndBlock("TGT take-load", -1)
 
-  ensure_metronome_on()
   reaper.Main_OnCommand(40026, 0)   -- Save
+  local click_state = reaper.file_exists(click_path) and "found" or "MISSING"
   reaper.ShowConsoleMsg(string.format(
-    "[take] built %s | stems=%s | beats=%s (%s)\n",
-    target, stems_dir, beats_path, ok and (#beats .. " beats") or "NO BEATMAP"))
+    "[take] built %s | stems=%s | click=%s\n",
+    target, stems_dir, click_state))
 end
 
 local function process(action, name, track_path, title)
