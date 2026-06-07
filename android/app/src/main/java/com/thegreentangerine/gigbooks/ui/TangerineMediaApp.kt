@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Videocam
@@ -61,6 +62,7 @@ import com.thegreentangerine.gigbooks.ui.screens.RecordingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SetlistsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SettingsScreen
 import com.thegreentangerine.gigbooks.ui.screens.SplashScreen
+import com.thegreentangerine.gigbooks.ui.screens.TakeModeScreen
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 import kotlinx.coroutines.launch
@@ -79,6 +81,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     data object Setlists   : Screen("setlists",   "Setlists",      Icons.Default.LibraryMusic)
     data object Peer       : Screen("peer",       "Peer (camera)", Icons.Default.Videocam)
     data object Recordings : Screen("recordings", "Recordings",    Icons.Default.FolderOpen)
+    data object TakeMode   : Screen("take-mode",  "Take Mode",     Icons.Default.Mic)
     data object Settings   : Screen("settings",   "Settings",      Icons.Default.Settings)
 }
 
@@ -134,6 +137,13 @@ fun TangerineMediaApp() {
                 DrawerNavItem(Screen.Peer, currentRoute == Screen.Peer.route, TangerineColors.green) { navigate(Screen.Peer.route) }
                 DrawerNavItem(Screen.Recordings, currentRoute == Screen.Recordings.route, TangerineColors.teal) { navigate(Screen.Recordings.route) }
 
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
+                Spacer(Modifier.height(4.dp))
+
+                DrawerSectionLabel("STUDIO")
+                DrawerNavItem(Screen.TakeMode, currentRoute == Screen.TakeMode.route, TangerineColors.green) { navigate(Screen.TakeMode.route) }
+
                 Spacer(Modifier.weight(1f))
                 HorizontalDivider(color = TangerineColors.textMuted.copy(alpha = 0.15f), modifier = Modifier.padding(horizontal = 16.dp))
                 DrawerNavItem(Screen.Settings, currentRoute == Screen.Settings.route, TangerineColors.textDim) { navigate(Screen.Settings.route) }
@@ -168,6 +178,9 @@ fun TangerineMediaApp() {
             }
             composable(Screen.Recordings.route) {
                 RecordingsScreen(onMenuClick = { openMenu() })
+            }
+            composable(Screen.TakeMode.route) {
+                TakeModeScreen(onMenuClick = { openMenu() })
             }
             composable(Screen.Settings.route) {
                 SettingsScreen(vm = vm, onMenuClick = { openMenu() })

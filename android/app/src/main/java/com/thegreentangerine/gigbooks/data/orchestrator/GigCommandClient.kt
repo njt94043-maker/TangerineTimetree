@@ -101,6 +101,21 @@ class GigCommandClient(
         body = """{"action":"stop","project_name":""}""",
     )
 
+    // ── S206 Slice 4b: take-mode commands. Hit the MS host's /take bridge
+    // (S206 4a) the same way start/stop hit /gig — same postJson + offline
+    // queue. takeLoad builds/opens the per-song cover; takeRecord arms the
+    // requested drum channels + records a take (jump+gap+copy-stems-forward,
+    // server-side). Stop is OSC /stop (ReaperOscClient), not an HTTP command.
+    suspend fun takeLoad(trackId: String, title: String) = postJson(
+        path = "/take/load",
+        body = """{"trackId":${jsonString(trackId)},"title":${jsonString(title)}}""",
+    )
+
+    suspend fun takeRecord(armCsv: String) = postJson(
+        path = "/take/record",
+        body = """{"arm":${jsonString(armCsv)}}""",
+    )
+
     /**
      * S129: replaces the dual OSC `/action/40157` + `/song_marker` bundle.
      * The named marker is dropped by the Reaper-side song-marker-listener.lua
