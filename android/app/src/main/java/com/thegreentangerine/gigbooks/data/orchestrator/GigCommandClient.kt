@@ -20,6 +20,17 @@ import java.net.InetSocketAddress
 import java.net.NetworkInterface
 import java.net.Socket
 import java.net.URL
+import org.json.JSONArray
+
+/** One row of the take-mode browser (4c-1 `GET /take/songs`). `bpm` null = no detected tempo.
+ *  `beatmapVerified` = sidecar schemaVersion >= 2 → drives the ✓/⚠ badge. */
+data class TakeSong(
+    val trackId: String,
+    val title: String,
+    val artist: String,
+    val bpm: Double?,
+    val beatmapVerified: Boolean,
+)
 
 /**
  * HTTP client for the MS host gig-command bridge (S186, replaces the dead
@@ -323,6 +334,66 @@ class GigCommandClient(
     } catch (e: Exception) {
         Log.w(TAG, "POST $url via ${network ?: "default"} failed: ${e.message}")
         false
+    }
+
+    // ── S206 Slice 4c-2: take-mode browser fetch. GET the MS host's /take/songs (4c-1)
+    // over the SAME discovered target the take POSTs use. Take Mode is home-studio /
+    // house-WiFi (the phone is a LAN client, not the SoftAP host), so this uses the
+    // candidate-Network cascade only — the raw-socket interface-bound path (for the gig
+    // SoftAP-host case, where the AP downlink isn't a Network) is deliberately NOT needed
+    // here. Returns null on any failure (caller shows a retry).
+    suspend fun fetchTakeSongs(): List<TakeSong>? {
+        val body = getString("/take/songs") ?: return null
+        return try { parseTakeSongs(body) } catch (e: Exception) {
+            Log.w(TAG, "parse /take/songs failed: ${e.message}"); null
+        }
+    }
+
+    private suspend fun getString(path: String): String? {
+        val tgt = _target.value
+        val url = URL("http://${tgt.host}:${tgt.port}$path")
+        return withContext(Dispatchers.IO) {
+            for (network in collectCandidateNetworks()) {
+                tryGet(network, url)?.let { return@withContext it }
+            }
+            tryGet(network = null, url = url)  // last resort: unbound
+        }
+    }
+
+    private fun tryGet(network: Network?, url: URL): String? = try {
+        val conn = (network?.openConnection(url) ?: url.openConnection()) as HttpURLConnection
+        conn.requestMethod = "GET"
+        conn.connectTimeout = 2000
+        conn.readTimeout = 2000
+        conn.setRequestProperty("Accept", "application/json")
+        val code = conn.responseCode
+        val text = if (code in 200..299)
+            conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        else null
+        conn.disconnect()
+        if (text == null) Log.w(TAG, "GET $url via ${network ?: "default"} -> HTTP $code")
+        text
+    } catch (e: Exception) {
+        Log.w(TAG, "GET $url via ${network ?: "default"} failed: ${e.message}")
+        null
+    }
+
+    private fun parseTakeSongs(json: String): List<TakeSong> {
+        val arr = JSONArray(json)
+        val out = ArrayList<TakeSong>(arr.length())
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            out.add(
+                TakeSong(
+                    trackId = o.getString("trackId"),
+                    title = o.optString("title", ""),
+                    artist = o.optString("artist", ""),
+                    bpm = if (o.isNull("bpm")) null else o.optDouble("bpm"),
+                    beatmapVerified = o.optBoolean("beatmapVerified", false),
+                )
+            )
+        }
+        return out
     }
 
     /** Minimal JSON string escaper — only the characters that break a JSON literal. */

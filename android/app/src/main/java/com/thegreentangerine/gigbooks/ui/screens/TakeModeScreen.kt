@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,17 +21,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
+import com.thegreentangerine.gigbooks.data.orchestrator.TakeSong
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetMode
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetState
 import com.thegreentangerine.gigbooks.ui.components.ChannelArmPresetSelector
@@ -56,6 +65,7 @@ import com.thegreentangerine.gigbooks.ui.components.computeArmedTracks
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
@@ -67,24 +77,22 @@ import kotlinx.coroutines.launch
 private const val TAKE_SETTLE_MS = 5_000L
 
 /**
- * S206 Slice 4b — Take Mode control surface.
+ * S206 Slice 4c — Take Mode: the drummer's home-studio cover surface.
  *
- * The drummer's home-studio cover surface: load a song's cover project on the
- * Reaper rig, set the kit, and record takes that stack down the timeline
- * (jump + gap + copy-stems-forward, server-side). Drives the proven take
- * backend — MS `/take/load` + `/take/record` (S206 4a) over the orchestrator's
- * configured GigCommandClient, and OSC `/stop` over ReaperOscClient to stop the
- * transport (the Lua's save-on-stop watcher then saves the take). Stop is OSC,
- * NOT a `/take/stop` endpoint — the listener's `stop` only saves, OSC `/stop`
- * is the proven transport stopper.
+ * Opens to a BROWSER of stem-ready songs (MS `GET /take/songs`, 4c-1) — newest
+ * first, each badged ✓verified / ⚠unverified by its beatmap sidecar. Tap a song
+ * to drop into the 4b take SURFACE (load the cover on the Reaper rig, set the
+ * kit, record stacked takes). Lenient gate (§4): every stem-ready song is listed;
+ * recording against a ⚠ (unverified) song prompts a one-time warn.
  *
- * 4b is the control surface + client wiring against a hardcoded default song;
- * Slice 4c adds the verified-beatmap song browser that replaces the default.
+ * Drives the proven take backend — MS `/take/load` + `/take/record` (S206 4a)
+ * over the orchestrator's configured GigCommandClient, and OSC `/stop` over
+ * ReaperOscClient to stop the transport (the Lua's save-on-stop watcher then
+ * saves the take). Stop is OSC, NOT a `/take/stop` endpoint.
  */
 @Composable
 fun TakeModeScreen(onMenuClick: () -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Reach the orchestrator's CONFIGURED clients (the discovered MS host + OSC
     // target carry over) the same way GigModeScreen does — bind the singleton
@@ -108,26 +116,235 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
         onDispose { runCatching { context.unbindService(conn) } }
     }
 
-    // 4b stopgap — Slice 4c replaces this with the browser selection.
-    val currentSong = remember {
-        TakeSong(
-            trackId = "19840216-1fc8-45ab-8078-c2aa58b79360",
-            title = "Hotel California",
-            artist = "Eagles",
-        )
+    // ── Slice 4c-2 browser state ──
+    var songs by remember { mutableStateOf<List<TakeSong>?>(null) } // null = loading
+    var loadFailed by remember { mutableStateOf(false) }
+    var selectedSong by remember { mutableStateOf<TakeSong?>(null) }
+    var refreshTick by remember { mutableIntStateOf(0) }            // bumped by Refresh / Retry
+
+    val gigTarget = service?.gigCmd?.target?.collectAsState()?.value
+    val gigLastOk = service?.gigCmd?.lastSendOk?.collectAsState()?.value
+
+    // Fetch on bind, again when the discovered host resolves (gigTarget flips from
+    // the BuildConfig default to the mDNS host), and on manual refresh.
+    LaunchedEffect(service, gigTarget, refreshTick) {
+        val svc = service ?: return@LaunchedEffect
+        songs = null
+        loadFailed = false
+        val result = svc.gigCmd.fetchTakeSongs()
+        if (result == null) loadFailed = true else songs = result
     }
 
-    // Build/open the cover when the service binds (and again if the song changes
-    // — relevant once 4c lets the browser swap currentSong).
-    LaunchedEffect(service, currentSong.trackId) {
-        service?.gigCmd?.takeLoad(currentSong.trackId, currentSong.title)
+    val svc = service
+    val sel = selectedSong
+    if (sel == null || svc == null) {
+        TakeBrowser(
+            onMenuClick = onMenuClick,
+            hostLabel = gigTarget?.let { "${it.host}:${it.port}" },
+            lastSendOk = gigLastOk,
+            songs = songs,
+            loadFailed = loadFailed,
+            onRefresh = { refreshTick++ },
+            onSelect = { selectedSong = it },
+        )
+    } else {
+        TakeSurface(
+            song = sel,
+            service = svc,
+            onBack = { selectedSong = null },
+        )
+    }
+}
+
+// ─── Browser (the locked-UX song list) ────────────────────────────────────────
+
+@Composable
+private fun TakeBrowser(
+    onMenuClick: () -> Unit,
+    hostLabel: String?,
+    lastSendOk: Boolean?,
+    songs: List<TakeSong>?,
+    loadFailed: Boolean,
+    onRefresh: () -> Unit,
+    onSelect: (TakeSong) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // ── Top bar: menu · title · host pill · refresh ──
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onMenuClick) {
+                    Icon(Icons.Default.Menu, "Menu", tint = TangerineColors.text)
+                }
+                Spacer(Modifier.width(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Take Mode",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                        color = TangerineColors.text, maxLines = 1,
+                    )
+                    Text(
+                        "home studio · drum covers",
+                        fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted,
+                    )
+                }
+                TakeHostPill(target = hostLabel, lastSendOk = lastSendOk)
+                IconButton(onClick = onRefresh) {
+                    Icon(Icons.Default.Refresh, "Refresh songs", tint = TangerineColors.textMuted)
+                }
+            }
+
+            // ── Body: loading / failed / empty / list (server order = newest-first) ──
+            when {
+                loadFailed -> Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Couldn't reach the media server",
+                            fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(TangerineColors.green.copy(alpha = 0.14f))
+                                .border(1.dp, TangerineColors.green.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                .clickable(onClick = onRefresh)
+                                .padding(horizontal = 22.dp, vertical = 10.dp),
+                        ) {
+                            Text(
+                                "Retry",
+                                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                                color = TangerineColors.green,
+                            )
+                        }
+                    }
+                }
+                songs == null -> Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Loading songs…",
+                        fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+                    )
+                }
+                songs.isEmpty() -> Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "No stem-ready songs yet",
+                        fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+                    )
+                }
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(songs) { song ->
+                        TakeSongRow(song = song, onClick = { onSelect(song) })
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TakeSongRow(song: TakeSong, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(TangerineColors.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    song.title,
+                    fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 17.sp,
+                    color = TangerineColors.text, maxLines = 2,
+                )
+                // "artist · 144 BPM" — drop the BPM clause when bpm is null, drop
+                // artist when it's blank; the server returns newest-first so we
+                // never re-sort.
+                val subtitle = listOfNotNull(
+                    song.artist.takeIf { it.isNotBlank() },
+                    song.bpm?.let { "${it.roundToInt()} BPM" },
+                ).joinToString(" · ")
+                if (subtitle.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        subtitle,
+                        fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted,
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            BeatmapBadge(verified = song.beatmapVerified)
+        }
+    }
+}
+
+@Composable
+private fun BeatmapBadge(verified: Boolean) {
+    val color = if (verified) TangerineColors.green else TangerineColors.orange
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.14f))
+            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            if (verified) Icons.Default.CheckCircle else Icons.Default.Warning,
+            contentDescription = if (verified) "verified beatmap" else "unverified beatmap",
+            tint = color,
+            modifier = Modifier.size(13.dp),
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            if (verified) "verified" else "unverified",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = color,
+        )
+    }
+}
+
+// ─── Surface (the wrapped 4b take control surface) ─────────────────────────────
+
+@Composable
+private fun TakeSurface(
+    song: TakeSong,
+    service: OrchestratorService,
+    onBack: () -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+
+    // Build/open the cover when this song loads into the surface (re-fires when the
+    // browser swaps to a different song).
+    LaunchedEffect(song.trackId) {
+        service.gigCmd.takeLoad(song.trackId, song.title)
     }
 
     var armState by remember { mutableStateOf(ArmPresetState()) }  // Acoustic, overheads + full kit on
     var kitExpanded by remember { mutableStateOf(false) }          // collapsed by default (sidepanel-behavior)
     var takeCount by remember { mutableIntStateOf(0) }
     var isRecording by remember { mutableStateOf(false) }
-    var recordReady by remember { mutableStateOf(true) }  // false during the post-Stop settle window
+    var recordReady by remember { mutableStateOf(true) }           // false during the post-Stop settle window
+
+    // Warn-before-record (lenient gate, §4): a ⚠ (unverified-beatmap) song warns
+    // once per load before its first take; verified songs never see the dialog.
+    var warnAck by remember(song.trackId) { mutableStateOf(false) } // resets per loaded song
+    var showWarn by remember { mutableStateOf(false) }
 
     // S206 4b fix: after Stop, keep Record disabled for a settle window so the
     // prior take's items finalize on the rig before the next take-record fires —
@@ -152,18 +369,36 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
     ).joinToString(",")
     val armedCount = if (armedCsv.isEmpty()) 0 else armedCsv.split(",").size
 
-    val gigTarget = service?.gigCmd?.target?.collectAsState()?.value
-    val gigLastOk = service?.gigCmd?.lastSendOk?.collectAsState()?.value
+    val gigTarget = service.gigCmd.target.collectAsState().value
+    val gigLastOk = service.gigCmd.lastSendOk.collectAsState().value
+
+    // The record action (armed CSV → take-record), factored so the direct path and
+    // the post-warn confirm path fire identically.
+    fun doRecord() {
+        scope.launch { service.gigCmd.takeRecord(armedCsv) }
+        takeCount += 1
+        isRecording = true
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // ── Top bar ──
+            // ── Top bar: ‹ Songs (back to browser) · title · host pill ──
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onMenuClick) {
-                    Icon(Icons.Default.Menu, "Menu", tint = TangerineColors.text)
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onBack)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "‹ Songs",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                        color = TangerineColors.text,
+                    )
                 }
                 Spacer(Modifier.width(4.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -178,12 +413,12 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
                     )
                 }
                 TakeHostPill(
-                    target = gigTarget?.let { "${it.host}:${it.port}" },
+                    target = "${gigTarget.host}:${gigTarget.port}",
                     lastSendOk = gigLastOk,
                 )
             }
 
-            // ── Current song (4b: the hardcoded default; 4c: browser selection) ──
+            // ── NOW LOADED (the browser selection) ──
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -201,13 +436,13 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        currentSong.title,
+                        song.title,
                         fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 24.sp,
                         color = TangerineColors.text, maxLines = 2,
                     )
-                    if (!currentSong.artist.isNullOrBlank()) {
+                    if (song.artist.isNotBlank()) {
                         Text(
-                            currentSong.artist,
+                            song.artist,
                             fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
                         )
                     }
@@ -310,20 +545,17 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
                 TakeRecordButton(
                     modifier = Modifier.weight(1f),
                     label = if (!recordReady && !isRecording) "Saving take…" else "Record Take",
-                    enabled = service != null && !isRecording && recordReady,
+                    enabled = !isRecording && recordReady,
                     onClick = {
-                        service?.let { svc ->
-                            scope.launch { svc.gigCmd.takeRecord(armedCsv) }
-                            takeCount += 1
-                            isRecording = true
-                        }
+                        // Lenient gate: an unverified-beatmap song warns once before its first take.
+                        if (!song.beatmapVerified && !warnAck) showWarn = true else doRecord()
                     },
                 )
                 TakeStopButton(
                     modifier = Modifier.weight(0.5f),
-                    enabled = service != null && isRecording,
+                    enabled = isRecording,
                     onClick = {
-                        service?.let { svc -> scope.launch { svc.osc.sendStop() } }
+                        scope.launch { service.osc.sendStop() }
                         isRecording = false
                         recordReady = false   // settle before the next take can fire
                     },
@@ -331,10 +563,39 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
             }
         }
     }
-}
 
-/** 4b stopgap song holder. Slice 4c's browser produces this from the MS library. */
-private data class TakeSong(val trackId: String, val title: String, val artist: String?)
+    if (showWarn) {
+        AlertDialog(
+            onDismissRequest = { showWarn = false },
+            containerColor = TangerineColors.surface,
+            title = {
+                Text(
+                    "Unverified beatmap",
+                    fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.text,
+                )
+            },
+            text = {
+                Text(
+                    "\"${song.title}\"'s beatmap hasn't been verified — the click may sit off the beat. Record anyway?",
+                    fontFamily = Karla, color = TangerineColors.textMuted,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { warnAck = true; showWarn = false; doRecord() }) {
+                    Text(
+                        "Record anyway",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.orange,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showWarn = false }) {
+                    Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+                }
+            },
+        )
+    }
+}
 
 // ─── Reusable bits ───────────────────────────────────────────────────────────
 
