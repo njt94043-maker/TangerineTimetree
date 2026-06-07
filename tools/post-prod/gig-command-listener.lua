@@ -112,7 +112,8 @@ local function parse_command(text)
   local track_path = text:match('"track_path"%s*:%s*"([^"]*)"') or ""
   local title = text:match('"title"%s*:%s*"([^"]*)"') or ""
   local arm = text:match('"arm"%s*:%s*"([^"]*)"') or ""
-  return action, name, track_path, title, arm
+  local track_id = text:match('"track_id"%s*:%s*"([^"]*)"') or ""
+  return action, name, track_path, title, arm, track_id
 end
 
 local function sanitise(name)
@@ -296,11 +297,25 @@ local function cover_is_empty()
   return true
 end
 
-local function take_load(track_path, title)
+-- S208: cover dir keyed on IDENTITY, not bare title. base = sanitised title (or filename
+-- stem if title is empty); suffix = first 8 chars of the track id, stripped to alphanumerics
+-- (the id is a GUID like "550e8400-e29b-..." -> "550e8400"). Same-title versions get distinct
+-- dirs; the same track always resolves to the same dir (idempotent reopen). No id -> title-only
+-- (back-compat with any producer that doesn't send track_id).
+local function cover_dir_name(title, track_path, track_id)
+  local base = sanitise(title ~= "" and title or strip_ext(basename(track_path)))
+  if track_id ~= nil and track_id ~= "" then
+    local id8 = (track_id:gsub("[^%w]", "")):sub(1, 8)
+    if id8 ~= "" then return base .. "__" .. id8 end
+  end
+  return base
+end
+
+local function take_load(track_path, title, track_id)
   if track_path == "" then reaper.ShowConsoleMsg("[take] no track_path\n"); return end
   if not reaper.file_exists(TAKE_TEMPLATE) then
     reaper.ShowConsoleMsg("[take] ERROR template missing: " .. TAKE_TEMPLATE .. " -- aborting\n"); return end
-  local clean = sanitise(title ~= "" and title or strip_ext(basename(track_path)))
+  local clean = cover_dir_name(title, track_path, track_id)
   local proj_dir = COVERS_DIR .. "/" .. clean
   local target   = proj_dir .. "/" .. clean .. ".rpp"
 
@@ -480,11 +495,11 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm)
+local function process(action, name, track_path, title, arm, track_id)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
-  elseif action == "take-load" then take_load(track_path, title)
+  elseif action == "take-load" then take_load(track_path, title, track_id)
   elseif action == "take-record" then take_record(arm)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
@@ -505,9 +520,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm = parse_command(content)
+        local action, name, track_path, title, arm, track_id = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm)
+          process(action, name, track_path, title, arm, track_id)
         end
         os.remove(full)
       end
