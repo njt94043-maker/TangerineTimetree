@@ -34,11 +34,9 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -341,11 +339,6 @@ private fun TakeSurface(
     var isRecording by remember { mutableStateOf(false) }
     var recordReady by remember { mutableStateOf(true) }           // false during the post-Stop settle window
 
-    // Warn-before-record (lenient gate, §4): a ⚠ (unverified-beatmap) song warns
-    // once per load before its first take; verified songs never see the dialog.
-    var warnAck by remember(song.trackId) { mutableStateOf(false) } // resets per loaded song
-    var showWarn by remember { mutableStateOf(false) }
-
     // S206 4b fix: after Stop, keep Record disabled for a settle window so the
     // prior take's items finalize on the rig before the next take-record fires —
     // otherwise it reads a stale max_drum_end and records on top of the prior
@@ -372,8 +365,9 @@ private fun TakeSurface(
     val gigTarget = service.gigCmd.target.collectAsState().value
     val gigLastOk = service.gigCmd.lastSendOk.collectAsState().value
 
-    // The record action (armed CSV → take-record), factored so the direct path and
-    // the post-warn confirm path fire identically.
+    // The record action (armed CSV → take-record). Record fires this directly — the
+    // unverified-beatmap warn gate was dropped per Nathan (recording shouldn't need a
+    // dialog); the ✓/⚠ badge in the browser stays as info only.
     fun doRecord() {
         scope.launch { service.gigCmd.takeRecord(armedCsv) }
         takeCount += 1
@@ -546,10 +540,7 @@ private fun TakeSurface(
                     modifier = Modifier.weight(1f),
                     label = if (!recordReady && !isRecording) "Saving take…" else "Record Take",
                     enabled = !isRecording && recordReady,
-                    onClick = {
-                        // Lenient gate: an unverified-beatmap song warns once before its first take.
-                        if (!song.beatmapVerified && !warnAck) showWarn = true else doRecord()
-                    },
+                    onClick = { doRecord() },
                 )
                 TakeStopButton(
                     modifier = Modifier.weight(0.5f),
@@ -562,38 +553,6 @@ private fun TakeSurface(
                 )
             }
         }
-    }
-
-    if (showWarn) {
-        AlertDialog(
-            onDismissRequest = { showWarn = false },
-            containerColor = TangerineColors.surface,
-            title = {
-                Text(
-                    "Unverified beatmap",
-                    fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.text,
-                )
-            },
-            text = {
-                Text(
-                    "\"${song.title}\"'s beatmap hasn't been verified — the click may sit off the beat. Record anyway?",
-                    fontFamily = Karla, color = TangerineColors.textMuted,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { warnAck = true; showWarn = false; doRecord() }) {
-                    Text(
-                        "Record anyway",
-                        fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.orange,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showWarn = false }) {
-                    Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
-                }
-            },
-        )
     }
 }
 
