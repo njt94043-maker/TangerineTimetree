@@ -287,6 +287,15 @@ local function ensure_metronome_on()
   end
 end
 
+-- A (S207): a cover is "empty" only if NO track has any media item — a stale/failed build.
+-- A cover with imported stems OR recorded takes has items and must NEVER be clobbered.
+local function cover_is_empty()
+  for i = 0, reaper.CountTracks(0) - 1 do
+    if reaper.CountTrackMediaItems(reaper.GetTrack(0, i)) > 0 then return false end
+  end
+  return true
+end
+
 local function take_load(track_path, title)
   if track_path == "" then reaper.ShowConsoleMsg("[take] no track_path\n"); return end
   if not reaper.file_exists(TAKE_TEMPLATE) then
@@ -295,11 +304,16 @@ local function take_load(track_path, title)
   local proj_dir = COVERS_DIR .. "/" .. clean
   local target   = proj_dir .. "/" .. clean .. ".rpp"
 
-  -- Re-select an existing song -> just open its project (add-take is Slice 3).
+  -- Re-select an existing song -> reopen IF it's a real cover; rebuild if it's a stale empty one.
   if reaper.file_exists(target) then
     reaper.Main_openProject("noprompt:" .. target)
-    reaper.ShowConsoleMsg("[take] reopened existing " .. target .. "\n")
-    return
+    if not cover_is_empty() then
+      reaper.Main_OnCommand(40047, 0)  -- S207 C: build any missing peaks (reopened cover shows waveforms)
+      reaper.ShowConsoleMsg("[take] reopened existing " .. target .. "\n")
+      return
+    end
+    -- S207 A: existing cover has zero items (the Ego Brain stale-empty class) -> rebuild from template.
+    reaper.ShowConsoleMsg("[take] existing cover is EMPTY -> rebuilding " .. target .. "\n")
   end
 
   ensure_dir(proj_dir)
@@ -328,6 +342,7 @@ local function take_load(track_path, title)
   import_stem("Click", click_path)   -- graceful: logs + skips if the WAV is missing
   reaper.Undo_EndBlock("TGT take-load", -1)
 
+  reaper.Main_OnCommand(40047, 0)   -- S207 C: build any missing peaks so imported stems render waveforms, not grey boxes
   reaper.Main_OnCommand(40026, 0)   -- Save
   local click_state = reaper.file_exists(click_path) and "found" or "MISSING"
   reaper.ShowConsoleMsg(string.format(
