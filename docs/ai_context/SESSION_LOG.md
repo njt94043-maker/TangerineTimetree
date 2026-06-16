@@ -5,6 +5,30 @@
 > For instant context, read STATUS.md first.
 > **Full history archived at `D:/tgt/sot-backup-s60/SESSION_LOG.md`**
 
+## 2026-06-13 - Gig/Take hotspot connectivity incident
+
+### What Was Done
+1. Logged Nathan's exact incident report in `NATHAN_VERBATIM.md`.
+2. Reproduced the rig on the S23 hotspot: PC WiFi `10.117.252.228`, S23 gateway `10.117.252.187`.
+3. Verified local rig health: Reaper listening on UDP 8000, Tangerine Media Server listening on TCP 9200, firewall rules enabled.
+4. Verified Media Server bridge through hotspot IP: `http://10.117.252.228:9200/take/songs` returned 200 with song data.
+5. Found `tgt-host.local` advertising stale home/link-local addresses after hotspot switch.
+6. Added Android `ACCESS_NETWORK_STATE` and guarded candidate network enumeration in `GigCommandClient`.
+7. Verified `:app:assembleDebug` and `:app:assembleRelease` pass.
+8. Rebuilt the release APK and installed `app-release.apk` to both connected phones: `SM_S918B` (`R3CW30N241L`) and `SM_S911B` (`RFCW81GEPWM`).
+9. Live Gig Mode test showed the app still targeting stale home-WiFi discovery `192.168.1.90:8000`.
+10. Added emergency release field pin: `GIG_HOST_DEFAULT=10.117.252.228`, Reaper OSC defaults to the same host, and auto-discovery now defaults off so stale mDNS cannot overwrite the hotspot target.
+11. Rebuilt release APK, installed it to both phones, relaunched Gig Mode, and verified the visible target is now `10.117.252.228:8000`.
+12. Verified both phones are on the S23 hotspot subnet and can reach the laptop bridge: `SM_S911B=10.117.252.187`, `SM_S918B=10.117.252.173`, both `nc -z 10.117.252.228 9200` exit 0.
+13. Nathan reported pause/resume is unsafe: after pausing, resume starts recording from the beginning of the Reaper project and can overwrite. Decision for tonight: do not pause; do not change/reinstall before the gig.
+
+### Still Unsafe
+- Actual capture fanout test still pending; Codex did not press `Start gig` because that starts Reaper/camera capture.
+- Pause/resume overwrite bug must be fixed after tonight. Candidate fix: replace the generic OSC `/action/40043 + /action/1013` continue path with a Reaper-side script/custom action that explicitly seeks to true project end and starts record, then bind/call that stable command from the APK.
+- Targeted `GigCommandQueueTest` local JVM run is blocked by existing Android `org.json` not-mocked failures; build verification is green.
+- Emergency build is pinned to today's laptop hotspot IP. Replace with persistent/manual target storage and a non-mDNS peer fallback before treating hotspot gigs as generally solved.
+- Peer camera pairing still relies on mDNS only; add manual/QR direct-connect fallback before treating hotspot gigs as proven.
+
 ## Latest Sessions (Quick Index)
 | Date | Focus | Key Outcome |
 |------|-------|-------------|

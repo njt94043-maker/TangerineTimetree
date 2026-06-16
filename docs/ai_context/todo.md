@@ -12,6 +12,22 @@
 - [ ] **Map other multi-hop flows** — identify remaining screens with redundant navigation
 - [ ] **Apply to BOTH platforms** (D-153) — Android calendar day detail doesn't have invoicing, but shared features should match
 
+## HOT: Gig Rig Hotspot Reliability
+- [x] Log Nathan's 2026-06-13 gig failure report in `NATHAN_VERBATIM.md`
+- [x] Reproduce PC side on S23 hotspot: Reaper UDP 8000 and Media Server TCP 9200 are alive
+- [x] Confirm direct hotspot IP path works: `10.117.252.228:9200/take/songs` returned 200
+- [x] Add Android `ACCESS_NETWORK_STATE` + guard network enumeration
+- [x] Build fresh APK with hotspot patch (`assembleDebug` + `assembleRelease`)
+- [x] Install fresh release APK to both connected phones (`SM_S918B`, `SM_S911B`)
+- [x] Confirm live failure mode: Gig Mode still targeted stale `192.168.1.90:8000`
+- [x] Emergency-pin release build to `10.117.252.228`, default auto-discovery off, rebuild/install to both phones
+- [x] Verify Gig Mode now shows `10.117.252.228:8000`
+- [x] Verify both phones can reach `10.117.252.228:9200`
+- [ ] Test actual `Start gig` capture fanout when Nathan explicitly wants Reaper/camera recording started
+- [ ] POST-GIG: fix pause/resume overwrite; resume must record at true project end, never project start
+- [ ] Replace emergency pinned IP with persistent/manual target storage
+- [ ] Add peer-camera manual/QR direct-connect fallback; current peer path is mDNS-only
+
 ## PDF Templates — DONE
 - [x] Print styles: @page margin 0, background preservation, compact spacing (all 28 templates)
 - [x] BILL TO: venue name + address fallback when no client

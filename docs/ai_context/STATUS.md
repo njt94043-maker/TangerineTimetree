@@ -11,6 +11,11 @@
 - **What was done (S63)**: Merged GigHub into DayDetail — gig cards expand in-place (accordion) to reveal pipeline tracker, deposit, linked docs, actions. Removed `gig-hub` as standalone view from ViewContext. Navigation reduced from 3-4 hops to 1-2.
 - **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
 
+## Current Hotspot Incident (2026-06-13)
+- Gig Mode / Take Mode failed at a real gig over Nathan's mobile hotspot after only being proven on home WiFi.
+- PC side repro on S23 hotspot: Reaper UDP 8000 and Media Server TCP 9200 are alive; direct hotspot IP `10.117.252.228:9200/take/songs` works. APK fix added: `ACCESS_NETWORK_STATE` + guarded network enumeration. Live app still targeted stale `192.168.1.90:8000`, so release was emergency-pinned to `10.117.252.228` and auto-discovery defaulted off. Release APK installed to both connected phones (`SM_S918B`, `SM_S911B`); Gig Mode now visibly shows `10.117.252.228:8000`, and both phones can reach `10.117.252.228:9200`. Actual `Start gig` capture fanout not pressed/tested yet. Peer camera fallback still needed because peer pairing is mDNS-only.
+- Nathan accepted this as "works well enough for tonight" but reported pause/resume is unsafe: after pause, resume starts recording from the beginning of the Reaper project and can overwrite. Do not alter tonight's installed build before the gig; workaround is do not pause. Post-gig fix should make resume/continue call a Reaper-side "record at true project end" command instead of relying on generic OSC action sequencing.
+
 ## S63 UX Consolidation
 - **New component**: `GigCardExpanded.tsx` — extracted from GigHub, renders inline in accordion cards
 - **DayDetail.tsx**: Full-screen view (was bottom sheet), accordion gig cards, mini pipeline dots on collapsed cards

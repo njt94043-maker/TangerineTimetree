@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-06-13: Gig Mode / Take Mode hotspot connection failed at gig
+
+**Symptom**: At a gig, the APK orchestrator could not connect to Reaper or the S23 peer path over Nathan's mobile hotspot. Nathan later noted that Gig Mode and Takes had only been proven on home WiFi.
+
+**Facts from live repro after switching the PC to the S23 hotspot**:
+- PC hotspot IP: `10.117.252.228`; S23 gateway: `10.117.252.187`.
+- Reaper was running and listening on UDP 8000.
+- Tangerine Media Server was running and listening on TCP 9200.
+- `http://10.117.252.228:9200/take/songs` returned 200 with song data.
+- `tgt-host.local` still advertised stale home/link-local addresses (`192.168.1.90`, `192.168.15.10`, `169.254.x.x`) instead of a clean hotspot-only target.
+- Android manifest did not request `ACCESS_NETWORK_STATE` even though the hotspot path depends on `ConnectivityManager` enumeration and callbacks.
+
+**Root cause**: Not a Reaper or Media Server process failure. The field gap is hotspot LAN targeting/discovery: home-WiFi mDNS/name resolution hid the fact that the APK needs a reliable direct hotspot target. Missing `ACCESS_NETWORK_STATE` also made the APK's explicit network-binding fallback unsafe.
+
+**Fix in this session**: Added `ACCESS_NETWORK_STATE` and guarded `GigCommandClient.collectCandidateNetworks()` so a permission/OS denial cannot crash the send coroutine before queueing/fallback logic runs.
+
+**Live follow-up**: After installing the first release fix, Gig Mode still visibly targeted stale `192.168.1.90:8000`. Emergency field patch pinned release `GIG_HOST_DEFAULT` to the laptop hotspot IP (`10.117.252.228`), made Reaper OSC use the same build default, and defaulted auto-discovery off. Rebuilt release APK installed to both phones. Gig Mode then showed `10.117.252.228:8000`; both phones could reach `10.117.252.228:9200`.
+
+**Additional live defect**: Pause/resume is unsafe. Nathan observed that after pausing, resume starts recording from the beginning of the project again and can overwrite. Do not change tonight's installed build before the gig; workaround is no pauses. Post-gig fix should make continue/resume call a stable Reaper-side "record at true project end" script/custom action instead of the current generic OSC `/action/40043 + /action/1013` path.
+
+**Remaining risk**: Peer pairing is still mDNS-only (`_tgt-orchestrator._tcp.`). Add a manual/QR direct-connect fallback before calling hotspot gigs proven.
+
 ## S59: Click scheduler gated by preference flag (2026-03-13)
 
 **Symptom**: Click didn't play on track start. Mute/unmute from mixer would start the click, but out of time.

@@ -266,6 +266,18 @@
 - Without these: linker errors (`undefined symbol: detectCPUextensions`, `TDStretchSSE`, `FIRFilterSSE`).
 - On ARM these files compile to no-ops but symbols must still be present.
 
+## Gig Rig / S23 Hotspot
+
+### Hotspot mode is not the same as home WiFi
+- Gig Mode and Take Mode use the same configured target: Reaper OSC on UDP 8000 and the Media Server bridge on TCP 9200.
+- Home WiFi can work even when hostname discovery is loose, because `tgt-host.local` resolves to the normal LAN address.
+- On the S23 hotspot, the rig gets a 10.x hotspot-client IP. During the 2026-06-13 incident, the PC was `10.117.252.228` and the S23 gateway was `10.117.252.187`.
+- The Media Server and Reaper were healthy on the hotspot (`10.117.252.228:9200` and UDP 8000), but `tgt-host.local` still advertised stale home/link-local addresses.
+- Immediate field workaround: in Gig Mode, open Reaper connection, turn Auto-discover off, set Host to the PC hotspot IP, leave Port at 8000. This also points the HTTP bridge at the same host on port 9200.
+- 2026-06-13 emergency release build pins `GIG_HOST_DEFAULT` to `10.117.252.228` and starts auto-discovery off because the live app re-adopted stale `192.168.1.90:8000`. This is not the final general fix; replace with persistent/manual target storage.
+- Manifest must include `ACCESS_NETWORK_STATE`; hotspot routing uses `ConnectivityManager.activeNetwork/allNetworks` and default-network callbacks.
+- Peer phones still need a non-mDNS fallback. `_tgt-orchestrator._tcp.` can be unreliable on phone-hosted hotspot multicast.
+
 ### Expo Modules AsyncFunction is NOT suspend
 - `AsyncFunction` lambda in Expo SDK 55 is NOT a suspend function.
 - Cannot use `withContext()` directly — use `runBlocking(Dispatchers.IO)` instead.
