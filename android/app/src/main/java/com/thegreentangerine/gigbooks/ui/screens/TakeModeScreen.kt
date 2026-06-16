@@ -36,6 +36,8 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -335,6 +337,12 @@ private fun TakeSurface(
 
     var armState by remember { mutableStateOf(ArmPresetState()) }  // Acoustic, overheads + full kit on
     var kitExpanded by remember { mutableStateOf(false) }          // collapsed by default (sidepanel-behavior)
+    var mixExpanded by remember { mutableStateOf(false) }          // BACKING MIX collapsed by default
+    // S213: the 4-stem backing mix, defaulting to the template's exact values (Drums (ref)
+    // muted — Nathan's the drummer). Keyed on song.trackId so swapping songs RESETS to
+    // template defaults without auto-sending (a freshly-loaded cover already carries these;
+    // only user actions send). The panel is the source of truth — no rig->APK readback yet.
+    var mix by remember(song.trackId) { mutableStateOf(defaultBackingMix()) }
     var takeCount by remember { mutableIntStateOf(0) }
     var isRecording by remember { mutableStateOf(false) }
     var recordReady by remember { mutableStateOf(true) }           // false during the post-Stop settle window
@@ -528,6 +536,64 @@ private fun TakeSurface(
                 }
             }
 
+            // ── Backing mix (collapsible, collapsed by default) — S213 ──
+            // Ride the guide stems from the throne: each stem a mute toggle + a dB fader.
+            // Mute sends immediately; the fader sends only on finger-up (onValueChangeFinished)
+            // so the file-drop backend isn't flooded (each message is a parsed+deleted file on a
+            // 0.2 s loop). Default keeps Drums (ref) muted; this card is the override.
+            val audibleStems = mix.count { !it.mute }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(TangerineColors.surface)
+                    .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { mixExpanded = !mixExpanded },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "BACKING MIX",
+                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "$audibleStems/${mix.size} audible",
+                        fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        if (mixExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (mixExpanded) "Collapse backing mix" else "Expand backing mix",
+                        tint = TangerineColors.textMuted,
+                    )
+                }
+                if (mixExpanded) {
+                    Spacer(Modifier.height(8.dp))
+                    mix.forEachIndexed { i, stem ->
+                        BackingMixRow(
+                            stem = stem,
+                            onMuteToggle = {
+                                val newMute = !stem.mute
+                                mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(mute = newMute) else s }
+                                scope.launch { service.gigCmd.takeMix(stem.name, newMute, stem.volDb.toDouble()) }
+                            },
+                            onVolChange = { v ->
+                                mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(volDb = v) else s }
+                            },
+                            onVolChangeFinished = {
+                                val cur = mix[i]
+                                scope.launch { service.gigCmd.takeMix(cur.name, cur.mute, cur.volDb.toDouble()) }
+                            },
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.weight(1f))
 
             // ── Record / Stop ──
@@ -629,6 +695,81 @@ private fun TakeStopButton(modifier: Modifier, enabled: Boolean, onClick: () -> 
         Text(
             "Stop",
             fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = tint,
+        )
+    }
+}
+
+// ─── Backing mix (S213) ────────────────────────────────────────────────────────
+
+/** S213 backing-mix state: one entry per stem. volDb is Float for the Slider; sent as Double. */
+private data class BackingStem(val name: String, val mute: Boolean, val volDb: Float)
+
+/** Template defaults — backing stems at the cover's current level (−8 dB), Drums (ref) muted
+ *  (Nathan's the drummer). The panel overrides these at runtime; the template is unchanged. */
+private fun defaultBackingMix(): List<BackingStem> = listOf(
+    BackingStem("Bass", mute = false, volDb = -8f),
+    BackingStem("Vocals", mute = false, volDb = -8f),
+    BackingStem("Other", mute = false, volDb = -8f),
+    BackingStem("Drums (ref)", mute = true, volDb = -8f),
+)
+
+/** One backing-stem row — name (+ a subtle "guide" tag for Drums (ref)) · dB/MUTE readout ·
+ *  mute toggle · level fader. Mute fires immediately; the fader fires on finger-up only. The
+ *  fader stays enabled while muted so a level can be pre-set before un-muting. */
+@Composable
+private fun BackingMixRow(
+    stem: BackingStem,
+    onMuteToggle: () -> Unit,
+    onVolChange: (Float) -> Unit,
+    onVolChangeFinished: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                stem.name,
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                color = TangerineColors.text,
+            )
+            if (stem.name == "Drums (ref)") {
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "guide",
+                    fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (stem.mute) "MUTE" else "${stem.volDb.roundToInt()} dB",
+                fontFamily = JetBrainsMono, fontSize = 12.sp,
+                color = if (stem.mute) TangerineColors.danger else TangerineColors.text,
+            )
+            Spacer(Modifier.width(10.dp))
+            // Mute toggle pill (hand-rolled to match the surface's button styling).
+            val mc = if (stem.mute) TangerineColors.danger else TangerineColors.textMuted
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(mc.copy(alpha = if (stem.mute) 0.18f else 0.06f))
+                    .border(1.dp, mc.copy(alpha = if (stem.mute) 0.7f else 0.3f), RoundedCornerShape(8.dp))
+                    .clickable(onClick = onMuteToggle)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    if (stem.mute) "muted" else "mute",
+                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = mc,
+                )
+            }
+        }
+        Slider(
+            value = stem.volDb,
+            onValueChange = onVolChange,
+            onValueChangeFinished = onVolChangeFinished,
+            valueRange = -40f..6f,
+            colors = SliderDefaults.colors(
+                thumbColor = TangerineColors.orange,
+                activeTrackColor = TangerineColors.orange,
+                inactiveTrackColor = TangerineColors.textMuted.copy(alpha = 0.3f),
+            ),
         )
     }
 }

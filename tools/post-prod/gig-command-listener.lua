@@ -33,6 +33,9 @@ local POLL_INTERVAL_SEC = 0.2
 local TAKE_GAP_SEC = 4.0    -- S205: wiggle room (s) between takes so nothing overwrites
 local TAKE_EPS     = 0.001
 local TAKE_BACKING = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true, ["Click"]=true }
+-- S213: the backing STEMS the APK may ride (mute + monitor level). Click is excluded
+-- (guide pulse). Mirrors the MS host's MixTracks allow-list; both layers enforce it.
+local TAKE_MIX_ALLOWED = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true }
 local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested, 2 recording-seen
 
 local function poll_dir_path()
@@ -113,7 +116,13 @@ local function parse_command(text)
   local title = text:match('"title"%s*:%s*"([^"]*)"') or ""
   local arm = text:match('"arm"%s*:%s*"([^"]*)"') or ""
   local track_id = text:match('"track_id"%s*:%s*"([^"]*)"') or ""
-  return action, name, track_path, title, arm, track_id
+  -- S213 take-mix: mix_track is a string; mute/vol_db are bare JSON numbers (MS may emit
+  -- vol_db as -8 or -8.0 -- match both integer- and decimal-form). mute/vol_db stay nil
+  -- when absent so a partial message only touches the field it carries.
+  local mix_track = text:match('"mix_track"%s*:%s*"([^"]*)"') or ""
+  local mute      = text:match('"mute"%s*:%s*(%-?%d+)')
+  local vol_db    = text:match('"vol_db"%s*:%s*(%-?%d+%.?%d*)')
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db
 end
 
 local function sanitise(name)
@@ -365,6 +374,33 @@ local function take_load(track_path, title, track_id)
     target, stems_dir, click_state))
 end
 
+-- ===== Take-mode backing mix (S213): ride a backing stem from the APK =====
+-- Additive runtime control. Flips B_MUTE and/or sets D_VOL on ONE allow-listed backing
+-- stem of the OPEN cover, addressed by exact name (Click excluded -- it's the guide pulse).
+-- NEVER touches arm/record state, so the dry drum-mic capture contract is untouched (this
+-- is purely what Nathan HEARS). Absolute values from the APK; the file-drop carries the full
+-- state of the one track that changed, so it's idempotent + robust to a dropped message. It
+-- saves, so the per-song ride persists across reopen (take_load does not re-assert mute on a
+-- reopened cover). Build-time default stays: a NEW cover loads with Drums (ref) muted (:351).
+local function take_mix(mix_track, mute, vol_db)
+  if not TAKE_MIX_ALLOWED[mix_track] then
+    reaper.ShowConsoleMsg("[take] mix: track not allowed: " .. tostring(mix_track) .. "\n"); return end
+  local tr = find_track_by_name(mix_track)
+  if not tr then
+    reaper.ShowConsoleMsg("[take] mix: track not found: " .. mix_track .. " (load a cover first)\n"); return end
+  if mute ~= nil then
+    reaper.SetMediaTrackInfo_Value(tr, "B_MUTE", (tonumber(mute) ~= 0) and 1 or 0)
+  end
+  local db = tonumber(vol_db)
+  if db then
+    if db < -40 then db = -40 elseif db > 6 then db = 6 end
+    reaper.SetMediaTrackInfo_Value(tr, "D_VOL", 10 ^ (db / 20))
+  end
+  reaper.Main_OnCommand(40026, 0)  -- save: the ride persists with the cover (reopen restores it)
+  reaper.ShowConsoleMsg(string.format("[take] mix %s mute=%s vol_db=%s\n",
+    mix_track, tostring(mute), tostring(vol_db)))
+end
+
 -- ===== Take-mode Slice 3 (S205): take mechanic =====
 -- "record a take": jump past the last take + gap, copy the stem block forward,
 -- arm the requested drum mics (BY NAME-prefix, template-order-independent), record
@@ -495,12 +531,13 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm, track_id)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
   elseif action == "take-load" then take_load(track_path, title, track_id)
   elseif action == "take-record" then take_record(arm)
+  elseif action == "take-mix" then take_mix(mix_track, mute, vol_db)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -520,9 +557,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db)
         end
         os.remove(full)
       end

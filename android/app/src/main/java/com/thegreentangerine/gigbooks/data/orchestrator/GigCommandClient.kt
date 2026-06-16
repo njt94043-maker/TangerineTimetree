@@ -127,6 +127,14 @@ class GigCommandClient(
         body = """{"arm":${jsonString(armCsv)}}""",
     )
 
+    /** S213: backing-stem mix. Sets one backing track's mute + monitor level on the live
+     *  cover (Reaper take-mix handler), down the same /take bridge as takeLoad/takeRecord.
+     *  Absolute values (no rig->APK readback yet) — the panel is the source of truth. */
+    suspend fun takeMix(mixTrack: String, mute: Boolean, volDb: Double) = postJson(
+        path = "/take/mix",
+        body = """{"mix_track":${jsonString(mixTrack)},"mute":${if (mute) 1 else 0},"vol_db":$volDb}""",
+    )
+
     /**
      * S129: replaces the dual OSC `/action/40157` + `/song_marker` bundle.
      * The named marker is dropped by the Reaper-side song-marker-listener.lua
