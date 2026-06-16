@@ -10,6 +10,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.thegreentangerine.gigbooks.R
 import com.thegreentangerine.gigbooks.data.supabase.GigLockRepository
@@ -21,6 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.InetSocketAddress
+import java.net.Socket
 
 /**
  * Drummer-side gig orchestrator (S118).
@@ -55,6 +59,7 @@ class OrchestratorService : Service() {
 
     val osc = ReaperOscClient()
     val gigCmd by lazy { GigCommandClient(this) }
+    val rigStore by lazy { RigTargetStore(this) }
     val session = GigSession()
     private val bookendTone by lazy { BookendTonePlayer(this) }
     val battery by lazy { BatteryMonitor(this) }
@@ -66,12 +71,13 @@ class OrchestratorService : Service() {
     private lateinit var publisher: OrchestratorPublisher
     val peerInfos: StateFlow<List<OrchestratorPeerServer.PeerInfo>> get() = peerServer.peerInfos
 
-    /** When true, OSC target follows mDNS discovery; when false, user override holds. */
-    private val _autoDiscover = MutableStateFlow(true)
+    /** When true, OSC target follows mDNS discovery; when false, user/default override holds. */
+    private val _autoDiscover = MutableStateFlow(false)
     val autoDiscover: StateFlow<Boolean> = _autoDiscover
 
     fun setAutoDiscover(enabled: Boolean) {
         _autoDiscover.value = enabled
+        scope.launch { rigStore.setAutoDiscover(enabled) }  // S211: persist across restarts
         if (enabled) {
             // Re-apply latest discovered target if present. OSC follows discovery
             // verbatim; gigCmd uses the same host on its own fixed HTTP port.
@@ -80,6 +86,19 @@ class OrchestratorService : Service() {
                 gigCmd.setTarget(it.host)
             }
         }
+    }
+
+    /**
+     * S211: persist + apply a manual rig host (set via ReaperConfigPane). Survives
+     * reboot/reinstall and supersedes the BuildConfig default — replacing the dead
+     * 2026-06-13 hotspot-IP pin. A manual host implies auto-discover off. One host
+     * drives both transports: OSC (host:oscPort) + the MS HTTP bridge (host:9200).
+     */
+    fun setManualRig(host: String, oscPort: Int) {
+        _autoDiscover.value = false
+        osc.setTarget(host, oscPort)
+        gigCmd.setTarget(host)
+        scope.launch { rigStore.setManual(host, oscPort) }
     }
 
     private val _isRecording = MutableStateFlow(false)
@@ -110,9 +129,31 @@ class OrchestratorService : Service() {
         scope.launch {
             discovery.discovered.collect { d ->
                 if (d != null && _autoDiscover.value) {
-                    osc.setTarget(d.host, REAPER_OSC_PORT)
-                    gigCmd.setTarget(d.host)
+                    // S211: knock before trusting. Only adopt a discovered host that
+                    // actually answers on the MS bridge port — stops the APK locking
+                    // onto a stale mDNS address (the dead 10.117.x pill). If the MS is
+                    // up, the co-located Reaper (OSC 8000) is up too. Re-fires on every
+                    // (re)discovery + network change, so it self-heals when the rig
+                    // comes online or the network switches.
+                    if (probeHost(d.host, d.port)) {
+                        osc.setTarget(d.host, REAPER_OSC_PORT)
+                        gigCmd.setTarget(d.host)
+                    } else {
+                        Log.w("OrchestratorService", "Discovered ${d.host}:${d.port} but no answer — not adopting")
+                    }
                 }
+            }
+        }
+        // S211: a manually-saved rig host (ReaperConfigPane -> setManualRig) survives
+        // reboot/reinstall and supersedes the BuildConfig default + the dead hotspot
+        // pin. Loaded async; the discovery.collect above respects _autoDiscover, so a
+        // saved manual host (autoDiscover=false) is never clobbered by mDNS.
+        scope.launch {
+            val saved = rigStore.current()
+            _autoDiscover.value = saved.autoDiscover
+            if (!saved.autoDiscover && saved.host != null) {
+                osc.setTarget(saved.host, saved.oscPort)
+                gigCmd.setTarget(saved.host)
             }
         }
         // Keep peer count in sync with the server's peer list. Only update the
@@ -319,6 +360,20 @@ class OrchestratorService : Service() {
             updateNotification()
         }
     }
+
+    /**
+     * S211: liveness knock. TCP-connect to the MS bridge port with a short timeout;
+     * a discovered host is only trusted (target adopted) if it answers. Pure I/O.
+     */
+    private suspend fun probeHost(host: String, port: Int, timeoutMs: Int = 1500): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                Socket().use { s ->
+                    s.connect(InetSocketAddress(host, port), timeoutMs)
+                    true
+                }
+            } catch (_: Exception) { false }
+        }
 
     private fun statusText(): String {
         val rec = if (_isRecording.value) "● REC" else "Idle"

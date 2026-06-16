@@ -710,15 +710,13 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 autoDiscover = autoDiscover,
                 onAutoDiscoverChange = { service?.setAutoDiscover(it) },
                 onManualHostChange = { host, port ->
-                    // v1.2.4 hotfix: also point the HTTP gig-command client at
-                    // the same host. Port stays at the MS host's fixed bridge
-                    // port (BuildConfig.GIG_PORT_DEFAULT, currently 9200 per
-                    // S186). Without this, the gig wizard would still fire HTTP
-                    // at the default host even after Nathan manually pinned the
-                    // OSC target — broken on rigs where mDNS isn't propagating
-                    // (S23 hotspot AP-mode multicast is flaky).
-                    service?.osc?.setTarget(host, port)
-                    service?.gigCmd?.setTarget(host)
+                    // S211: persist + apply the manual rig host so it survives
+                    // reboot/reinstall (kills the dead hotspot-IP pin). setManualRig
+                    // points OSC (host:port) + the MS bridge (host:9200) at the host
+                    // and writes it through to RigTargetStore; manual mode disables
+                    // auto-discover. Replaces the v1.2.4 direct setTarget calls,
+                    // which did not survive a restart.
+                    service?.setManualRig(host, port)
                 },
             )
         }

@@ -1,5 +1,6 @@
 package com.thegreentangerine.gigbooks.data.orchestrator
 
+import com.thegreentangerine.gigbooks.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +23,7 @@ class ReaperOscClient {
 
     data class Target(val host: String, val port: Int)
 
-    private val _target = MutableStateFlow(Target("e6330.local", 8000))
+    private val _target = MutableStateFlow(Target(BuildConfig.GIG_HOST_DEFAULT, 8000))
     val target: StateFlow<Target> = _target
 
     private val _lastSendOk = MutableStateFlow<Boolean?>(null)

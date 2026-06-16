@@ -13,15 +13,19 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 51
-        versionName = "1.2.32"
+        versionCode = 52
+        versionName = "1.2.33"
 
         // S186 / D-batchD-1: APK no longer targets the dead E6330 box. Default
         // points at the MS host bridge on the laptop (POST /gig + /song-marker
-        // mounted on the MS host's existing port). Hostname is mDNS-resolvable
-        // by default; debug builds default to localhost for emulator/dev runs.
-        // Runtime override still wins: ReaperConfigPane writes through
-        // GigCommandClient.setTarget(host, port) for manual host pinning.
+        // mounted on the MS host's existing port).
+        //
+        // S211: the dead 2026-06-13 hotspot-IP pin is replaced by a persistent
+        // manual rig target. ReaperConfigPane -> OrchestratorService.setManualRig
+        // writes the host through RigTargetStore (DataStore), loaded on service
+        // start, which supersedes this default — so a venue's rig address is set
+        // once and survives reboot/reinstall. Default falls back to the mDNS
+        // hostname for the home-WiFi auto-discover path.
         buildConfigField("String", "GIG_HOST_DEFAULT", "\"tgt-host.local\"")
         buildConfigField("int", "GIG_PORT_DEFAULT", "9200")
 

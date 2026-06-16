@@ -295,22 +295,29 @@ class GigCommandClient(
     }
 
     /** Default network first, then every other non-cellular network with IPv4 INTERNET. */
-    private fun collectCandidateNetworks(): List<Network> {
-        val result = mutableListOf<Network>()
-        cm.activeNetwork?.let { result.add(it) }
-        for (n in cm.allNetworks) {
-            if (n in result) continue
-            val caps = cm.getNetworkCapabilities(n) ?: continue
-            // Skip pure-cellular nets (they can't reach private LAN IPs).
-            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) continue
-            // Need IP-level connectivity (WiFi, ethernet, hotspot loopback).
-            if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)) {
-                continue
+    private fun collectCandidateNetworks(): List<Network> = try {
+        buildList {
+            cm.activeNetwork?.let { add(it) }
+            for (n in cm.allNetworks) {
+                if (n in this) continue
+                val caps = cm.getNetworkCapabilities(n) ?: continue
+                // Skip pure-cellular nets (they can't reach private LAN IPs).
+                if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) continue
+                // Need IP-level connectivity (WiFi, ethernet, hotspot loopback).
+                if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_TRUSTED)) {
+                    continue
+                }
+                add(n)
             }
-            result.add(n)
         }
-        return result
+    } catch (e: SecurityException) {
+        // Hotspot mode depends on explicit network binding. If the manifest or
+        // install state ever lacks ACCESS_NETWORK_STATE, keep the HTTP fallback
+        // alive via the final unbound attempt instead of crashing the coroutine
+        // before the persistent command queue can record the miss.
+        Log.w(TAG, "Cannot enumerate candidate networks: ${e.message}")
+        emptyList()
     }
 
     private fun tryPost(network: Network?, url: URL, body: String): Boolean = try {
