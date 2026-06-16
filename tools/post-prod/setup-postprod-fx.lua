@@ -11,7 +11,8 @@
 --         (per-channel HPF/gate/comp + bus glue + master mastering chain incl.
 --         James 3-stage MJUCjr). Re-running this script on a project opened
 --         from the template is a no-op for any already-present plugin (idempotent
---         via `TrackFX_AddByName` with instantiate=-1).
+--         via a per-plugin occurrence-count guard; C1 fix S210, was a buggy -1 that
+--         always duplicated on re-run).
 --   STILL NEEDED? YES — kept for two real cases:
 --         1. Building a post-prod project FROM SCRATCH (no template), e.g. a
 --            one-off recording outside the rig's 18ch channel map. The script
@@ -27,8 +28,10 @@
 --   - BUS chains (glue + colour)
 --   - MASTER mastering chain
 --
--- Idempotent: TrackFX_AddByName with instantiate=-1 only adds a plugin if it's
--- not already on the track, so re-running is safe (won't create duplicates).
+-- Idempotent (C1 fix, S210): add_chain counts how many of each plugin are already on the
+-- track and force-adds only the shortfall, so re-running adds nothing while a first run still
+-- builds chains that repeat a plugin (ReaEQ pre + post). The old code force-added every slot
+-- (instantiate=-1, no guard) so each re-run duplicated the whole chain.
 -- New plugins on re-run land at end of chain — drag-reorder if needed.
 --
 -- Plugins not found are reported in the console.
@@ -138,10 +141,14 @@ local BUS_CHAINS = {
     {"ReaComp"},                                          -- parallel — set Wet to ~30%
   },
 
-  -- Acoustic kit bus: glue + tape softening
+  -- Acoustic kit bus: glue + parallel-comp punch
   ["DRUMS BUS"] = {
     {"DC1A", "DC1A3", "DC1A 3", "Klanghelm DC1A"},        -- glue
-    {"TENSjr", "TENS jr"},                                -- tape saturation
+    {"ReaComp"},                                          -- parallel comp for kit PUNCH (set Wet ~30%).
+                                                          -- TENSjr fix (S210): was {"TENSjr"} labelled
+                                                          -- "tape saturation" -- but TENSjr is a Klanghelm
+                                                          -- spring REVERB, not punch. The slot's intended
+                                                          -- job is transient/punch, so use stock ReaComp.
   },
 }
 
@@ -165,7 +172,26 @@ local function track_name(tr)
   return name
 end
 
-local function add_fx_first_match(tr, candidates)
+-- How many FX already on `tr` match ANY of `candidates` (display-name substring,
+-- case-insensitive). REAPER's TrackFX_GetFXName returns e.g. "VST3: ReaComp (Cockos)",
+-- so the bare plugin name is a reliable substring.
+local function fx_count_matching(tr, candidates)
+  local c = 0
+  for i = 0, reaper.TrackFX_GetCount(tr) - 1 do
+    local _, fxname = reaper.TrackFX_GetFXName(tr, i, "")
+    if fxname ~= "" then
+      local lname = fxname:lower()
+      for _, cand in ipairs(candidates) do
+        if lname:find(cand:lower(), 1, true) then c = c + 1; break end
+      end
+    end
+  end
+  return c
+end
+
+-- Force-add the first INSTALLED candidate. instantiate=-1 = always create a new instance
+-- (the only TrackFX_AddByName behaviour we rely on; positive values are ambiguous).
+local function force_add_first_match(tr, candidates)
   for _, name in ipairs(candidates) do
     local idx = reaper.TrackFX_AddByName(tr, name, false, -1)
     if idx >= 0 then return idx, name end
@@ -173,20 +199,24 @@ local function add_fx_first_match(tr, candidates)
   return -1, nil
 end
 
+-- C1 fix (S210): genuine idempotency that also survives chains which deliberately repeat a
+-- plugin (several channels use ReaEQ twice: HPF pre + tone post). For each slot we track how
+-- many of that plugin the chain has asked for so far (`want`) and compare to how many are
+-- actually on the track; we force-add ONLY the shortfall. A re-run finds the counts already
+-- satisfied and adds nothing. (The old code force-added EVERY slot with instantiate=-1 and no
+-- count guard, so every re-run duplicated the whole chain. A naive flat instantiate=1 would
+-- have fixed the dup but DROPPED the 2nd ReaEQ on first run -- worse.)
 local function add_chain(tr, chain, label)
   local added, skipped, missing = 0, 0, {}
+  local want = {}                                  -- candidates[1] -> occurrences requested so far
   for _, candidates in ipairs(chain) do
-    local before = reaper.TrackFX_GetCount(tr)
-    local idx, _ = add_fx_first_match(tr, candidates)
-    if idx >= 0 then
-      local after = reaper.TrackFX_GetCount(tr)
-      if after > before then
-        added = added + 1
-      else
-        skipped = skipped + 1
-      end
+    local key = candidates[1]
+    want[key] = (want[key] or 0) + 1
+    if fx_count_matching(tr, candidates) >= want[key] then
+      skipped = skipped + 1                         -- already have enough -> idempotent no-op
     else
-      table.insert(missing, candidates[1])
+      local idx, _ = force_add_first_match(tr, candidates)
+      if idx >= 0 then added = added + 1 else table.insert(missing, candidates[1]) end
     end
   end
   local msg = string.format("  %-25s  added=%d  already-present=%d", label, added, skipped)

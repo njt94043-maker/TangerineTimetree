@@ -31,7 +31,7 @@
 | 07 Spare | (no FX) | Often unused channel |
 | EAD BUS | ReaComp | Bus glue on Yamaha EAD pre-mix |
 | 08-09 EAD L/R | ReaEQ → ReaComp | Light shape |
-| DRUMS BUS | DC1A3 → TENSjr | Glue + transient enhancement on the kit |
+| DRUMS BUS | DC1A3 → ReaComp (parallel) | Glue + parallel-comp **punch** on the kit. *(Was DC1A3 → TENSjr "transient enhancement" — TENSjr is a Klanghelm **spring reverb**, not a transient designer; mislabel corrected S210. `setup-postprod-fx.lua` now uses parallel ReaComp for this slot; the baked `whole-gig-template-v1.RPP` still carries TENSjr and needs re-baking to match.)* |
 | 10 Kick | ReaEQ → ReaGate → ReaComp → ReaEQ | Two-EQ tone-shape |
 | 11 Snare | ReaEQ → ReaGate → ReaComp → TDR Nova | Dynamic EQ on resonance |
 | 12-14 Toms 1/2/3 | ReaEQ → ReaGate → ReaComp | Standard kit chain |
@@ -48,7 +48,7 @@ All template-referenced plugins are present at `C:/Program Files/Common Files/VS
 | DC1A3 | Klanghelm | VST | Bus glue compressor | Free |
 | IVGI2 | Klanghelm | VST | Tape/console saturation | Free |
 | MJUCjr | Klanghelm | VST | Vari-mu vocal leveler (the secret sauce of James's chain) | Free |
-| TENSjr | Klanghelm | VST3 | Transient designer (kit punch) | Free |
+| TENSjr | Klanghelm | VST3 | **Spring reverb** (was mislabelled "transient designer / kit punch" — corrected S210; removed from the DRUMS BUS chain, the punch slot now uses parallel ReaComp) | Free |
 | TDR Nova | TDL | VST | Dynamic EQ (used for de-essing + kit resonance) | Free |
 | TDR Kotelnikov | TDL | VST | Mastering compressor | Free |
 | TDR VOS SlickEQ | TDL | VST3 | Mastering EQ | Free |

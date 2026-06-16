@@ -1,34 +1,38 @@
 <REAPER_PROJECT 0.1 "7.71/linux-x86_64" 1778313370 0
   <NOTES 0 2
-    |== TGT DRUM-COVER / TAKE MODE TEMPLATE ==
+    |== TGT GIG + PRACTICE RECORDING TEMPLATE ==
     |
-    |  Home-studio drum-cover capture. ONE Reaper project per song at
-    |  C:\Covers\<song>\<song>.rpp - created the first time a song is picked on the APK;
-    |  re-selecting the song opens it again to stack another take.
+    |  SYNC TONE PROTOCOL (mandatory for multi-cam sync):
+    |  - Play 1 kHz tone burst (1-2s) from PA at START of recording
+    |  - Play 1 kHz tone burst (1-2s) from PA at END of recording
+    |  - Bookend tones enable post-session video sync + drift correction
     |
-    |  HOW IT WORKS (locked S202-S205):
-    |  - The 4 Demucs stems are imported (REFERENCED in place from C:\Music, not copied)
-    |    onto the backing tracks Bass / Vocals / Other / Drums (ref). Drums (ref) is MUTED by
-    |    default - it is the stem being replaced; one tap un-mutes it for reference.
-    |  - The CLICK is a RENDERED audio track (built from the corrected beatmap at 48 kHz) dropped
-    |    on the Click track on the same timeline - sample-locked by construction. This replaces the
-    |    native Reaper metronome, which is off the critical path since S204.
-    |  - Nathan plays the kit to the stems; Reaper records the drums in sample-lock.
-    |  - Take mechanic: jump to end of last take + a gap, copy stems forward, arm, record, save.
+    |  APK MASTER RECORD TRIGGER (when phone director is built):
+    |  - Enable Reaper OSC: Preferences > Control/OSC/Web Surface
+    |  - Default port 8000 UDP, "Default" pattern config
+    |  - APK sends:
+    |      /record       (start)
+    |      /stop         (stop)
+    |      /song_marker s "song name"   (custom, needs ReaScript binding)
     |
-    |  TIMEBASE: TIMELOCKMODE 0 (TIME) is MANDATORY. On beats timebase the imported items follow
-    |  the tempo map and play ~22.8% fast (S204). Project is 48 kHz (rig + video); 44.1 kHz stems
-    |  resample transparently on playback - do NOT conform them.
+    |  CHANNEL MAP (XR18 USB inputs 1-18):
+    |    1-2  TD-4 L/R (Roland TD-4 e-kit - used when acoustic kit unavailable)
+    |    3    James Vox
+    |    4    Adam BV
+    |    5    Adam Guitar
+    |    6    Neil Bass
+    |    7    Spare
+    |    8-9  EAD L/R
+    |    10   Kick
+    |    11   Snare
+    |    12   Tom 1
+    |    13   Tom 2
+    |    14   Tom 3
+    |    15-16 OH L/R
+    |    17-18 Music L/R (ALL music: backing tracks / practice / venue break)
     |
-    |  DRUM-MICS ONLY - no band channels, no music (music IS the imported stems). The drum-mic
-    |  record tracks load DISARMED + input-monitoring OFF; the APK take preset arms the kit set
-    |  per session over OSC. ARM BY TRACK-NAME PREFIX, not index: TD-4 sits at project tracks 6/7
-    |  here but is named 01/02; Kick..OH keep names 10..16.
-    |    base = Kick 10 | + overheads 15-16 | + full kit 11-14 | + EAD 8-9 (acoustic add-on,
-    |    hidden in ekit) | ekit = TD-4 01/02 instead of the acoustic mics.
-    |
-    |  MONITOR: stems + click -> XR18 Bus 6 (IEM) via Reaper master -> USB return (verified S203).
-    |  The click is never an XR18 input, so it can never be recorded.
+    |  TD-4 days: ch 1-2 carry e-kit; ch 8-16 (acoustic kit + EAD) silent.
+    |  Acoustic days: ch 1-2 silent; ch 8-16 active. Ch 17-18 always carry music feeds.
   >
   RIPPLE 0 0
   GROUPOVERRIDE 0 0 0 0
@@ -82,6 +86,18 @@
     ZXZhdxgAAQ==
   >
   LOCK 1
+  <METRONOME 6 2
+    VOL 0.25 0.25
+    BEATLEN 4
+    FREQ 880 880 1
+    SAMPLES "" "" "" ""
+    SPLIGNORE 0 0
+    SPLDEF 2 660 "" 0 ""
+    SPLDEF 3 440 "" 0 ""
+    PATTERN 0 169
+    PATTERNSTR ABBB
+    MULT 1
+  >
   GLOBAL_AUTO -1
   TEMPO 120 4 4 0
   PLAYRATE 1 0 0.25 4
@@ -120,33 +136,9 @@
   RULERLANE 2 8 "" 0 -1 0
   <PROJBAY
   >
-  <TRACK {0000F001-0000-0000-0000-000000000000}
-    NAME "BACKING"
-    PEAKCOL 11840000
-    BEAT -1
-    AUTOMODE 0
-    PANLAWFLAGS 3
-    VOLPAN 1 0 -1 -1 1
-    MUTESOLO 0 0 0
-    IPHASE 0
-    PLAYOFFS 0 1
-    ISBUS 1 1
-    BUSCOMP 0 0 0 0 0
-    SHOWINMIX 1 0.6667 0.5 1 0.5 0 0 0 0
-    REC 0 0 0 0 0 0 0 0
-    VU 2
-    TRACKHEIGHT 0 0 0 0 0 0 0
-    INQ 0 0 0 0.5 100 0 0 100
-    NCHAN 2
-    FX 1
-    TRACKID {0000F001-0000-0000-0000-000000000000}
-    PERF 0
-    MIDIOUT -1
-    MAINSEND 1 0
-  >
   <TRACK {0000B001-0000-0000-0000-000000000000}
     NAME "Bass"
-    PEAKCOL 11840000
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -170,7 +162,7 @@
   >
   <TRACK {0000B002-0000-0000-0000-000000000000}
     NAME "Vocals"
-    PEAKCOL 11840000
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -194,7 +186,7 @@
   >
   <TRACK {0000B003-0000-0000-0000-000000000000}
     NAME "Other"
-    PEAKCOL 11840000
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -218,7 +210,7 @@
   >
   <TRACK {0000B004-0000-0000-0000-000000000000}
     NAME "Drums (ref)"
-    PEAKCOL 11840000
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -242,15 +234,15 @@
   >
   <TRACK {0000B005-0000-0000-0000-000000000000}
     NAME "Click"
-    PEAKCOL 11840000
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
-    VOLPAN 1 0 -1 -1 1
+    VOLPAN 0.39810717 0 -1 -1 1
     MUTESOLO 0 0 0
     IPHASE 0
     PLAYOFFS 0 1
-    ISBUS 2 -1
+    ISBUS 0 0
     BUSCOMP 0 0 0 0 0
     SHOWINMIX 1 0.6667 0.5 1 0.5 0 0 0 0
     REC 0 0 0 0 0 0 0 0
@@ -264,33 +256,9 @@
     MIDIOUT -1
     MAINSEND 1 0
   >
-  <TRACK {0000F002-0000-0000-0000-000000000000}
-    NAME "DRUMS"
-    PEAKCOL 36095
-    BEAT -1
-    AUTOMODE 0
-    PANLAWFLAGS 3
-    VOLPAN 1 0 -1 -1 1
-    MUTESOLO 0 0 0
-    IPHASE 0
-    PLAYOFFS 0 1
-    ISBUS 1 1
-    BUSCOMP 0 0 0 0 0
-    SHOWINMIX 1 0.6667 0.5 1 0.5 0 0 0 0
-    REC 0 0 0 0 0 0 0 0
-    VU 2
-    TRACKHEIGHT 0 0 0 0 0 0 0
-    INQ 0 0 0 0.5 100 0 0 100
-    NCHAN 2
-    FX 1
-    TRACKID {0000F002-0000-0000-0000-000000000000}
-    PERF 0
-    MIDIOUT -1
-    MAINSEND 1 0
-  >
   <TRACK {00000001-0000-0000-0000-000000000000}
     NAME "01 TD-4 L"
-    PEAKCOL 36095
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -316,7 +284,7 @@
   >
   <TRACK {00000002-0000-0000-0000-000000000000}
     NAME "02 TD-4 R"
-    PEAKCOL 36095
+    PEAKCOL 16576
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -342,7 +310,7 @@
   >
   <TRACK {00000008-0000-0000-0000-000000000000}
     NAME "08 EAD L"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -368,7 +336,7 @@
   >
   <TRACK {00000009-0000-0000-0000-000000000000}
     NAME "09 EAD R"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -394,7 +362,7 @@
   >
   <TRACK {0000000A-0000-0000-0000-000000000000}
     NAME "10 Kick"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -420,7 +388,7 @@
   >
   <TRACK {0000000B-0000-0000-0000-000000000000}
     NAME "11 Snare"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -446,7 +414,7 @@
   >
   <TRACK {0000000C-0000-0000-0000-000000000000}
     NAME "12 Tom 1"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -472,7 +440,7 @@
   >
   <TRACK {0000000D-0000-0000-0000-000000000000}
     NAME "13 Tom 2"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -498,7 +466,7 @@
   >
   <TRACK {0000000E-0000-0000-0000-000000000000}
     NAME "14 Tom 3"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -524,7 +492,7 @@
   >
   <TRACK {0000000F-0000-0000-0000-000000000000}
     NAME "15 OH L"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -550,7 +518,7 @@
   >
   <TRACK {00000010-0000-0000-0000-000000000000}
     NAME "16 OH R"
-    PEAKCOL 36095
+    PEAKCOL 16737843
     BEAT -1
     AUTOMODE 0
     PANLAWFLAGS 3
@@ -558,7 +526,7 @@
     MUTESOLO 0 0 0
     IPHASE 0
     PLAYOFFS 0 1
-    ISBUS 2 -1
+    ISBUS 0 0
     BUSCOMP 0 0 0 0 0
     SHOWINMIX 1 0.6667 0.5 1 0.5 0 0 0 0
     LANEREC -1 -1 -1 0
