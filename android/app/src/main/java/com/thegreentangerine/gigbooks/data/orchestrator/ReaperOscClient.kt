@@ -40,6 +40,19 @@ class ReaperOscClient {
     suspend fun sendStop() = sendPacket(encodeMessage("/stop"))
 
     /**
+     * S214 take-mode transport (audition the loaded cover from the throne). Single-message
+     * `/action <id>` sends like sendStop — standard Reaper natives, no custom OSC mapping:
+     *   - Play  = 1007  (Transport: Play)
+     *   - Pause = 1008  (Transport: Pause)
+     *   - To start = 40042 (Transport: Go to start of project)
+     * Seek/scrub is NOT here — it rides the file bridge (GigCommandClient.takeSeek) to avoid
+     * OSC-seek config risk; only the instant transport buttons go over OSC.
+     */
+    suspend fun sendPlay() = sendPacket(encodeMessage("/action", intArg = 1007))
+    suspend fun sendPause() = sendPacket(encodeMessage("/action", intArg = 1008))
+    suspend fun sendToStart() = sendPacket(encodeMessage("/action", intArg = 40042))
+
+    /**
      * Drop a Reaper marker at the current edit cursor (= current recording head)
      * named after the song the drummer just advanced to. Sent as a bundle so
      * Reaper processes both messages on a single tick:

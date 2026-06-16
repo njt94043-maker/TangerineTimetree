@@ -29,6 +29,7 @@
 -- (different poll dirs).
 
 local POLL_INTERVAL_SEC = 0.2
+local STATUS_INTERVAL_SEC = 0.25  -- S214: Reaper-mirror status sidecar gate (independent of the command poll)
 
 local TAKE_GAP_SEC = 4.0    -- S205: wiggle room (s) between takes so nothing overwrites
 local TAKE_EPS     = 0.001
@@ -81,6 +82,12 @@ local TEMPLATE = template_path()
 local COVERS_DIR    = covers_dir_path()
 local TAKE_TEMPLATE = take_template_path()
 
+-- S214: Reaper-mirror status sidecar -- a SIBLING of POLL_DIR (must be OUTSIDE it).
+-- The listener parses + os.remove's every file inside POLL_DIR, so a status file
+-- there would be eaten as a (bad) command every tick. POLL_DIR = C:/tmp/gig-commands
+-- -> STATUS_FILE = C:/tmp/gig-status.json.
+local STATUS_FILE = (POLL_DIR:match("^(.*)[/\\][^/\\]*$") or "C:/tmp") .. "/gig-status.json"
+
 local function ensure_dir(path)
   reaper.RecursiveCreateDirectory(path, 0)
 end
@@ -122,7 +129,10 @@ local function parse_command(text)
   local mix_track = text:match('"mix_track"%s*:%s*"([^"]*)"') or ""
   local mute      = text:match('"mute"%s*:%s*(%-?%d+)')
   local vol_db    = text:match('"vol_db"%s*:%s*(%-?%d+%.?%d*)')
-  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db
+  -- S214 take-seek: pos_sec is a bare JSON number (MS emits "30" or "30.5" -- match
+  -- both integer and decimal form). Stays nil when absent.
+  local pos_sec   = text:match('"pos_sec"%s*:%s*(%-?%d+%.?%d*)')
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec
 end
 
 local function sanitise(name)
@@ -401,6 +411,19 @@ local function take_mix(mix_track, mute, vol_db)
     mix_track, tostring(mute), tostring(vol_db)))
 end
 
+-- ===== Take-mode transport seek (S214): scrub the loaded cover from the APK =====
+-- File-bridge seek (no OSC-seek config risk; reuses the proven take-mix file drop).
+-- Moves the edit cursor + playback to pos_sec on the OPEN cover. Clamp >= 0. NEVER
+-- touches arm/record state. Play/Pause/Stop/to-start are OSC actions (APK-side);
+-- only the scrub rides the file bridge (a drag stream the bridge can't take).
+local function take_seek(pos)
+  local p = tonumber(pos)
+  if not p then reaper.ShowConsoleMsg("[take] seek: no pos_sec\n"); return end
+  if p < 0 then p = 0 end
+  reaper.SetEditCurPos(p, true, true)   -- move view + seek playback
+  reaper.ShowConsoleMsg(string.format("[take] seek -> %.3f\n", p))
+end
+
 -- ===== Take-mode Slice 3 (S205): take mechanic =====
 -- "record a take": jump past the last take + gap, copy the stem block forward,
 -- arm the requested drum mics (BY NAME-prefix, template-order-independent), record
@@ -531,14 +554,54 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
   elseif action == "take-load" then take_load(track_path, title, track_id)
   elseif action == "take-record" then take_record(arm)
   elseif action == "take-mix" then take_mix(mix_track, mute, vol_db)
+  elseif action == "take-seek" then take_seek(pos_sec)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
+end
+
+-- ===== Reaper-mirror status sidecar (S214) =====
+-- The APK can't see Reaper directly; this writes Reaper's transport / record state to a
+-- JSON sidecar (SIBLING of POLL_DIR) which the MS host serves at GET /take/status and the
+-- APK polls (1 s) for the mirror status bar + transport readout. Atomic write (tmp -> rename
+-- so a reader never sees a half-written file); on its own faster gate so it never disturbs
+-- the command poll. The caller pcall-guards it so a status hiccup can't kill the listener.
+local function status_json_escape(s)
+  return (s:gsub('\\', '\\\\'):gsub('"', '\\"'))
+end
+
+local function write_status()
+  local st        = reaper.GetPlayState()        -- &1 playing, &2 paused, &4 recording
+  local recording = (st & 4) == 4
+  local playing   = (st & 1) == 1
+  local paused    = (st & 2) == 2
+  local play_state
+  if recording then play_state = "recording"
+  elseif paused then play_state = "paused"
+  elseif playing then play_state = "playing"
+  else play_state = "stopped" end
+  -- live head while rolling, edit cursor otherwise.
+  local pos = (playing or recording) and reaper.GetPlayPosition() or reaper.GetCursorPosition()
+  local len = reaper.GetProjectLength(0)
+  local proj = reaper.GetProjectName(0, "") or ""
+  -- ts_ms: not wallclock (Lua has no ms clock) -- a debug breadcrumb only. The MS uses the
+  -- file MTIME for staleness, not this field.
+  local ts_ms = math.floor(reaper.time_precise() * 1000)
+  local body = string.format(
+    '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
+      .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s"}',
+    ts_ms, play_state, tostring(recording), tostring(playing),
+    pos, len, status_json_escape(proj))
+  local tmp = STATUS_FILE .. ".tmp"
+  local fh = io.open(tmp, "wb"); if not fh then return end
+  fh:write(body); fh:close()
+  os.remove(STATUS_FILE)            -- Windows os.rename won't overwrite an existing file
+  os.rename(tmp, STATUS_FILE)
 end
 
 ensure_dir(POLL_DIR)
@@ -546,9 +609,11 @@ ensure_dir(GIGS_DIR)
 ensure_dir(COVERS_DIR)
 reaper.ShowConsoleMsg("[gig-cmd-listener] watching " .. POLL_DIR .. "\n")
 reaper.ShowConsoleMsg("[gig-cmd-listener] gigs dir " .. GIGS_DIR .. "\n")
+reaper.ShowConsoleMsg("[gig-cmd-listener] status sidecar " .. STATUS_FILE .. "\n")
 reaper.ShowConsoleMsg("[gig-cmd-listener] poll interval " .. POLL_INTERVAL_SEC .. "s\n\n")
 
 local last_poll = 0
+local last_status = 0
 local function loop()
   local now = reaper.time_precise()
   if now - last_poll >= POLL_INTERVAL_SEC then
@@ -557,9 +622,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
         end
         os.remove(full)
       end
@@ -574,6 +639,12 @@ local function loop()
         take_phase = 0
       end
     end
+  end
+  -- S214: write the mirror status sidecar on its own, faster gate. pcall-guarded so a
+  -- status hiccup can never break the defer loop (which would kill the command listener).
+  if now - last_status >= STATUS_INTERVAL_SEC then
+    last_status = now
+    pcall(write_status)
   end
   reaper.defer(loop)
 end

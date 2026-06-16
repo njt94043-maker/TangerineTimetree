@@ -21,6 +21,7 @@ import java.net.NetworkInterface
 import java.net.Socket
 import java.net.URL
 import org.json.JSONArray
+import org.json.JSONObject
 
 /** One row of the take-mode browser (4c-1 `GET /take/songs`). `bpm` null = no detected tempo.
  *  `beatmapVerified` = sidecar schemaVersion >= 2 → drives the ✓/⚠ badge. */
@@ -30,6 +31,22 @@ data class TakeSong(
     val artist: String,
     val bpm: Double?,
     val beatmapVerified: Boolean,
+)
+
+/** S214 Reaper-mirror status (`GET /take/status`) — what the rig is doing, polled 1 s by the
+ *  take surface. The MS forces a stopped/idle/null readout + `stale = true` when its sidecar is
+ *  missing or > 3 s old, so the APK greys out cleanly instead of showing a frozen fake state.
+ *  Numerics are nullable for exactly that reason. `ssdFreeLabel` is the recording-drive headroom
+ *  (independent of the sidecar — present even when stale). */
+data class TakeStatus(
+    val stale: Boolean,
+    val playState: String,
+    val recording: Boolean,
+    val playing: Boolean,
+    val positionSec: Double?,
+    val lengthSec: Double?,
+    val projectName: String?,
+    val ssdFreeLabel: String?,
 )
 
 /**
@@ -133,6 +150,15 @@ class GigCommandClient(
     suspend fun takeMix(mixTrack: String, mute: Boolean, volDb: Double) = postJson(
         path = "/take/mix",
         body = """{"mix_track":${jsonString(mixTrack)},"mute":${if (mute) 1 else 0},"vol_db":$volDb}""",
+    )
+
+    /** S214: scrub the loaded cover to [posSec] seconds. File-bridge seek (the Lua moves the
+     *  edit cursor + playback) — reuses the proven /take path + offline queue rather than OSC,
+     *  so there's no OSC-seek config risk. The MS clamps pos_sec >= 0; we send raw seconds.
+     *  Finger-up-only from the UI (a drag stream would flood the file-drop backend). */
+    suspend fun takeSeek(posSec: Double) = postJson(
+        path = "/take/seek",
+        body = """{"pos_sec":$posSec}""",
     )
 
     /**
@@ -362,6 +388,30 @@ class GigCommandClient(
         return try { parseTakeSongs(body) } catch (e: Exception) {
             Log.w(TAG, "parse /take/songs failed: ${e.message}"); null
         }
+    }
+
+    /** S214: poll the Reaper-mirror status (`GET /take/status`). Returns null when the MS is
+     *  unreachable (the surface greys the status bar); a reachable-but-stale rig still returns a
+     *  [TakeStatus] with `stale = true` (the MS never 500s on a missing/corrupt sidecar). */
+    suspend fun fetchTakeStatus(): TakeStatus? {
+        val body = getString("/take/status") ?: return null
+        return try { parseTakeStatus(body) } catch (e: Exception) {
+            Log.w(TAG, "parse /take/status failed: ${e.message}"); null
+        }
+    }
+
+    private fun parseTakeStatus(json: String): TakeStatus {
+        val o = JSONObject(json)
+        return TakeStatus(
+            stale = o.optBoolean("stale", true),
+            playState = o.optString("play_state", "stopped"),
+            recording = o.optBoolean("recording", false),
+            playing = o.optBoolean("playing", false),
+            positionSec = if (o.isNull("position_sec")) null else o.optDouble("position_sec"),
+            lengthSec = if (o.isNull("length_sec")) null else o.optDouble("length_sec"),
+            projectName = if (o.isNull("project_name")) null else o.optString("project_name"),
+            ssdFreeLabel = if (o.isNull("ssd_free_label")) null else o.optString("ssd_free_label"),
+        )
     }
 
     private suspend fun getString(path: String): String? {

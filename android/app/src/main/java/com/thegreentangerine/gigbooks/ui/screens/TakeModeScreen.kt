@@ -31,7 +31,10 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
@@ -44,6 +47,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,12 +56,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeSong
+import com.thegreentangerine.gigbooks.data.orchestrator.TakeStatus
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetMode
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetState
 import com.thegreentangerine.gigbooks.ui.components.ChannelArmPresetSelector
@@ -335,6 +341,20 @@ private fun TakeSurface(
         service.gigCmd.takeLoad(song.trackId, song.title)
     }
 
+    // S214: Reaper-mirror status. Poll GET /take/status every 1 s while this surface is
+    // composed; the effect cancels on leave / song-swap (keyed on song.trackId). Drives the
+    // status bar (REAPER/REC/SSD) + the transport readout. null = MS unreachable (greys out).
+    var status by remember { mutableStateOf<TakeStatus?>(null) }
+    LaunchedEffect(song.trackId) {
+        while (true) {
+            status = service.gigCmd.fetchTakeStatus()
+            kotlinx.coroutines.delay(1_000L)
+        }
+    }
+    // CAMS = live peer cams; BATT = this phone (both local, independent of the rig mirror).
+    val camCount = service.peerCount.collectAsState().value
+    val batteryPct = service.battery.levelPct.collectAsState().value
+
     var armState by remember { mutableStateOf(ArmPresetState()) }  // Acoustic, overheads + full kit on
     var kitExpanded by remember { mutableStateOf(false) }          // collapsed by default (sidepanel-behavior)
     var mixExpanded by remember { mutableStateOf(false) }          // BACKING MIX collapsed by default
@@ -384,6 +404,9 @@ private fun TakeSurface(
 
     Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // ── Reaper-mirror status bar (S214) — the very top strip, per mockup ──
+            TakeStatusBar(status = status, camCount = camCount, batteryPct = batteryPct)
+
             // ── Top bar: ‹ Songs (back to browser) · title · host pill ──
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
@@ -450,6 +473,16 @@ private fun TakeSurface(
                     }
                 }
             }
+
+            // ── Transport · audition takes (S214) — between NOW LOADED and KIT SETUP ──
+            TakeTransport(
+                status = status,
+                onToStart = { scope.launch { service.osc.sendToStart() } },
+                onPlay = { scope.launch { service.osc.sendPlay() } },
+                onPause = { scope.launch { service.osc.sendPause() } },
+                onStop = { scope.launch { service.osc.sendStop() } },
+                onSeek = { posSec -> scope.launch { service.gigCmd.takeSeek(posSec) } },
+            )
 
             // ── Take counter + live armed summary ──
             Row(
@@ -620,6 +653,158 @@ private fun TakeSurface(
             }
         }
     }
+}
+
+// ─── Reaper-mirror status bar + transport (S214) ───────────────────────────────
+
+/**
+ * The thin status strip at the very top of the surface (mockup top row). REAPER turns green
+ * only when the mirror is live (status present + not stale); REC shows only while the rig is
+ * actually recording; CAMS/BATT are local; SSD is the recording-drive headroom from the rig.
+ */
+@Composable
+private fun TakeStatusBar(status: TakeStatus?, camCount: Int, batteryPct: Int?) {
+    val reaperLive = status != null && !status.stale
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(TangerineColors.surfaceInset)
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        StatusChip(
+            label = "REAPER",
+            textColor = TangerineColors.textDim,
+            dotColor = if (reaperLive) TangerineColors.green else TangerineColors.textMuted,
+        )
+        // Red REC only when the rig reports it's actually recording (mirror, not optimistic).
+        if (status?.recording == true) {
+            StatusChip(label = "REC", textColor = TangerineColors.textDim, dotColor = TangerineColors.danger)
+        }
+        StatusChip(
+            label = "CAMS $camCount",
+            textColor = TangerineColors.textDim,
+            dotColor = if (camCount > 0) TangerineColors.green else TangerineColors.textMuted,
+        )
+        Text(
+            "SSD ${status?.ssdFreeLabel ?: "—"}",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+        )
+        Text(
+            "BATT ${batteryPct?.let { "$it%" } ?: "—"}",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+        )
+    }
+}
+
+@Composable
+private fun StatusChip(label: String, textColor: Color, dotColor: Color?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (dotColor != null) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(dotColor))
+            Spacer(Modifier.width(5.dp))
+        }
+        Text(label, fontFamily = JetBrainsMono, fontSize = 10.sp, color = textColor)
+    }
+}
+
+/**
+ * Transport row — audition the loaded cover from the throne. Play/Pause/Stop/to-start are
+ * instant OSC actions; the progress Slider FOLLOWS the polled position EXCEPT while the finger
+ * is down (local drag value), committing the seek on finger-up only (the file bridge can't take
+ * a drag stream — same discipline as the S213 backing-mix fader). Greys out when stale/no-length.
+ */
+@Composable
+private fun TakeTransport(
+    status: TakeStatus?,
+    onToStart: () -> Unit,
+    onPlay: () -> Unit,
+    onPause: () -> Unit,
+    onStop: () -> Unit,
+    onSeek: (Double) -> Unit,
+) {
+    val stale = status == null || status.stale
+    val playing = status?.playing == true
+    val posSec = if (stale) null else status?.positionSec
+    val lenSec = if (stale) null else status?.lengthSec
+    val maxSec = (lenSec?.toFloat() ?: 0f).coerceAtLeast(0f)
+    val seekable = maxSec > 0f
+
+    var dragging by remember { mutableStateOf(false) }
+    var dragValue by remember { mutableFloatStateOf(0f) }
+    val followValue = (posSec?.toFloat() ?: 0f).coerceIn(0f, if (seekable) maxSec else 0f)
+    val sliderValue = if (dragging) dragValue.coerceIn(0f, maxSec) else followValue
+
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            "TRANSPORT · AUDITION TAKES",
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+            fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.teal,
+        )
+        Spacer(Modifier.height(6.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(TangerineColors.surface)
+                .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onToStart) {
+                    Icon(Icons.Default.SkipPrevious, "Go to start", tint = TangerineColors.textDim)
+                }
+                Spacer(Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(if (stale) TangerineColors.textMuted else TangerineColors.orange)
+                        .clickable(enabled = !stale) { if (playing) onPause() else onPlay() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (playing) "Pause" else "Play",
+                        tint = TangerineColors.surfaceInset,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+                IconButton(onClick = onStop) {
+                    Icon(Icons.Default.Stop, "Stop", tint = TangerineColors.textDim)
+                }
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "${fmtClock(posSec)} / ${fmtClock(lenSec)}",
+                    fontFamily = JetBrainsMono, fontSize = 12.sp, color = TangerineColors.text,
+                )
+            }
+            Slider(
+                value = sliderValue,
+                onValueChange = { dragging = true; dragValue = it },
+                onValueChangeFinished = {
+                    onSeek(dragValue.toDouble())
+                    dragging = false
+                },
+                valueRange = 0f..(if (seekable) maxSec else 1f),
+                enabled = seekable,
+                colors = SliderDefaults.colors(
+                    thumbColor = TangerineColors.orange,
+                    activeTrackColor = TangerineColors.orange,
+                    inactiveTrackColor = TangerineColors.textMuted.copy(alpha = 0.3f),
+                ),
+            )
+        }
+    }
+}
+
+/** m:ss for the transport readout; "—:—" when null/unknown (stale or no cover). */
+private fun fmtClock(sec: Double?): String {
+    if (sec == null || sec.isNaN() || sec < 0) return "—:—"
+    val total = sec.roundToInt()
+    return "%d:%02d".format(total / 60, total % 60)
 }
 
 // ─── Reusable bits ───────────────────────────────────────────────────────────
