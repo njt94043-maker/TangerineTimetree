@@ -47,6 +47,10 @@ data class TakeStatus(
     val lengthSec: Double?,
     val projectName: String?,
     val ssdFreeLabel: String?,
+    // S214 slice 2: in-place take-lane enumeration. Drum tracks share one count/active (they
+    // fold + switch together). 0/0 = no takes recorded yet (or stale). Feeds the slice-3 TAKES list.
+    val takeCount: Int,
+    val activeTake: Int,
 )
 
 /**
@@ -159,6 +163,14 @@ class GigCommandClient(
     suspend fun takeSeek(posSec: Double) = postJson(
         path = "/take/seek",
         body = """{"pos_sec":$posSec}""",
+    )
+
+    /** S214 slice 2: flip the active stacked take across the drum lanes (1-based). The MS clamps
+     *  >= 1 and the Lua re-clamps to the live take_count. Same /take bridge + offline queue.
+     *  (No UI yet — the slice-3 TAKES list will call this.) */
+    suspend fun takeSwitch(index: Int) = postJson(
+        path = "/take/switch",
+        body = """{"take_index":$index}""",
     )
 
     /**
@@ -411,6 +423,8 @@ class GigCommandClient(
             lengthSec = if (o.isNull("length_sec")) null else o.optDouble("length_sec"),
             projectName = if (o.isNull("project_name")) null else o.optString("project_name"),
             ssdFreeLabel = if (o.isNull("ssd_free_label")) null else o.optString("ssd_free_label"),
+            takeCount = o.optInt("take_count", 0),
+            activeTake = o.optInt("active_take", 0),
         )
     }
 
