@@ -73,6 +73,34 @@
 - [ ] Add more songs via web app (currently 4)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
+## BACKLOG — Gig Clip Capture & Auto-Send (SPEC'D · DEFERRED · not started)
+> Designer/R&D programme, **decision-locked, awaiting sequencing by the Architect** (Nathan: "won't be
+> used straight away"). Spec + staged Builder prompts live in
+> `C:\apps\Dev Team R&D Brainstorming Design idea development\gig-capture-and-autosend\`
+> (`gig-capture-concept-spec-v2.md` = definitive · `gig-capture-builder-prompts-v1.md` = S0–S4 prompts ·
+> `gig-capture-redteam-findings-v1.md` = rationale).
+
+**What:** band's own phones **and** friends/guests at gigs capture video clips that **auto-send to the
+laptop over a dedicated gig router** — resumable (pause/continue on drop), positioned on the REAPER
+timeline via a **common laptop clock + xcorr**, clean 1080p/25fps multicam source. Fully offline (no cloud).
+Replaces the manual post-gig `adb pull`. Lands clips in `D:/Gigs/<date>/video/<device>/` → **zero post-prod change**.
+
+**Locked decisions:** D1 LAN→laptop (Media Server, not cloud — overrides S129's cloud design) · D2 one
+engine, own-phone first · D3 iPhone PWA (one-tap QR, foreground-only) · D4 dedicated travel router AP
+(fixed SSID + DHCP-reserved laptop IP + firewalled guest net) · D5 best-effort delivery (per-clip, accept
+losses) · D6 guest clips = multicam source. Engine = **WorkManager** (not a `dataSync` FGS — 6h cap).
+
+**Stages (each ships value):**
+- [ ] **S0** — Resumable upload receiver + `/api/clock` + `gig-timeline-map.jsonl` logger on the Media Server (reuses its existing upload/range/atomic-write patterns; ~150 LOC)
+- [ ] **S1** — Own-phone auto-send (Android WorkManager, resumable, received-ledger) — *ships "my phones auto-send"*
+- [ ] **S2** — Common-clock stamp (`__lt`) + `insert-videos.lua` pre-positioning; xcorr refines
+- [ ] **S3** — Router bring-up + guest onboarding (QR) + guest capture (Android APK + iPhone PWA)
+- [ ] **S4** — Per-gig secret + guest firewall + transport-gated throttle + quotas + consent/takedown
+- [ ] **ADRs to log on pickup:** D1 (LAN-over-cloud, retires S129 cloud design) + D4 (router)
+
+**Dependency:** the open **MS pause/resume overwrite bug** (REAPER-side, carried S211) must be fixed first
+— it corrupts the `position_sec` the S2 timeline-map relies on.
+
 ## Capture — Alignment + Pipeline (OVERDUE)
 
 ### Import Pipeline (S44 — DONE except bulk)
