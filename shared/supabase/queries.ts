@@ -528,18 +528,17 @@ export async function getPublicProfiles(): Promise<Profile[]> {
 
 export async function getPublicGigs(): Promise<Gig[]> {
   const supabase = getSupabase();
-  const today = new Date();
-  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
+  // Reads the curated `public_gigs` view: SAFE columns only (no fee/client_name/
+  // notes/deposit), and the view itself filters visibility in ('public','private')
+  // and date >= current_date. Fixes the anon leak — the base `gigs` table no longer
+  // grants anon access (S215 security audit). Do NOT point this back at `gigs`.
   const { data, error } = await supabase
-    .from('gigs')
-    .select('*')
-    .in('visibility', ['public', 'private'])
-    .gte('date', todayISO)
+    .from('public_gigs')
+    .select('id,date,venue,start_time,end_time,gig_type,gig_subtype,visibility,status')
     .order('date');
 
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as Gig[];
 }
 
 // ─── Gig Field Suggestions ──────────────────────────────
