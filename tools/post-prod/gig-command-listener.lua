@@ -31,21 +31,13 @@
 local POLL_INTERVAL_SEC = 0.2
 local STATUS_INTERVAL_SEC = 0.25  -- S214: Reaper-mirror status sidecar gate (independent of the command poll)
 
--- S214 slice 2: take model is now in-place TAKE LANES (every pass stacks as a lane on the
--- drum tracks; the project stays one song long). The clone-forward gap/eps constants are gone
--- with the clone-forward mechanic (take_clone_item/take_rightmost_item removed below).
-local TAKE_POS_EPS = 0.05   -- tolerance (s) matching a recorded item's start to the take-1 region
+local TAKE_GAP_SEC = 4.0    -- S205: wiggle room (s) between takes so nothing overwrites
+local TAKE_EPS     = 0.001
 local TAKE_BACKING = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true, ["Click"]=true }
 -- S213: the backing STEMS the APK may ride (mute + monitor level). Click is excluded
 -- (guide pulse). Mirrors the MS host's MixTracks allow-list; both layers enforce it.
 local TAKE_MIX_ALLOWED = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true }
 local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested, 2 recording-seen
--- S214 slice 2: state carried from take_record (record start) to the post-stop fold. Captures
--- the take-1 region start + a per-armed-drum-track snapshot of pre-existing item GUIDs so the
--- fold can identify exactly the item this pass recorded (snapshot-diff), regardless of Reaper's
--- record-overlap mode.
-local take_block_start    = 0.0
-local take_record_snapshot = nil
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -140,9 +132,7 @@ local function parse_command(text)
   -- S214 take-seek: pos_sec is a bare JSON number (MS emits "30" or "30.5" -- match
   -- both integer and decimal form). Stays nil when absent.
   local pos_sec   = text:match('"pos_sec"%s*:%s*(%-?%d+%.?%d*)')
-  -- S214 slice 2 take-switch: take_index is a bare 1-based integer; nil when absent.
-  local take_index = text:match('"take_index"%s*:%s*(%-?%d+)')
-  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec
 end
 
 local function sanitise(name)
@@ -434,53 +424,50 @@ local function take_seek(pos)
   reaper.ShowConsoleMsg(string.format("[take] seek -> %.3f\n", p))
 end
 
--- ===== Take-mode take mechanic (S214 slice 2): in-place TAKE LANES =====
--- "record a take": arm the requested drum mics (BY NAME-prefix, template-order-independent),
--- record over the take-1 region (the backing block start), and on stop FOLD the just-recorded
--- item into each drum track's CANONICAL item as a stacked take lane. The project stays one
--- song long no matter how many takes (supersedes S205 clone-forward). Backing stems stay single
--- items (only numeric-prefix drum-mic tracks get lanes); the dry-capture arm contract is unchanged.
+-- ===== Take-mode Slice 3 (S205): take mechanic =====
+-- "record a take": jump past the last take + gap, copy the stem block forward,
+-- arm the requested drum mics (BY NAME-prefix, template-order-independent), record
+-- at the new block start, and save when recording stops. Reuses the take project +
+-- TIME-timebase items from Slice 2; does NOT use the gig 40043 jump-to-end bundle.
 
 local function take_track_name(tr)
   local _, nm = reaper.GetSetMediaTrackInfo_String(tr, "P_NAME", "", false)
   return nm
 end
 
--- True for a drum-mic record track: non-backing AND a numeric name prefix ("10 Kick" -> 10).
-local function take_drum_chan(tr)
-  local nm = take_track_name(tr)
-  if TAKE_BACKING[nm] then return nil end
-  return tonumber(nm:match("^(%d+)"))
+local function take_item_end(it)
+  return reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+       + reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
 end
 
--- The representative recording lane: the drum-chan item with the MAXIMUM take count (ties ->
--- first). take_drum_chan matches ANY non-backing numeric-prefix track -- including Nathan's
--- static TD-4/EAD items (01/02/08/09) that sit BEFORE the acoustic mics (10..16) and carry a
--- single 1-take item. The first-match probe used to return one of those (CountTakes=1), under-
--- reporting take_count + capping the take-switch clamp. The acoustic recording lanes always have
--- >= the takes of those static items, so max-count selects a real lane. (S214 slice-2 fix.)
-local function take_canonical_probe()
-  local best, bestn = nil, 0
-  for i = 0, reaper.CountTracks(0) - 1 do
-    local tr = reaper.GetTrack(0, i)
-    if take_drum_chan(tr) and reaper.CountTrackMediaItems(tr) > 0 then
-      local it = reaper.GetTrackMediaItem(tr, 0)
-      local n  = reaper.CountTakes(it)
-      if n > bestn then bestn = n; best = it end
-    end
+local function take_rightmost_item(tr)
+  local best, bestpos = nil, -1
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, j)
+    local p  = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    if p > bestpos then bestpos = p; best = it end
   end
-  return best   -- nil if no drum-chan track has an item (take_lane_counts then returns 0,0)
+  return best
 end
 
--- (take_count, active_take[1-based]) for the loaded cover's drum lanes; (0,0) if none recorded.
-local function take_lane_counts()
-  local it = take_canonical_probe()
-  if not it then return 0, 0 end
-  local n = reaper.CountTakes(it)
-  if n < 1 then return 0, 0 end
-  local act = math.floor(reaper.GetMediaItemInfo_Value(it, "I_CURTAKE")) + 1  -- I_CURTAKE is 0-based
-  if act < 1 then act = 1 elseif act > n then act = n end
-  return n, act
+-- Clone an item onto its own track at newpos, referencing the SAME source file
+-- (no copy), pinned to TIME timebase. Mirrors import_stem's item construction.
+local function take_clone_item(it, tr, newpos)
+  local take = reaper.GetActiveTake(it) or reaper.GetMediaItemTake(it, 0)
+  if not take then return end
+  local src  = reaper.GetMediaItemTake_Source(take)
+  local fn   = reaper.GetMediaSourceFileName(src, "")
+  local len  = reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+  local _, nm = reaper.GetSetMediaItemTakeInfo_String(take, "P_NAME", "", false)
+  local nit  = reaper.AddMediaItemToTrack(tr)
+  local ntk  = reaper.AddTakeToMediaItem(nit)
+  local nsrc = reaper.PCM_Source_CreateFromFile(fn)
+  reaper.SetMediaItemTake_Source(ntk, nsrc)
+  reaper.SetMediaItemInfo_Value(nit, "D_POSITION", newpos)
+  reaper.SetMediaItemInfo_Value(nit, "D_LENGTH", len)
+  reaper.SetMediaItemInfo_Value(nit, "C_BEATATTACHMODE", 0)  -- time, never stretch
+  reaper.GetSetMediaItemTakeInfo_String(ntk, "P_NAME", nm or "", true)
+  reaper.UpdateItemInProject(nit)
 end
 
 -- arm csv "10,11,15,16" -> set of channel numbers; default = full acoustic kit
@@ -511,162 +498,63 @@ local function take_arm(arm_set)
   end
 end
 
--- The take-1 region start = the earliest backing item position (covers load all backing at the
--- same start; this is where every take stacks). Returns nil if no backing items (no cover loaded).
-local function take_block_start_pos()
-  local start = nil
-  local have = false
+local function take_record(arm_csv)
+  -- Gather the latest stem block from the backing tracks.
+  local latest = {}            -- { {tr=, it=}, ... }
+  local block_start, block_end = nil, 0.0
   for i = 0, reaper.CountTracks(0) - 1 do
     local tr = reaper.GetTrack(0, i)
     if TAKE_BACKING[take_track_name(tr)] then
-      for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
-        have = true
-        local p = reaper.GetMediaItemInfo_Value(reaper.GetTrackMediaItem(tr, j), "D_POSITION")
-        if start == nil or p < start then start = p end
+      local it = take_rightmost_item(tr)
+      if it then
+        latest[#latest+1] = { tr = tr, it = it }
+        local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+        local e = take_item_end(it)
+        if block_start == nil or p < block_start then block_start = p end
+        if e > block_end then block_end = e end
       end
     end
   end
-  if not have then return nil end
-  return start or 0.0
-end
-
-local function take_item_guid(it)
-  local _, g = reaper.GetSetMediaItemInfo_String(it, "GUID", "", false)
-  return g
-end
-
-local function take_record(arm_csv)
-  local block_start = take_block_start_pos()
-  if block_start == nil then
+  if #latest == 0 then
     reaper.ShowConsoleMsg("[take] no stems loaded -- open a song (take-load) first; aborting record\n")
     return
   end
-  take_block_start = block_start
-  local arm_set = take_parse_arm(arm_csv)
 
-  -- Snapshot the items already on each armed drum track so the post-stop fold can pick out
-  -- exactly the item THIS pass records (snapshot-diff by item GUID) -- robust to whatever
-  -- record-overlap mode Reaper is in (we never rely on a global overlap pref).
-  take_record_snapshot = {}
+  -- Rightmost end across the drum-mic (non-backing) record tracks.
+  local max_drum_end = 0.0
   for i = 0, reaper.CountTracks(0) - 1 do
     local tr = reaper.GetTrack(0, i)
-    local chan = take_drum_chan(tr)
-    if chan and arm_set[chan] then
-      local existing = {}
+    if not TAKE_BACKING[take_track_name(tr)] then
       for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
-        existing[take_item_guid(reaper.GetTrackMediaItem(tr, j))] = true
+        local e = take_item_end(reaper.GetTrackMediaItem(tr, j))
+        if e > max_drum_end then max_drum_end = e end
       end
-      take_record_snapshot[reaper.GetTrackGUID(tr)] = existing
     end
   end
 
   reaper.Undo_BeginBlock()
-  reaper.SetEditCurPos(block_start, true, false)   -- record over the take-1 region (in-place stack)
-  take_arm(arm_set)
-  reaper.Undo_EndBlock("TGT take-record (arm)", -1)
+  local record_at
+  if max_drum_end <= block_start + TAKE_EPS then
+    record_at = block_start                       -- first take: record against the existing block
+  else
+    record_at = math.max(block_end, max_drum_end) + TAKE_GAP_SEC
+    for _, b in ipairs(latest) do                 -- copy the stem block forward
+      local off = reaper.GetMediaItemInfo_Value(b.it, "D_POSITION") - block_start
+      take_clone_item(b.it, b.tr, record_at + off)
+    end
+  end
+  reaper.SetEditCurPos(record_at, true, false)
+  take_arm(take_parse_arm(arm_csv))
+  reaper.Undo_EndBlock("TGT take-record", -1)
 
-  reaper.Main_OnCommand(40026, 0)                  -- Save the arm/cursor prep
-  reaper.Main_OnCommand(1013, 0)                   -- Transport: Record (at cursor)
+  reaper.Main_OnCommand(40026, 0)                 -- Save the prep (copied stems + arm)
+  reaper.Main_OnCommand(1013, 0)                  -- Transport: Record (at cursor)
   take_phase = 1
   reaper.ShowConsoleMsg(string.format(
-    "[take] record-at %.3f (in-place lane) | arm=%s\n",
-    block_start, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
+    "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
--- Post-stop fold (S214 slice 2): turn the just-recorded pass into a stacked take lane on each
--- drum track's CANONICAL item. First take establishes the canonical item; passes 2..N add a
--- take to it (AddTakeToMediaItem + SetMediaItemTake_Source from the recorded WAV + SetActiveTake)
--- and delete the temp recorded item. The canonical item never moves -> project stays one song long.
-local function take_fold_after_stop()
-  if not take_record_snapshot then return end
-  local snap = take_record_snapshot
-  take_record_snapshot = nil
-
-  reaper.Undo_BeginBlock()
-  for i = 0, reaper.CountTracks(0) - 1 do
-    local tr = reaper.GetTrack(0, i)
-    local chan = take_drum_chan(tr)
-    local before = chan and snap[reaper.GetTrackGUID(tr)]
-    if before then
-      -- Split this track's items into the pre-existing canonical (at the take-1 region) and the
-      -- newly-recorded item(s) (GUIDs absent from the snapshot).
-      local canonical, new_items = nil, {}
-      for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
-        local it = reaper.GetTrackMediaItem(tr, j)
-        if before[take_item_guid(it)] then
-          local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
-          if canonical == nil and math.abs(p - take_block_start) < TAKE_POS_EPS then canonical = it end
-        else
-          new_items[#new_items + 1] = it
-        end
-      end
-      for _, nit in ipairs(new_items) do
-        if not canonical then
-          -- First take on this track: the recorded item IS the canonical item.
-          canonical = nit
-          reaper.SetMediaItemInfo_Value(nit, "D_POSITION", take_block_start)
-          reaper.SetMediaItemInfo_Value(nit, "C_BEATATTACHMODE", 0)  -- time, never stretch
-          local tk = reaper.GetActiveTake(nit)
-          if tk then reaper.GetSetMediaItemTakeInfo_String(tk, "P_NAME", "Take 1", true) end
-        else
-          -- Fold the recorded WAV into the canonical item as a new take lane, then drop the temp.
-          local ntk = reaper.GetActiveTake(nit)
-          local fn  = ntk and reaper.GetMediaSourceFileName(reaper.GetMediaItemTake_Source(ntk), "")
-          if fn and fn ~= "" then
-            local ctk  = reaper.AddTakeToMediaItem(canonical)
-            local csrc = reaper.PCM_Source_CreateFromFile(fn)
-            reaper.SetMediaItemTake_Source(ctk, csrc)
-            reaper.GetSetMediaItemTakeInfo_String(ctk, "P_NAME", "Take " .. reaper.CountTakes(canonical), true)
-            reaper.SetActiveTake(ctk)
-            local slen = reaper.GetMediaSourceLength(csrc)
-            if slen > reaper.GetMediaItemInfo_Value(canonical, "D_LENGTH") then
-              reaper.SetMediaItemInfo_Value(canonical, "D_LENGTH", slen)  -- item spans the longest take
-            end
-          end
-          reaper.DeleteTrackMediaItem(tr, nit)
-        end
-      end
-      if canonical then reaper.UpdateItemInProject(canonical) end
-    end
-  end
-  reaper.Undo_EndBlock("TGT take-lanes fold", -1)
-  reaper.Main_OnCommand(40026, 0)  -- save the folded lanes (persists across reopen)
-  local n = select(1, take_lane_counts())
-  reaper.ShowConsoleMsg(string.format("[take] folded recorded pass -> in-place lanes (take_count=%d) saved\n", n))
-end
-
--- take-switch (S214 slice 2): flip the active take to take_index (1-based) on EVERY drum
--- canonical item so all drum tracks audition the same take together. Clamp to [1, take_count];
--- save so the choice persists across reopen.
-local function take_switch(take_index)
-  local idx = tonumber(take_index)
-  if not idx then reaper.ShowConsoleMsg("[take] switch: no take_index\n"); return end
-  idx = math.floor(idx)
-  local count = select(1, take_lane_counts())
-  if count < 1 then reaper.ShowConsoleMsg("[take] switch: no takes recorded yet\n"); return end
-  if idx < 1 then idx = 1 elseif idx > count then idx = count end
-
-  reaper.Undo_BeginBlock()
-  for i = 0, reaper.CountTracks(0) - 1 do
-    local tr = reaper.GetTrack(0, i)
-    if take_drum_chan(tr) then
-      for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
-        local it = reaper.GetTrackMediaItem(tr, j)
-        if reaper.CountTakes(it) >= idx then
-          reaper.SetMediaItemInfo_Value(it, "I_CURTAKE", idx - 1)   -- 0-based
-          local tk = reaper.GetTake(it, idx - 1)
-          if tk then reaper.SetActiveTake(tk) end
-          reaper.UpdateItemInProject(it)
-        end
-      end
-    end
-  end
-  reaper.Undo_EndBlock("TGT take-switch", -1)
-  reaper.Main_OnCommand(40026, 0)  -- save: active take persists with the cover
-  reaper.ShowConsoleMsg(string.format("[take] switch -> take %d/%d\n", idx, count))
-end
-
-local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
@@ -674,7 +562,6 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "take-record" then take_record(arm)
   elseif action == "take-mix" then take_mix(mix_track, mute, vol_db)
   elseif action == "take-seek" then take_seek(pos_sec)
-  elseif action == "take-switch" then take_switch(take_index)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -705,15 +592,11 @@ local function write_status()
   -- ts_ms: not wallclock (Lua has no ms clock) -- a debug breadcrumb only. The MS uses the
   -- file MTIME for staleness, not this field.
   local ts_ms = math.floor(reaper.time_precise() * 1000)
-  -- S214 slice 2: take-lane enumeration for the APK readback. Drum tracks share one count/active
-  -- (they fold + switch together); 0/0 when no takes recorded yet.
-  local take_count, active_take = take_lane_counts()
   local body = string.format(
     '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
-      .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s",'
-      .. '"take_count":%d,"active_take":%d}',
+      .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s"}',
     ts_ms, play_state, tostring(recording), tostring(playing),
-    pos, len, status_json_escape(proj), take_count, active_take)
+    pos, len, status_json_escape(proj))
   local tmp = STATUS_FILE .. ".tmp"
   local fh = io.open(tmp, "wb"); if not fh then return end
   fh:write(body); fh:close()
@@ -739,9 +622,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
         end
         os.remove(full)
       end
@@ -751,9 +634,8 @@ local function loop()
       if take_phase == 1 and (st & 4) == 4 then
         take_phase = 2
       elseif take_phase == 2 and (st & 4) == 0 then
-        -- S214 slice 2: recording stopped -> fold the just-recorded pass into in-place take
-        -- lanes (take_fold_after_stop saves). Supersedes the old plain save.
-        take_fold_after_stop()
+        reaper.Main_OnCommand(40026, 0)                -- save the finished take
+        reaper.ShowConsoleMsg("[take] recording stopped -> saved\n")
         take_phase = 0
       end
     end
