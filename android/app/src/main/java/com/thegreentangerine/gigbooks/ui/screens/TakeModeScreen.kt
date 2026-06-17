@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeSong
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeStatus
+import com.thegreentangerine.gigbooks.data.orchestrator.TakeTakeInfo
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetMode
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetState
 import com.thegreentangerine.gigbooks.ui.components.ChannelArmPresetSelector
@@ -363,7 +364,11 @@ private fun TakeSurface(
     // template defaults without auto-sending (a freshly-loaded cover already carries these;
     // only user actions send). The panel is the source of truth — no rig->APK readback yet.
     var mix by remember(song.trackId) { mutableStateOf(defaultBackingMix()) }
-    var takeCount by remember { mutableIntStateOf(0) }
+    // S216 slice2: the take count is now RIG-DRIVEN (status.takeCount). The old local counter
+    // drifted after any reopen (it incremented on Record but never re-synced to the rig). A brief
+    // optimistic +1 right after firing Record keeps the big number snappy; the next 1s status poll
+    // clears it, so the rig stays the source of truth. Reset when the song (cover) swaps.
+    var optimisticTake by remember(song.trackId) { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var recordReady by remember { mutableStateOf(true) }           // false during the post-Stop settle window
 
@@ -378,6 +383,15 @@ private fun TakeSurface(
             recordReady = true
         }
     }
+
+    // S216 slice2: rig-driven take readback. Any fresh status poll clears the optimistic bump,
+    // so displayTakeCount converges on the rig's authoritative count within 1 s (and is correct
+    // on reopen — the bug the old local counter had). takes/activeTake drive the strip.
+    val rigTakeCount = status?.takeCount ?: 0
+    val activeTake = status?.activeTake ?: 0
+    val takes = status?.takes ?: emptyList()
+    LaunchedEffect(status) { optimisticTake = false }
+    val displayTakeCount = if (optimisticTake) rigTakeCount + 1 else rigTakeCount
 
     // TAKE mode = drums only (band + music hidden / forced off in the compute).
     val armedCsv = computeArmedTracks(
@@ -398,7 +412,7 @@ private fun TakeSurface(
     // dialog); the ✓/⚠ badge in the browser stays as info only.
     fun doRecord() {
         scope.launch { service.gigCmd.takeRecord(armedCsv) }
-        takeCount += 1
+        optimisticTake = true   // snappy +1 until the next 1s rig poll reconciles
         isRecording = true
     }
 
@@ -484,6 +498,23 @@ private fun TakeSurface(
                 onSeek = { posSec -> scope.launch { service.gigCmd.takeSeek(posSec) } },
             )
 
+            // ── Take strip (S216 slice2) — rig-driven pills T1..TN, tap a take to preview ──
+            TakeStrip(
+                takes = takes,
+                activeTake = activeTake,
+                onTakeTap = { take ->
+                    scope.launch {
+                        service.gigCmd.takeSeek(take.startSec)
+                        // The seek rides the file bridge (the Lua applies it on its 0.2 s poll);
+                        // wait a beat before the OSC play so preview starts AT the take's start
+                        // rather than wherever the playhead happened to be (same bridge-vs-OSC
+                        // ordering the manual transport sidesteps by being human-paced).
+                        kotlinx.coroutines.delay(300)
+                        service.osc.sendPlay()
+                    }
+                },
+            )
+
             // ── Take counter + live armed summary ──
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -496,7 +527,7 @@ private fun TakeSurface(
                         fontSize = 10.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
                     )
                     Text(
-                        if (takeCount == 0) "—" else takeCount.toString(),
+                        if (displayTakeCount == 0) "—" else displayTakeCount.toString(),
                         fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
                         fontSize = 44.sp, color = TangerineColors.text,
                     )
@@ -805,6 +836,67 @@ private fun fmtClock(sec: Double?): String {
     if (sec == null || sec.isNaN() || sec < 0) return "—:—"
     val total = sec.roundToInt()
     return "%d:%02d".format(total / 60, total % 60)
+}
+
+/**
+ * S216 slice2 — the take strip. One pill per clone-forward take (T1..TN), rig-driven from
+ * `/take/status` (the source of truth — no local counter). The active take is highlighted in
+ * tangerine (v4 mockup styling, apk--take-controller-v4-drawers.html); tapping a pill seeks the
+ * rig to that take's start and plays it (preview). Empty → a quiet hint. View + preview only —
+ * the long-press menu / delete / record-over / ★master the mockup shows are a later slice.
+ */
+@Composable
+private fun TakeStrip(
+    takes: List<TakeTakeInfo>,
+    activeTake: Int,
+    onTakeTap: (TakeTakeInfo) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            "TAKES",
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+            fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.teal,
+        )
+        Spacer(Modifier.height(6.dp))
+        if (takes.isEmpty()) {
+            Text(
+                "no takes yet — record one to start",
+                fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textMuted,
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                takes.forEach { take ->
+                    val active = take.index == activeTake
+                    val accent = TangerineColors.orange
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (active) accent.copy(alpha = 0.14f) else Color.Transparent)
+                            .border(
+                                1.dp,
+                                if (active) accent.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f),
+                                RoundedCornerShape(8.dp),
+                            )
+                            .clickable { onTakeTap(take) }
+                            .padding(vertical = 7.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "T${take.index}",
+                            fontFamily = JetBrainsMono,
+                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp,
+                            color = if (active) accent else TangerineColors.textMuted,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 // ─── Reusable bits ───────────────────────────────────────────────────────────

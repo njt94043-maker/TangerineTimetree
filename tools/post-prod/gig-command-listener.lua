@@ -575,6 +575,57 @@ local function status_json_escape(s)
   return (s:gsub('\\', '\\\\'):gsub('"', '\\"'))
 end
 
+-- S216 slice2: enumerate the clone-forward takes for the status sidecar. Each take is one media
+-- item per armed drum-mic record track (laid forward by take_record). We read positions off ONE
+-- canonical track -- the first armed, numeric-name-prefix, non-backing track that has >=1 item --
+-- mirroring how take_arm identifies drum-mic tracks (nm:match("^(%d+)")). This keeps the work
+-- O(items) on the 0.25s status gate rather than a full 18-track rescan. Multi-layer / arm-subset
+-- is a later slice; for full-kit takes every armed drum track carries the same item count, so one
+-- canonical track is authoritative.
+local function take_canonical_track()
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    local nm = take_track_name(tr)
+    if (not TAKE_BACKING[nm]) and tonumber(nm:match("^(%d+)"))
+       and reaper.GetMediaTrackInfo_Value(tr, "I_RECARM") == 1
+       and reaper.CountTrackMediaItems(tr) >= 1 then
+      return tr
+    end
+  end
+  return nil
+end
+
+-- Returns take_count, a JSON array fragment for "takes" (correctly-escaped, no libs -- same
+-- hand-rolled style write_status uses), and active_take. active_take is 1-based: the take whose
+-- [start,end) contains pos; else the nearest take by distance (so pos past the end -> the last
+-- take). 0 / "" / 0 when no cover is loaded or the canonical track has no items.
+local function take_enumerate(pos)
+  local tr = take_canonical_track()
+  if not tr then return 0, "", 0 end
+  local items = {}
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, j)
+    local s = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    local e = s + reaper.GetMediaItemInfo_Value(it, "D_LENGTH")
+    items[#items + 1] = { s = s, e = e }
+  end
+  table.sort(items, function(a, b) return a.s < b.s end)
+  local n = #items
+  if n == 0 then return 0, "", 0 end
+  local parts = {}
+  local active, contained = 0, false
+  local nearest, best_dist = 1, nil
+  for i = 1, n do
+    local s, e = items[i].s, items[i].e
+    parts[i] = string.format('{"index":%d,"start_sec":%.3f,"end_sec":%.3f}', i, s, e)
+    if (not contained) and pos >= s and pos < e then active = i; contained = true end
+    local dist = (pos < s) and (s - pos) or ((pos >= e) and (pos - e) or 0)
+    if best_dist == nil or dist < best_dist then best_dist = dist; nearest = i end
+  end
+  if not contained then active = nearest end
+  return n, table.concat(parts, ","), active
+end
+
 local function write_status()
   local st        = reaper.GetPlayState()        -- &1 playing, &2 paused, &4 recording
   local recording = (st & 4) == 4
@@ -592,11 +643,15 @@ local function write_status()
   -- ts_ms: not wallclock (Lua has no ms clock) -- a debug breadcrumb only. The MS uses the
   -- file MTIME for staleness, not this field.
   local ts_ms = math.floor(reaper.time_precise() * 1000)
+  -- S216 slice2: enumerate the clone-forward takes (off the position already computed above).
+  local take_count, takes_json, active_take = take_enumerate(pos)
   local body = string.format(
     '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
-      .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s"}',
+      .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s",'
+      .. '"take_count":%d,"takes":[%s],"active_take":%d}',
     ts_ms, play_state, tostring(recording), tostring(playing),
-    pos, len, status_json_escape(proj))
+    pos, len, status_json_escape(proj),
+    take_count, takes_json, active_take)
   local tmp = STATUS_FILE .. ".tmp"
   local fh = io.open(tmp, "wb"); if not fh then return end
   fh:write(body); fh:close()

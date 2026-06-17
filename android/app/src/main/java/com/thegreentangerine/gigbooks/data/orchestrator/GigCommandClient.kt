@@ -33,11 +33,22 @@ data class TakeSong(
     val beatmapVerified: Boolean,
 )
 
+/** S216 slice2: one clone-forward take read back from the rig (`/take/status` `takes[]`).
+ *  `index` is 1-based in timeline order; `startSec`/`endSec` are its position + end. The take
+ *  strip renders one pill per entry; tapping seeks to `startSec` and plays. */
+data class TakeTakeInfo(
+    val index: Int,
+    val startSec: Double,
+    val endSec: Double,
+)
+
 /** S214 Reaper-mirror status (`GET /take/status`) — what the rig is doing, polled 1 s by the
  *  take surface. The MS forces a stopped/idle/null readout + `stale = true` when its sidecar is
  *  missing or > 3 s old, so the APK greys out cleanly instead of showing a frozen fake state.
  *  Numerics are nullable for exactly that reason. `ssdFreeLabel` is the recording-drive headroom
- *  (independent of the sidecar — present even when stale). */
+ *  (independent of the sidecar — present even when stale). S216 slice2 adds the rig-driven take
+ *  readback: `takeCount` / `activeTake` / `takes` (the source of truth that replaces the old
+ *  local counter; default 0 / 0 / empty so a pre-deploy MS can't crash the parse). */
 data class TakeStatus(
     val stale: Boolean,
     val playState: String,
@@ -47,6 +58,9 @@ data class TakeStatus(
     val lengthSec: Double?,
     val projectName: String?,
     val ssdFreeLabel: String?,
+    val takeCount: Int,
+    val activeTake: Int,
+    val takes: List<TakeTakeInfo>,
 )
 
 /**
@@ -402,6 +416,21 @@ class GigCommandClient(
 
     private fun parseTakeStatus(json: String): TakeStatus {
         val o = JSONObject(json)
+        // S216 slice2: parse the take readback with safe defaults — a pre-S216 MS omits these
+        // fields entirely, so optInt/optJSONArray must degrade to 0 / empty (never throw).
+        val takesArr = o.optJSONArray("takes")
+        val takes = if (takesArr == null) emptyList() else buildList {
+            for (i in 0 until takesArr.length()) {
+                val t = takesArr.optJSONObject(i) ?: continue
+                add(
+                    TakeTakeInfo(
+                        index = t.optInt("index", 0),
+                        startSec = t.optDouble("start_sec", 0.0),
+                        endSec = t.optDouble("end_sec", 0.0),
+                    )
+                )
+            }
+        }
         return TakeStatus(
             stale = o.optBoolean("stale", true),
             playState = o.optString("play_state", "stopped"),
@@ -411,6 +440,9 @@ class GigCommandClient(
             lengthSec = if (o.isNull("length_sec")) null else o.optDouble("length_sec"),
             projectName = if (o.isNull("project_name")) null else o.optString("project_name"),
             ssdFreeLabel = if (o.isNull("ssd_free_label")) null else o.optString("ssd_free_label"),
+            takeCount = o.optInt("take_count", 0),
+            activeTake = o.optInt("active_take", 0),
+            takes = takes,
         )
     }
 
