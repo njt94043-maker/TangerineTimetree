@@ -6,9 +6,11 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,11 +39,13 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -392,6 +396,15 @@ private fun TakeSurface(
     val takes = status?.takes ?: emptyList()
     LaunchedEffect(status) { optimisticTake = false }
     val displayTakeCount = if (optimisticTake) rigTakeCount + 1 else rigTakeCount
+    // S217: cap state, rig-driven (the Lua's TAKE_CAP via /take/status). takeCap 0 = no cap info
+    // (pre-deploy MS / stale rig) -> never "at cap". atCap = cap known AND reached -> disables
+    // Record + shows the "cap reached" note. Single source of truth = the rig, not a local const.
+    val takeCap = status?.takeCap ?: 0
+    val atCap = takeCap in 1..displayTakeCount
+    // Long-press chooser targets (S217): which take's record-over/delete menu is open, and the
+    // delete-confirm target. Both clear on dismiss / after firing.
+    var longPressTake by remember { mutableStateOf<TakeTakeInfo?>(null) }
+    var confirmDeleteTake by remember { mutableStateOf<TakeTakeInfo?>(null) }
 
     // TAKE mode = drums only (band + music hidden / forced off in the compute).
     val armedCsv = computeArmedTracks(
@@ -413,6 +426,15 @@ private fun TakeSurface(
     fun doRecord() {
         scope.launch { service.gigCmd.takeRecord(armedCsv) }
         optimisticTake = true   // snappy +1 until the next 1s rig poll reconciles
+        isRecording = true
+    }
+
+    // S217 Re-do = record-over the LAST take. ONE primitive backs both this face button and the
+    // long-press "record over this take". It RECORDS but does NOT add a take, so the rig count is
+    // unchanged — do NOT bump optimisticTake (that would flash a phantom +1).
+    fun doRedo() {
+        val n = displayTakeCount; if (n < 1) return
+        scope.launch { service.gigCmd.takeRecordOver(n, armedCsv) }
         isRecording = true
     }
 
@@ -498,7 +520,8 @@ private fun TakeSurface(
                 onSeek = { posSec -> scope.launch { service.gigCmd.takeSeek(posSec) } },
             )
 
-            // ── Take strip (S216 slice2) — rig-driven pills T1..TN, tap a take to preview ──
+            // ── Take strip (S216 slice2) — rig-driven pills T1..TN, tap to preview, long-press for
+            //    the record-over / delete chooser (S217) ──
             TakeStrip(
                 takes = takes,
                 activeTake = activeTake,
@@ -513,6 +536,7 @@ private fun TakeSurface(
                         service.osc.sendPlay()
                     }
                 },
+                onTakeLong = { take -> longPressTake = take },
             )
 
             // ── Take counter + live armed summary ──
@@ -526,11 +550,29 @@ private fun TakeSurface(
                         fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
                         fontSize = 10.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
                     )
-                    Text(
-                        if (displayTakeCount == 0) "—" else displayTakeCount.toString(),
-                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 44.sp, color = TangerineColors.text,
-                    )
+                    // Big count + a muted "/ cap" when the rig reports one (S217). "cap reached" note
+                    // when at the ceiling, so the disabled Record button has an explanation.
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            if (displayTakeCount == 0) "—" else displayTakeCount.toString(),
+                            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                            fontSize = 44.sp, color = TangerineColors.text,
+                        )
+                        if (takeCap > 0) {
+                            Text(
+                                " / $takeCap",
+                                fontFamily = JetBrainsMono, fontSize = 18.sp,
+                                color = TangerineColors.textMuted,
+                                modifier = Modifier.padding(bottom = 7.dp),
+                            )
+                        }
+                    }
+                    if (atCap) {
+                        Text(
+                            "cap reached",
+                            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.danger,
+                        )
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 Column(horizontalAlignment = Alignment.End) {
@@ -660,28 +702,74 @@ private fun TakeSurface(
 
             Spacer(Modifier.weight(1f))
 
-            // ── Record / Stop ──
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TakeRecordButton(
-                    modifier = Modifier.weight(1f),
-                    label = if (!recordReady && !isRecording) "Saving take…" else "Record Take",
-                    enabled = !isRecording && recordReady,
-                    onClick = { doRecord() },
-                )
-                TakeStopButton(
-                    modifier = Modifier.weight(0.5f),
-                    enabled = isRecording,
-                    onClick = {
-                        scope.launch { service.osc.sendStop() }
-                        isRecording = false
-                        recordReady = false   // settle before the next take can fire
-                    },
-                )
+            // ── Record / Re-do  ·  Stop (S217 state-toggle: the recording Stop is full-width and
+            //    can never be crowded out; idle shows Record + Re-do). Re-do + long-press record-over
+            //    both RECORD, so they honour recordReady + !isRecording exactly like Record (the 5 s
+            //    post-Stop settle), or the rapid-retake race re-appears. ──
+            if (!isRecording) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TakeRecordButton(
+                        modifier = Modifier.weight(2f),
+                        label = when {
+                            atCap -> "Cap reached ($takeCap)"
+                            !recordReady -> "Saving take…"
+                            else -> "Record Take"
+                        },
+                        enabled = recordReady && !atCap,
+                        onClick = { doRecord() },
+                    )
+                    TakeRedoButton(
+                        modifier = Modifier.weight(1f),
+                        enabled = recordReady && displayTakeCount >= 1,
+                        onClick = { doRedo() },
+                    )
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
+                    TakeStopButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = true,
+                        onClick = {
+                            scope.launch { service.osc.sendStop() }
+                            isRecording = false
+                            recordReady = false   // settle before the next take can fire
+                        },
+                    )
+                }
             }
+        }
+
+        // ── Long-press chooser + destructive-delete confirm (S217) ──
+        longPressTake?.let { take ->
+            TakeActionSheet(
+                take = take,
+                canDelete = takes.size >= 2,                 // never offer deleting the only take
+                canRecordOver = recordReady && !isRecording, // reuse the post-Stop settle guard
+                onDismiss = { longPressTake = null },
+                onRecordOver = {
+                    longPressTake = null
+                    scope.launch { service.gigCmd.takeRecordOver(take.index, armedCsv) }
+                    isRecording = true   // records; rig count UNCHANGED, so no optimistic bump
+                },
+                onDelete = {
+                    longPressTake = null
+                    confirmDeleteTake = take
+                },
+            )
+        }
+        confirmDeleteTake?.let { take ->
+            TakeDeleteConfirm(
+                take = take,
+                onDismiss = { confirmDeleteTake = null },
+                onConfirm = {
+                    confirmDeleteTake = null
+                    scope.launch { service.gigCmd.takeDelete(take.index) }
+                },
+            )
         }
     }
 }
@@ -842,14 +930,16 @@ private fun fmtClock(sec: Double?): String {
  * S216 slice2 — the take strip. One pill per clone-forward take (T1..TN), rig-driven from
  * `/take/status` (the source of truth — no local counter). The active take is highlighted in
  * tangerine (v4 mockup styling, apk--take-controller-v4-drawers.html); tapping a pill seeks the
- * rig to that take's start and plays it (preview). Empty → a quiet hint. View + preview only —
- * the long-press menu / delete / record-over / ★master the mockup shows are a later slice.
+ * rig to that take's start and plays it (preview), and long-pressing opens the S217 record-over /
+ * delete chooser. Empty → a quiet hint. (★master per take is still a later slice.)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TakeStrip(
     takes: List<TakeTakeInfo>,
     activeTake: Int,
     onTakeTap: (TakeTakeInfo) -> Unit,
+    onTakeLong: (TakeTakeInfo) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
@@ -881,7 +971,10 @@ private fun TakeStrip(
                                 if (active) accent.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f),
                                 RoundedCornerShape(8.dp),
                             )
-                            .clickable { onTakeTap(take) }
+                            .combinedClickable(
+                                onClick = { onTakeTap(take) },
+                                onLongClick = { onTakeLong(take) },
+                            )
                             .padding(vertical = 7.dp),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -943,8 +1036,38 @@ private fun TakeRecordButton(modifier: Modifier, label: String, enabled: Boolean
         )
         Spacer(Modifier.width(10.dp))
         Text(
-            "Record Take",
+            label,   // S217: honours "Cap reached (N)" / "Saving take…" / "Record Take" from the caller
             fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = tint,
+            maxLines = 1,
+        )
+    }
+}
+
+/** S217 Re-do button — secondary (teal) styling next to Record. Records over the LAST take via
+ *  doRedo(); enabled only when a take exists AND the post-Stop settle has cleared (recordReady). */
+@Composable
+private fun TakeRedoButton(modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
+    val accent = TangerineColors.teal
+    val tint = if (enabled) accent else TangerineColors.textMuted.copy(alpha = 0.3f)
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(tint.copy(alpha = if (enabled) 0.12f else 0.04f))
+            .border(1.dp, tint.copy(alpha = if (enabled) 0.6f else 0.2f), RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 20.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Default.Refresh,
+            contentDescription = "Re-do last take",
+            tint = tint, modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "Re-do",
+            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = tint,
         )
     }
 }
@@ -974,6 +1097,101 @@ private fun TakeStopButton(modifier: Modifier, enabled: Boolean, onClick: () -> 
             fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = tint,
         )
     }
+}
+
+// ─── Take long-press chooser + delete confirm (S217) ───────────────────────────
+
+/**
+ * Long-press a take pill → this chooser for take K: "Record over take K" (records in place, keeping
+ * its backing clone) and — only when more than one take exists — "Delete take K". Record-over is
+ * gated on [canRecordOver] (the post-Stop settle / not-already-recording guard, same as Record);
+ * Delete routes through [TakeDeleteConfirm] before anything is removed. Plain tap still previews.
+ */
+@Composable
+private fun TakeActionSheet(
+    take: TakeTakeInfo,
+    canDelete: Boolean,
+    canRecordOver: Boolean,
+    onDismiss: () -> Unit,
+    onRecordOver: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TangerineColors.surface,
+        title = {
+            Text(
+                "Take ${take.index}",
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                color = TangerineColors.text,
+            )
+        },
+        text = {
+            Text(
+                if (canRecordOver) "Replace this take's drums in place, or remove it."
+                else "Finish the current take before recording over.",
+                fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onRecordOver, enabled = canRecordOver) {
+                Text(
+                    "Record over take ${take.index}",
+                    fontFamily = Karla, fontWeight = FontWeight.Bold,
+                    color = if (canRecordOver) TangerineColors.orange else TangerineColors.textMuted,
+                )
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (canDelete) {
+                    TextButton(onClick = onDelete) {
+                        Text("Delete", fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.danger)
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+                }
+            }
+        },
+    )
+}
+
+/** Destructive-delete confirm — the data-loss net for the first mutating slice. Deleting a take
+ *  removes its recording (adjacent takes are kept). Reached only via the chooser's Delete. */
+@Composable
+private fun TakeDeleteConfirm(
+    take: TakeTakeInfo,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TangerineColors.surface,
+        title = {
+            Text(
+                "Delete take ${take.index}?",
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                color = TangerineColors.text,
+            )
+        },
+        text = {
+            Text(
+                "This removes its recording. Adjacent takes are kept.",
+                fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Delete", fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.danger)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+            }
+        },
+    )
 }
 
 // ─── Backing mix (S213) ────────────────────────────────────────────────────────

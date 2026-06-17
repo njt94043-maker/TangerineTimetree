@@ -33,11 +33,18 @@ local STATUS_INTERVAL_SEC = 0.25  -- S214: Reaper-mirror status sidecar gate (in
 
 local TAKE_GAP_SEC = 4.0    -- S205: wiggle room (s) between takes so nothing overwrites
 local TAKE_EPS     = 0.001
+local TAKE_CAP     = 8      -- S217: max clone-forward takes per cover; blocks the take_record ADD path
 local TAKE_BACKING = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true, ["Click"]=true }
 -- S213: the backing STEMS the APK may ride (mute + monitor level). Click is excluded
 -- (guide pulse). Mirrors the MS host's MixTracks allow-list; both layers enforce it.
 local TAKE_MIX_ALLOWED = { ["Bass"]=true, ["Vocals"]=true, ["Other"]=true, ["Drums (ref)"]=true }
 local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested, 2 recording-seen
+-- S217 take guardrails: forward declarations. The slab resolver + destructive ops are DEFINED
+-- next to take_enumerate (the SAME canonical-track enumeration basis the S216 readback uses), but
+-- they are REFERENCED earlier -- take_record's cap check needs take_slab_starts, and process()
+-- dispatches take_delete / take_record_over. Declaring the locals up here makes those earlier
+-- references bind to these locals (not stray globals) regardless of definition order.
+local take_slab_starts, take_delete, take_record_over
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -132,7 +139,9 @@ local function parse_command(text)
   -- S214 take-seek: pos_sec is a bare JSON number (MS emits "30" or "30.5" -- match
   -- both integer and decimal form). Stays nil when absent.
   local pos_sec   = text:match('"pos_sec"%s*:%s*(%-?%d+%.?%d*)')
-  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec
+  -- S217 take guardrails: take_index is a 1-based bare int (nil when absent), same style as pos_sec.
+  local take_index = tonumber(text:match('"take_index"%s*:%s*(%-?%d+)'))
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index
 end
 
 local function sanitise(name)
@@ -499,6 +508,13 @@ local function take_arm(arm_set)
 end
 
 local function take_record(arm_csv)
+  -- S217 1e: cap the ADD path. take_slab_starts() is {} on the first take (drum tracks empty -> no
+  -- canonical track) -> 0 -> passes. re-do / record-over don't ADD and run via other actions, so
+  -- this only blocks the operator hitting Record at the cap.
+  if #take_slab_starts() >= TAKE_CAP then
+    reaper.ShowConsoleMsg(string.format("[take] cap %d reached -- delete or record-over instead; aborting record\n", TAKE_CAP))
+    return
+  end
   -- Gather the latest stem block from the backing tracks.
   local latest = {}            -- { {tr=, it=}, ... }
   local block_start, block_end = nil, 0.0
@@ -554,7 +570,7 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
@@ -562,6 +578,8 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "take-record" then take_record(arm)
   elseif action == "take-mix" then take_mix(mix_track, mute, vol_db)
   elseif action == "take-seek" then take_seek(pos_sec)
+  elseif action == "take-delete" then take_delete(take_index)
+  elseif action == "take-record-over" then take_record_over(take_index, arm)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -593,6 +611,104 @@ local function take_canonical_track()
     end
   end
   return nil
+end
+
+-- ===== S217 take guardrails: slab resolver + destructive ops =====
+-- THE SAFETY IDEA: bucket items by START position into a slab window. Sort the take starts
+-- s_1 < s_2 < ... < s_N off the SAME canonical track take_enumerate uses (so a 1-based take_index
+-- from the APK maps to the same slab everywhere). Slab K owns [s_K - EPS, s_{K+1} - EPS); the last
+-- slab runs to +inf. An item is in slab K iff its D_POSITION falls in that window -- bucketed by
+-- where it STARTS, never where it ends, so a record-over overrun can't wipe the next slab.
+
+-- Sorted ascending take START positions off the canonical track. {} when no cover/takes.
+-- (Assigned to the forward-declared local so take_record's cap check binds to it.)
+function take_slab_starts()
+  local tr = take_canonical_track(); if not tr then return {} end
+  local starts = {}
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    starts[#starts+1] = reaper.GetMediaItemInfo_Value(reaper.GetTrackMediaItem(tr, j), "D_POSITION")
+  end
+  table.sort(starts)
+  return starts
+end
+
+-- [lo, hi) window for 1-based slab k given sorted starts; hi = math.huge for the last slab.
+local function take_slab_window(starts, k)
+  local lo = starts[k] - TAKE_EPS
+  local hi = (k < #starts) and (starts[k+1] - TAKE_EPS) or math.huge
+  return lo, hi
+end
+
+-- Delete every item on `tr` whose D_POSITION is in [lo,hi). COLLECT-THEN-DELETE (deleting shifts
+-- indices, so never delete mid-enumeration). Returns the count removed.
+local function take_delete_items_in_window(tr, lo, hi)
+  local doomed = {}
+  for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
+    local it = reaper.GetTrackMediaItem(tr, j)
+    local p = reaper.GetMediaItemInfo_Value(it, "D_POSITION")
+    if p >= lo and p < hi then doomed[#doomed+1] = it end
+  end
+  for _, it in ipairs(doomed) do reaper.DeleteTrackMediaItem(tr, it) end
+  return #doomed
+end
+
+-- non-backing, numeric-name-prefix (mirrors take_arm's drum-mic identification).
+local function take_is_drum_track(tr)
+  local nm = take_track_name(tr)
+  return (not TAKE_BACKING[nm]) and tonumber(nm:match("^(%d+)")) ~= nil
+end
+
+-- 1c. take-delete: remove a whole slab (items on ALL tracks -- drum items AND the slab's backing
+-- clone). Adjacent slabs keep their absolute positions (a gap is fine; covers audition by tapping
+-- pills, not scrubbing). REFUSES the only take so a stray curl/long-press can't strip the cover to
+-- empty (the APK also hides delete at count 1). The next status poll re-enumerates + renumbers.
+function take_delete(index)
+  local starts = take_slab_starts()
+  local n = #starts
+  if n == 0 then reaper.ShowConsoleMsg("[take] no takes to delete\n"); return end
+  if index == nil or index < 1 or index > n then
+    reaper.ShowConsoleMsg(string.format("[take] delete: bad index %s (have %d take(s))\n", tostring(index), n)); return
+  end
+  if n == 1 then
+    reaper.ShowConsoleMsg("[take] can't delete the only take -- re-record over it or re-load the cover\n"); return
+  end
+  local lo, hi = take_slab_window(starts, index)
+  reaper.Undo_BeginBlock()
+  local removed = 0
+  for i = 0, reaper.CountTracks(0) - 1 do
+    removed = removed + take_delete_items_in_window(reaper.GetTrack(0, i), lo, hi)
+  end
+  reaper.Undo_EndBlock("TGT take-delete", -1)
+  reaper.Main_OnCommand(40026, 0)  -- save
+  reaper.ShowConsoleMsg(string.format("[take] deleted take %d (window %.3f..%s), removed %d items\n",
+    index, lo, (hi == math.huge) and "inf" or string.format("%.3f", hi), removed))
+end
+
+-- 1d. take-record-over: replace ONE slab's drums in place. Deletes only that slab's DRUM items
+-- (keeps its backing clone so click/stems stay aligned), positions at the slab start, arms, records.
+-- Backs the face Re-do too (index = n). Because the delete is window-bounded, an overrun can't wipe
+-- slab K+1, and the overrunning new item still STARTS in slab K so enumerate keeps counting it as K.
+function take_record_over(index, arm_csv)
+  local starts = take_slab_starts()
+  local n = #starts
+  if n == 0 then reaper.ShowConsoleMsg("[take] no takes to record over\n"); return end
+  if index == nil then index = n end                                  -- re-do-last
+  if index < 1 then index = 1 elseif index > n then index = n end     -- clamp stray callers
+  local lo, hi = take_slab_window(starts, index)
+  reaper.Undo_BeginBlock()
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    if take_is_drum_track(tr) then take_delete_items_in_window(tr, lo, hi) end   -- DRUM items only
+  end
+  reaper.Undo_EndBlock("TGT take-record-over prep", -1)
+  local record_at = starts[index]
+  reaper.SetEditCurPos(record_at, true, false)
+  take_arm(take_parse_arm(arm_csv))
+  reaper.Main_OnCommand(40026, 0)                 -- save the prep
+  reaper.Main_OnCommand(1013, 0)                  -- Transport: Record (at cursor)
+  take_phase = 1                                  -- the existing save-on-stop watcher finalizes
+  reaper.ShowConsoleMsg(string.format("[take] record-over take %d @ %.3f | arm=%s\n",
+    index, record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
 -- Returns take_count, a JSON array fragment for "takes" (correctly-escaped, no libs -- same
@@ -648,10 +764,10 @@ local function write_status()
   local body = string.format(
     '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
       .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s",'
-      .. '"take_count":%d,"takes":[%s],"active_take":%d}',
+      .. '"take_count":%d,"takes":[%s],"active_take":%d,"take_cap":%d}',
     ts_ms, play_state, tostring(recording), tostring(playing),
     pos, len, status_json_escape(proj),
-    take_count, takes_json, active_take)
+    take_count, takes_json, active_take, TAKE_CAP)
   local tmp = STATUS_FILE .. ".tmp"
   local fh = io.open(tmp, "wb"); if not fh then return end
   fh:write(body); fh:close()
@@ -677,9 +793,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
         end
         os.remove(full)
       end

@@ -48,7 +48,9 @@ data class TakeTakeInfo(
  *  Numerics are nullable for exactly that reason. `ssdFreeLabel` is the recording-drive headroom
  *  (independent of the sidecar — present even when stale). S216 slice2 adds the rig-driven take
  *  readback: `takeCount` / `activeTake` / `takes` (the source of truth that replaces the old
- *  local counter; default 0 / 0 / empty so a pre-deploy MS can't crash the parse). */
+ *  local counter; default 0 / 0 / empty so a pre-deploy MS can't crash the parse). S217 adds
+ *  `takeCap` — the rig's per-cover take ceiling (0 = no cap info; a pre-deploy MS / stale rig omits
+ *  it, so the surface won't disable Record off a missing cap). */
 data class TakeStatus(
     val stale: Boolean,
     val playState: String,
@@ -59,6 +61,7 @@ data class TakeStatus(
     val projectName: String?,
     val ssdFreeLabel: String?,
     val takeCount: Int,
+    val takeCap: Int,
     val activeTake: Int,
     val takes: List<TakeTakeInfo>,
 )
@@ -173,6 +176,22 @@ class GigCommandClient(
     suspend fun takeSeek(posSec: Double) = postJson(
         path = "/take/seek",
         body = """{"pos_sec":$posSec}""",
+    )
+
+    /** S217: delete a whole take (clone-forward slab) by 1-based [takeIndex]. The rig removes every
+     *  item in that slab's window on all tracks (it refuses the only take); the next 1 s /take/status
+     *  poll re-enumerates + renumbers the strip. Same /take bridge + offline queue as the others. */
+    suspend fun takeDelete(takeIndex: Int) = postJson(
+        path = "/take/delete",
+        body = """{"take_index":$takeIndex}""",
+    )
+
+    /** S217: record over take [takeIndex] (1-based) — replace that slab's drums in place, keeping its
+     *  backing clone so click/stems stay aligned. Backs the face Re-do (index = last take) and the
+     *  long-press "record over this take". [armCsv] follows the same contract as [takeRecord]. */
+    suspend fun takeRecordOver(takeIndex: Int, armCsv: String) = postJson(
+        path = "/take/record-over",
+        body = """{"take_index":$takeIndex,"arm":${jsonString(armCsv)}}""",
     )
 
     /**
@@ -441,6 +460,7 @@ class GigCommandClient(
             projectName = if (o.isNull("project_name")) null else o.optString("project_name"),
             ssdFreeLabel = if (o.isNull("ssd_free_label")) null else o.optString("ssd_free_label"),
             takeCount = o.optInt("take_count", 0),
+            takeCap = o.optInt("take_cap", 0),
             activeTake = o.optInt("active_take", 0),
             takes = takes,
         )
