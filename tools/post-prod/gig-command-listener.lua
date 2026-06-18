@@ -45,6 +45,13 @@ local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested,
 -- dispatches take_delete / take_record_over. Declaring the locals up here makes those earlier
 -- references bind to these locals (not stray globals) regardless of definition order.
 local take_slab_starts, take_delete, take_record_over, take_set_master, take_label
+-- S221 ②·4a take LAYERS: the registry/engine helpers below are REFERENCED earlier than they are
+-- DEFINED -- take_load (seed-on-load) calls take_seed_drums; take_record arms via take_arm_layers /
+-- take_armed_layers; process() dispatches take_add_layer / take_switch_layer / take_set_armed. Declaring
+-- these locals up here makes those earlier references bind to these locals (not stray globals), exactly
+-- like the S217 take-guardrail forward-decls above.
+local take_seed_drums, take_armed_layers, take_arm_layers
+local take_add_layer, take_switch_layer, take_set_armed
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -144,7 +151,13 @@ local function parse_command(text)
   -- S220 ②·3b take-label: free text. The raw pattern stops at the first " and does NOT decode escapes,
   -- so the MS strips "/\/control-chars before writing (the stored value is already parser-safe). "" = clear.
   local label = text:match('"label"%s*:%s*"([^"]*)"') or ""
-  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label
+  -- S221 ②·4a take LAYERS: layer (switch-layer target), kind (add-layer template), layers (arm-layers
+  -- CSV). Raw string patterns like the others; the MS sanitises every id/kind (S220 strip+cap) so these
+  -- can't choke on a "/\. Absent -> "" (a partial message only touches the field it carries).
+  local layer  = text:match('"layer"%s*:%s*"([^"]*)"') or ""
+  local kind   = text:match('"kind"%s*:%s*"([^"]*)"') or ""
+  local layers = text:match('"layers"%s*:%s*"([^"]*)"') or ""
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label, layer, kind, layers
 end
 
 local function sanitise(name)
@@ -353,6 +366,7 @@ local function take_load(track_path, title, track_id)
   -- Re-select an existing song -> reopen IF it's a real cover; rebuild if it's a stale empty one.
   if reaper.file_exists(target) then
     reaper.Main_openProject("noprompt:" .. target)
+    take_seed_drums()   -- S221 ②·4a: idempotent 1-layer Drums registry (never overwrites an existing one)
     if not cover_is_empty() then
       reaper.Main_OnCommand(40047, 0)  -- S207 C: build any missing peaks (reopened cover shows waveforms)
       reaper.ShowConsoleMsg("[take] reopened existing " .. target .. "\n")
@@ -371,6 +385,7 @@ local function take_load(track_path, title, track_id)
     reaper.ShowConsoleMsg("[take] cannot write " .. target .. "\n"); return end
   dst:write(content); dst:close()
   reaper.Main_openProject("noprompt:" .. target)
+  take_seed_drums()   -- S221 ②·4a: seed the 1-layer Drums registry into the fresh cover
 
   local stems_dir, _, click_path = resolve_song_paths(track_path)
   reaper.Undo_BeginBlock()
@@ -539,7 +554,9 @@ local function take_record(arm_csv)
     return
   end
 
-  -- Rightmost end across the drum-mic (non-backing) record tracks.
+  -- Rightmost end across ALL record tracks (every non-backing track: the drum mics AND any instrument
+  -- layer's track, e.g. Vox). S221 ②·4a generalises the old drum-only scan so a take aligns past the
+  -- rightmost existing recorded item on every layer; drums-only -> identical (the buses hold no items).
   local max_drum_end = 0.0
   for i = 0, reaper.CountTracks(0) - 1 do
     local tr = reaper.GetTrack(0, i)
@@ -563,7 +580,10 @@ local function take_record(arm_csv)
     end
   end
   reaper.SetEditCurPos(record_at, true, false)
-  take_arm(take_parse_arm(arm_csv))
+  -- S221 ②·4a: arm the ARMED LAYERS' tracks (the core engine change). Drums keeps its exact per-mic csv
+  -- gating (the kit-setup toggles, byte-identical to S220); instrument layers (e.g. Vox) arm their whole
+  -- track set. take_record stays a GLOBAL take -- the take engine (enumerate/slab/master/label) is untouched.
+  take_arm_layers(take_armed_layers(), arm_csv)
   reaper.Undo_EndBlock("TGT take-record", -1)
 
   reaper.Main_OnCommand(40026, 0)                 -- Save the prep (copied stems + arm)
@@ -573,7 +593,7 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label, layer, kind, layers)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
@@ -585,6 +605,9 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "take-record-over" then take_record_over(take_index, arm)
   elseif action == "take-master" then take_set_master(take_index)
   elseif action == "take-label" then take_label(take_index, label)
+  elseif action == "take-add-layer" then take_add_layer(kind)
+  elseif action == "take-switch-layer" then take_switch_layer(layer)
+  elseif action == "take-arm-layers" then take_set_armed(layers)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -663,6 +686,266 @@ local function take_is_drum_track(tr)
   return (not TAKE_BACKING[nm]) and tonumber(nm:match("^(%d+)")) ~= nil
 end
 
+-- ===== Take-mode LAYERS: on-demand instrument layers + global-take arming (S221 ②·4a) =====
+-- THE MODEL (Nathan, S220): a cover is built in LAYERS (Drums / Vocals / Guitar / ...). TAKES STAY
+-- GLOBAL -- one Record lays a take across every ARMED layer's tracks at once; the take engine
+-- (enumerate/slab/master/label/cap, all keyed off ONE canonical drum track) is UNCHANGED. The registry
+-- lives in ProjExtState section "TGT_LAYER", persisted in the .rpp:
+--   order      = CSV of layer ids in display order ("drums,vocals")
+--   name@<L>   = display name        kind@<L> = drums|vocals|guitar|bass|keys|other
+--   track@<L>  = the layer's single-track GUID; the Drums layer stores "drums" = resolve dynamically
+--   active     = active layer id (default "drums")   armed = CSV of armed ids (active always implied)
+-- DRUMS is the deliberate exception -- full pre-made kit, ALWAYS (home/take recording tracks the whole
+-- kit; the strip-back idea is gig-mode). On-demand track creation applies to NEW instrument layers only.
+local LAYER_SECTION = "TGT_LAYER"
+
+local function take_layer_get(L, field)
+  local _, v = reaper.GetProjExtState(0, LAYER_SECTION, field .. "@" .. L)
+  return v or ""
+end
+local function take_layer_set(L, field, val)
+  reaper.SetProjExtState(0, LAYER_SECTION, field .. "@" .. L, val or "")
+end
+
+local function find_track_by_guid(guid)
+  if not guid or guid == "" then return nil end
+  for i = 0, reaper.CountTracks(0) - 1 do
+    local tr = reaper.GetTrack(0, i)
+    if reaper.GetTrackGUID(tr) == guid then return tr end
+  end
+  return nil
+end
+
+-- "order" CSV -> ordered list of layer ids ({} when none / no cover).
+local function take_layers_order()
+  local _, csv = reaper.GetProjExtState(0, LAYER_SECTION, "order")
+  local out = {}
+  if csv and csv ~= "" then
+    for id in csv:gmatch("[^,]+") do out[#out + 1] = id end
+  end
+  return out
+end
+
+local function take_active_layer()
+  local _, a = reaper.GetProjExtState(0, LAYER_SECTION, "active")
+  if a == nil or a == "" then return "drums" end
+  return a
+end
+
+-- Armed set = "armed" CSV ∩ order, with the ACTIVE layer always implied (it can never be un-armed).
+-- {} order -> {} (no cover). Assigned to the forward-declared local so take_record binds to it.
+function take_armed_layers()
+  local inorder = {}
+  for _, id in ipairs(take_layers_order()) do inorder[id] = true end
+  local set = {}
+  local _, csv = reaper.GetProjExtState(0, LAYER_SECTION, "armed")
+  if csv and csv ~= "" then
+    for id in csv:gmatch("[^,]+") do if inorder[id] then set[id] = true end end
+  end
+  local act = take_active_layer()
+  if inorder[act] then set[act] = true end
+  return set
+end
+
+-- Resolve a layer id to its MediaTrack list (§2). Drums -> the existing pre-made mic tracks (full kit,
+-- always; take_is_drum_track). Any other kind -> the single track whose GUID == track@L (skip if deleted).
+local function take_layer_tracks(L)
+  local out = {}
+  if L == "drums" or take_layer_get(L, "kind") == "drums" then
+    for i = 0, reaper.CountTracks(0) - 1 do
+      local tr = reaper.GetTrack(0, i)
+      if take_is_drum_track(tr) then out[#out + 1] = tr end
+    end
+  else
+    local tr = find_track_by_guid(take_layer_get(L, "track"))
+    if tr then out[#out + 1] = tr end
+  end
+  return out
+end
+
+-- THE CORE ENGINE CHANGE. Arm the ARMED layers' record tracks; disarm everything else. The DRUMS
+-- sublayer keeps its EXACT S220 per-mic csv gating (take_arm honours the kit-setup toggles AND disarms
+-- the backing tracks) so a drums-only cover is BYTE-IDENTICAL to S220; instrument layers (e.g. Vox) arm
+-- their whole track set. drumArmCsv is the same arm csv take_record already carries. Assigned to the
+-- forward-declared local so take_record binds to it.
+--   NOTE (Builder, flagged for the architect): the spec §3.3 wrote "arm every track in
+--   take_layer_tracks(drums)", but §6 keeps the Drums kit-setup channel toggles live AND §1 makes
+--   byte-identical drums-only recording the #1 invariant. Arming all 11 drum-mic tracks (incl. the
+--   TD-4 e-kit + EAD ALTERNATIVES) would over-arm + make the toggles dead, so the drums sublayer is
+--   gated by the csv exactly as S220 -- a deliberate, invariant-preserving refinement of the spec.
+function take_arm_layers(armedSet, drumArmCsv)
+  -- Drums sublayer: armed -> exact S220 per-mic arming; not armed -> force every drum mic off (empty set).
+  if armedSet["drums"] then
+    take_arm(take_parse_arm(drumArmCsv))
+  else
+    take_arm({})
+  end
+  -- Instrument layers: arm each armed layer's track(s); disarm every unarmed one's. (Drums handled above.)
+  for _, L in ipairs(take_layers_order()) do
+    if L ~= "drums" and take_layer_get(L, "kind") ~= "drums" then
+      local on = armedSet[L] and 1 or 0
+      for _, tr in ipairs(take_layer_tracks(L)) do
+        reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", on)
+      end
+    end
+  end
+end
+
+-- Seed-on-load (§2): a pre-S221 cover (no registry) becomes a 1-layer Drums cover -- no migration.
+-- IDEMPOTENT: never overwrites an existing registry, so a re-load keeps the operator's layers/active/
+-- armed. Assigned to the forward-declared local so take_load (defined earlier) binds to it.
+function take_seed_drums()
+  if #take_layers_order() > 0 then return end
+  reaper.SetProjExtState(0, LAYER_SECTION, "order", "drums")
+  take_layer_set("drums", "name", "Drums")
+  take_layer_set("drums", "kind", "drums")
+  take_layer_set("drums", "track", "drums")   -- sentinel: resolve dynamically to the pre-made mics
+  reaper.SetProjExtState(0, LAYER_SECTION, "active", "drums")
+  reaper.SetProjExtState(0, LAYER_SECTION, "armed", "drums")
+  reaper.ShowConsoleMsg("[take] seeded 1-layer Drums registry\n")
+end
+
+-- ②·4a VOCALS template (all plugins verified installed on the rig, §4). First INSTALLED candidate wins;
+-- a name that doesn't resolve logs + is skipped (the layer still records DRY -- never block the path).
+local VOX_CHAIN = {
+  { "TDR Nova", "Nova" },                                 -- subtractive + dynamic EQ / de-ess
+  { "MJUCjr", "Klanghelm MJUCjr", "MJUC jr" },            -- vari-mu compressor (smooth vocal leveling)
+  { "TDR VOS SlickEQ", "TDR SlickEQ", "SlickEQ" },        -- tone / air
+}
+local VOX_REVERB = { "ValhallaSupermassive", "Valhalla Supermassive", "Supermassive" }  -- on the VOX bus
+
+-- Add the first installed candidate at chain position `pos` (0-based). instantiate = -1000-pos PINS the
+-- order (mirrors §4 + setup-tgt-fx-v3's TrackFX_AddByName usage). Logs + returns -1 on a miss (records dry).
+local function take_fx_add(tr, cands, pos, label)
+  for _, nm in ipairs(cands) do
+    local i = reaper.TrackFX_AddByName(tr, nm, false, -1000 - pos)
+    if i >= 0 then return i end
+  end
+  reaper.ShowConsoleMsg("[take] " .. (label or "layer") .. ": FX not installed, records dry: " .. cands[1] .. "\n")
+  return -1
+end
+
+-- Clear a source's category-0 sends, create ONE send to `bus`, take it off the master (bus = single
+-- path). Verbatim from setup-tgt-fx-v3's route_to_bus so the new layer rides the SAME finishing chain.
+local function take_route_to_bus(src, bus)
+  while reaper.GetTrackNumSends(src, 0) > 0 do reaper.RemoveTrackSend(src, 0, 0) end
+  reaper.CreateTrackSend(src, bus)
+  reaper.SetMediaTrackInfo_Value(src, "B_MAINSEND", 0)
+end
+
+-- Ensure a unique layer id for `kind`: "vocals", else "vocals2", "vocals3", ... (only one Vocals is
+-- expected in ②·4a, but never clobber an existing id's registry).
+local function take_unique_layer_id(kind)
+  local taken = {}
+  for _, id in ipairs(take_layers_order()) do taken[id] = true end
+  if not taken[kind] then return kind end
+  local n = 2
+  while taken[kind .. n] do n = n + 1 end
+  return kind .. n
+end
+
+-- take-add-layer (§3.4 / §4): materialise a NEW instrument layer on demand. ②·4a builds the VOCALS
+-- template ONLY (Vox track + pro chain + VOX bus + VOX->BALANCE->MASTER routing); other kinds no-op-with-
+-- log until ②·4b. Assigned to the forward-declared local so process() binds to it.
+function take_add_layer(kind)
+  kind = (kind or ""):lower()
+  if kind ~= "vocals" then
+    reaper.ShowConsoleMsg("[take] add-layer: kind '" .. tostring(kind) .. "' not built yet (②·4b) -- ignoring\n")
+    return
+  end
+  if not find_track_by_name("BALANCE BUS") then
+    reaper.ShowConsoleMsg("[take] add-layer: no cover open (no BALANCE BUS) -- load a cover first\n")
+    return
+  end
+  local L = take_unique_layer_id("vocals")
+  reaper.Undo_BeginBlock()
+
+  -- 1) the Vox RECORD track (mono vocal source). Insert at the bottom; no default FX. Items inherit the
+  --    project TIME timebase (TIMELOCKMODE 0), so a recorded take never stretches -- same as the drum mics.
+  local vox_idx = reaper.CountTracks(0)
+  reaper.InsertTrackAtIndex(vox_idx, false)
+  local vox = reaper.GetTrack(0, vox_idx)
+  reaper.GetSetMediaTrackInfo_String(vox, "P_NAME", "Vox", true)   -- distinct from the "Vocals" backing stem
+  reaper.SetMediaTrackInfo_Value(vox, "I_RECARM", 0)
+  reaper.SetMediaTrackInfo_Value(vox, "I_RECMON", 0)
+  for i, cands in ipairs(VOX_CHAIN) do take_fx_add(vox, cands, i - 1, "Vox") end
+
+  -- 2) the VOX bus (carries the reverb), routed into the existing s212 BALANCE glue bus -> MASTER.
+  local bus_idx = reaper.CountTracks(0)
+  reaper.InsertTrackAtIndex(bus_idx, false)
+  local vox_bus = reaper.GetTrack(0, bus_idx)
+  reaper.GetSetMediaTrackInfo_String(vox_bus, "P_NAME", "VOX BUS", true)
+  take_fx_add(vox_bus, VOX_REVERB, 0, "VOX BUS")
+
+  -- 3) routing: Vox -> VOX BUS -> BALANCE BUS -> MASTER. Do NOT disturb the DRUMS-bus path.
+  take_route_to_bus(vox, vox_bus)
+  local balance = find_track_by_name("BALANCE BUS")
+  if balance then
+    take_route_to_bus(vox_bus, balance)
+  else
+    reaper.SetMediaTrackInfo_Value(vox_bus, "B_MAINSEND", 1)   -- fallback: straight to master
+  end
+
+  -- 4) register the layer + make it active. track@L = the Vox track GUID (single-track instrument).
+  local guid = reaper.GetTrackGUID(vox)
+  local order = take_layers_order()
+  order[#order + 1] = L
+  reaper.SetProjExtState(0, LAYER_SECTION, "order", table.concat(order, ","))
+  take_layer_set(L, "name", "Vocals")
+  take_layer_set(L, "kind", "vocals")
+  take_layer_set(L, "track", guid)
+  reaper.SetProjExtState(0, LAYER_SECTION, "active", L)
+  reaper.Undo_EndBlock("TGT take-add-layer (vocals)", -1)
+  reaper.Main_OnCommand(40047, 0)   -- build any pending peaks
+  reaper.Main_OnCommand(40026, 0)   -- save: the track + chain + registry persist in the .rpp
+  reaper.ShowConsoleMsg(string.format("[take] add-layer vocals -> id=%s track=%s\n", L, guid))
+end
+
+-- take-switch-layer (§3.4): make L the active (face-following) layer. Validates L ∈ order. Assigned to
+-- the forward-declared local so process() binds to it.
+function take_switch_layer(L)
+  L = L or ""
+  local inorder = false
+  for _, id in ipairs(take_layers_order()) do if id == L then inorder = true; break end end
+  if not inorder then
+    reaper.ShowConsoleMsg("[take] switch-layer: unknown layer '" .. tostring(L) .. "'\n"); return
+  end
+  reaper.SetProjExtState(0, LAYER_SECTION, "active", L)
+  reaper.Main_OnCommand(40026, 0)   -- save
+  reaper.ShowConsoleMsg("[take] switch-layer -> " .. L .. "\n")
+end
+
+-- take-arm-layers (§3.4): armed = sanitised CSV ∩ order. The active layer is forced in by
+-- take_armed_layers (it can't be un-armed), so it need not be in the CSV. The MS already sanitised the
+-- ids. Assigned to the forward-declared local so process() binds to it.
+function take_set_armed(csv)
+  local inorder = {}
+  for _, id in ipairs(take_layers_order()) do inorder[id] = true end
+  local kept = {}
+  if csv and csv ~= "" then
+    for id in csv:gmatch("[^,]+") do if inorder[id] then kept[#kept + 1] = id end end
+  end
+  reaper.SetProjExtState(0, LAYER_SECTION, "armed", table.concat(kept, ","))
+  reaper.Main_OnCommand(40026, 0)   -- save
+  reaper.ShowConsoleMsg("[take] arm-layers -> [" .. table.concat(kept, ",") .. "]\n")
+end
+
+-- Readback for the status sidecar (§3.5): a JSON-array fragment (one object per layer in order) + the
+-- active id. ("","") when no cover/registry -> the MS defaults layers->[] , active_layer->"".
+local function take_layers_json()
+  local order = take_layers_order()
+  if #order == 0 then return "", "" end
+  local armed = take_armed_layers()
+  local parts = {}
+  for i, L in ipairs(order) do
+    local nm = take_layer_get(L, "name"); if nm == "" then nm = L end
+    local kd = take_layer_get(L, "kind"); if kd == "" then kd = (L == "drums") and "drums" or "other" end
+    parts[i] = string.format('{"id":"%s","name":"%s","kind":"%s","armed":%s}',
+      status_json_escape(L), status_json_escape(nm), status_json_escape(kd), tostring(armed[L] == true))
+  end
+  return table.concat(parts, ","), take_active_layer()
+end
+
 -- 1c. take-delete: remove a whole slab (items on ALL tracks -- drum items AND the slab's backing
 -- clone). Adjacent slabs keep their absolute positions (a gap is fine; covers audition by tapping
 -- pills, not scrubbing). REFUSES the only take so a stray curl/long-press can't strip the cover to
@@ -717,6 +1000,14 @@ function take_record_over(index, arm_csv)
   local record_at = starts[index]
   reaper.SetEditCurPos(record_at, true, false)
   take_arm(take_parse_arm(arm_csv))
+  -- S221 ②·4a: record-over is DRUM-only by contract ("replace this slab's drums in place" -- it deletes
+  -- only this slab's drum items). Force every instrument-layer track disarmed so a Vox armed by a prior
+  -- take_record can't lay a NEW overlapping item over the slab. Drums-only cover -> no-op (byte-identical).
+  for _, L in ipairs(take_layers_order()) do
+    if L ~= "drums" and take_layer_get(L, "kind") ~= "drums" then
+      for _, tr in ipairs(take_layer_tracks(L)) do reaper.SetMediaTrackInfo_Value(tr, "I_RECARM", 0) end
+    end
+  end
   reaper.Main_OnCommand(40026, 0)                 -- save the prep
   reaper.Main_OnCommand(1013, 0)                  -- Transport: Record (at cursor)
   take_phase = 1                                  -- the existing save-on-stop watcher finalizes
@@ -826,13 +1117,18 @@ local function write_status()
   -- S216 slice2: enumerate the clone-forward takes (off the position already computed above).
   -- ②·3a (S219): take_enumerate now also returns master_take (the ★ take's 1-based index, 0 = none).
   local take_count, takes_json, active_take, master_take = take_enumerate(pos)
+  -- S221 ②·4a: the layer registry readback ("layers":[{id,name,kind,armed}], "active_layer":"<id>").
+  -- Empty array + "" when no cover is loaded; a pre-S221 cover that just loaded was seeded to 1 Drums layer.
+  local layers_json, active_layer = take_layers_json()
   local body = string.format(
     '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
       .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s",'
-      .. '"take_count":%d,"takes":[%s],"active_take":%d,"master_take":%d,"take_cap":%d}',
+      .. '"take_count":%d,"takes":[%s],"active_take":%d,"master_take":%d,"take_cap":%d,'
+      .. '"layers":[%s],"active_layer":"%s"}',
     ts_ms, play_state, tostring(recording), tostring(playing),
     pos, len, status_json_escape(proj),
-    take_count, takes_json, active_take, master_take, TAKE_CAP)
+    take_count, takes_json, active_take, master_take, TAKE_CAP,
+    layers_json, status_json_escape(active_layer))
   local tmp = STATUS_FILE .. ".tmp"
   local fh = io.open(tmp, "wb"); if not fh then return end
   fh:write(body); fh:close()
@@ -858,9 +1154,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label, layer, kind, layers = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label, layer, kind, layers)
         end
         os.remove(full)
       end

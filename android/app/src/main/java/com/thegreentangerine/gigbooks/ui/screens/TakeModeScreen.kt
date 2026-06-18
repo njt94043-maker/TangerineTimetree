@@ -41,13 +41,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Piano
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -79,6 +84,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeSong
+import com.thegreentangerine.gigbooks.data.orchestrator.TakeLayerInfo
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeStatus
 import com.thegreentangerine.gigbooks.data.orchestrator.TakeTakeInfo
 import com.thegreentangerine.gigbooks.ui.components.ArmPresetMode
@@ -380,7 +387,8 @@ private fun TakeSurface(
     val batteryPct = service.battery.levelPct.collectAsState().value
 
     var armState by remember { mutableStateOf(ArmPresetState()) }  // Acoustic, overheads + full kit on
-    var kitExpanded by remember { mutableStateOf(false) }          // collapsed by default (sidepanel-behavior)
+    var kitExpanded by remember { mutableStateOf(false) }          // LAYERS/KIT card (S221, was KIT SETUP)
+    var showAddLayer by remember { mutableStateOf(false) }         // S221 ②·4a: the Add-layer kind picker
     var mixExpanded by remember { mutableStateOf(false) }          // BACKING MIX collapsed by default
     // S213: the 4-stem backing mix, defaulting to the template's exact values (Drums (ref)
     // muted — Nathan's the drummer). Keyed on song.trackId so swapping songs RESETS to
@@ -423,6 +431,10 @@ private fun TakeSurface(
     // the action-sheet "Set/Unset master" label. Rig is the source of truth — no local master state.
     val masterTake = status?.masterTake ?: 0
     val takes = status?.takes ?: emptyList()
+    // S221 ②·4a: the cover's layers + active layer, rig-driven (the registry via /take/status). Empty
+    // until a cover loads (seed-on-load gives a 1-layer Drums cover); the active-layer pill hides while empty.
+    val layers = status?.layers ?: emptyList()
+    val activeLayer = status?.activeLayer ?: ""
     // Show the provisional pill ONLY in the gap between firing Record and the rig enumerating the new
     // take. Derived against the live rig count, so the synthetic pill can NEVER double-show with the
     // rig's own pill, even for a frame.
@@ -580,7 +592,15 @@ private fun TakeSurface(
                 }
             }
 
-            // ── Transport · audition takes (S214) — between NOW LOADED and KIT SETUP ──
+            // ── Active-layer pill (S221 ②·4a) — context stays on the clean face; management lives in the
+            //    LAYERS/KIT drawer (tap to open). Hidden until the rig reports the cover's layers. ──
+            TakeActiveLayerPill(
+                layers = layers,
+                activeLayer = activeLayer,
+                onClick = { kitExpanded = true },
+            )
+
+            // ── Transport · audition takes (S214) — between NOW LOADED and the take strip ──
             TakeTransport(
                 status = status,
                 onToStart = { scope.launch { service.osc.sendToStart() } },
@@ -691,46 +711,20 @@ private fun TakeSurface(
                 }
             }
 
-            // ── Kit setup (collapsible, collapsed by default) ──
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(TangerineColors.surface)
-                    .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { kitExpanded = !kitExpanded },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "KIT SETUP",
-                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "$armedCount ch armed",
-                        fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Icon(
-                        if (kitExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (kitExpanded) "Collapse kit setup" else "Expand kit setup",
-                        tint = TangerineColors.textMuted,
-                    )
-                }
-                if (kitExpanded) {
-                    Spacer(Modifier.height(12.dp))
-                    ChannelArmPresetSelector(
-                        mode = ArmPresetMode.TAKE,
-                        state = armState,
-                        onState = { armState = it },
-                    )
-                }
-            }
+            // ── LAYERS / KIT (S221 ②·4a) — the consolidated tab (folds the old KIT SETUP drawer in):
+            //    the layer list + arm-to-record-together + the active layer's kit setup (Drums = the s202
+            //    preset + channel toggles; Vocals = a 1-track summary), plus Add layer. ──
+            LayersKitCard(
+                layers = layers,
+                activeLayer = activeLayer,
+                armState = armState,
+                onArmState = { armState = it },
+                expanded = kitExpanded,
+                onExpandToggle = { kitExpanded = !kitExpanded },
+                onSwitchLayer = { id -> scope.launch { service.gigCmd.takeSwitchLayer(id) } },
+                onArmLayers = { ids -> scope.launch { service.gigCmd.takeArmLayers(ids) } },
+                onAddLayer = { showAddLayer = true },
+            )
 
             // ── Backing mix (collapsible, collapsed by default) — S213 ──
             // Ride the guide stems from the throne: each stem a mute toggle + a dB fader.
@@ -885,6 +879,18 @@ private fun TakeSurface(
                     // S220 ②·3b: set/clear the take's label; the MS sanitizes, the rig persists, the
                     // next /take/status poll repaints the strip caption. Empty = clear.
                     scope.launch { service.gigCmd.takeLabel(take.index, newLabel) }
+                },
+            )
+        }
+        // ── Add-layer kind picker (S221 ②·4a) ──
+        if (showAddLayer) {
+            AddLayerDialog(
+                onDismiss = { showAddLayer = false },
+                onPick = { kind ->
+                    showAddLayer = false
+                    // The rig materialises the layer (track + chain + bus) + makes it active; the next
+                    // /take/status poll repaints the LAYERS/KIT tab + the active-layer pill.
+                    scope.launch { service.gigCmd.takeAddLayer(kind) }
                 },
             )
         }
@@ -1242,6 +1248,359 @@ private fun RecordingPill(modifier: Modifier, label: String) {
             trackColor = rec.copy(alpha = 0.15f),
         )
     }
+}
+
+// ─── Layers (S221 ②·4a) ────────────────────────────────────────────────────────
+
+/** Material icon per instrument kind (material-icons-extended). Used by the active-layer pill, the
+ *  layer rows, and the Add-layer picker. */
+private fun layerKindIcon(kind: String): ImageVector = when (kind.lowercase()) {
+    "drums" -> Icons.Default.Album
+    "vocals" -> Icons.Default.Mic
+    "keys" -> Icons.Default.Piano
+    else -> Icons.Default.MusicNote   // guitar / bass / other
+}
+
+/** Compute the new armed-id list after toggling [toggledId] to [newOn], preserving display order and
+ *  always keeping the active layer armed (the rig forces it; the UI mirrors so the set stays consistent). */
+private fun armedLayerIdsAfterToggle(
+    layers: List<TakeLayerInfo>,
+    toggledId: String,
+    newOn: Boolean,
+    activeLayer: String,
+): List<String> {
+    val set = layers.filter { it.armed }.map { it.id }.toMutableSet()
+    if (newOn) set.add(toggledId) else set.remove(toggledId)
+    if (activeLayer.isNotEmpty()) set.add(activeLayer)
+    return layers.map { it.id }.filter { it in set }
+}
+
+/**
+ * S221 ②·4a — the active-layer pill on the face (above the take strip, v4 mockup §panel-1). CONTEXT
+ * only: kind icon + name + "layer i/n" + "tap to switch" → opens the LAYERS/KIT drawer. Hidden until the
+ * rig reports the cover's layers (so it can't paint a frozen/empty state). 1 layer → "Drums · 1/1".
+ */
+@Composable
+private fun TakeActiveLayerPill(
+    layers: List<TakeLayerInfo>,
+    activeLayer: String,
+    onClick: () -> Unit,
+) {
+    if (layers.isEmpty()) return
+    val activeIdx = layers.indexOfFirst { it.id == activeLayer }.let { if (it < 0) 0 else it }
+    val active = layers[activeIdx]
+    val orange = TangerineColors.orange
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(orange.copy(alpha = 0.08f))
+            .border(1.dp, orange.copy(alpha = 0.5f), RoundedCornerShape(11.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(layerKindIcon(active.kind), contentDescription = null, tint = orange, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(
+                active.name.ifBlank { active.id },
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = orange,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "layer ${activeIdx + 1}/${layers.size}",
+                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                "tap to switch",
+                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+            )
+            Icon(
+                Icons.Default.ExpandMore, contentDescription = "Open layers",
+                tint = TangerineColors.textDim, modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+/**
+ * S221 ②·4a — the consolidated LAYERS / KIT card (v4 mockup §panel-2; folds the old KIT SETUP drawer
+ * in). Header → collapse/expand. Expanded: a row per layer (kind icon · name · arm control), the ACTIVE
+ * layer's kit setup nested under it (Drums = the s202 ChannelArmPresetSelector; Vocals = a 1-track
+ * summary), an Add-layer row, and the "arm → Record together" footer. Takes stay GLOBAL — this manages
+ * which layers are in the take, not per-layer takes.
+ */
+@Composable
+private fun LayersKitCard(
+    layers: List<TakeLayerInfo>,
+    activeLayer: String,
+    armState: ArmPresetState,
+    onArmState: (ArmPresetState) -> Unit,
+    expanded: Boolean,
+    onExpandToggle: () -> Unit,
+    onSwitchLayer: (String) -> Unit,
+    onArmLayers: (List<String>) -> Unit,
+    onAddLayer: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(TangerineColors.surface)
+            .border(1.dp, TangerineColors.orange.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { onExpandToggle() },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "LAYERS / KIT",
+                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                if (layers.isEmpty()) "—" else "${layers.size} layer${if (layers.size == 1) "" else "s"}",
+                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+            )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse layers" else "Expand layers",
+                tint = TangerineColors.textMuted,
+            )
+        }
+        if (expanded) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "tap a layer to make it active",
+                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+            )
+            Spacer(Modifier.height(10.dp))
+            if (layers.isEmpty()) {
+                Text(
+                    "load a cover to see its layers",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+            } else {
+                layers.forEachIndexed { i, layer ->
+                    val isActive = layer.id == activeLayer || (activeLayer.isEmpty() && i == 0)
+                    LayerRow(
+                        layer = layer,
+                        isActive = isActive,
+                        onSwitch = { if (!isActive) onSwitchLayer(layer.id) },
+                        onArmToggle = { newOn ->
+                            onArmLayers(armedLayerIdsAfterToggle(layers, layer.id, newOn, activeLayer))
+                        },
+                    )
+                    // The active layer's kit setup nests directly under its row.
+                    if (isActive) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 8.dp, bottom = 2.dp),
+                        ) {
+                            when (layer.kind.lowercase()) {
+                                "drums" -> ChannelArmPresetSelector(
+                                    mode = ArmPresetMode.TAKE, state = armState, onState = onArmState,
+                                )
+                                "vocals" -> LayerKitSummary("Vox · 1 track", "pro vocal chain → BALANCE")
+                                else -> LayerKitSummary("${layer.name.ifBlank { layer.id }} · 1 track", "")
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(9.dp))
+                }
+            }
+            AddLayerRow(onClick = onAddLayer)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "arm one or more layers — Record lays a take on every armed layer at once",
+                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
+            )
+        }
+    }
+}
+
+/** One layer row: kind icon · name (+ "· active") · arm control. Active row = orange wash + an ARMED
+ *  badge (the rig always implies it). Other rows = a green/grey arm toggle; tapping the row body
+ *  switches the active layer. */
+@Composable
+private fun LayerRow(
+    layer: TakeLayerInfo,
+    isActive: Boolean,
+    onSwitch: () -> Unit,
+    onArmToggle: (Boolean) -> Unit,
+) {
+    val orange = TangerineColors.orange
+    val borderC = if (isActive) orange.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isActive) orange.copy(alpha = 0.12f) else Color.Transparent)
+            .border(1.dp, borderC, RoundedCornerShape(12.dp))
+            .clickable(enabled = !isActive, onClick = onSwitch)
+            .padding(horizontal = 11.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            layerKindIcon(layer.kind), contentDescription = null,
+            tint = if (isActive) orange else TangerineColors.textDim, modifier = Modifier.size(20.dp),
+        )
+        Spacer(Modifier.width(11.dp))
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                layer.name.ifBlank { layer.id },
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                color = if (isActive) orange else TangerineColors.text,
+            )
+            if (isActive) {
+                Spacer(Modifier.width(6.dp))
+                Text("· active", fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim)
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        if (isActive) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(orange)
+                    .padding(horizontal = 9.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    "ARMED",
+                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 9.sp,
+                    color = TangerineColors.surfaceInset, letterSpacing = 0.5.sp,
+                )
+            }
+        } else {
+            LayerArmToggle(armed = layer.armed, onToggle = { onArmToggle(!layer.armed) })
+        }
+    }
+}
+
+/** Green-on / grey-off arm toggle (a small pill switch, matching the v4 mockup). */
+@Composable
+private fun LayerArmToggle(armed: Boolean, onToggle: () -> Unit) {
+    val green = TangerineColors.green
+    val edge = (if (armed) green else TangerineColors.textMuted).copy(alpha = 0.5f)
+    Box(
+        modifier = Modifier
+            .width(40.dp).height(22.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (armed) green.copy(alpha = 0.3f) else TangerineColors.surfaceInset)
+            .border(1.dp, edge, RoundedCornerShape(11.dp))
+            .clickable(onClick = onToggle),
+        contentAlignment = if (armed) Alignment.CenterEnd else Alignment.CenterStart,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(2.dp).size(16.dp).clip(CircleShape)
+                .background(if (armed) green else TangerineColors.textMuted),
+        )
+    }
+}
+
+/** A non-drum layer's minimal kit summary (Vocals etc. have no channel matrix — just the track + chain). */
+@Composable
+private fun LayerKitSummary(title: String, caption: String) {
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(title, fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TangerineColors.text)
+        if (caption.isNotEmpty()) {
+            Text(caption, fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted)
+        }
+    }
+}
+
+/** The "Add layer" row → opens the kind picker. */
+@Composable
+private fun AddLayerRow(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.Add, contentDescription = null, tint = TangerineColors.textDim, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Add layer", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TangerineColors.textDim)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            "vocals · guitar · bass · keys",
+            fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted,
+        )
+    }
+}
+
+/**
+ * S221 ②·4a — the Add-layer kind picker. Vocals is enabled (②·4a builds its full template on the rig);
+ * Guitar/Bass/Keys/Other are shown "soon" (②·4b adds their templates + amp-sim installs). Picking a kind
+ * fires takeAddLayer; the rig materialises the layer and makes it active.
+ */
+@Composable
+private fun AddLayerDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    val kinds = listOf(
+        Triple("vocals", "Vocals", true),
+        Triple("guitar", "Guitar", false),
+        Triple("bass", "Bass", false),
+        Triple("keys", "Keys", false),
+        Triple("other", "Other", false),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TangerineColors.surface,
+        title = {
+            Text("Add layer", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TangerineColors.text)
+        },
+        text = {
+            Column {
+                Text(
+                    "Build the cover layer by layer. A Record lays a take on every armed layer at once.",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+                Spacer(Modifier.height(12.dp))
+                kinds.forEach { (kind, label, enabled) ->
+                    val tint = if (enabled) TangerineColors.orange else TangerineColors.textMuted
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(tint.copy(alpha = if (enabled) 0.1f else 0.04f))
+                            .border(1.dp, tint.copy(alpha = if (enabled) 0.6f else 0.25f), RoundedCornerShape(10.dp))
+                            .clickable(enabled = enabled) { onPick(kind) }
+                            .padding(horizontal = 12.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(layerKindIcon(kind), contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            label,
+                            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                            color = if (enabled) TangerineColors.text else TangerineColors.textMuted,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        if (!enabled) {
+                            Text("soon", fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+            }
+        },
+    )
 }
 
 // ─── Reusable bits ───────────────────────────────────────────────────────────

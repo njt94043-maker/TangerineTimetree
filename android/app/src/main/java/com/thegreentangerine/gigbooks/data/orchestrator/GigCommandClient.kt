@@ -44,6 +44,17 @@ data class TakeTakeInfo(
     val label: String,
 )
 
+/** S221 ②·4a: one instrument LAYER of a cover (`/take/status` `layers[]`). `id` is the registry id
+ *  ("drums"/"vocals"/…); `kind` the instrument kind (drums|vocals|guitar|bass|keys|other); `armed` =
+ *  a Record lays a take on this layer. Takes stay GLOBAL — a layer is just *which instruments are in
+ *  the take* — so there's no per-layer take count here. */
+data class TakeLayerInfo(
+    val id: String,
+    val name: String,
+    val kind: String,
+    val armed: Boolean,
+)
+
 /** S214 Reaper-mirror status (`GET /take/status`) — what the rig is doing, polled 1 s by the
  *  take surface. The MS forces a stopped/idle/null readout + `stale = true` when its sidecar is
  *  missing or > 3 s old, so the APK greys out cleanly instead of showing a frozen fake state.
@@ -68,6 +79,10 @@ data class TakeStatus(
     val activeTake: Int,
     val masterTake: Int,
     val takes: List<TakeTakeInfo>,
+    // S221 ②·4a: the cover's instrument layers + the active layer id. Default empty / "" for a
+    // pre-S221 MS / stale rig, so the LAYERS/KIT tab empties + the active-layer pill hides cleanly.
+    val layers: List<TakeLayerInfo>,
+    val activeLayer: String,
 )
 
 /**
@@ -214,6 +229,29 @@ class GigCommandClient(
     suspend fun takeLabel(takeIndex: Int, label: String) = postJson(
         path = "/take/label",
         body = """{"take_index":$takeIndex,"label":${jsonString(label)}}""",
+    )
+
+    /** S221 ②·4a: add a NEW instrument layer — the rig materialises its track + pro chain + bus on
+     *  demand. ②·4a builds Vocals; the other kinds queue for the rig's no-op-log until ②·4b. The next
+     *  /take/status poll shows the new layer. Same /take bridge + offline queue as the others. */
+    suspend fun takeAddLayer(kind: String) = postJson(
+        path = "/take/add-layer",
+        body = """{"kind":${jsonString(kind)}}""",
+    )
+
+    /** S221 ②·4a: make [layerId] the active (face-following) layer. Takes are GLOBAL, so the take strip
+     *  is unchanged — only the active-layer pill + which layer's kit setup shows follow. */
+    suspend fun takeSwitchLayer(layerId: String) = postJson(
+        path = "/take/switch-layer",
+        body = """{"layer":${jsonString(layerId)}}""",
+    )
+
+    /** S221 ②·4a: set the armed-layer set (the ids to lay a take on). The rig intersects with its
+     *  registry + always implies the active layer; one Record then lays a take on every armed layer at
+     *  once, aligned. Sent as a CSV string the MS sanitises per-id. */
+    suspend fun takeArmLayers(layerIds: List<String>) = postJson(
+        path = "/take/arm-layers",
+        body = """{"layers":${jsonString(layerIds.joinToString(","))}}""",
     )
 
     /**
@@ -474,6 +512,22 @@ class GigCommandClient(
                 )
             }
         }
+        // S221 ②·4a: parse the layer registry with safe defaults — a pre-S221 MS omits layers/
+        // active_layer entirely, so optJSONArray/optString degrade to empty / "" (never throw).
+        val layersArr = o.optJSONArray("layers")
+        val layers = if (layersArr == null) emptyList() else buildList {
+            for (i in 0 until layersArr.length()) {
+                val l = layersArr.optJSONObject(i) ?: continue
+                add(
+                    TakeLayerInfo(
+                        id = l.optString("id", ""),
+                        name = l.optString("name", ""),
+                        kind = l.optString("kind", ""),
+                        armed = l.optBoolean("armed", false),
+                    )
+                )
+            }
+        }
         return TakeStatus(
             stale = o.optBoolean("stale", true),
             playState = o.optString("play_state", "stopped"),
@@ -489,6 +543,8 @@ class GigCommandClient(
             // S219 ②·3a: ★ master take — a pre-S219 MS omits master_take, so default 0 (no ★).
             masterTake = o.optInt("master_take", 0),
             takes = takes,
+            layers = layers,
+            activeLayer = o.optString("active_layer", ""),
         )
     }
 
