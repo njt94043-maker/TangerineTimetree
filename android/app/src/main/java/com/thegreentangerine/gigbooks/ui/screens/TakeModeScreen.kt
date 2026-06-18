@@ -6,11 +6,24 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +54,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -368,11 +382,18 @@ private fun TakeSurface(
     // template defaults without auto-sending (a freshly-loaded cover already carries these;
     // only user actions send). The panel is the source of truth — no rig->APK readback yet.
     var mix by remember(song.trackId) { mutableStateOf(defaultBackingMix()) }
-    // S216 slice2: the take count is now RIG-DRIVEN (status.takeCount). The old local counter
-    // drifted after any reopen (it incremented on Record but never re-synced to the rig). A brief
-    // optimistic +1 right after firing Record keeps the big number snappy; the next 1s status poll
-    // clears it, so the rig stays the source of truth. Reset when the song (cover) swaps.
-    var optimisticTake by remember(song.trackId) { mutableStateOf(false) }
+    // S218 ②·2.5 — live recording indicator. Optimistic overlay, RIG-DRIVEN-RECONCILED so it can't
+    // drift (the S216 lesson): the rig's take set stays the source of truth; these locals only paint
+    // the in-flight take until the rig's own pill catches up, then self-clear.
+    //   provisionalTake = index of the NEW take being recorded (fresh Record); null for record-over / idle
+    //   recordOverIndex = index of the EXISTING take being re-recorded (Re-do / long-press); null otherwise
+    var provisionalTake by remember(song.trackId) { mutableStateOf<Int?>(null) }
+    var recordOverIndex by remember(song.trackId) { mutableStateOf<Int?>(null) }
+    // S218·2 — record-over hold. The rig CLEARS the take's slab before re-recording, so it briefly
+    // reports a lower take_count + drops the pill. Freeze the pre-record-over count + take list so the
+    // counter never ticks DOWN and the redone pill stays visible (ringed). Self-clears on Stop.
+    var recordOverFloor by remember(song.trackId) { mutableStateOf<Int?>(null) }
+    var recordOverSnapshot by remember(song.trackId) { mutableStateOf<List<TakeTakeInfo>?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var recordReady by remember { mutableStateOf(true) }           // false during the post-Stop settle window
 
@@ -388,14 +409,39 @@ private fun TakeSurface(
         }
     }
 
-    // S216 slice2: rig-driven take readback. Any fresh status poll clears the optimistic bump,
-    // so displayTakeCount converges on the rig's authoritative count within 1 s (and is correct
-    // on reopen — the bug the old local counter had). takes/activeTake drive the strip.
+    // S216 slice2: rig-driven take readback — the rig's count/takes/activeTake are the source of
+    // truth and drive the strip. S218 paints an optimistic in-flight take ON TOP, derived so it can
+    // never double-show with or outlive the rig's own pill.
     val rigTakeCount = status?.takeCount ?: 0
     val activeTake = status?.activeTake ?: 0
     val takes = status?.takes ?: emptyList()
-    LaunchedEffect(status) { optimisticTake = false }
-    val displayTakeCount = if (optimisticTake) rigTakeCount + 1 else rigTakeCount
+    // Show the provisional pill ONLY in the gap between firing Record and the rig enumerating the new
+    // take. Derived against the live rig count, so the synthetic pill can NEVER double-show with the
+    // rig's own pill, even for a frame.
+    val showProvisional = provisionalTake?.let { rigTakeCount < it } == true
+    // S218·2: floor in the record-over hold so the count can't tick DOWN under the rig's slab-clear.
+    val displayTakeCount = maxOf(rigTakeCount, provisionalTake ?: 0, recordOverFloor ?: 0)
+    val isRecordingNow = isRecording || showProvisional || recordOverIndex != null
+    // Self-heal: once the rig has enumerated the new take, drop the provisional flag (the display
+    // already switched off it via showProvisional; this just tidies state).
+    LaunchedEffect(status) {
+        provisionalTake?.let { if (rigTakeCount >= it) provisionalTake = null }
+    }
+    // On Stop: clear the record-over ring immediately; for a fresh take keep painting it through the
+    // rig's finalize latency, but ROLL IT BACK if the take never commits within the settle window
+    // (so the strip/counter can't lie about a take that didn't land).
+    LaunchedEffect(isRecording) {
+        if (!isRecording) {
+            recordOverIndex = null
+            recordOverFloor = null        // S218·2: release the held count; rig truth takes over
+            recordOverSnapshot = null
+            val pending = provisionalTake
+            if (pending != null) {
+                kotlinx.coroutines.delay(TAKE_SETTLE_MS)   // existing 5 s constant
+                if (provisionalTake == pending && rigTakeCount < pending) provisionalTake = null
+            }
+        }
+    }
     // S217: cap state, rig-driven (the Lua's TAKE_CAP via /take/status). takeCap 0 = no cap info
     // (pre-deploy MS / stale rig) -> never "at cap". atCap = cap known AND reached -> disables
     // Record + shows the "cap reached" note. Single source of truth = the rig, not a local const.
@@ -423,18 +469,23 @@ private fun TakeSurface(
     // The record action (armed CSV → take-record). Record fires this directly — the
     // unverified-beatmap warn gate was dropped per Nathan (recording shouldn't need a
     // dialog); the ✓/⚠ badge in the browser stays as info only.
-    fun doRecord() {
+    fun doRecord() {                       // fresh take → new provisional pill at rigTakeCount+1
         scope.launch { service.gigCmd.takeRecord(armedCsv) }
-        optimisticTake = true   // snappy +1 until the next 1s rig poll reconciles
+        provisionalTake = rigTakeCount + 1
+        recordOverIndex = null
         isRecording = true
     }
 
     // S217 Re-do = record-over the LAST take. ONE primitive backs both this face button and the
     // long-press "record over this take". It RECORDS but does NOT add a take, so the rig count is
-    // unchanged — do NOT bump optimisticTake (that would flash a phantom +1).
-    fun doRedo() {
+    // unchanged — S218 paints the record-over ring in place rather than a phantom +1.
+    fun doRedo() {                         // record over the LAST take → ring in place, count UNCHANGED
         val n = displayTakeCount; if (n < 1) return
         scope.launch { service.gigCmd.takeRecordOver(n, armedCsv) }
+        recordOverIndex = n
+        recordOverFloor = displayTakeCount   // S218·2: hold the count through the rig's slab-clear
+        recordOverSnapshot = takes           // freeze the pre-clear pill list so the ring stays put
+        provisionalTake = null
         isRecording = true
     }
 
@@ -479,6 +530,16 @@ private fun TakeSurface(
                 )
             }
 
+            // ── Scrollable middle (S218·2) ── everything between the pinned top bar and the pinned
+            // Record/Stop row scrolls when a long (2-line) title would otherwise push Record off the
+            // bottom (unreachable on a non-scrolling Column). weight(1f) takes the slack — it REPLACES
+            // the old Spacer(weight(1f)) that used to sit before the Record row.
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+
             // ── NOW LOADED (the browser selection) ──
             Box(
                 modifier = Modifier
@@ -522,9 +583,16 @@ private fun TakeSurface(
 
             // ── Take strip (S216 slice2) — rig-driven pills T1..TN, tap to preview, long-press for
             //    the record-over / delete chooser (S217) ──
+            // S218·2: while a record-over is in flight, feed the FROZEN snapshot so pills don't
+            // vanish / renumber under the rig's slab-clear; the ring (recordOverIndex) lands on the
+            // right pill. Live rig list at all other times.
+            val stripTakes = if (recordOverIndex != null && recordOverSnapshot != null) recordOverSnapshot!! else takes
             TakeStrip(
-                takes = takes,
+                takes = stripTakes,
                 activeTake = activeTake,
+                showProvisional = showProvisional,
+                provisionalIndex = provisionalTake,
+                recordOverIndex = recordOverIndex,
                 onTakeTap = { take ->
                     scope.launch {
                         service.gigCmd.takeSeek(take.startSec)
@@ -551,13 +619,25 @@ private fun TakeSurface(
                         fontSize = 10.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
                     )
                     // Big count + a muted "/ cap" when the rig reports one (S217). "cap reached" note
-                    // when at the ceiling, so the disabled Record button has an explanation.
+                    // when at the ceiling, so the disabled Record button has an explanation. S218: the
+                    // digit animates (odometer slide) and goes RED while a take is in flight, so the
+                    // 1->2 tick lands the moment Record is tapped and reads as "live/provisional".
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            if (displayTakeCount == 0) "—" else displayTakeCount.toString(),
-                            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                            fontSize = 44.sp, color = TangerineColors.text,
-                        )
+                        AnimatedContent(
+                            targetState = displayTakeCount,
+                            transitionSpec = {
+                                (slideInVertically { it } + fadeIn()) togetherWith
+                                    (slideOutVertically { -it } + fadeOut())
+                            },
+                            label = "take-count",
+                        ) { n ->
+                            Text(
+                                if (n == 0) "—" else n.toString(),
+                                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                                fontSize = 44.sp,
+                                color = if (isRecordingNow) TangerineColors.danger else TangerineColors.text,
+                            )
+                        }
                         if (takeCap > 0) {
                             Text(
                                 " / $takeCap",
@@ -579,14 +659,14 @@ private fun TakeSurface(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier.size(8.dp).clip(CircleShape).background(
-                                if (isRecording) TangerineColors.orange else TangerineColors.textMuted,
+                                if (isRecordingNow) TangerineColors.danger else TangerineColors.textMuted,
                             ),
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            if (isRecording) "RECORDING" else "idle",
+                            if (isRecordingNow) "RECORDING" else "idle",
                             fontFamily = JetBrainsMono, fontSize = 11.sp,
-                            color = if (isRecording) TangerineColors.orange else TangerineColors.textMuted,
+                            color = if (isRecordingNow) TangerineColors.danger else TangerineColors.textMuted,
                         )
                     }
                     Spacer(Modifier.height(4.dp))
@@ -699,8 +779,8 @@ private fun TakeSurface(
                     }
                 }
             }
-
-            Spacer(Modifier.weight(1f))
+            }   // ── end scrollable middle (S218·2); Spacer(weight(1f)) removed — the scroll column
+                //    now owns the vertical slack so the Record/Stop row below stays pinned + reachable.
 
             // ── Record / Re-do  ·  Stop (S217 state-toggle: the recording Stop is full-width and
             //    can never be crowded out; idle shows Record + Re-do). Re-do + long-press record-over
@@ -753,7 +833,11 @@ private fun TakeSurface(
                 onRecordOver = {
                     longPressTake = null
                     scope.launch { service.gigCmd.takeRecordOver(take.index, armedCsv) }
-                    isRecording = true   // records; rig count UNCHANGED, so no optimistic bump
+                    recordOverIndex = take.index         // S218: ring THIS pill red in place
+                    recordOverFloor = displayTakeCount   // S218·2: hold count through the slab-clear
+                    recordOverSnapshot = takes           // freeze the pre-clear pill list
+                    provisionalTake = null
+                    isRecording = true                   // records; rig count UNCHANGED, no new pill
                 },
                 onDelete = {
                     longPressTake = null
@@ -931,13 +1015,22 @@ private fun fmtClock(sec: Double?): String {
  * `/take/status` (the source of truth — no local counter). The active take is highlighted in
  * tangerine (v4 mockup styling, apk--take-controller-v4-drawers.html); tapping a pill seeks the
  * rig to that take's start and plays it (preview), and long-pressing opens the S217 record-over /
- * delete chooser. Empty → a quiet hint. (★master per take is still a later slice.)
+ * delete chooser. (★master per take is still a later slice.)
+ *
+ * S218 ②·2.5 — the in-flight take. A take being RECORDED isn't committed yet, so the rig can't
+ * enumerate it until Stop. We paint it APK-side as a red animated [RecordingPill]: record-over
+ * rings the existing pill in place ([recordOverIndex]); a fresh take appends one extra pill
+ * ([showProvisional]/[provisionalIndex]). Both are derived/self-healing in [TakeSurface] so they
+ * never double-show with or outlive the rig's own pill.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TakeStrip(
     takes: List<TakeTakeInfo>,
     activeTake: Int,
+    showProvisional: Boolean,
+    provisionalIndex: Int?,
+    recordOverIndex: Int?,
     onTakeTap: (TakeTakeInfo) -> Unit,
     onTakeLong: (TakeTakeInfo) -> Unit,
 ) {
@@ -948,7 +1041,8 @@ private fun TakeStrip(
             fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.teal,
         )
         Spacer(Modifier.height(6.dp))
-        if (takes.isEmpty()) {
+        // Hint only when there's genuinely nothing to show — not while the very first take records.
+        if (takes.isEmpty() && !showProvisional) {
             Text(
                 "no takes yet — record one to start",
                 fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textMuted,
@@ -959,36 +1053,110 @@ private fun TakeStrip(
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 takes.forEach { take ->
-                    val active = take.index == activeTake
-                    val accent = TangerineColors.orange
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (active) accent.copy(alpha = 0.14f) else Color.Transparent)
-                            .border(
-                                1.dp,
-                                if (active) accent.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f),
-                                RoundedCornerShape(8.dp),
-                            )
-                            .combinedClickable(
-                                onClick = { onTakeTap(take) },
-                                onLongClick = { onTakeLong(take) },
-                            )
-                            .padding(vertical = 7.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            "T${take.index}",
-                            fontFamily = JetBrainsMono,
-                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 11.sp,
-                            color = if (active) accent else TangerineColors.textMuted,
+                    if (take.index == recordOverIndex) {
+                        // This committed take is being re-recorded — ring it red in place.
+                        RecordingPill(modifier = Modifier.weight(1f), label = "T${take.index}")
+                    } else {
+                        TakePill(
+                            modifier = Modifier.weight(1f),
+                            take = take,
+                            active = take.index == activeTake,
+                            onTap = { onTakeTap(take) },
+                            onLong = { onTakeLong(take) },
                         )
                     }
                 }
+                // The fresh in-flight take has no rig pill yet — append a provisional recording pill.
+                if (showProvisional && provisionalIndex != null) {
+                    RecordingPill(modifier = Modifier.weight(1f), label = "T$provisionalIndex")
+                }
             }
         }
+    }
+}
+
+/** A committed take's pill — active = orange fill/border, idle = muted outline. Tap previews,
+ *  long-press opens the record-over / delete chooser (unchanged S216/S217 behaviour). */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun TakePill(
+    modifier: Modifier,
+    take: TakeTakeInfo,
+    active: Boolean,
+    onTap: () -> Unit,
+    onLong: () -> Unit,
+) {
+    val accent = TangerineColors.orange
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (active) accent.copy(alpha = 0.14f) else Color.Transparent)
+            .border(
+                1.dp,
+                if (active) accent.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f),
+                RoundedCornerShape(8.dp),
+            )
+            .combinedClickable(onClick = onTap, onLongClick = onLong)
+            .padding(vertical = 7.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "T${take.index}",
+            fontFamily = JetBrainsMono,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 11.sp,
+            color = if (active) accent else TangerineColors.textMuted,
+        )
+    }
+}
+
+/**
+ * S218 — the animated "this take is recording NOW" pill. Composes Nathan's three cues, all in red
+ * (`danger`) so it reads distinct from orange = active and the future green = ★master:
+ *   • Alive   — a pulsing red border + fill (rememberInfiniteTransition, ~650 ms reverse).
+ *   • Loading — a thin indeterminate LinearProgressIndicator pinned along the bottom (pure
+ *               material3, no extra dep) — the literal "loading bar… recording" affordance.
+ *   • Label   — a solid red REC dot + the take label (e.g. T2) in JetBrainsMono.
+ * Matches the committed-pill geometry (RoundedCornerShape(8.dp), padding(vertical = 7.dp), weight).
+ */
+@Composable
+private fun RecordingPill(modifier: Modifier, label: String) {
+    val rec = TangerineColors.danger
+    val pulse = rememberInfiniteTransition(label = "rec-pulse")
+    val alpha by pulse.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(tween(650), RepeatMode.Reverse),
+        label = "rec-alpha",
+    )
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(rec.copy(alpha = 0.06f + 0.16f * alpha))
+            .border(1.dp, rec.copy(alpha = alpha), RoundedCornerShape(8.dp)),
+    ) {
+        Row(
+            modifier = Modifier.align(Alignment.Center).padding(vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(rec))
+            Spacer(Modifier.width(5.dp))
+            Text(
+                label,
+                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                fontSize = 11.sp, color = rec,
+            )
+        }
+        // Indeterminate loading bar pinned to the bottom edge — the "…recording" cue.
+        LinearProgressIndicator(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)),
+            color = rec,
+            trackColor = rec.copy(alpha = 0.15f),
+        )
     }
 }
 
