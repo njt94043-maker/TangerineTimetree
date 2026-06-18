@@ -24,9 +24,17 @@
 - [x] Verify Gig Mode now shows `10.117.252.228:8000`
 - [x] Verify both phones can reach `10.117.252.228:9200`
 - [ ] Test actual `Start gig` capture fanout when Nathan explicitly wants Reaper/camera recording started
-- [ ] POST-GIG: fix pause/resume overwrite; resume must record at true project end, never project start
-- [ ] Replace emergency pinned IP with persistent/manual target storage
+- [ ] POST-GIG: pause/resume overwrite — **S220: NOT reproducible; appears already fixed (stale todo, nobody was checking).** Live 2-set repro on the rig: fresh gig → record set1 [0→3.76s] → cursor parked at 0 (the danger condition) → `sendRecord` → **set2 appended at 3.76, length 5.94, no overwrite**; `position_sec` tracked accurately throughout (so the Clips-backend dependency below is clear too). The S119/S120 cursor-to-end (`sendRecord` = OSC bundle [40043 move-cursor-to-end + 1013 record]) does its job even from a parked-at-0 cursor. **Left open pending Nathan's real-gig test (live audio + full sets) to tick fully.** If it ever recurs, suspect the S211 connection-drop/reconnect, NOT the record cursor (a re-sent "start" is collision-guarded to `-N.rpp`, can't overwrite).
+- [x] Replace emergency pinned IP with persistent/manual target storage — **DONE S211** (`RigTargetStore` persistent rig target + knock-before-trust; emergency pin removed)
 - [ ] Add peer-camera manual/QR direct-connect fallback; current peer path is mDNS-only
+
+## Gig Mode — production-quality template upgrade (NEW · deferred · fold in AFTER the take-mode per-instrument templates land)
+> Gig mode is "basically working" — full-set / per-set live capture (S119), pause/resume verified (S220, see HOT above) — but its recording template (`TEMPLATE`, the gig project) is BARE next to the take-mode covers. Bring it to the SAME "best in its class" free pro-spec as the take-mode per-instrument chains (the s221 ②·4 / s212 pattern), tuned for GIG mode's own layers + bus needs. (Nathan, S220.)
+- [ ] **Per-instrument LIVE chains + bus routing** on the gig template — the live XR18 channels (kit · vox · guitar · bass · keys · …) each through an appropriate chain → instrument bus → a live mix bus → finishing master. Mirror the s221 take-mode chains (TDR Nova/SlickEQ/Kotelnikov · Analog Obsession LALA/FETish · Neural Amp Modeler · Ignite SHB-1/NadIR · Valhalla Supermassive — all free), **tuned for LIVE**.
+- [ ] **Selectable / strip-back drum kit per gig** — gig mode may run a smaller kit than the full home setup, so the gig kit-setup picks WHICH drum mics/channels (arm-only / on-demand). This is the strip-back idea Nathan raised, now correctly placed here: it belongs to GIG mode, NOT take mode (home/take always tracks the full kit). (S220.)
+- [ ] **Phone audio as ambiance / room** — optionally fold the peer phones' captured audio into the gig mix for added ambiance + realism (ties to the **Gig Clip Capture** lane's audio + the video spine below).
+- [ ] **Guiding principle (Nathan, verbatim intent): "retain genuine live sound as much as possible"** — the template ENHANCES the real live feel, never over-processes it into a sterile studio sound.
+- **Sequence + cross-ref:** gated on the take-mode per-instrument templates (s221) proving the chain/bus/**on-demand-track** pattern → gig mode reuses it. See: s221 (take-mode templates) · s212 (FX-template pattern) · the Gig Clip Capture lane (phone audio) · `proj-tgt--gig-recording-rig` (the rig).
 
 ## PDF Templates — DONE
 - [x] Print styles: @page margin 0, background preservation, compact spacing (all 28 templates)
@@ -73,33 +81,41 @@
 - [ ] Add more songs via web app (currently 4)
 - [ ] User to verify 44 WhatsApp-confirmed fees, then batch-update
 
-## BACKLOG — Gig Clip Capture & Auto-Send (SPEC'D · DEFERRED · not started)
-> Designer/R&D programme, **decision-locked, awaiting sequencing by the Architect** (Nathan: "won't be
-> used straight away"). Spec + staged Builder prompts live in
-> `C:\apps\Dev Team R&D Brainstorming Design idea development\gig-capture-and-autosend\`
-> (`gig-capture-concept-spec-v2.md` = definitive · `gig-capture-builder-prompts-v1.md` = S0–S4 prompts ·
-> `gig-capture-redteam-findings-v1.md` = rationale).
+## ACTIVE (lightweight) — Gig Clip Capture & Auto-Send ("TGT Clips" APK + PWA)
+> **Greenlit 2026-06-17. Designer (R&D branch) leads the clients; Architect owns the backend.** Won't be
+> deployed at a gig straight away. **Don't cross paths:** Designer will NOT touch REAPER / Media Server /
+> the laptop rig while REAPER work is live — client lane uses an isolated mock backend (:9300). Docs in
+> `C:\apps\Dev Team R&D Brainstorming Design idea development\gig-capture-and-autosend\`:
+> `gig-capture-api-contract-v1.md` (frozen interface) · `gig-capture-builder-prompts-client-v2.md`
+> (APK/PWA) · `gig-capture-architect-backend-instructions-v1.md` (THIS laptop's backend) ·
+> `gig-capture-test-plan-v1.md` · `gig-capture-concept-spec-v2.md` (design) · red-team (rationale).
 
-**What:** band's own phones **and** friends/guests at gigs capture video clips that **auto-send to the
-laptop over a dedicated gig router** — resumable (pause/continue on drop), positioned on the REAPER
-timeline via a **common laptop clock + xcorr**, clean 1080p/25fps multicam source. Fully offline (no cloud).
-Replaces the manual post-gig `adb pull`. Lands clips in `D:/Gigs/<date>/video/<device>/` → **zero post-prod change**.
+**What:** a NEW lightweight standalone app (Android APK + iPhone/web PWA) for band + guests to capture clips
+that **auto-send to the laptop over a dedicated gig router** — resumable, clean 1080p/25fps multicam source,
+clip stamped in laptop-time for timeline placement. Fully offline (no cloud). Lands in
+`D:/Gigs/<date>/video/<device>/` → **zero post-prod change**. NOT a change to the GigBooks APK.
 
-**Locked decisions:** D1 LAN→laptop (Media Server, not cloud — overrides S129's cloud design) · D2 one
-engine, own-phone first · D3 iPhone PWA (one-tap QR, foreground-only) · D4 dedicated travel router AP
-(fixed SSID + DHCP-reserved laptop IP + firewalled guest net) · D5 best-effort delivery (per-clip, accept
-losses) · D6 guest clips = multicam source. Engine = **WorkManager** (not a `dataSync` FGS — 6h cap).
+**Locked:** D1 LAN→laptop (not cloud — overrides S129 cloud design) · D2 one engine · D3 iPhone PWA
+(one-tap QR, foreground-only) · D4 travel router AP (DHCP-reserved laptop IP + firewalled guest net) · D5
+best-effort delivery · D6 guest clips = multicam source. Android uploader = **WorkManager** (not `dataSync` FGS).
 
-**Stages (each ships value):**
-- [ ] **S0** — Resumable upload receiver + `/api/clock` + `gig-timeline-map.jsonl` logger on the Media Server (reuses its existing upload/range/atomic-write patterns; ~150 LOC)
-- [ ] **S1** — Own-phone auto-send (Android WorkManager, resumable, received-ledger) — *ships "my phones auto-send"*
-- [ ] **S2** — Common-clock stamp (`__lt`) + `insert-videos.lua` pre-positioning; xcorr refines
-- [ ] **S3** — Router bring-up + guest onboarding (QR) + guest capture (Android APK + iPhone PWA)
-- [ ] **S4** — Per-gig secret + guest firewall + transport-gated throttle + quotas + consent/takedown
-- [ ] **ADRs to log on pickup:** D1 (LAN-over-cloud, retires S129 cloud design) + D4 (router)
+**CLIENT lane (Designer — build now against mock):**
+- [ ] **C1** — PWA: capture (native-pick / MediaRecorder) + resumable tus upload + wake-lock + IndexedDB resume
+- [ ] **C2** — Thin native APK: CameraX 1080p/25fps + WorkManager resumable uploader (= own-phone auto-send)
+- [ ] **C3** — Onboarding + guest UX (optional name, consent) + APK/PWA parity
+- [ ] **C4** — Client hardening (respect upload throttle, 401/413/507 handling)
 
-**Dependency:** the open **MS pause/resume overwrite bug** (REAPER-side, carried S211) must be fixed first
-— it corrupts the `position_sec` the S2 timeline-map relies on.
+**BACKEND lane (Architect — this laptop; when REAPER work frees up):**
+- [ ] tus upload receiver + `/api/clock` + `/api/active-gig` + upload-status + per-gig tokens + app-QR render
+- [ ] `gig-timeline-map.jsonl` logger + `insert-videos.lua` pre-positioning + router firewall doc
+- [ ] **ADRs:** D1 (LAN-over-cloud, retires S129 cloud design) + D4 (router)
+- [ ] **Dependency:** fix the open **MS pause/resume overwrite bug** (S211) first — it corrupts the
+      `position_sec` the timeline-map relies on. **S220: this dependency looks CLEAR** — pause/resume
+      didn't overwrite in a live 2-set repro and `position_sec` tracked accurately (see the HOT section
+      above). Re-confirm after Nathan's real-gig test, but this likely no longer blocks the backend lane.
+
+**Out of lane (flag):** auto-uploading GigBooks' own orchestrator recordings = a GigBooks-side follow-on
+(GigBooks is being actively worked) — not in the TGT Clips client lane.
 
 ## Capture — Alignment + Pipeline (OVERDUE)
 
