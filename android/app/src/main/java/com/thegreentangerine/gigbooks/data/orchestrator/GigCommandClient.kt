@@ -35,11 +35,13 @@ data class TakeSong(
 
 /** S216 slice2: one clone-forward take read back from the rig (`/take/status` `takes[]`).
  *  `index` is 1-based in timeline order; `startSec`/`endSec` are its position + end. The take
- *  strip renders one pill per entry; tapping seeks to `startSec` and plays. */
+ *  strip renders one pill per entry; tapping seeks to `startSec` and plays. S220 ②·3b adds `label`
+ *  — the take's free-text descriptive label ("" = none; shown as a small caption under `T{index}`). */
 data class TakeTakeInfo(
     val index: Int,
     val startSec: Double,
     val endSec: Double,
+    val label: String,
 )
 
 /** S214 Reaper-mirror status (`GET /take/status`) — what the rig is doing, polled 1 s by the
@@ -203,6 +205,15 @@ class GigCommandClient(
     suspend fun takeSetMaster(takeIndex: Int) = postJson(
         path = "/take/master",
         body = """{"take_index":$takeIndex}""",
+    )
+
+    /** S220 ②·3b: set/clear take [takeIndex]'s free-text [label] (empty clears). The MS sanitizes +
+     *  caps it (the Lua's raw parser can't take a `"`/`\`); the rig persists it per-slab in the cover's
+     *  .rpp (survives reopen + record-over); the next /take/status poll reflects it. Same /take bridge +
+     *  offline queue as the others. */
+    suspend fun takeLabel(takeIndex: Int, label: String) = postJson(
+        path = "/take/label",
+        body = """{"take_index":$takeIndex,"label":${jsonString(label)}}""",
     )
 
     /**
@@ -457,6 +468,8 @@ class GigCommandClient(
                         index = t.optInt("index", 0),
                         startSec = t.optDouble("start_sec", 0.0),
                         endSec = t.optDouble("end_sec", 0.0),
+                        // S220 ②·3b: per-take label — a pre-S220 rig omits it, so default "".
+                        label = t.optString("label", ""),
                     )
                 )
             }

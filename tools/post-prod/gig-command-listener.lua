@@ -44,7 +44,7 @@ local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested,
 -- they are REFERENCED earlier -- take_record's cap check needs take_slab_starts, and process()
 -- dispatches take_delete / take_record_over. Declaring the locals up here makes those earlier
 -- references bind to these locals (not stray globals) regardless of definition order.
-local take_slab_starts, take_delete, take_record_over, take_set_master
+local take_slab_starts, take_delete, take_record_over, take_set_master, take_label
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -141,7 +141,10 @@ local function parse_command(text)
   local pos_sec   = text:match('"pos_sec"%s*:%s*(%-?%d+%.?%d*)')
   -- S217 take guardrails: take_index is a 1-based bare int (nil when absent), same style as pos_sec.
   local take_index = tonumber(text:match('"take_index"%s*:%s*(%-?%d+)'))
-  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index
+  -- S220 ②·3b take-label: free text. The raw pattern stops at the first " and does NOT decode escapes,
+  -- so the MS strips "/\/control-chars before writing (the stored value is already parser-safe). "" = clear.
+  local label = text:match('"label"%s*:%s*"([^"]*)"') or ""
+  return action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label
 end
 
 local function sanitise(name)
@@ -570,7 +573,7 @@ local function take_record(arm_csv)
     "[take] record-at %.3f | arm=%s\n", record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
-local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
+local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label)
   if action == "start" then start_project(name)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
@@ -581,6 +584,7 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "take-delete" then take_delete(take_index)
   elseif action == "take-record-over" then take_record_over(take_index, arm)
   elseif action == "take-master" then take_set_master(take_index)
+  elseif action == "take-label" then take_label(take_index, label)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -686,6 +690,8 @@ function take_delete(index)
   -- the persisted state tidy.) Done before the save below so the cleared key persists.
   local _, cur_master = reaper.GetProjExtState(0, "TGT_TAKE", "master_start")
   if cur_master == del_key then reaper.SetProjExtState(0, "TGT_TAKE", "master_start", "") end
+  -- ②·3b delete hygiene: clear the deleted slab's label key too, so it can't resurface on a renumbered take.
+  reaper.SetProjExtState(0, "TGT_TAKE", "label@" .. del_key, "")
   reaper.Main_OnCommand(40026, 0)  -- save
   reaper.ShowConsoleMsg(string.format("[take] deleted take %d (window %.3f..%s), removed %d items\n",
     index, lo, (hi == math.huge) and "inf" or string.format("%.3f", hi), removed))
@@ -741,6 +747,22 @@ function take_set_master(index)
   reaper.Main_OnCommand(40026, 0)                                    -- save: persists in the .rpp
 end
 
+-- ②·3b (S220): free-text label for take `index`, keyed by the slab's START position ("label@%.3f" --
+-- the SAME stable key basis master_start uses, so it survives reopen + record-over; index would drift
+-- under a delete). Empty label clears it. The MS has already stripped "/\/control-chars + capped length,
+-- so the stored value is parser-safe. Assigned to the forward-declared local so process() binds to it.
+function take_label(index, label)
+  local starts = take_slab_starts()
+  local n = #starts
+  if n == 0 then reaper.ShowConsoleMsg("[take] no takes to label\n"); return end
+  if index == nil or index < 1 or index > n then
+    reaper.ShowConsoleMsg(string.format("[take] label: bad index %s (have %d)\n", tostring(index), n)); return end
+  local key = "label@" .. string.format("%.3f", starts[index])
+  reaper.SetProjExtState(0, "TGT_TAKE", key, label or "")   -- "" clears
+  reaper.Main_OnCommand(40026, 0)                            -- save: persists in the .rpp
+  reaper.ShowConsoleMsg(string.format("[take] label take %d = %q\n", index, label or ""))
+end
+
 -- Returns take_count, a JSON array fragment for "takes" (correctly-escaped, no libs -- same
 -- hand-rolled style write_status uses), active_take, and master_take. active_take is 1-based: the
 -- take whose [start,end) contains pos; else the nearest take by distance (so pos past the end -> the
@@ -770,7 +792,11 @@ local function take_enumerate(pos)
   local nearest, best_dist = 1, nil
   for i = 1, n do
     local s, e = items[i].s, items[i].e
-    parts[i] = string.format('{"index":%d,"start_sec":%.3f,"end_sec":%.3f}', i, s, e)
+    -- ②·3b: per-take label keyed by the slab start (label@%.3f). status_json_escape defensively (the MS
+    -- already stripped quotes/backslashes, but a stray edit shouldn't be able to corrupt the sidecar JSON).
+    local _, lbl = reaper.GetProjExtState(0, "TGT_TAKE", "label@" .. string.format("%.3f", s))
+    parts[i] = string.format('{"index":%d,"start_sec":%.3f,"end_sec":%.3f,"label":"%s"}',
+                             i, s, e, status_json_escape(lbl or ""))
     if (not contained) and pos >= s and pos < e then active = i; contained = true end
     if master_key ~= "" and string.format("%.3f", s) == master_key then master_take = i end
     local dist = (pos < s) and (s - pos) or ((pos >= e) and (pos - e) or 0)
@@ -832,9 +858,9 @@ local function loop()
       local full = POLL_DIR .. "/" .. fname
       local content = read_file(full)
       if content then
-        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index = parse_command(content)
+        local action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label = parse_command(content)
         if action then
-          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index)
+          process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label)
         end
         os.remove(full)
       end

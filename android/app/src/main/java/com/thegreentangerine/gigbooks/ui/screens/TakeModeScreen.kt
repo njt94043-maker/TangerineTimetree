@@ -42,6 +42,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
@@ -57,6 +58,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -78,6 +81,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorService
@@ -455,6 +459,7 @@ private fun TakeSurface(
     // delete-confirm target. Both clear on dismiss / after firing.
     var longPressTake by remember { mutableStateOf<TakeTakeInfo?>(null) }
     var confirmDeleteTake by remember { mutableStateOf<TakeTakeInfo?>(null) }
+    var renameTake by remember { mutableStateOf<TakeTakeInfo?>(null) }   // S220 ②·3b: label-edit dialog target
 
     // TAKE mode = drums only (band + music hidden / forced off in the compute).
     val armedCsv = computeArmedTracks(
@@ -842,6 +847,10 @@ private fun TakeSurface(
                     // independent of the settle guards; the next /take/status poll repaints the ★.
                     scope.launch { service.gigCmd.takeSetMaster(take.index) }
                 },
+                onRename = {
+                    longPressTake = null
+                    renameTake = take   // S220 ②·3b: open the label-edit dialog for this take
+                },
                 onRecordOver = {
                     longPressTake = null
                     scope.launch { service.gigCmd.takeRecordOver(take.index, armedCsv) }
@@ -864,6 +873,18 @@ private fun TakeSurface(
                 onConfirm = {
                     confirmDeleteTake = null
                     scope.launch { service.gigCmd.takeDelete(take.index) }
+                },
+            )
+        }
+        renameTake?.let { take ->
+            TakeLabelDialog(
+                take = take,
+                onDismiss = { renameTake = null },
+                onSave = { newLabel ->
+                    renameTake = null
+                    // S220 ②·3b: set/clear the take's label; the MS sanitizes, the rig persists, the
+                    // next /take/status poll repaints the strip caption. Empty = clear.
+                    scope.launch { service.gigCmd.takeLabel(take.index, newLabel) }
                 },
             )
         }
@@ -1135,26 +1156,40 @@ private fun TakePill(
                 RoundedCornerShape(8.dp),
             )
             .combinedClickable(onClick = onTap, onLongClick = onLong)
-            .padding(vertical = 7.dp),
+            .padding(vertical = 7.dp, horizontal = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (master) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = "master take",
-                    tint = green,
-                    modifier = Modifier.size(12.dp),
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (master) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "master take",
+                        tint = green,
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Spacer(Modifier.width(3.dp))
+                }
+                Text(
+                    "T${take.index}",
+                    fontFamily = JetBrainsMono,
+                    fontWeight = if (active || master) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 11.sp,
+                    color = labelColor,
                 )
-                Spacer(Modifier.width(3.dp))
             }
-            Text(
-                "T${take.index}",
-                fontFamily = JetBrainsMono,
-                fontWeight = if (active || master) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 11.sp,
-                color = labelColor,
-            )
+            // S220 ②·3b: free-text label under T{index} — quiet caption tone, ellipsized so it never
+            // widens / wraps the pill even at the 8-take cap. No label -> just T{index}, as before.
+            if (take.label.isNotBlank()) {
+                Text(
+                    take.label,
+                    fontFamily = JetBrainsMono,
+                    fontSize = 9.sp,
+                    color = TangerineColors.textMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -1319,12 +1354,13 @@ private fun TakeStopButton(modifier: Modifier, enabled: Boolean, onClick: () -> 
 // ─── Take long-press chooser + delete confirm (S217) ───────────────────────────
 
 /**
- * Long-press a take pill → this chooser for take K. Top action (S219 ②·3a): a green ★ "Set as master"
- * / "Unset master" toggle — marks the KEPT take, independent of the record/settle guards (it never
- * touches the rig transport). Then "Record over take K" (records in place, keeping its backing clone),
- * and — only when more than one take exists — "Delete take K". Record-over is gated on [canRecordOver]
- * (the post-Stop settle / not-already-recording guard, same as Record); Delete routes through
- * [TakeDeleteConfirm] before anything is removed. Plain tap still previews.
+ * Long-press a take pill → this chooser for take K. Body actions: a green ★ "Set as master" /
+ * "Unset master" toggle (S219 ②·3a — marks the KEPT take) and a teal "Rename…" (S220 ②·3b — opens the
+ * label-edit dialog); both are independent of the record/settle guards (neither touches the rig
+ * transport). Then "Record over take K" (records in place, keeping its backing clone), and — only when
+ * more than one take exists — "Delete take K". Record-over is gated on [canRecordOver] (the post-Stop
+ * settle / not-already-recording guard, same as Record); Delete routes through [TakeDeleteConfirm]
+ * before anything is removed. Plain tap still previews.
  */
 @Composable
 private fun TakeActionSheet(
@@ -1334,6 +1370,7 @@ private fun TakeActionSheet(
     canRecordOver: Boolean,
     onDismiss: () -> Unit,
     onSetMaster: () -> Unit,
+    onRename: () -> Unit,
     onRecordOver: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1373,6 +1410,28 @@ private fun TakeActionSheet(
                     Text(
                         if (isMaster) "Unset master" else "Set as master",
                         fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = mg,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                // Rename… (teal) — opens the label-edit dialog. Also guard-free (a label is metadata,
+                // not a transport op). Shows the current label inline when there is one.
+                val mt = TangerineColors.teal
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(mt.copy(alpha = 0.08f))
+                        .border(1.dp, mt.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .clickable(onClick = onRename)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = mt, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (take.label.isBlank()) "Rename…" else "Rename — ${take.label}",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = mt,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -1433,6 +1492,77 @@ private fun TakeDeleteConfirm(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+            }
+        },
+    )
+}
+
+/**
+ * S220 ②·3b — label-edit dialog. A single-line [OutlinedTextField] pre-filled with the take's current
+ * label (input capped at 40 chars to match the MS cap), so each take can be tagged ("alt chorus",
+ * "different drums") for skipping through them. Save commits `text.trim()`; "Clear" (shown only when a
+ * label exists) commits "" to remove it. The MS sanitizes before the rig stores it.
+ */
+@Composable
+private fun TakeLabelDialog(
+    take: TakeTakeInfo,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf(take.label) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TangerineColors.surface,
+        title = {
+            Text(
+                "Label take ${take.index}",
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                color = TangerineColors.text,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "A short note so you can tell takes apart when skipping through them.",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 40) text = it },   // cap 40 to match the MS
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            "e.g. alt chorus",
+                            fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = TangerineColors.teal,
+                        unfocusedBorderColor = TangerineColors.textMuted.copy(alpha = 0.4f),
+                        focusedTextColor = TangerineColors.text,
+                        unfocusedTextColor = TangerineColors.text,
+                        cursorColor = TangerineColors.teal,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(text.trim()) }) {
+                Text("Save", fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.teal)
+            }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (take.label.isNotBlank()) {
+                    TextButton(onClick = { onSave("") }) {   // clear the label
+                        Text("Clear", fontFamily = Karla, fontWeight = FontWeight.Bold, color = TangerineColors.danger)
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+                }
             }
         },
     )
