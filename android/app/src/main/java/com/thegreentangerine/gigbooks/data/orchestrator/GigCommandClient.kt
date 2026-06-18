@@ -50,7 +50,8 @@ data class TakeTakeInfo(
  *  readback: `takeCount` / `activeTake` / `takes` (the source of truth that replaces the old
  *  local counter; default 0 / 0 / empty so a pre-deploy MS can't crash the parse). S217 adds
  *  `takeCap` — the rig's per-cover take ceiling (0 = no cap info; a pre-deploy MS / stale rig omits
- *  it, so the surface won't disable Record off a missing cap). */
+ *  it, so the surface won't disable Record off a missing cap). S219 ②·3a adds `masterTake` — the
+ *  1-based index of the ★ kept take (0 = none; a pre-deploy MS / stale rig omits it, so no ★). */
 data class TakeStatus(
     val stale: Boolean,
     val playState: String,
@@ -63,6 +64,7 @@ data class TakeStatus(
     val takeCount: Int,
     val takeCap: Int,
     val activeTake: Int,
+    val masterTake: Int,
     val takes: List<TakeTakeInfo>,
 )
 
@@ -192,6 +194,15 @@ class GigCommandClient(
     suspend fun takeRecordOver(takeIndex: Int, armCsv: String) = postJson(
         path = "/take/record-over",
         body = """{"take_index":$takeIndex,"arm":${jsonString(armCsv)}}""",
+    )
+
+    /** S219 ②·3a: set/toggle the KEPT (★ master) take by 1-based [takeIndex]. The rig persists it in
+     *  the cover's .rpp (the slab's start position — survives reopen + record-over); the next 1 s
+     *  /take/status poll reflects `master_take`. Tapping the current master clears it (rig-side toggle).
+     *  Same /take bridge + offline queue as the others. */
+    suspend fun takeSetMaster(takeIndex: Int) = postJson(
+        path = "/take/master",
+        body = """{"take_index":$takeIndex}""",
     )
 
     /**
@@ -462,6 +473,8 @@ class GigCommandClient(
             takeCount = o.optInt("take_count", 0),
             takeCap = o.optInt("take_cap", 0),
             activeTake = o.optInt("active_take", 0),
+            // S219 ②·3a: ★ master take — a pre-S219 MS omits master_take, so default 0 (no ★).
+            masterTake = o.optInt("master_take", 0),
             takes = takes,
         )
     }

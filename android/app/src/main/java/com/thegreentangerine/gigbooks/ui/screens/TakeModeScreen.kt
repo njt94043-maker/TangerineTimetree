@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -414,6 +415,9 @@ private fun TakeSurface(
     // never double-show with or outlive the rig's own pill.
     val rigTakeCount = status?.takeCount ?: 0
     val activeTake = status?.activeTake ?: 0
+    // S219 ②·3a: the rig-driven ★ master (kept) take, 0 = none. Drives the green ★ on its pill +
+    // the action-sheet "Set/Unset master" label. Rig is the source of truth — no local master state.
+    val masterTake = status?.masterTake ?: 0
     val takes = status?.takes ?: emptyList()
     // Show the provisional pill ONLY in the gap between firing Record and the rig enumerating the new
     // take. Derived against the live rig count, so the synthetic pill can NEVER double-show with the
@@ -590,6 +594,7 @@ private fun TakeSurface(
             TakeStrip(
                 takes = stripTakes,
                 activeTake = activeTake,
+                masterTake = masterTake,
                 showProvisional = showProvisional,
                 provisionalIndex = provisionalTake,
                 recordOverIndex = recordOverIndex,
@@ -827,9 +832,16 @@ private fun TakeSurface(
         longPressTake?.let { take ->
             TakeActionSheet(
                 take = take,
+                isMaster = take.index == masterTake,         // S219 ②·3a: toggles label Set/Unset
                 canDelete = takes.size >= 2,                 // never offer deleting the only take
                 canRecordOver = recordReady && !isRecording, // reuse the post-Stop settle guard
                 onDismiss = { longPressTake = null },
+                onSetMaster = {
+                    longPressTake = null
+                    // S219 ②·3a: set/toggle the ★ master. No transport/record involved, so it's
+                    // independent of the settle guards; the next /take/status poll repaints the ★.
+                    scope.launch { service.gigCmd.takeSetMaster(take.index) }
+                },
                 onRecordOver = {
                     longPressTake = null
                     scope.launch { service.gigCmd.takeRecordOver(take.index, armedCsv) }
@@ -1015,7 +1027,11 @@ private fun fmtClock(sec: Double?): String {
  * `/take/status` (the source of truth — no local counter). The active take is highlighted in
  * tangerine (v4 mockup styling, apk--take-controller-v4-drawers.html); tapping a pill seeks the
  * rig to that take's start and plays it (preview), and long-pressing opens the S217 record-over /
- * delete chooser. (★master per take is still a later slice.)
+ * delete chooser.
+ *
+ * S219 ②·3a — ★ master. The pill whose index == [masterTake] shows a green ★ + green border (the
+ * "kept take" marker), rig-driven from `/take/status`. A take can be active AND master (orange fill
+ * kept, green ★/border take precedence) — see [TakePill].
  *
  * S218 ②·2.5 — the in-flight take. A take being RECORDED isn't committed yet, so the rig can't
  * enumerate it until Stop. We paint it APK-side as a red animated [RecordingPill]: record-over
@@ -1028,6 +1044,7 @@ private fun fmtClock(sec: Double?): String {
 private fun TakeStrip(
     takes: List<TakeTakeInfo>,
     activeTake: Int,
+    masterTake: Int,
     showProvisional: Boolean,
     provisionalIndex: Int?,
     recordOverIndex: Int?,
@@ -1061,6 +1078,7 @@ private fun TakeStrip(
                             modifier = Modifier.weight(1f),
                             take = take,
                             active = take.index == activeTake,
+                            master = take.index == masterTake,
                             onTap = { onTakeTap(take) },
                             onLong = { onTakeLong(take) },
                         )
@@ -1075,38 +1093,69 @@ private fun TakeStrip(
     }
 }
 
-/** A committed take's pill — active = orange fill/border, idle = muted outline. Tap previews,
- *  long-press opens the record-over / delete chooser (unchanged S216/S217 behaviour). */
+/**
+ * A committed take's pill. Colour lock (S219 §5): idle = muted outline · active = orange fill/border ·
+ * ★ master = green border + a green ★ leading the label. A take can be active AND master — the orange
+ * fill stays (the "currently auditioning" cue) while the green ★/border/label take precedence (the
+ * "this is the keeper" cue), matching the v4 mockup's green `★4`. Tap previews; long-press opens the
+ * record-over / delete / set-master chooser.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TakePill(
     modifier: Modifier,
     take: TakeTakeInfo,
     active: Boolean,
+    master: Boolean,
     onTap: () -> Unit,
     onLong: () -> Unit,
 ) {
-    val accent = TangerineColors.orange
+    val orange = TangerineColors.orange
+    val green = TangerineColors.green
+    // Fill follows ACTIVE (orange wash) — an active+master take keeps it so the audition cue isn't
+    // lost. Border + label tint: green when master (precedence), else orange when active, else muted.
+    val fill = if (active) orange.copy(alpha = 0.14f) else Color.Transparent
+    val borderColor = when {
+        master -> green.copy(alpha = 0.8f)
+        active -> orange.copy(alpha = 0.7f)
+        else -> TangerineColors.textMuted.copy(alpha = 0.4f)
+    }
+    val labelColor = when {
+        master -> green
+        active -> orange
+        else -> TangerineColors.textMuted
+    }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(if (active) accent.copy(alpha = 0.14f) else Color.Transparent)
+            .background(fill)
             .border(
-                1.dp,
-                if (active) accent.copy(alpha = 0.7f) else TangerineColors.textMuted.copy(alpha = 0.4f),
+                if (master) 1.5.dp else 1.dp,
+                borderColor,
                 RoundedCornerShape(8.dp),
             )
             .combinedClickable(onClick = onTap, onLongClick = onLong)
             .padding(vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            "T${take.index}",
-            fontFamily = JetBrainsMono,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-            fontSize = 11.sp,
-            color = if (active) accent else TangerineColors.textMuted,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (master) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = "master take",
+                    tint = green,
+                    modifier = Modifier.size(12.dp),
+                )
+                Spacer(Modifier.width(3.dp))
+            }
+            Text(
+                "T${take.index}",
+                fontFamily = JetBrainsMono,
+                fontWeight = if (active || master) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 11.sp,
+                color = labelColor,
+            )
+        }
     }
 }
 
@@ -1270,17 +1319,21 @@ private fun TakeStopButton(modifier: Modifier, enabled: Boolean, onClick: () -> 
 // ─── Take long-press chooser + delete confirm (S217) ───────────────────────────
 
 /**
- * Long-press a take pill → this chooser for take K: "Record over take K" (records in place, keeping
- * its backing clone) and — only when more than one take exists — "Delete take K". Record-over is
- * gated on [canRecordOver] (the post-Stop settle / not-already-recording guard, same as Record);
- * Delete routes through [TakeDeleteConfirm] before anything is removed. Plain tap still previews.
+ * Long-press a take pill → this chooser for take K. Top action (S219 ②·3a): a green ★ "Set as master"
+ * / "Unset master" toggle — marks the KEPT take, independent of the record/settle guards (it never
+ * touches the rig transport). Then "Record over take K" (records in place, keeping its backing clone),
+ * and — only when more than one take exists — "Delete take K". Record-over is gated on [canRecordOver]
+ * (the post-Stop settle / not-already-recording guard, same as Record); Delete routes through
+ * [TakeDeleteConfirm] before anything is removed. Plain tap still previews.
  */
 @Composable
 private fun TakeActionSheet(
     take: TakeTakeInfo,
+    isMaster: Boolean,
     canDelete: Boolean,
     canRecordOver: Boolean,
     onDismiss: () -> Unit,
+    onSetMaster: () -> Unit,
     onRecordOver: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -1295,11 +1348,34 @@ private fun TakeActionSheet(
             )
         },
         text = {
-            Text(
-                if (canRecordOver) "Replace this take's drums in place, or remove it."
-                else "Finish the current take before recording over.",
-                fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
-            )
+            Column {
+                Text(
+                    if (canRecordOver) "Replace this take's drums in place, or remove it."
+                    else "Finish the current take before recording over.",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+                Spacer(Modifier.height(14.dp))
+                // ★ master toggle (green) — the "this is the keeper" marker. Always enabled (marking a
+                // take never touches the rig transport, so it's free of the record/settle guards).
+                val mg = TangerineColors.green
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(mg.copy(alpha = if (isMaster) 0.18f else 0.08f))
+                        .border(1.dp, mg.copy(alpha = if (isMaster) 0.8f else 0.5f), RoundedCornerShape(10.dp))
+                        .clickable(onClick = onSetMaster)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = mg, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (isMaster) "Unset master" else "Set as master",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = mg,
+                    )
+                }
+            }
         },
         confirmButton = {
             TextButton(onClick = onRecordOver, enabled = canRecordOver) {

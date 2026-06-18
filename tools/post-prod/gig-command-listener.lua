@@ -44,7 +44,7 @@ local take_phase   = 0      -- save-on-stop watcher: 0 idle, 1 record-requested,
 -- they are REFERENCED earlier -- take_record's cap check needs take_slab_starts, and process()
 -- dispatches take_delete / take_record_over. Declaring the locals up here makes those earlier
 -- references bind to these locals (not stray globals) regardless of definition order.
-local take_slab_starts, take_delete, take_record_over
+local take_slab_starts, take_delete, take_record_over, take_set_master
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -580,6 +580,7 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "take-seek" then take_seek(pos_sec)
   elseif action == "take-delete" then take_delete(take_index)
   elseif action == "take-record-over" then take_record_over(take_index, arm)
+  elseif action == "take-master" then take_set_master(take_index)
   else reaper.ShowConsoleMsg(string.format("[gig-cmd] unknown action: %s\n", tostring(action))) end
 end
 
@@ -673,12 +674,18 @@ function take_delete(index)
     reaper.ShowConsoleMsg("[take] can't delete the only take -- re-record over it or re-load the cover\n"); return
   end
   local lo, hi = take_slab_window(starts, index)
+  local del_key = string.format("%.3f", starts[index])   -- ②·3a: was this slab the ★ master?
   reaper.Undo_BeginBlock()
   local removed = 0
   for i = 0, reaper.CountTracks(0) - 1 do
     removed = removed + take_delete_items_in_window(reaper.GetTrack(0, i), lo, hi)
   end
   reaper.Undo_EndBlock("TGT take-delete", -1)
+  -- ②·3a delete hygiene: if the deleted slab WAS the master, clear the stored key so a stale
+  -- master_start can't linger in the .rpp. (enumerate already self-cleans the display; this keeps
+  -- the persisted state tidy.) Done before the save below so the cleared key persists.
+  local _, cur_master = reaper.GetProjExtState(0, "TGT_TAKE", "master_start")
+  if cur_master == del_key then reaper.SetProjExtState(0, "TGT_TAKE", "master_start", "") end
   reaper.Main_OnCommand(40026, 0)  -- save
   reaper.ShowConsoleMsg(string.format("[take] deleted take %d (window %.3f..%s), removed %d items\n",
     index, lo, (hi == math.huge) and "inf" or string.format("%.3f", hi), removed))
@@ -711,13 +718,38 @@ function take_record_over(index, arm_csv)
     index, record_at, (arm_csv ~= "" and arm_csv) or "10-16(default)"))
 end
 
+-- ②·3a (S219): mark the KEPT take. Stored as the slab's START position in ProjExtState (section
+-- "TGT_TAKE", key "master_start", formatted "%.3f") -- NOT a take index. Start-keying survives a
+-- reopen (saved in the .rpp) AND a record-over (which re-records at the SAME start), where an index
+-- would drift under a delete. Tapping the current master clears it (toggle); setting it on another
+-- take moves the ★. Assigned to the forward-declared local so process() (defined earlier) binds to it.
+function take_set_master(index)
+  local starts = take_slab_starts()
+  local n = #starts
+  if n == 0 then reaper.ShowConsoleMsg("[take] no takes to master\n"); return end
+  if index == nil or index < 1 or index > n then
+    reaper.ShowConsoleMsg(string.format("[take] master: bad index %s (have %d)\n", tostring(index), n)); return end
+  local key = string.format("%.3f", starts[index])
+  local _, cur = reaper.GetProjExtState(0, "TGT_TAKE", "master_start")
+  if cur == key then
+    reaper.SetProjExtState(0, "TGT_TAKE", "master_start", "")        -- toggle off
+    reaper.ShowConsoleMsg(string.format("[take] master cleared (was take %d)\n", index))
+  else
+    reaper.SetProjExtState(0, "TGT_TAKE", "master_start", key)       -- set / move
+    reaper.ShowConsoleMsg(string.format("[take] master -> take %d (@%s)\n", index, key))
+  end
+  reaper.Main_OnCommand(40026, 0)                                    -- save: persists in the .rpp
+end
+
 -- Returns take_count, a JSON array fragment for "takes" (correctly-escaped, no libs -- same
--- hand-rolled style write_status uses), and active_take. active_take is 1-based: the take whose
--- [start,end) contains pos; else the nearest take by distance (so pos past the end -> the last
--- take). 0 / "" / 0 when no cover is loaded or the canonical track has no items.
+-- hand-rolled style write_status uses), active_take, and master_take. active_take is 1-based: the
+-- take whose [start,end) contains pos; else the nearest take by distance (so pos past the end -> the
+-- last take). master_take (②·3a) is 1-based: the take whose START matches the stored master_start key,
+-- else 0 (unset OR orphaned-by-delete). 0 / "" / 0 / 0 when no cover is loaded or the canonical track
+-- has no items.
 local function take_enumerate(pos)
   local tr = take_canonical_track()
-  if not tr then return 0, "", 0 end
+  if not tr then return 0, "", 0, 0 end
   local items = {}
   for j = 0, reaper.CountTrackMediaItems(tr) - 1 do
     local it = reaper.GetTrackMediaItem(tr, j)
@@ -727,7 +759,12 @@ local function take_enumerate(pos)
   end
   table.sort(items, function(a, b) return a.s < b.s end)
   local n = #items
-  if n == 0 then return 0, "", 0 end
+  if n == 0 then return 0, "", 0, 0 end
+  -- ②·3a: the ★ master is the slab whose START matches the stored master_start key, formatted the
+  -- SAME %.3f way take_set_master wrote it. Read once; 0 when unset or the key matches no current take
+  -- (a deleted master self-cleans here -> no ★).
+  local _, master_key = reaper.GetProjExtState(0, "TGT_TAKE", "master_start")
+  local master_take = 0
   local parts = {}
   local active, contained = 0, false
   local nearest, best_dist = 1, nil
@@ -735,11 +772,12 @@ local function take_enumerate(pos)
     local s, e = items[i].s, items[i].e
     parts[i] = string.format('{"index":%d,"start_sec":%.3f,"end_sec":%.3f}', i, s, e)
     if (not contained) and pos >= s and pos < e then active = i; contained = true end
+    if master_key ~= "" and string.format("%.3f", s) == master_key then master_take = i end
     local dist = (pos < s) and (s - pos) or ((pos >= e) and (pos - e) or 0)
     if best_dist == nil or dist < best_dist then best_dist = dist; nearest = i end
   end
   if not contained then active = nearest end
-  return n, table.concat(parts, ","), active
+  return n, table.concat(parts, ","), active, master_take
 end
 
 local function write_status()
@@ -760,14 +798,15 @@ local function write_status()
   -- file MTIME for staleness, not this field.
   local ts_ms = math.floor(reaper.time_precise() * 1000)
   -- S216 slice2: enumerate the clone-forward takes (off the position already computed above).
-  local take_count, takes_json, active_take = take_enumerate(pos)
+  -- ②·3a (S219): take_enumerate now also returns master_take (the ★ take's 1-based index, 0 = none).
+  local take_count, takes_json, active_take, master_take = take_enumerate(pos)
   local body = string.format(
     '{"ts_ms":%d,"play_state":"%s","recording":%s,"playing":%s,'
       .. '"position_sec":%.3f,"length_sec":%.3f,"project_name":"%s",'
-      .. '"take_count":%d,"takes":[%s],"active_take":%d,"take_cap":%d}',
+      .. '"take_count":%d,"takes":[%s],"active_take":%d,"master_take":%d,"take_cap":%d}',
     ts_ms, play_state, tostring(recording), tostring(playing),
     pos, len, status_json_escape(proj),
-    take_count, takes_json, active_take, TAKE_CAP)
+    take_count, takes_json, active_take, master_take, TAKE_CAP)
   local tmp = STATUS_FILE .. ".tmp"
   local fh = io.open(tmp, "wb"); if not fh then return end
   fh:write(body); fh:close()
