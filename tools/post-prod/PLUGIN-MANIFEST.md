@@ -2,13 +2,17 @@
 
 *S145 — what plugins our post-prod actually needs, what's installed, what's recommended, what's missing. **Authoritative source of truth** for Reaper-side and DaVinci-side chains. The setup spec ([`specs/tgt/reaper-postprod-setup.md`](../../../../Apps/Dev%20Team/specs/tgt/reaper-postprod-setup.md) §2) mirrors this file — if they disagree, THIS WINS and the spec gets updated. (Reconciled S192 / batch A G6.)*
 
-*Audit performed against `tools/post-prod/templates/whole-gig-template-v1.RPP` (extracted from 2026-05-03 hand-mixed gig). All plugin-presence checks against `C:/Program Files/Common Files/VST3/`.*
+*Audit performed against `tools/post-prod/templates/whole-gig-template-v1.RPP` (extracted from 2026-05-03 hand-mixed gig).*
+
+> **RIG MIGRATION (S162): OptiPlex → Acer.** This file was originally written for the OptiPlex. Plugin presence is now verified against **Reaper's own scan cache** `%APPDATA%\REAPER\reaper-vstplugins64.ini` (the definitive "what Reaper can load"), not just a folder listing. Core plugins live across **both** VST2 (`.dll`, e.g. `C:\Program Files\Steinberg\VstPlugins\`) **and** VST3 (`.vst3`, `C:\Program Files\Common Files\VST3\`) paths — not all are in the VST3 folder. The Acer cache (checked 2026-06-16) carries every template-referenced plugin plus the three Wavesfactory adds below.
+
+> **v3 TOPOLOGY (S222).** The template now sums the 4 performance buses (TD-4 / VOX / EAD / DRUMS) through a **MIX BUS** (`DC1A3` glue → `TDR Kotelnikov` mix-comp; `IVGI2` baked bypassed) before a slim master. **Kotelnikov moved off the master** onto the MIX BUS (a serial master+mixbus comp would over-squash). MUSIC BUS stays direct to master. DRUMS BUS punch slot is now **`Flash`** (transient shaper) and toms 12-14 gained **`TDR Nova`**.
 
 ---
 
 ## TL;DR
 
-**Reaper side: complete.** The template references 16 plugins (12 third-party install + 4 Cockos stock bundled with Reaper); all 16 are installed on OptiPlex. James 3-stage chain works, mastering chain works, vocal de-essing works (via TDR Nova dynamic EQ).
+**Reaper side: complete (v3, S222).** The template references 14 third-party plugins (now incl. `Flash`) + 4 Cockos stock (bundled with Reaper); all are present in the Acer Reaper scan cache (2026-06-16). James 3-stage chain works, mastering chain works, vocal/tom/OH de-ess + ring-tame work (via TDR Nova). v3 adds the **MIX BUS** glue/comp stage and capture-aware polish (Flash transient on DRUMS BUS, Nova on toms). `SnareBuzz` and `SK10` are installed + scanned but **not used** in the template (held as candidates — see below).
 
 **DaVinci side: greenfield.** Decision: **install Free Resolve 20 now; upgrade to Studio (£295 one-off) when budget allows.** Free covers everything for the immediate workflow (multicam edit + colour + render); Studio's three workflow-relevant adds (Voice Isolation for crowd noise, VST-in-Fairlight for single-app workflow, H.265 hardware encoding) become real upgrades once £295 is spare. Architecture works on either; Studio just unlocks the optional features.
 
@@ -31,31 +35,42 @@
 | 07 Spare | (no FX) | Often unused channel |
 | EAD BUS | ReaComp | Bus glue on Yamaha EAD pre-mix |
 | 08-09 EAD L/R | ReaEQ → ReaComp | Light shape |
-| DRUMS BUS | DC1A3 → ReaComp (parallel) | Glue + parallel-comp **punch** on the kit. *(Was DC1A3 → TENSjr "transient enhancement" — TENSjr is a Klanghelm **spring reverb**, not a transient designer; mislabel corrected S210. `setup-postprod-fx.lua` now uses parallel ReaComp for this slot; the baked `whole-gig-template-v1.RPP` still carries TENSjr and needs re-baking to match.)* |
+| DRUMS BUS | DC1A3 → **Flash** | Glue + **transient punch** (Flash = Wavesfactory transient shaper, ATTACK/SUSTAIN). *(Slot history: TENSjr pre-S210 — a Klanghelm **spring reverb**, mislabel corrected S210 → parallel ReaComp S210 → **Flash S222** (proper transient design, mirrors take-mode). Re-baked into `whole-gig-template-v1.RPP` S222.)* |
 | 10 Kick | ReaEQ → ReaGate → ReaComp → ReaEQ | Two-EQ tone-shape |
 | 11 Snare | ReaEQ → ReaGate → ReaComp → TDR Nova | Dynamic EQ on resonance |
-| 12-14 Toms 1/2/3 | ReaEQ → ReaGate → ReaComp | Standard kit chain |
+| 12-14 Toms 1/2/3 | ReaEQ → ReaGate → ReaComp → **TDR Nova** | Kit chain + dynamic ring-tame (S222) — open tom mics ring more live; parity with snare/OH |
 | 15-16 OH L/R | ReaEQ → ReaComp → TDR Nova | Cymbal sibilance control via Nova |
-| **MASTER** | SPAN → TDR SlickEQ → TDR Nova → TDR Kotelnikov → LoudMax → Youlean | Analyzer + mastering EQ → mastering dynEQ → vari-mu mastering comp → limiter + LUFS meter |
+| **MIX BUS** | DC1A3 → TDR Kotelnikov (+ IVGI2 bypassed) | **S222** — the mix/balance stage. Sums TD-4/VOX/EAD/DRUMS buses (master send off on them, post-fader send in); DC1A3 gentle glue → Kotelnikov transparent mix-comp. IVGI2 baked bypassed = optional console colour. Mirror of take-mode BALANCE BUS. |
+| **MASTER** | SPAN → TDR SlickEQ → TDR Nova → LoudMax → Youlean | Analyzer + mastering EQ → mastering dynEQ → limiter + LUFS meter. **Kotelnikov removed S222** (moved to MIX BUS — serial double mix-comp would over-squash). Slim master. |
 
-### Plugins installed on OptiPlex (all 16 ✓)
+### Plugins installed + scanned on the Acer rig (Reaper cache `reaper-vstplugins64.ini`, 2026-06-16)
 
-All template-referenced plugins are present at `C:/Program Files/Common Files/VST3/` (or Reaper-bundled).
+Every plugin below resolves from Reaper's own scan cache (loadable), present across VST2 (`.dll`) and/or VST3 (`.vst3`) paths.
 
 | Plugin | Vendor | Type | Role | Free/Paid |
 |---|---|---|---|---|
 | ReaComp / ReaEQ / ReaGate / ReaXcomp | Cockos | VST | Stock dynamics + EQ | Bundled with Reaper |
-| DC1A3 | Klanghelm | VST | Bus glue compressor | Free |
-| IVGI2 | Klanghelm | VST | Tape/console saturation | Free |
-| MJUCjr | Klanghelm | VST | Vari-mu vocal leveler (the secret sauce of James's chain) | Free |
-| TENSjr | Klanghelm | VST3 | **Spring reverb** (was mislabelled "transient designer / kit punch" — corrected S210; removed from the DRUMS BUS chain, the punch slot now uses parallel ReaComp) | Free |
-| TDR Nova | TDL | VST | Dynamic EQ (used for de-essing + kit resonance) | Free |
-| TDR Kotelnikov | TDL | VST | Mastering compressor | Free |
+| DC1A3 | Klanghelm | VST2+VST3 | Bus glue compressor (TD-4/VOX/DRUMS buses + **MIX BUS** S222) | Free |
+| IVGI2 | Klanghelm | VST2+VST3 | Tape/console saturation (Neil Bass grind; **MIX BUS** bypassed-by-default S222) | Free |
+| MJUCjr | Klanghelm | VST2+VST3 | Vari-mu vocal leveler (the secret sauce of James's chain) | Free |
+| **Flash** | Wavesfactory | VST2+VST3 | **Transient shaper** (ATTACK/SUSTAIN) — DRUMS BUS punch slot (S222). Mirrors take-mode; proven live there. | Free |
+| TENSjr | Klanghelm | VST2+VST3 | Spring reverb. **NOT used in the template** (was a DRUMS-BUS mislabel, corrected S210; punch slot is now Flash). Available if a spring-verb is ever wanted. | Free |
+| TDR Nova | TDL | VST2+VST3 | Dynamic EQ — de-ess (vox), resonance/ring tame (snare, **toms S222**, OH), master dynEQ | Free |
+| TDR Kotelnikov | TDL | VST2+VST3 | Transparent compressor — now the **MIX BUS** mix-comp (moved off master, S222) | Free |
 | TDR VOS SlickEQ | TDL | VST3 | Mastering EQ | Free |
 | LoudMax | Thomas Mundt | VST3 | Final limiter | Free |
 | SPAN | Voxengo | VST3 | Spectrum analyzer | Free |
 | Youlean Loudness Meter 2 | Youlean | VST3 | LUFS / loudness target metering | Free |
 | ValhallaSupermassive | Valhalla DSP | VST3 | Vocal-bus reverb/delay | Free |
+
+### Installed + scanned but NOT (yet) in the template — drum-sound candidates (S222)
+
+These two Wavesfactory plugins are present in the Acer cache (2026-06-16, VST2+VST3) but are **not** wired into the template. Held as candidates pending a sound check on a real captured gig (do **not** force them in):
+
+| Plugin | Vendor | Type | Candidate role | Status |
+|---|---|---|---|---|
+| **SnareBuzz** | Wavesfactory | VST2+VST3 | Adds sympathetic **snare-wire body/buzz** — could append to Ch 11 Snare *if it audibly helps* | Scanned, loadable. Off-plan; revisit after a gig. |
+| **SK10** | Wavesfactory | VST2+VST3 | Wavesfactory "SK10" colour/saturation — possible subtle MIX-BUS or drum-bus tint *if it earns its place* | Scanned, loadable. Not load-bearing; follow-up only. |
 
 **Cost of the entire Reaper-side post-prod stack: £0.** All free or Reaper-bundled.
 
