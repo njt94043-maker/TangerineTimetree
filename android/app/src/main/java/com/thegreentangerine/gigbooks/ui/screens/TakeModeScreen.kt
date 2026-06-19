@@ -54,7 +54,6 @@ import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -69,7 +68,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -645,13 +643,9 @@ private fun TakeSurface(
             //    presentation over the same song fields; no state/callback touched.
             TakeNowPlaying(song = song)
 
-            // ── Active-layer pill (S221 ②·4a) — context stays on the clean face; management lives in the
-            //    LAYERS drawer (tap to open). Hidden until the rig reports the cover's layers. ──
-            TakeActiveLayerPill(
-                layers = layers,
-                activeLayer = activeLayer,
-                onClick = { openDrawer = TakeDrawer.LAYERS },
-            )
+            // ── (S223) the active-layer pill is gone — it opened the same LAYERS drawer the dock chip
+            //    already opens (redundant), and on a 1-layer cover it only read "Drums · 1/1". Layer
+            //    context now lives solely in the LAYERS drawer. ──
 
             // ── Transport · audition takes (S214) — between NOW LOADED and the take strip ──
             TakeTransport(
@@ -809,9 +803,10 @@ private fun TakeSurface(
                 }
             }
 
-            // ── Dock (v4 mockup §panel-1) — the 5 drawer chips pinned to the bottom of the face.
-            //    LAYERS carries the orange accent (it's the build-the-cover home); the chip whose
-            //    drawer is open lights teal. Each opens its bottom-sheet below. ──
+            // ── Dock (v4 mockup §panel-1) — the 4 drawer chips pinned to the bottom of the face.
+            //    LAYERS carries the orange accent (it's the build-the-cover home, now also the active
+            //    layer's kit — S223); the chip whose drawer is open lights teal. Each opens its
+            //    bottom-sheet below. ──
             TakeDock(openDrawer = openDrawer, onChip = { kind -> openDrawer = kind })
         }
 
@@ -821,17 +816,11 @@ private fun TakeSurface(
                 LayersDrawerContent(
                     layers = layers,
                     activeLayer = activeLayer,
+                    armState = armState,
+                    onArmState = { armState = it },
                     onSwitchLayer = { id -> scope.launch { service.gigCmd.takeSwitchLayer(id) } },
                     onArmLayers = { ids -> scope.launch { service.gigCmd.takeArmLayers(ids) } },
                     onAddLayer = { showAddLayer = true },
-                )
-            }
-            TakeDrawer.KIT -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
-                KitDrawerContent(
-                    activeLayer = activeLayer,
-                    layers = layers,
-                    armState = armState,
-                    onArmState = { armState = it },
                 )
             }
             TakeDrawer.MIX -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
@@ -1426,66 +1415,16 @@ private fun armedLayerIdsAfterToggle(
     return layers.map { it.id }.filter { it in set }
 }
 
-/**
- * S221 ②·4a — the active-layer pill on the face (above the take strip, v4 mockup §panel-1). CONTEXT
- * only: kind icon + name + "layer i/n" + "tap to switch" → opens the LAYERS/KIT drawer. Hidden until the
- * rig reports the cover's layers (so it can't paint a frozen/empty state). 1 layer → "Drums · 1/1".
- */
-@Composable
-private fun TakeActiveLayerPill(
-    layers: List<TakeLayerInfo>,
-    activeLayer: String,
-    onClick: () -> Unit,
-) {
-    if (layers.isEmpty()) return
-    val activeIdx = layers.indexOfFirst { it.id == activeLayer }.let { if (it < 0) 0 else it }
-    val active = layers[activeIdx]
-    val orange = TangerineColors.orange
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(11.dp))
-            .background(orange.copy(alpha = 0.08f))
-            .border(1.dp, orange.copy(alpha = 0.5f), RoundedCornerShape(11.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(layerKindIcon(active.kind), contentDescription = null, tint = orange, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(9.dp))
-            Text(
-                active.name.ifBlank { active.id },
-                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = orange,
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "layer ${activeIdx + 1}/${layers.size}",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                "tap to switch",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
-            )
-            Icon(
-                Icons.Default.ExpandMore, contentDescription = "Open layers",
-                tint = TangerineColors.textDim, modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
 // ─── Dock + drawers (v4 re-housing — apk--take-controller-v4-drawers.html) ──────
 
-/** The 5 drawer chips of the dock; also keys the open bottom-sheet. */
-private enum class TakeDrawer { LAYERS, KIT, MIX, CAMS, PRO }
+/** The 4 drawer chips of the dock; also keys the open bottom-sheet. (S223: KIT folded into LAYERS.) */
+private enum class TakeDrawer { LAYERS, MIX, CAMS, PRO }
 
 /**
- * The 5-chip dock pinned at the bottom of the playing face (v4 mockup §panel-1, the `.drw` row):
- * LAYERS · KIT · MIX · CAMS · PRO, icon-first so all five fit. LAYERS carries the orange accent (the
- * build-the-cover home); the chip whose drawer is open lights teal (`.drw.on`); the rest are muted.
- * Pure navigation — tapping a chip just sets [openDrawer]; the sheets hold the (unchanged) controls.
+ * The 4-chip dock pinned at the bottom of the playing face (v4 mockup §panel-1, the `.drw` row):
+ * LAYERS · MIX · CAMS · PRO, icon-first. LAYERS carries the orange accent (the build-the-cover home,
+ * now also home to the active layer's KIT — S223); the chip whose drawer is open lights teal
+ * (`.drw.on`); the rest are muted. Pure navigation — tapping a chip just sets [openDrawer].
  */
 @Composable
 private fun TakeDock(openDrawer: TakeDrawer?, onChip: (TakeDrawer) -> Unit) {
@@ -1494,7 +1433,6 @@ private fun TakeDock(openDrawer: TakeDrawer?, onChip: (TakeDrawer) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         DockChip(Icons.Default.Layers, "LAYERS", TakeDrawer.LAYERS, openDrawer, accent = true, onChip)
-        DockChip(Icons.Default.Tune, "KIT", TakeDrawer.KIT, openDrawer, accent = false, onChip)
         DockChip(Icons.Default.Equalizer, "MIX", TakeDrawer.MIX, openDrawer, accent = false, onChip)
         DockChip(Icons.Default.Videocam, "CAMS", TakeDrawer.CAMS, openDrawer, accent = false, onChip)
         DockChip(Icons.Default.AutoFixHigh, "PRO", TakeDrawer.PRO, openDrawer, accent = false, onChip)
@@ -1570,14 +1508,17 @@ private fun TakeBottomSheet(onDismiss: () -> Unit, content: @Composable () -> Un
 /**
  * LAYERS drawer (v4 mockup §panel-2) — build the cover, arm to record together. The layer-management
  * content lifted out of the old inline LAYERS/KIT card: a row per layer (kind · name · arm control,
- * tap to make active), the ★master/take-count sub-line lives on each [LayerRow], an Add-layer row, and
- * the "Record lays a take on every armed layer at once" hint. Takes stay GLOBAL. The active layer's
- * *kit* now lives in the KIT drawer, not nested here.
+ * tap to make active), an Add-layer row, and the "Record lays a take on every armed layer at once"
+ * hint. Takes stay GLOBAL — no per-layer take count is rendered. Below a divider, the ACTIVE layer's
+ * *kit* (drums = channel-arm presets; vocals/other = a 1-track summary) is folded in (S223), since a
+ * kit is a property of the active layer, not a sibling of it — so it no longer needs its own chip.
  */
 @Composable
 private fun LayersDrawerContent(
     layers: List<TakeLayerInfo>,
     activeLayer: String,
+    armState: ArmPresetState,
+    onArmState: (ArmPresetState) -> Unit,
     onSwitchLayer: (String) -> Unit,
     onArmLayers: (List<String>) -> Unit,
     onAddLayer: () -> Unit,
@@ -1609,33 +1550,33 @@ private fun LayersDrawerContent(
         "arm one or more layers — Record lays a take on every armed layer at once",
         fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
     )
-}
 
-/**
- * KIT drawer — the active layer's kit setup. Drums = the s202 [ChannelArmPresetSelector] (the drum-
- * channel arm presets/toggles, unchanged); Vocals/other = the 1-track summary (no channel matrix).
- * This is the same content the old inline card nested under the active layer, now its own drawer.
- */
-@Composable
-private fun KitDrawerContent(
-    activeLayer: String,
-    layers: List<TakeLayerInfo>,
-    armState: ArmPresetState,
-    onArmState: (ArmPresetState) -> Unit,
-) {
-    val active = layers.firstOrNull { it.id == activeLayer } ?: layers.firstOrNull()
-    val kind = active?.kind?.lowercase() ?: "drums"
-    DrawerHeader(
-        label = "KIT",
-        accent = TangerineColors.orange,
-        caption = active?.let { "${it.name.ifBlank { it.id }} · what am I using today?" }
-            ?: "load a cover to set the kit",
-    )
-    Spacer(Modifier.height(12.dp))
-    when (kind) {
-        "drums" -> ChannelArmPresetSelector(mode = ArmPresetMode.TAKE, state = armState, onState = onArmState)
-        "vocals" -> LayerKitSummary("Vox · 1 track", "pro vocal chain → BALANCE")
-        else -> LayerKitSummary("${active?.name?.ifBlank { active.id } ?: "Layer"} · 1 track", "")
+    // ── Active-layer KIT section (S223 — folded in from the old KIT drawer) ── what am I using on the
+    //    active layer today? Drums → the s202 ChannelArmPresetSelector (full drum-channel arm
+    //    presets/toggles); vocals/other → the 1-track LayerKitSummary. Only shown once a cover loads.
+    if (layers.isNotEmpty()) {
+        val active = layers.firstOrNull { it.id == activeLayer } ?: layers.firstOrNull()
+        val kind = active?.kind?.lowercase() ?: "drums"
+        Spacer(Modifier.height(18.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(TangerineColors.textMuted.copy(alpha = 0.25f)),
+        )
+        Spacer(Modifier.height(14.dp))
+        DrawerHeader(
+            label = "KIT",
+            accent = TangerineColors.orange,
+            caption = active?.let { "${it.name.ifBlank { it.id }} · what am I using today?" }
+                ?: "load a cover to set the kit",
+        )
+        Spacer(Modifier.height(12.dp))
+        when (kind) {
+            "drums" -> ChannelArmPresetSelector(mode = ArmPresetMode.TAKE, state = armState, onState = onArmState)
+            "vocals" -> LayerKitSummary("Vox · 1 track", "pro vocal chain → BALANCE")
+            else -> LayerKitSummary("${active?.name?.ifBlank { active.id } ?: "Layer"} · 1 track", "")
+        }
     }
 }
 
