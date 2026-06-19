@@ -175,6 +175,14 @@ class GigCommandClient(
         body = """{"trackId":${jsonString(trackId)},"title":${jsonString(title)}}""",
     )
 
+    /** S224: from-scratch source — build a blank recordable Drums cover named [title] (NO library
+     *  trackId, NO stems, NO click). Mirrors takeLoad down the same /take bridge + offline queue; the
+     *  rig copies the take template + seeds the Drums layer. The next /take/status poll shows it. */
+    suspend fun takeNewScratch(title: String) = postJson(
+        path = "/take/new-scratch",
+        body = """{"title":${jsonString(title)}}""",
+    )
+
     suspend fun takeRecord(armCsv: String) = postJson(
         path = "/take/record",
         body = """{"arm":${jsonString(armCsv)}}""",

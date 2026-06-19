@@ -200,15 +200,28 @@ fun TakeModeScreen(onMenuClick: () -> Unit) {
             loadFailed = loadFailed,
             onRefresh = { refreshTick++ },
             onSelect = { selectedSong = it },
+            onCreateScratch = { selectedSong = scratchSong(it) },
         )
     } else {
         TakeSurface(
             song = sel,
             service = svc,
             onBack = { selectedSong = null },
+            onCreateScratch = { selectedSong = scratchSong(it) },
         )
     }
 }
+
+// ─── S224: from-scratch source helpers ─────────────────────────────────────────
+private const val SCRATCH_PREFIX = "scratch:"
+/** S224: a from-scratch cover has no library track. Synthesise a TakeSong so it rides the same
+ *  selectedSong→TakeSurface path; the `scratch:` sentinel trackId branches the load (takeNewScratch
+ *  vs takeLoad) + keys the surface state. trackId carries the title so distinct names key distinctly
+ *  (title-only, matching the rig's title-only cover-dir keying). artist/bpm/beatmapVerified are never
+ *  shown for a scratch cover. */
+private fun scratchSong(title: String) = TakeSong(
+    trackId = SCRATCH_PREFIX + title, title = title, artist = "", bpm = null, beatmapVerified = false,
+)
 
 // ─── Browser (the locked-UX song list) ────────────────────────────────────────
 
@@ -221,6 +234,7 @@ private fun TakeBrowser(
     loadFailed: Boolean,
     onRefresh: () -> Unit,
     onSelect: (TakeSong) -> Unit,
+    onCreateScratch: (String) -> Unit,
 ) {
     // S221 ②·4b — the ⋮ overflow + New Project source wizard (v4 mockup §panel-4). On the browser the
     // wizard's "Original song" just dismisses the sheet: this song list IS the library, already on
@@ -338,6 +352,7 @@ private fun TakeBrowser(
             NewProjectWizard(
                 onDismiss = { showWizard = false },
                 onOriginalSong = { showWizard = false },
+                onFromScratch = { showWizard = false; onCreateScratch(it) },
             )
         }
     }
@@ -413,13 +428,15 @@ private fun TakeSurface(
     song: TakeSong,
     service: OrchestratorService,
     onBack: () -> Unit,
+    onCreateScratch: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
 
     // Build/open the cover when this song loads into the surface (re-fires when the
     // browser swaps to a different song).
     LaunchedEffect(song.trackId) {
-        service.gigCmd.takeLoad(song.trackId, song.title)
+        if (song.trackId.startsWith(SCRATCH_PREFIX)) service.gigCmd.takeNewScratch(song.title)
+        else service.gigCmd.takeLoad(song.trackId, song.title)
     }
 
     // S214: Reaper-mirror status. Poll GET /take/status every 1 s while this surface is
@@ -923,6 +940,7 @@ private fun TakeSurface(
             NewProjectWizard(
                 onDismiss = { showWizard = false },
                 onOriginalSong = { showWizard = false; onBack() },
+                onFromScratch = { showWizard = false; onCreateScratch(it) },
             )
         }
     }
@@ -1895,10 +1913,16 @@ private fun AddLayerDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
  * Hard rule (the prompt): NO backend changes — From-scratch/Media-file call nothing.
  */
 @Composable
-private fun NewProjectWizard(onDismiss: () -> Unit, onOriginalSong: () -> Unit) {
+private fun NewProjectWizard(
+    onDismiss: () -> Unit,
+    onOriginalSong: () -> Unit,
+    onFromScratch: (String) -> Unit,
+) {
     // Which gated source's "Coming soon" note is showing (null = none). Reset whenever the sheet
     // re-opens (fresh remember per composition of the `if (showWizard)` block in the caller).
     var comingSoon by remember { mutableStateOf<String?>(null) }
+    // S224: From scratch is now wired — tapping opens the name-entry dialog (overlaid on the sheet).
+    var nameEntry by remember { mutableStateOf(false) }
     TakeBottomSheet(onDismiss = onDismiss) {
         // Header — ‹ chevron · "New project" / "start from a source" (mockup §panel-4 top row).
         Row(
@@ -1930,14 +1954,15 @@ private fun NewProjectWizard(onDismiss: () -> Unit, onOriginalSong: () -> Unit) 
         )
         Spacer(Modifier.height(11.dp))
 
-        // 2) From scratch — teal square-plus/AddBox. Gated: reveals the inline "coming soon" note.
+        // 2) From scratch — teal square-plus/AddBox. S224: WIRED — tapping opens the name-entry dialog,
+        //    then builds a blank 1-layer Drums cover via /take/new-scratch (no stems, no click).
         SourceCard(
             icon = Icons.Default.AddBox,
             iconTint = TangerineColors.teal,
             title = "From scratch",
             caption = "empty · build it layer by layer",
-            enabled = false,
-            onClick = { comingSoon = "From scratch" },
+            enabled = true,
+            onClick = { comingSoon = null; nameEntry = true },
         )
         Spacer(Modifier.height(11.dp))
 
@@ -2018,6 +2043,80 @@ private fun NewProjectWizard(onDismiss: () -> Unit, onOriginalSong: () -> Unit) 
             }
         }
     }
+
+    // S224: name-entry dialog overlaid on the sheet (an AlertDialog, not an in-sheet OutlinedTextField —
+    // IME handling inside a bottom sheet is fiddly on the real phone). On Create with a non-empty trimmed
+    // name the caller dismisses the sheet + spins up the scratch cover (onCreateScratch).
+    if (nameEntry) {
+        ScratchNameDialog(
+            onDismiss = { nameEntry = false },
+            onCreate = { onFromScratch(it) },
+        )
+    }
+}
+
+/**
+ * S224 — from-scratch name entry. A single-line cover name; Create is disabled until the trimmed name is
+ * non-empty. Sends the RAW name (the MS CleanTitle + the Lua sanitise it; jsonString escapes it for the
+ * wire), capped at 40 to match the MS title cap. Mirrors [TakeLabelDialog]'s dialog idiom.
+ */
+@Composable
+private fun ScratchNameDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val canCreate = text.trim().isNotEmpty()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = TangerineColors.surface,
+        title = {
+            Text(
+                "Name your cover",
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                color = TangerineColors.text,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "A blank Drums cover to record against — no stems, no click.",
+                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { if (it.length <= 40) text = it },   // cap 40 to match the MS CleanTitle
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            "e.g. Jam in E",
+                            fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+                        )
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = TangerineColors.teal,
+                        unfocusedBorderColor = TangerineColors.textMuted.copy(alpha = 0.4f),
+                        focusedTextColor = TangerineColors.text,
+                        unfocusedTextColor = TangerineColors.text,
+                        cursorColor = TangerineColors.teal,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = canCreate, onClick = { onCreate(text.trim()) }) {
+                Text(
+                    "Create",
+                    fontFamily = Karla, fontWeight = FontWeight.Bold,
+                    color = if (canCreate) TangerineColors.teal else TangerineColors.textMuted,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", fontFamily = Karla, color = TangerineColors.textMuted)
+            }
+        },
+    )
 }
 
 /**

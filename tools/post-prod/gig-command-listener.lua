@@ -411,6 +411,52 @@ local function take_load(track_path, title, track_id)
     target, stems_dir, click_state))
 end
 
+-- ===== Take-mode "from scratch" source (S224): blank recordable Drums cover =====
+-- The wizard's "From scratch" card = the take template seeded as a 1-layer Drums cover with NO
+-- stems and NO click (a blank recordable drums project). This IS take_load's fresh-build path
+-- (:379-388) MINUS the import block (:390-404) -- the import block is the whole difference; take_load
+-- itself stays untouched (proven path).
+-- Edge accepted this slice: keyed TITLE-ONLY (cover_dir_name with no track_id), since from-scratch has
+-- no library source / trackId -- so a from-scratch cover named identically to a library cover resolves
+-- to the same C:/Covers/<title> dir. Nathan names covers; reopen-by-name is intended. A synthetic id
+-- suffix can be added later if it ever bites.
+local function take_new_scratch(title)
+  if title == "" then reaper.ShowConsoleMsg("[take] new-scratch: empty title\n"); return end
+  if not reaper.file_exists(TAKE_TEMPLATE) then
+    reaper.ShowConsoleMsg("[take] ERROR template missing: " .. TAKE_TEMPLATE .. " -- aborting\n"); return end
+  local clean = cover_dir_name(title, "", nil)
+  local proj_dir = COVERS_DIR .. "/" .. clean
+  local target   = proj_dir .. "/" .. clean .. ".rpp"
+
+  -- Re-select an existing cover -> reopen IF it's a real cover; rebuild if it's a stale empty one. (mirror take_load :367-377)
+  if reaper.file_exists(target) then
+    reaper.Main_openProject("noprompt:" .. target)
+    take_seed_drums()   -- idempotent 1-layer Drums registry (never overwrites an existing one)
+    if not cover_is_empty() then
+      reaper.Main_OnCommand(40047, 0)  -- build any missing peaks (reopened cover shows waveforms)
+      reaper.ShowConsoleMsg("[take] reopened existing " .. target .. "\n")
+      return
+    end
+    reaper.ShowConsoleMsg("[take] existing cover is EMPTY -> rebuilding " .. target .. "\n")
+  end
+
+  ensure_dir(proj_dir)
+  -- copy-then-open (same pattern as take_load :381-386: keeps relative Media path correct)
+  local src = io.open(TAKE_TEMPLATE, "rb"); if not src then
+    reaper.ShowConsoleMsg("[take] cannot read template\n"); return end
+  local content = src:read("*a"); src:close()
+  local dst = io.open(target, "wb"); if not dst then
+    reaper.ShowConsoleMsg("[take] cannot write " .. target .. "\n"); return end
+  dst:write(content); dst:close()
+  reaper.Main_openProject("noprompt:" .. target)
+  take_seed_drums()   -- seed the 1-layer Drums registry into the fresh cover
+
+  -- NO stems, NO click -- do NOT call resolve_song_paths / import_stem. That is the whole point of
+  -- from-scratch (take_load's import block :390-404 is exactly what's omitted here).
+  reaper.Main_OnCommand(40026, 0)   -- Save
+  reaper.ShowConsoleMsg("[take] built (scratch) " .. target .. "\n")
+end
+
 -- ===== Take-mode backing mix (S213): ride a backing stem from the APK =====
 -- Additive runtime control. Flips B_MUTE and/or sets D_VOL on ONE allow-listed backing
 -- stem of the OPEN cover, addressed by exact name (Click excluded -- it's the guide pulse).
@@ -598,6 +644,7 @@ local function process(action, name, track_path, title, arm, track_id, mix_track
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
   elseif action == "take-load" then take_load(track_path, title, track_id)
+  elseif action == "take-new-scratch" then take_new_scratch(title)
   elseif action == "take-record" then take_record(arm)
   elseif action == "take-mix" then take_mix(mix_track, mute, vol_db)
   elseif action == "take-seek" then take_seek(pos_sec)
