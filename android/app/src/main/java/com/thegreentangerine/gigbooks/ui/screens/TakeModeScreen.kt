@@ -22,6 +22,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,10 +31,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -41,15 +46,21 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AddBox
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Piano
@@ -58,17 +69,24 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -85,6 +103,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -205,9 +224,14 @@ private fun TakeBrowser(
     onRefresh: () -> Unit,
     onSelect: (TakeSong) -> Unit,
 ) {
+    // S221 ②·4b — the ⋮ overflow + New Project source wizard (v4 mockup §panel-4). On the browser the
+    // wizard's "Original song" just dismisses the sheet: this song list IS the library, already on
+    // screen behind it. overflowOpen = the ⋮ menu; showWizard = the source-picker sheet.
+    var overflowOpen by remember { mutableStateOf(false) }
+    var showWizard by remember { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxSize().background(TangerineColors.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // ── Top bar: menu · title · host pill · refresh ──
+            // ── Top bar: menu · title · host pill · refresh · ⋮ ──
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -230,6 +254,25 @@ private fun TakeBrowser(
                 TakeHostPill(target = hostLabel, lastSendOk = lastSendOk)
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Default.Refresh, "Refresh songs", tint = TangerineColors.textMuted)
+                }
+                Box {
+                    IconButton(onClick = { overflowOpen = true }) {
+                        Icon(Icons.Default.MoreVert, "More", tint = TangerineColors.textDim)
+                    }
+                    DropdownMenu(
+                        expanded = overflowOpen,
+                        onDismissRequest = { overflowOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "New project…",
+                                    fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.text,
+                                )
+                            },
+                            onClick = { overflowOpen = false; showWizard = true },
+                        )
+                    }
                 }
             }
 
@@ -289,6 +332,15 @@ private fun TakeBrowser(
                     }
                 }
             }
+        }
+
+        // ── New Project source wizard (v4 mockup §panel-4) ── On the browser, "Original song" just
+        //    dismisses: the library list is already the screen behind this sheet.
+        if (showWizard) {
+            NewProjectWizard(
+                onDismiss = { showWizard = false },
+                onOriginalSong = { showWizard = false },
+            )
         }
     }
 }
@@ -387,9 +439,14 @@ private fun TakeSurface(
     val batteryPct = service.battery.levelPct.collectAsState().value
 
     var armState by remember { mutableStateOf(ArmPresetState()) }  // Acoustic, overheads + full kit on
-    var kitExpanded by remember { mutableStateOf(false) }          // LAYERS/KIT card (S221, was KIT SETUP)
+    // S221 ②·4a-UI (v4 re-housing): the inline LAYERS/KIT + BACKING MIX cards moved into bottom-sheet
+    // DRAWERS opened by the 5-chip dock (LAYERS · KIT · MIX · CAMS · PRO), per the locked v4 mockup
+    // (apk--take-controller-v4-drawers.html). openDrawer = which sheet is showing (null = clean face);
+    // overflowOpen = the ⋮ menu. Pure presentation — every callback/state below is unchanged.
+    var openDrawer by remember { mutableStateOf<TakeDrawer?>(null) }
+    var overflowOpen by remember { mutableStateOf(false) }
+    var showWizard by remember { mutableStateOf(false) }           // S221 ②·4b: the New-project source wizard
     var showAddLayer by remember { mutableStateOf(false) }         // S221 ②·4a: the Add-layer kind picker
-    var mixExpanded by remember { mutableStateOf(false) }          // BACKING MIX collapsed by default
     // S213: the 4-stem backing mix, defaulting to the template's exact values (Drums (ref)
     // muted — Nathan's the drummer). Keyed on song.trackId so swapping songs RESETS to
     // template defaults without auto-sending (a freshly-loaded cover already carries these;
@@ -549,6 +606,28 @@ private fun TakeSurface(
                     target = "${gigTarget.host}:${gigTarget.port}",
                     lastSendOk = gigLastOk,
                 )
+                // ⋮ overflow (v4 mockup §panel-1) → "New project…" opens the source wizard (mockup
+                // §panel-4, S221 ②·4b). From a loaded cover, "Original song" returns to the library
+                // browser (onBack), where the user picks a song → the existing /take/load flow.
+                Box {
+                    IconButton(onClick = { overflowOpen = true }) {
+                        Icon(Icons.Default.MoreVert, "More", tint = TangerineColors.textDim)
+                    }
+                    DropdownMenu(
+                        expanded = overflowOpen,
+                        onDismissRequest = { overflowOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "New project…",
+                                    fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.text,
+                                )
+                            },
+                            onClick = { overflowOpen = false; showWizard = true },
+                        )
+                    }
+                }
             }
 
             // ── Scrollable middle (S218·2) ── everything between the pinned top bar and the pinned
@@ -561,43 +640,17 @@ private fun TakeSurface(
                     .verticalScroll(rememberScrollState()),
             ) {
 
-            // ── NOW LOADED (the browser selection) ──
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(TangerineColors.surface)
-                    .border(2.dp, TangerineColors.green.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
-                    .padding(horizontal = 18.dp, vertical = 18.dp),
-            ) {
-                Column {
-                    Text(
-                        "NOW LOADED",
-                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp, letterSpacing = 2.sp, color = TangerineColors.green,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        song.title,
-                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 24.sp,
-                        color = TangerineColors.text, maxLines = 2,
-                    )
-                    if (song.artist.isNotBlank()) {
-                        Text(
-                            song.artist,
-                            fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
-                        )
-                    }
-                }
-            }
+            // ── Now-playing block (S221 ②·4b polish — v4 mockup §panel-1) ── Clean media-player face:
+            //    a waveform-art rectangle, the title, then a COVER pill + "artist · BPM". Pure
+            //    presentation over the same song fields; no state/callback touched.
+            TakeNowPlaying(song = song)
 
             // ── Active-layer pill (S221 ②·4a) — context stays on the clean face; management lives in the
-            //    LAYERS/KIT drawer (tap to open). Hidden until the rig reports the cover's layers. ──
+            //    LAYERS drawer (tap to open). Hidden until the rig reports the cover's layers. ──
             TakeActiveLayerPill(
                 layers = layers,
                 activeLayer = activeLayer,
-                onClick = { kitExpanded = true },
+                onClick = { openDrawer = TakeDrawer.LAYERS },
             )
 
             // ── Transport · audition takes (S214) — between NOW LOADED and the take strip ──
@@ -711,78 +764,8 @@ private fun TakeSurface(
                 }
             }
 
-            // ── LAYERS / KIT (S221 ②·4a) — the consolidated tab (folds the old KIT SETUP drawer in):
-            //    the layer list + arm-to-record-together + the active layer's kit setup (Drums = the s202
-            //    preset + channel toggles; Vocals = a 1-track summary), plus Add layer. ──
-            LayersKitCard(
-                layers = layers,
-                activeLayer = activeLayer,
-                armState = armState,
-                onArmState = { armState = it },
-                expanded = kitExpanded,
-                onExpandToggle = { kitExpanded = !kitExpanded },
-                onSwitchLayer = { id -> scope.launch { service.gigCmd.takeSwitchLayer(id) } },
-                onArmLayers = { ids -> scope.launch { service.gigCmd.takeArmLayers(ids) } },
-                onAddLayer = { showAddLayer = true },
-            )
-
-            // ── Backing mix (collapsible, collapsed by default) — S213 ──
-            // Ride the guide stems from the throne: each stem a mute toggle + a dB fader.
-            // Mute sends immediately; the fader sends only on finger-up (onValueChangeFinished)
-            // so the file-drop backend isn't flooded (each message is a parsed+deleted file on a
-            // 0.2 s loop). Default keeps Drums (ref) muted; this card is the override.
-            val audibleStems = mix.count { !it.mute }
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(TangerineColors.surface)
-                    .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().clickable { mixExpanded = !mixExpanded },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "BACKING MIX",
-                        fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "$audibleStems/${mix.size} audible",
-                        fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Icon(
-                        if (mixExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = if (mixExpanded) "Collapse backing mix" else "Expand backing mix",
-                        tint = TangerineColors.textMuted,
-                    )
-                }
-                if (mixExpanded) {
-                    Spacer(Modifier.height(8.dp))
-                    mix.forEachIndexed { i, stem ->
-                        BackingMixRow(
-                            stem = stem,
-                            onMuteToggle = {
-                                val newMute = !stem.mute
-                                mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(mute = newMute) else s }
-                                scope.launch { service.gigCmd.takeMix(stem.name, newMute, stem.volDb.toDouble()) }
-                            },
-                            onVolChange = { v ->
-                                mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(volDb = v) else s }
-                            },
-                            onVolChangeFinished = {
-                                val cur = mix[i]
-                                scope.launch { service.gigCmd.takeMix(cur.name, cur.mute, cur.volDb.toDouble()) }
-                            },
-                        )
-                    }
-                }
-            }
+            // ── (v4 re-housing) the LAYERS/KIT + BACKING MIX cards no longer live on the face — they
+            //    are bottom-sheet DRAWERS opened by the dock below. The clean now-playing face ends here.
             }   // ── end scrollable middle (S218·2); Spacer(weight(1f)) removed — the scroll column
                 //    now owns the vertical slack so the Record/Stop row below stays pinned + reachable.
 
@@ -825,6 +808,57 @@ private fun TakeSurface(
                     )
                 }
             }
+
+            // ── Dock (v4 mockup §panel-1) — the 5 drawer chips pinned to the bottom of the face.
+            //    LAYERS carries the orange accent (it's the build-the-cover home); the chip whose
+            //    drawer is open lights teal. Each opens its bottom-sheet below. ──
+            TakeDock(openDrawer = openDrawer, onChip = { kind -> openDrawer = kind })
+        }
+
+        // ── Drawers (v4 re-housing) — bottom-sheets opened by the dock chips ──────────────────────
+        when (openDrawer) {
+            TakeDrawer.LAYERS -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
+                LayersDrawerContent(
+                    layers = layers,
+                    activeLayer = activeLayer,
+                    onSwitchLayer = { id -> scope.launch { service.gigCmd.takeSwitchLayer(id) } },
+                    onArmLayers = { ids -> scope.launch { service.gigCmd.takeArmLayers(ids) } },
+                    onAddLayer = { showAddLayer = true },
+                )
+            }
+            TakeDrawer.KIT -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
+                KitDrawerContent(
+                    activeLayer = activeLayer,
+                    layers = layers,
+                    armState = armState,
+                    onArmState = { armState = it },
+                )
+            }
+            TakeDrawer.MIX -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
+                MixDrawerContent(
+                    mix = mix,
+                    onMuteToggle = { i ->
+                        val stem = mix[i]
+                        val newMute = !stem.mute
+                        mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(mute = newMute) else s }
+                        scope.launch { service.gigCmd.takeMix(stem.name, newMute, stem.volDb.toDouble()) }
+                    },
+                    onVolChange = { i, v ->
+                        mix = mix.mapIndexed { idx, s -> if (idx == i) s.copy(volDb = v) else s }
+                    },
+                    onVolChangeFinished = { i ->
+                        val cur = mix[i]
+                        scope.launch { service.gigCmd.takeMix(cur.name, cur.mute, cur.volDb.toDouble()) }
+                    },
+                )
+            }
+            TakeDrawer.CAMS -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
+                CamsDrawerContent(peers = service.peerInfos.collectAsState().value)
+            }
+            TakeDrawer.PRO -> TakeBottomSheet(onDismiss = { openDrawer = null }) {
+                ProDrawerContent()
+            }
+            null -> {}
         }
 
         // ── Long-press chooser + destructive-delete confirm (S217) ──
@@ -894,6 +928,123 @@ private fun TakeSurface(
                 },
             )
         }
+        // ── New Project source wizard (S221 ②·4b, v4 mockup §panel-4) ── From a loaded cover,
+        //    "Original song" returns to the library browser (onBack) — the existing /take/load flow.
+        if (showWizard) {
+            NewProjectWizard(
+                onDismiss = { showWizard = false },
+                onOriginalSong = { showWizard = false; onBack() },
+            )
+        }
+    }
+}
+
+// ─── Now-playing block (S221 ②·4b polish — v4 mockup §panel-1) ─────────────────
+
+/**
+ * The clean now-playing face block (v4 mockup §panel-1, apk--take-controller-v4-drawers.html):
+ * a decorative waveform-art rectangle, the song title, then a COVER pill + "artist · BPM". This
+ * replaces the old green "NOW LOADED" card so the surface reads as a high-quality media player
+ * ([[feedback--drummer-controller-design-language]]). PURE PRESENTATION — it reads only the
+ * already-loaded song's title/artist/bpm; no state, callback, or endpoint is involved.
+ */
+@Composable
+private fun TakeNowPlaying(song: TakeSong) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // Waveform-art rectangle — faint orange bars + a centred faded disc. Decoration only;
+        // the bar heights are a fixed set matching the mockup (not a real waveform).
+        WaveformArt()
+        Spacer(Modifier.height(9.dp))
+        Text(
+            song.title,
+            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 20.sp,
+            color = TangerineColors.text, maxLines = 2,
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            // COVER pill — mono, letter-spaced, orange on a low-alpha orange bg (mockup §panel-1).
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(TangerineColors.orange.copy(alpha = 0.16f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    "COVER",
+                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp, letterSpacing = 1.sp, color = TangerineColors.orange,
+                )
+            }
+            // "artist · 157 BPM" — drop the BPM clause when bpm is null, drop artist when blank
+            // (same rule as the browser row). textDim = the mockup's #7a7a94 subtitle grey.
+            val meta = listOfNotNull(
+                song.artist.takeIf { it.isNotBlank() },
+                song.bpm?.let { "${it.roundToInt()} BPM" },
+            ).joinToString(" · ")
+            if (meta.isNotEmpty()) {
+                Text(
+                    meta,
+                    fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textDim,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The decorative waveform-art rectangle (v4 mockup §panel-1): a rounded dark box with a row of
+ * faint orange vertical bars and a centred faded disc icon. Static art — bar heights are the
+ * mockup's fixed 12-bar set. The box bg #101018 is a literal (between surface and surfaceInset).
+ */
+@Composable
+private fun WaveformArt() {
+    // The mockup's 12 bar heights as fractions of the box height.
+    val barFractions = listOf(
+        0.34f, 0.62f, 0.48f, 0.80f, 0.40f, 0.70f,
+        0.55f, 0.88f, 0.46f, 0.64f, 0.38f, 0.74f,
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF101018))
+            .border(1.dp, TangerineColors.textDim.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Faint orange bars across the box.
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            barFractions.forEach { frac ->
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight(frac)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(TangerineColors.orange.copy(alpha = 0.5f)),
+                )
+            }
+        }
+        // Centred faded disc over the bars.
+        Icon(
+            Icons.Default.Album,
+            contentDescription = null,
+            tint = TangerineColors.textMuted.copy(alpha = 0.7f),
+            modifier = Modifier.size(30.dp),
+        )
     }
 }
 
@@ -1325,102 +1476,287 @@ private fun TakeActiveLayerPill(
     }
 }
 
+// ─── Dock + drawers (v4 re-housing — apk--take-controller-v4-drawers.html) ──────
+
+/** The 5 drawer chips of the dock; also keys the open bottom-sheet. */
+private enum class TakeDrawer { LAYERS, KIT, MIX, CAMS, PRO }
+
 /**
- * S221 ②·4a — the consolidated LAYERS / KIT card (v4 mockup §panel-2; folds the old KIT SETUP drawer
- * in). Header → collapse/expand. Expanded: a row per layer (kind icon · name · arm control), the ACTIVE
- * layer's kit setup nested under it (Drums = the s202 ChannelArmPresetSelector; Vocals = a 1-track
- * summary), an Add-layer row, and the "arm → Record together" footer. Takes stay GLOBAL — this manages
- * which layers are in the take, not per-layer takes.
+ * The 5-chip dock pinned at the bottom of the playing face (v4 mockup §panel-1, the `.drw` row):
+ * LAYERS · KIT · MIX · CAMS · PRO, icon-first so all five fit. LAYERS carries the orange accent (the
+ * build-the-cover home); the chip whose drawer is open lights teal (`.drw.on`); the rest are muted.
+ * Pure navigation — tapping a chip just sets [openDrawer]; the sheets hold the (unchanged) controls.
  */
 @Composable
-private fun LayersKitCard(
+private fun TakeDock(openDrawer: TakeDrawer?, onChip: (TakeDrawer) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        DockChip(Icons.Default.Layers, "LAYERS", TakeDrawer.LAYERS, openDrawer, accent = true, onChip)
+        DockChip(Icons.Default.Tune, "KIT", TakeDrawer.KIT, openDrawer, accent = false, onChip)
+        DockChip(Icons.Default.Equalizer, "MIX", TakeDrawer.MIX, openDrawer, accent = false, onChip)
+        DockChip(Icons.Default.Videocam, "CAMS", TakeDrawer.CAMS, openDrawer, accent = false, onChip)
+        DockChip(Icons.Default.AutoFixHigh, "PRO", TakeDrawer.PRO, openDrawer, accent = false, onChip)
+    }
+}
+
+/** One dock chip: icon over a tiny caption. Open = teal fill/border; LAYERS (accent) = orange when
+ *  idle; the rest = muted outline. Matches the mockup `.drw` / `.drw.on` / `.drw.lay` styling. */
+@Composable
+private fun RowScope.DockChip(
+    icon: ImageVector,
+    label: String,
+    kind: TakeDrawer,
+    openDrawer: TakeDrawer?,
+    accent: Boolean,
+    onChip: (TakeDrawer) -> Unit,
+) {
+    val on = openDrawer == kind
+    val tint = when {
+        on -> TangerineColors.teal
+        accent -> TangerineColors.orange
+        else -> TangerineColors.textDim
+    }
+    val border = when {
+        on -> TangerineColors.teal.copy(alpha = 0.7f)
+        accent -> TangerineColors.orange.copy(alpha = 0.6f)
+        else -> TangerineColors.textMuted.copy(alpha = 0.4f)
+    }
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (on) TangerineColors.teal.copy(alpha = 0.12f) else Color.Transparent)
+            .border(1.dp, border, RoundedCornerShape(11.dp))
+            .clickable { onChip(kind) }
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+        Text(
+            label,
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 9.sp,
+            letterSpacing = 0.5.sp, color = tint,
+        )
+    }
+}
+
+/** Shared bottom-sheet shell for the dock drawers — same `ModalBottomSheet` styling the app's other
+ *  drawers use (GigModeScreen Cameras/Reaper sheets). [content] is the drawer body. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TakeBottomSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = TangerineColors.surface,
+        scrimColor = Color.Black.copy(alpha = 0.6f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 28.dp),
+        ) {
+            content()
+        }
+    }
+}
+
+/**
+ * LAYERS drawer (v4 mockup §panel-2) — build the cover, arm to record together. The layer-management
+ * content lifted out of the old inline LAYERS/KIT card: a row per layer (kind · name · arm control,
+ * tap to make active), the ★master/take-count sub-line lives on each [LayerRow], an Add-layer row, and
+ * the "Record lays a take on every armed layer at once" hint. Takes stay GLOBAL. The active layer's
+ * *kit* now lives in the KIT drawer, not nested here.
+ */
+@Composable
+private fun LayersDrawerContent(
     layers: List<TakeLayerInfo>,
     activeLayer: String,
-    armState: ArmPresetState,
-    onArmState: (ArmPresetState) -> Unit,
-    expanded: Boolean,
-    onExpandToggle: () -> Unit,
     onSwitchLayer: (String) -> Unit,
     onArmLayers: (List<String>) -> Unit,
     onAddLayer: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(TangerineColors.surface)
-            .border(1.dp, TangerineColors.orange.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+    DrawerHeader(label = "LAYERS", accent = TangerineColors.orange, caption = "tap a layer to make it active")
+    Spacer(Modifier.height(10.dp))
+    if (layers.isEmpty()) {
+        Text(
+            "load a cover to see its layers",
+            fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+        )
+    } else {
+        layers.forEachIndexed { i, layer ->
+            val isActive = layer.id == activeLayer || (activeLayer.isEmpty() && i == 0)
+            LayerRow(
+                layer = layer,
+                isActive = isActive,
+                onSwitch = { if (!isActive) onSwitchLayer(layer.id) },
+                onArmToggle = { newOn ->
+                    onArmLayers(armedLayerIdsAfterToggle(layers, layer.id, newOn, activeLayer))
+                },
+            )
+            Spacer(Modifier.height(9.dp))
+        }
+    }
+    AddLayerRow(onClick = onAddLayer)
+    Spacer(Modifier.height(12.dp))
+    Text(
+        "arm one or more layers — Record lays a take on every armed layer at once",
+        fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
+    )
+}
+
+/**
+ * KIT drawer — the active layer's kit setup. Drums = the s202 [ChannelArmPresetSelector] (the drum-
+ * channel arm presets/toggles, unchanged); Vocals/other = the 1-track summary (no channel matrix).
+ * This is the same content the old inline card nested under the active layer, now its own drawer.
+ */
+@Composable
+private fun KitDrawerContent(
+    activeLayer: String,
+    layers: List<TakeLayerInfo>,
+    armState: ArmPresetState,
+    onArmState: (ArmPresetState) -> Unit,
+) {
+    val active = layers.firstOrNull { it.id == activeLayer } ?: layers.firstOrNull()
+    val kind = active?.kind?.lowercase() ?: "drums"
+    DrawerHeader(
+        label = "KIT",
+        accent = TangerineColors.orange,
+        caption = active?.let { "${it.name.ifBlank { it.id }} · what am I using today?" }
+            ?: "load a cover to set the kit",
+    )
+    Spacer(Modifier.height(12.dp))
+    when (kind) {
+        "drums" -> ChannelArmPresetSelector(mode = ArmPresetMode.TAKE, state = armState, onState = onArmState)
+        "vocals" -> LayerKitSummary("Vox · 1 track", "pro vocal chain → BALANCE")
+        else -> LayerKitSummary("${active?.name?.ifBlank { active.id } ?: "Layer"} · 1 track", "")
+    }
+}
+
+/**
+ * MIX drawer (v4 mockup §panel-3) — the BACKING MIX as pro-audio VERTICAL faders. Same 4-stem state +
+ * the same send discipline as the old inline rows (mute sends immediately; the fader sends on
+ * finger-up only). Drums (ref) reads as the muted reference column. Indices map back to the [mix] list
+ * in the caller, so every send is identical to before — only the fader is vertical now.
+ */
+@Composable
+private fun MixDrawerContent(
+    mix: List<BackingStem>,
+    onMuteToggle: (Int) -> Unit,
+    onVolChange: (Int, Float) -> Unit,
+    onVolChangeFinished: (Int) -> Unit,
+) {
+    DrawerHeader(
+        label = "BACKING MIX",
+        accent = TangerineColors.teal,
+        caption = "ride from the throne · monitoring only",
+    )
+    Spacer(Modifier.height(16.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Bottom,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable { onExpandToggle() },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "LAYERS / KIT",
-                fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
-                fontSize = 11.sp, letterSpacing = 2.sp, color = TangerineColors.orange,
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                if (layers.isEmpty()) "—" else "${layers.size} layer${if (layers.size == 1) "" else "s"}",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
-            )
-            Spacer(Modifier.weight(1f))
-            Icon(
-                if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (expanded) "Collapse layers" else "Expand layers",
-                tint = TangerineColors.textMuted,
+        mix.forEachIndexed { i, stem ->
+            VerticalMixFader(
+                stem = stem,
+                onMuteToggle = { onMuteToggle(i) },
+                onVolChange = { v -> onVolChange(i, v) },
+                onVolChangeFinished = { onVolChangeFinished(i) },
             )
         }
-        if (expanded) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "tap a layer to make it active",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
-            )
-            Spacer(Modifier.height(10.dp))
-            if (layers.isEmpty()) {
+    }
+}
+
+/** CAMS drawer — a minimal live list of the peer cams this surface already knows about
+ *  (service.peerInfos). Full preview tiles / fullscreen are a later slice; this shows presence +
+ *  recording state only, with a clean empty state when no peers are paired. */
+@Composable
+private fun CamsDrawerContent(peers: List<com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorPeerServer.PeerInfo>) {
+    DrawerHeader(
+        label = "CAMS",
+        accent = TangerineColors.green,
+        caption = "peer cameras on the rig network",
+    )
+    Spacer(Modifier.height(12.dp))
+    if (peers.isEmpty()) {
+        Text(
+            "No peer cameras connected",
+            fontFamily = Karla, fontSize = 14.sp, color = TangerineColors.textMuted,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "phones that join the rig network appear here",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+        )
+    } else {
+        peers.forEach { peer ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 5.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(TangerineColors.surfaceInset)
+                    .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.Videocam, contentDescription = null, tint = TangerineColors.green, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(11.dp))
                 Text(
-                    "load a cover to see its layers",
-                    fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.textMuted,
+                    peer.deviceName,
+                    fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
+                    color = TangerineColors.text, modifier = Modifier.weight(1f),
                 )
-            } else {
-                layers.forEachIndexed { i, layer ->
-                    val isActive = layer.id == activeLayer || (activeLayer.isEmpty() && i == 0)
-                    LayerRow(
-                        layer = layer,
-                        isActive = isActive,
-                        onSwitch = { if (!isActive) onSwitchLayer(layer.id) },
-                        onArmToggle = { newOn ->
-                            onArmLayers(armedLayerIdsAfterToggle(layers, layer.id, newOn, activeLayer))
-                        },
-                    )
-                    // The active layer's kit setup nests directly under its row.
-                    if (isActive) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(start = 8.dp, top = 8.dp, bottom = 2.dp),
-                        ) {
-                            when (layer.kind.lowercase()) {
-                                "drums" -> ChannelArmPresetSelector(
-                                    mode = ArmPresetMode.TAKE, state = armState, onState = onArmState,
-                                )
-                                "vocals" -> LayerKitSummary("Vox · 1 track", "pro vocal chain → BALANCE")
-                                else -> LayerKitSummary("${layer.name.ifBlank { layer.id }} · 1 track", "")
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(9.dp))
+                if (peer.isRecording) {
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(TangerineColors.danger))
+                    Spacer(Modifier.width(6.dp))
+                    Text("REC", fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.danger)
+                } else {
+                    Text("ready", fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim)
                 }
             }
-            AddLayerRow(onClick = onAddLayer)
-            Spacer(Modifier.height(10.dp))
-            Text(
-                "arm one or more layers — Record lays a take on every armed layer at once",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textDim,
-            )
         }
+    }
+}
+
+/** PRO drawer — placeholder (the v4 mockup leaves PRO undefined). Clean "coming soon" sheet so the
+ *  chip has a destination; the functions land in a later slice. */
+@Composable
+private fun ProDrawerContent() {
+    DrawerHeader(label = "PRO", accent = TangerineColors.purple, caption = "advanced tools")
+    Spacer(Modifier.height(16.dp))
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Default.AutoFixHigh, contentDescription = null, tint = TangerineColors.textMuted, modifier = Modifier.size(34.dp))
+        Text("Coming soon", fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TangerineColors.textDim)
+        Text(
+            "pro tools land in a later slice",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+        )
+    }
+}
+
+/** A drawer's header row — coloured label + caption, matching the mockup's `.lbl` + sub-caption. */
+@Composable
+private fun DrawerHeader(label: String, accent: Color, caption: String) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Text(
+            label,
+            fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold,
+            fontSize = 12.sp, letterSpacing = 2.sp, color = accent,
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(caption, fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted)
     }
 }
 
@@ -1601,6 +1937,213 @@ private fun AddLayerDialog(onDismiss: () -> Unit, onPick: (String) -> Unit) {
             }
         },
     )
+}
+
+// ─── New Project source wizard (S221 ②·4b — apk--take-controller-v4-drawers.html §panel-4) ──────
+
+/**
+ * S221 ②·4b — the New Project SOURCE WIZARD, reached from the ⋮ menu (v4 mockup §panel-4). A bottom-
+ * sheet (same [TakeBottomSheet] shell the dock drawers use) showing the 3 source cards + the footer
+ * line. Only ONE source is wired this slice:
+ *   • Original song — FULLY wired: tap → [onOriginalSong] (the caller routes to the existing TakeBrowser
+ *     library list, where picking a song runs the proven /take/load flow). The one working source.
+ *   • From scratch / Media file — rendered exactly per the mockup but the backend isn't built yet, so
+ *     tapping reveals an inline "Coming soon — backend lands next" note (a clean, graceful gate — no
+ *     endpoint is called, no silent no-op, no crash). Media file also shows the (inert) "generate
+ *     beat-map + click track" toggle from the mockup.
+ * Hard rule (the prompt): NO backend changes — From-scratch/Media-file call nothing.
+ */
+@Composable
+private fun NewProjectWizard(onDismiss: () -> Unit, onOriginalSong: () -> Unit) {
+    // Which gated source's "Coming soon" note is showing (null = none). Reset whenever the sheet
+    // re-opens (fresh remember per composition of the `if (showWizard)` block in the caller).
+    var comingSoon by remember { mutableStateOf<String?>(null) }
+    TakeBottomSheet(onDismiss = onDismiss) {
+        // Header — ‹ chevron · "New project" / "start from a source" (mockup §panel-4 top row).
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    "New project",
+                    fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                    color = TangerineColors.text,
+                )
+                Text(
+                    "start from a source",
+                    fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textMuted,
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+
+        // 1) Original song — the one fully-wired source. Orange vinyl/Album icon.
+        SourceCard(
+            icon = Icons.Default.Album,
+            iconTint = TangerineColors.orange,
+            title = "Original song",
+            caption = "browse library · stems ready",
+            enabled = true,
+            onClick = { comingSoon = null; onOriginalSong() },
+        )
+        Spacer(Modifier.height(11.dp))
+
+        // 2) From scratch — teal square-plus/AddBox. Gated: reveals the inline "coming soon" note.
+        SourceCard(
+            icon = Icons.Default.AddBox,
+            iconTint = TangerineColors.teal,
+            title = "From scratch",
+            caption = "empty · build it layer by layer",
+            enabled = false,
+            onClick = { comingSoon = "From scratch" },
+        )
+        Spacer(Modifier.height(11.dp))
+
+        // 3) Media file — teal file-music/LibraryMusic, with the mockup's beat-map+click toggle. Gated.
+        SourceCard(
+            icon = Icons.Default.LibraryMusic,
+            iconTint = TangerineColors.teal,
+            title = "Media file",
+            caption = "a rough band recording",
+            enabled = false,
+            onClick = { comingSoon = "Media file" },
+            extra = {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    // Inert visual toggle (ON look per mockup) — wires to nothing this slice.
+                    Box(
+                        modifier = Modifier
+                            .width(34.dp).height(20.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(TangerineColors.green.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.CenterEnd,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .padding(2.dp).size(16.dp).clip(CircleShape)
+                                .background(TangerineColors.green),
+                        )
+                    }
+                    Spacer(Modifier.width(9.dp))
+                    Text(
+                        "generate beat-map + click track",
+                        fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.text,
+                    )
+                }
+            },
+        )
+
+        // Footer line (mockup §panel-4).
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "guitar+vox, a bassline — anything with a pulse to play to",
+            fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        // Inline "coming soon" note for the gated sources — clean affordance, no backend call.
+        comingSoon?.let { name ->
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(TangerineColors.teal.copy(alpha = 0.08f))
+                    .border(1.dp, TangerineColors.teal.copy(alpha = 0.5f), RoundedCornerShape(11.dp))
+                    .padding(horizontal = 12.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Default.AutoFixHigh, contentDescription = null,
+                    tint = TangerineColors.teal, modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        "$name — coming soon",
+                        fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 13.sp,
+                        color = TangerineColors.teal,
+                    )
+                    Text(
+                        "backend lands next",
+                        fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One source-picker row (mockup §panel-4 `.src`): leading icon · bold title + mono caption · trailing
+ * chevron. [enabled] sources read full-strength and route on tap; gated sources are dimmed (no chevron-
+ * forward promise) and their tap reveals the wizard's inline "coming soon" note instead. [extra] hangs
+ * extra content (Media file's toggle) under the row, divider'd per the mockup.
+ */
+@Composable
+private fun SourceCard(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    caption: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    extra: (@Composable () -> Unit)? = null,
+) {
+    val titleColor = if (enabled) TangerineColors.text else TangerineColors.textDim
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(TangerineColors.surfaceInset)
+            .border(
+                1.dp,
+                (if (enabled) iconTint else TangerineColors.textMuted).copy(alpha = if (enabled) 0.35f else 0.3f),
+                RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 15.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon, contentDescription = null,
+                tint = if (enabled) iconTint else iconTint.copy(alpha = 0.6f),
+                modifier = Modifier.size(26.dp),
+            )
+            Spacer(Modifier.width(13.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = titleColor,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    caption,
+                    fontFamily = JetBrainsMono, fontSize = 11.sp, color = TangerineColors.textDim,
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null,
+                tint = TangerineColors.textMuted, modifier = Modifier.size(18.dp),
+            )
+        }
+        extra?.let {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .height(1.dp)
+                    .background(TangerineColors.textMuted.copy(alpha = 0.25f)),
+            )
+            it()
+        }
+    }
 }
 
 // ─── Reusable bits ───────────────────────────────────────────────────────────
@@ -1941,63 +2484,123 @@ private fun defaultBackingMix(): List<BackingStem> = listOf(
     BackingStem("Drums (ref)", mute = true, volDb = -8f),
 )
 
-/** One backing-stem row — name (+ a subtle "guide" tag for Drums (ref)) · dB/MUTE readout ·
- *  mute toggle · level fader. Mute fires immediately; the fader fires on finger-up only. The
- *  fader stays enabled while muted so a level can be pre-set before un-muting. */
+/**
+ * V4 MIX drawer — one stem as a pro-audio VERTICAL fader (mockup §panel-3 `.col`/`.fad`/`.fill`/`.knob`):
+ * a dB/MUTE readout on top · the upright fader · a mute toggle + the stem name below. Behaviour matches
+ * the old horizontal row — same −40..+6 dB range, mute sends immediately, the fader sends on finger-up
+ * only. The fader is a real upright control (not a rotated [Slider]): a dark rounded track with an orange
+ * fill rising from the bottom (height = dB fraction, greyed when muted) and a short light pill thumb on
+ * the fill's top edge; a vertical drag / tap on the track maps the finger Y to dB (top = +6, bottom =
+ * −40). Drums (ref) is the muted reference column. The fader stays live while muted so a level can be
+ * pre-set before un-muting.
+ */
 @Composable
-private fun BackingMixRow(
+private fun VerticalMixFader(
     stem: BackingStem,
     onMuteToggle: () -> Unit,
     onVolChange: (Float) -> Unit,
     onVolChangeFinished: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                stem.name,
-                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 14.sp,
-                color = TangerineColors.text,
-            )
-            if (stem.name == "Drums (ref)") {
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    "guide",
-                    fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted,
-                )
-            }
-            Spacer(Modifier.weight(1f))
-            Text(
-                if (stem.mute) "MUTE" else "${stem.volDb.roundToInt()} dB",
-                fontFamily = JetBrainsMono, fontSize = 12.sp,
-                color = if (stem.mute) TangerineColors.danger else TangerineColors.text,
-            )
-            Spacer(Modifier.width(10.dp))
-            // Mute toggle pill (hand-rolled to match the surface's button styling).
-            val mc = if (stem.mute) TangerineColors.danger else TangerineColors.textMuted
+    val mc = if (stem.mute) TangerineColors.danger else TangerineColors.textMuted
+    Column(
+        modifier = Modifier.width(64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            if (stem.mute) "MUTE" else "${stem.volDb.roundToInt()}",
+            fontFamily = JetBrainsMono, fontSize = 11.sp,
+            color = if (stem.mute) TangerineColors.danger else TangerineColors.text,
+        )
+        Spacer(Modifier.height(7.dp))
+        // The fader: a real upright fader (mockup §panel-3 `.fad`/`.fill`/`.knob`). A 30×150 dp dark
+        // rounded track; an orange fill rising from the bottom whose height = the dB fraction (greyed
+        // when muted); a short light pill thumb centred on the fill's top edge. Vertical drag (and a
+        // tap) maps the finger Y within the track to −40..+6 dB (top = +6, bottom = −40), sending
+        // live via onVolChange and committing on finger-up via onVolChangeFinished — same discipline
+        // as the old Slider. The fader stays live while muted so a level can be pre-set.
+        val faderHeight = 150.dp
+        val trackWidth = 30.dp
+        val thumbHeight = 14.dp
+        // dB → 0f..1f fill fraction.
+        val frac = ((stem.volDb - (-40f)) / (6f - (-40f))).coerceIn(0f, 1f)
+        val fillColor = if (stem.mute) TangerineColors.textMuted else TangerineColors.orange
+        // Map a finger Y (px, 0 = top) within a known track height (px) to a dB, clamped.
+        fun yToDb(y: Float, heightPx: Float): Float {
+            val f = (1f - (y / heightPx)).coerceIn(0f, 1f)   // top = 1.0, bottom = 0.0
+            return (-40f + f * (6f - (-40f))).coerceIn(-40f, 6f)
+        }
+        Box(
+            modifier = Modifier
+                .height(faderHeight)
+                .width(trackWidth)
+                .clip(RoundedCornerShape(8.dp))
+                .background(TangerineColors.background)
+                .border(1.dp, TangerineColors.textMuted.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                .pointerInput(Unit) {
+                    val h = size.height.toFloat()
+                    detectVerticalDragGestures(
+                        onDragStart = { offset -> onVolChange(yToDb(offset.y, h)) },
+                        onDragEnd = { onVolChangeFinished() },
+                        onDragCancel = { onVolChangeFinished() },
+                        onVerticalDrag = { change, _ -> onVolChange(yToDb(change.position.y, h)) },
+                    )
+                }
+                .pointerInput(Unit) {
+                    val h = size.height.toFloat()
+                    detectTapGestures(onTap = { offset ->
+                        onVolChange(yToDb(offset.y, h))
+                        onVolChangeFinished()
+                    })
+                },
+        ) {
+            // Fill rises from the bottom; height = frac of the track.
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(mc.copy(alpha = if (stem.mute) 0.18f else 0.06f))
-                    .border(1.dp, mc.copy(alpha = if (stem.mute) 0.7f else 0.3f), RoundedCornerShape(8.dp))
-                    .clickable(onClick = onMuteToggle)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    if (stem.mute) "muted" else "mute",
-                    fontFamily = JetBrainsMono, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = mc,
-                )
-            }
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .fillMaxHeight(frac)
+                    .clip(RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp))
+                    .background(fillColor),
+            )
+            // Thumb: a short light pill, wider than the track, centred on the fill's top edge.
+            // Offset from the bottom = frac of the travel (track height − thumb height), then back up
+            // by half the thumb so it straddles the fill edge.
+            val travel = faderHeight - thumbHeight
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = -(travel * frac))
+                    .width(trackWidth + 8.dp)
+                    .height(thumbHeight)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(TangerineColors.text)
+                    .border(1.dp, TangerineColors.background, RoundedCornerShape(5.dp)),
+            )
         }
-        Slider(
-            value = stem.volDb,
-            onValueChange = onVolChange,
-            onValueChangeFinished = onVolChangeFinished,
-            valueRange = -40f..6f,
-            colors = SliderDefaults.colors(
-                thumbColor = TangerineColors.orange,
-                activeTrackColor = TangerineColors.orange,
-                inactiveTrackColor = TangerineColors.textMuted.copy(alpha = 0.3f),
-            ),
+        Spacer(Modifier.height(7.dp))
+        // Mute toggle pill (same styling as the old row).
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(mc.copy(alpha = if (stem.mute) 0.18f else 0.06f))
+                .border(1.dp, mc.copy(alpha = if (stem.mute) 0.7f else 0.3f), RoundedCornerShape(8.dp))
+                .clickable(onClick = onMuteToggle)
+                .padding(horizontal = 10.dp, vertical = 5.dp),
+        ) {
+            Icon(
+                if (stem.mute) Icons.Default.Stop else Icons.Default.PlayArrow,
+                contentDescription = if (stem.mute) "muted" else "mute",
+                tint = mc, modifier = Modifier.size(13.dp),
+            )
+        }
+        Spacer(Modifier.height(5.dp))
+        Text(
+            stem.name.removeSuffix(" (ref)"),
+            fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 12.sp,
+            color = TangerineColors.text, maxLines = 1,
         )
+        if (stem.name == "Drums (ref)") {
+            Text("ref", fontFamily = JetBrainsMono, fontSize = 9.sp, color = TangerineColors.textMuted)
+        }
     }
 }
