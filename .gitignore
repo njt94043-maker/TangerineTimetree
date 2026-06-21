@@ -62,3 +62,4 @@ concept-pack/
 tools/post-prod/__pycache__/
 tools/post-prod/tests/__pycache__/
 tools/post-prod/templates/*.RPP.bak
+tools/post-prod/templates/*.RPP.s*bak

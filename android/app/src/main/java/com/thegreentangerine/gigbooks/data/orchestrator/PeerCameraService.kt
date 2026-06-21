@@ -10,7 +10,11 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
 import com.thegreentangerine.gigbooks.R
 
 /**
@@ -26,9 +30,10 @@ import com.thegreentangerine.gigbooks.R
  * recording is still owned by the AppViewModel-scoped CameraRecordingManager; the
  * service exists purely to win the foreground-service contract with the OS.
  */
-class PeerCameraService : Service() {
+class PeerCameraService : Service(), LifecycleOwner {
 
     companion object {
+        private const val TAG = "PeerCameraService"
         const val CHANNEL_ID = "tgt_peer_camera"
         const val NOTIFICATION_ID = 9210
     }
@@ -40,26 +45,57 @@ class PeerCameraService : Service() {
     private val binder = LocalBinder()
     private var wakeLock: PowerManager.WakeLock? = null
 
+    // The peer camera is now bound to THIS service's lifecycle (not the
+    // Activity's) so CameraX keeps VideoCapture + ImageAnalysis alive through
+    // screen-off. Hand-rolled LifecycleRegistry (lifecycle-runtime is already a
+    // dep — no lifecycle-service needed), held at STARTED for the whole
+    // foreground-service lifetime. ALL state writes happen on the service main
+    // thread (onCreate / onStartCommand / onDestroy callbacks).
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+
     override fun onCreate() {
         super.onCreate()
+        lifecycleRegistry.currentState = Lifecycle.State.CREATED
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification("TGT Peer Camera", "Standing by — recording controlled by drummer")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            // Promoting a camera-typed FGS can throw (e.g. CAMERA runtime permission
+            // not yet held, or an FGS-start restriction). If it does, bail cleanly —
+            // do NOT fall through to the STARTED transition below, or CameraX would
+            // bind to a non-STARTED owner and sit there bound-but-closed (silent
+            // black). PeerScreen only promotes this service once CAMERA is granted,
+            // so this is defence-in-depth.
+            Log.e(TAG, "startForeground (camera FGS) failed — stopping, camera will not bind: ${e.message}", e)
+            stopSelf()
+            return START_NOT_STICKY
         }
         acquireWakeLock()
-        return START_STICKY
+        // Drive to STARTED (NOT RESUMED) at the END of onStartCommand: CameraX
+        // opens the camera at the STARTED threshold (LifecycleCamera.onStart),
+        // which is all VideoCapture/ImageAnalysis need to survive screen-off.
+        lifecycleRegistry.currentState = Lifecycle.State.STARTED
+        // NOT_STICKY (was STICKY): this service is screen-scoped — PeerScreen's
+        // DisposableEffect restarts it on entry — so a clientless OS restart with a
+        // null intent would only resurrect a consumer-less STARTED owner holding the
+        // 4h wake lock. Don't auto-restart.
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onDestroy() {
         releaseWakeLock()
+        lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         super.onDestroy()
     }
 

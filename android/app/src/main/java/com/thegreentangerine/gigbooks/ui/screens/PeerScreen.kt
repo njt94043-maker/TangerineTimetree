@@ -1,9 +1,13 @@
 package com.thegreentangerine.gigbooks.ui.screens
 
 import android.Manifest
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.IBinder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
@@ -57,7 +61,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,7 +108,6 @@ import java.io.File
 @Composable
 fun PeerScreen(onMenuClick: () -> Unit) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val vm: AppViewModel = viewModel()
     val client = remember { PeerOrchestratorClient(context) }
     val cameraManager = vm.cameraRecording
@@ -125,22 +127,17 @@ fun PeerScreen(onMenuClick: () -> Unit) {
     var lastSession by remember { mutableStateOf<String?>(null) }
     var lastRecToggleMs by remember { mutableLongStateOf(0L) }
     var previewView by remember { mutableStateOf<PreviewView?>(null) }
-
-    // Foreground service lifetime mirrors the screen — start on entry, stop on dispose.
-    // The actual CameraX bind is still owned by the AppViewModel-scoped manager; the
-    // service exists purely to win the foreground-camera contract with the OS so
-    // recording survives screen-off.
-    DisposableEffect(Unit) {
-        val intent = Intent(context, PeerCameraService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
-        }
-        onDispose {
-            runCatching { context.stopService(Intent(context, PeerCameraService::class.java)) }
-        }
-    }
+    // Bound PeerCameraService — becomes the CameraX lifecycle owner so recording
+    // survives screen-off (the Activity hit ON_STOP on sleep and tore down
+    // VideoCapture — the truncate/black-video bug). Null until bindService connects.
+    var cameraService by remember { mutableStateOf<PeerCameraService?>(null) }
+    val isBound by cameraManager.isBound.collectAsState()
+    // Deferred StartRec: bindService + the CameraX provider future are async, so a
+    // drummer RECORD that arrives before the bind lands would hit startRecording()'s
+    // "Camera not bound" throw, get swallowed by runCatching, and the peer would
+    // report Recording to the orchestrator while writing NO mp4 (the S122 silent-
+    // loss class). Hold the start action and replay it the instant binding lands.
+    var pendingStartRec by remember { mutableStateOf<(() -> Unit)?>(null) }
 
     // Camera + audio permissions — peer mode records video AND audio (CameraX
     // mp4 muxes both). Without RECORD_AUDIO at runtime, withAudioEnabled() throws
@@ -165,15 +162,53 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         if (needed.isNotEmpty()) permLauncher.launch(needed.toTypedArray())
     }
 
+    // Foreground service: start + bind ONLY once CAMERA is granted. Promoting a
+    // camera-typed FGS (FOREGROUND_SERVICE_TYPE_CAMERA) before the runtime CAMERA
+    // permission exists throws on Android 14+, which would leave the service below
+    // STARTED and CameraX bound-but-closed (silent black). The service IS the
+    // CameraX lifecycle owner (held at STARTED) so recording survives screen-off;
+    // bindService is async, so the camera bind effect no-ops until it connects.
+    DisposableEffect(hasCameraPermission) {
+        if (hasCameraPermission) {
+            val intent = Intent(context, PeerCameraService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            // ALSO bind to get the service instance to use as the CameraX lifecycle
+            // owner (mirrors TakeModeScreen / GigModeScreen).
+            val conn = object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                    cameraService = (binder as? PeerCameraService.LocalBinder)?.service
+                }
+                override fun onServiceDisconnected(name: ComponentName?) { cameraService = null }
+            }
+            context.bindService(intent, conn, Context.BIND_AUTO_CREATE)
+            onDispose {
+                cameraService = null
+                runCatching { context.unbindService(conn) }
+                runCatching { context.stopService(Intent(context, PeerCameraService::class.java)) }
+            }
+        } else {
+            onDispose { }
+        }
+    }
+
     // Bind / re-bind CameraX when permission, PreviewView, or rebind-relevant
     // settings change (facing / resolution / framerate). Rotation is handled
     // separately below — it can be applied at runtime without a full rebind.
     // Both camera AND audio perms required — withAudioEnabled() throws without RECORD_AUDIO.
     // previewView may be null when showPreview = false — Manager rebinds to
     // hidden mode (no Preview UseCase, ImageAnalysis + VideoCapture only).
-    LaunchedEffect(hasCameraPermission, hasAudioPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
-        if (hasCameraPermission && hasAudioPermission) {
-            vm.bindCamera(lifecycleOwner, previewView, settings)
+    LaunchedEffect(cameraService, hasCameraPermission, hasAudioPermission, previewView, settings.cameraFacing, settings.resolution, settings.framerate) {
+        val svc = cameraService
+        if (svc != null && hasCameraPermission && hasAudioPermission) {
+            // Bind CameraX to the SERVICE (held at STARTED for its whole lifetime)
+            // so recording survives the peer screen sleeping. There is NO
+            // Activity-owner bind anymore — a second bind would race the manager's
+            // unbindAll() and tear this one down.
+            vm.bindCamera(svc, previewView, settings)
         }
     }
     LaunchedEffect(settings.useAutoRotation, settings.rotationDegrees) {
@@ -195,18 +230,31 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         client.onStartRec = { sessionId, sessionName, gigName, gigDate ->
             lastSession = sessionId
             lastRecToggleMs = System.currentTimeMillis()
-            runCatching {
-                cameraManager.startRecording(
-                    outputDir,
-                    sessionName.ifBlank { "gig-set" },
-                    sessionId,
-                    gigName,
-                    gigDate,
-                )
+            val startAction: () -> Unit = {
+                runCatching {
+                    cameraManager.startRecording(
+                        outputDir,
+                        sessionName.ifBlank { "gig-set" },
+                        sessionId,
+                        gigName,
+                        gigDate,
+                    )
+                }
+                Unit
+            }
+            // Don't start against an unbound camera (async bind still in flight) —
+            // that throws "Camera not bound", gets swallowed, and silently loses the
+            // take's video. If bound, start now; otherwise defer and let the
+            // LaunchedEffect(isBound) below replay it the instant binding lands.
+            if (cameraManager.isBound.value) {
+                startAction()
+            } else {
+                pendingStartRec = startAction
             }
         }
         client.onStopRec = {
             lastRecToggleMs = System.currentTimeMillis()
+            pendingStartRec = null  // cancel a not-yet-started (deferred) take
             runCatching { cameraManager.stopRecording() }
         }
         // Periodic preview heartbeat (3s when paired, 8s when recording — see PeerOrchestratorClient).
@@ -221,10 +269,25 @@ fun PeerScreen(onMenuClick: () -> Unit) {
         }
     }
 
+    // Replay a deferred StartRec once CameraX finishes binding — closes the
+    // async-bind race that would otherwise drop the take's video.
+    LaunchedEffect(isBound, pendingStartRec) {
+        if (isBound && pendingStartRec != null) {
+            pendingStartRec?.invoke()
+            pendingStartRec = null
+        }
+    }
+
     val state by client.state.collectAsState()
     val discovered by client.discovered.collectAsState()
     val phoneId by client.phoneId.collectAsState()
     val isRecording by cameraManager.isRecording.collectAsState()
+
+    // Reflect record state in the foreground-service notification (● REC) so the
+    // band can confirm a mounted, screen-off peer is actually recording.
+    LaunchedEffect(isRecording, cameraService) {
+        cameraService?.updateState(isRecording)
+    }
 
     // Once the gig starts (isRecording=true), let the peer screen sleep so the
     // phone can run flat on its mount for hours. MainActivity holds
