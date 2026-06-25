@@ -9,7 +9,9 @@ import io.github.jan.supabase.storage.Storage
 
 /**
  * Singleton Supabase client — same project as the web app.
- * URL and anon key from BuildConfig (set via local.properties or env vars).
+ * URL and anon key are hardcoded below. The anon key is the public
+ * *publishable* key (prefixed sb_publishable_) — client-safe and RLS-gated,
+ * so it is intentionally shipped in the APK, not read from BuildConfig.
  */
 object SupabaseProvider {
 

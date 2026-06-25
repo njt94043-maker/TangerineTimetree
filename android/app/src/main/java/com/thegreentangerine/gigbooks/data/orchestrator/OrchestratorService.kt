@@ -98,7 +98,13 @@ class OrchestratorService : Service() {
         _autoDiscover.value = false
         osc.setTarget(host, oscPort)
         gigCmd.setTarget(host)
-        scope.launch { rigStore.setManual(host, oscPort) }
+        // S233 (DARK): the API secret is PER-RIG — a new host invalidates the previous rig's secret.
+        // Clear the cached + persisted secret so we never send the wrong rig's bearer (harmless
+        // log-only today, but it would 401 EVERY command on the new rig once enforcement flips). The
+        // flip slice's pairing UX re-mints + persists a secret for the new rig: it MUST write through
+        // BOTH rigStore.setApiSecret(...) (read back on restart, see onCreate) AND gigCmd.setApiSecret(...).
+        gigCmd.setApiSecret("")
+        scope.launch { rigStore.setManual(host, oscPort); rigStore.setApiSecret("") }
     }
 
     private val _isRecording = MutableStateFlow(false)
@@ -151,6 +157,11 @@ class OrchestratorService : Service() {
         scope.launch {
             val saved = rigStore.current()
             _autoDiscover.value = saved.autoDiscover
+            // S233 (DARK): apply the saved per-rig MS API secret regardless of auto/manual mode —
+            // it gates the HTTP bridge in both. "" until a pairing slice writes it, so the header
+            // is simply not sent and the server stays log-only. Plumbed now so the flip slice is
+            // a no-op on the APK beyond adding the entry UX.
+            gigCmd.setApiSecret(saved.apiSecret)
             if (!saved.autoDiscover && saved.host != null) {
                 osc.setTarget(saved.host, saved.oscPort)
                 gigCmd.setTarget(saved.host)

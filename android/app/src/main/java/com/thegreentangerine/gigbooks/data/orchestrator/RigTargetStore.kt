@@ -27,13 +27,16 @@ private val Context.rigDataStore: DataStore<Preferences> by preferencesDataStore
  */
 class RigTargetStore(private val context: Context) {
 
-    data class RigTarget(val host: String?, val oscPort: Int, val autoDiscover: Boolean)
+    // S233: apiSecret is the per-rig Media-Server API secret (read once from GET /api/pairing).
+    // "" until a pairing slice supplies it — gates the host HTTP bridge in either auto/manual mode.
+    data class RigTarget(val host: String?, val oscPort: Int, val autoDiscover: Boolean, val apiSecret: String = "")
 
     fun observe(): Flow<RigTarget> = context.rigDataStore.data.map { prefs ->
         RigTarget(
             host = prefs[KEY_HOST],
             oscPort = prefs[KEY_OSC_PORT] ?: DEFAULT_OSC_PORT,
             autoDiscover = prefs[KEY_AUTO_DISCOVER] ?: true,
+            apiSecret = prefs[KEY_API_SECRET] ?: "",
         )
     }
 
@@ -52,10 +55,17 @@ class RigTargetStore(private val context: Context) {
         context.rigDataStore.edit { prefs -> prefs[KEY_AUTO_DISCOVER] = enabled }
     }
 
+    /** S233: persist the per-rig MS API secret (read once from GET /api/pairing). "" clears it.
+     *  Independent of host/auto-discover — the secret gates the HTTP bridge in either mode. */
+    suspend fun setApiSecret(secret: String) {
+        context.rigDataStore.edit { prefs -> prefs[KEY_API_SECRET] = secret.trim() }
+    }
+
     companion object {
         const val DEFAULT_OSC_PORT = 8000
         private val KEY_HOST = stringPreferencesKey("rig_host")
         private val KEY_OSC_PORT = intPreferencesKey("rig_osc_port")
         private val KEY_AUTO_DISCOVER = booleanPreferencesKey("rig_auto_discover")
+        private val KEY_API_SECRET = stringPreferencesKey("rig_api_secret")
     }
 }

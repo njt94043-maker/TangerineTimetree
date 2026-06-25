@@ -150,6 +150,17 @@ class GigCommandClient(
         _target.value = Target(host.trim(), port)
     }
 
+    // S233 (DARK): per-rig MS API secret, attached as `Authorization: Bearer` on every request
+    // WHEN non-empty. Empty (the default, until a pairing slice supplies it) => no header sent;
+    // the server runs log-only DARK mode, so nothing breaks pre-flip. Pushed in from RigTargetStore
+    // via OrchestratorService. @Volatile: written on the service scope, read on the request IO threads.
+    @Volatile
+    private var apiSecret: String = ""
+
+    fun setApiSecret(secret: String) {
+        apiSecret = secret.trim()
+    }
+
     suspend fun start(projectName: String) = postJson(
         path = "/gig",
         body = """{"action":"start","project_name":${jsonString(projectName)}}""",
@@ -375,6 +386,8 @@ class GigCommandClient(
                     append("POST ").append(pathOrSlash).append(" HTTP/1.1\r\n")
                     append("Host: ").append(url.host).append(':').append(url.port).append("\r\n")
                     append("Content-Type: application/json\r\n")
+                    // S233 (DARK): attach the per-rig bearer when set (raw-socket path is tried FIRST).
+                    apiSecret.let { s -> if (s.isNotEmpty()) append("Authorization: Bearer ").append(s).append("\r\n") }
                     append("Content-Length: ").append(bodyBytes.size).append("\r\n")
                     append("Connection: close\r\n\r\n")
                 }
@@ -462,6 +475,7 @@ class GigCommandClient(
         conn.readTimeout = 1500
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
+        apiSecret.let { s -> if (s.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $s") }  // S233 (DARK)
         conn.outputStream.use { out: OutputStream ->
             out.write(body.toByteArray(Charsets.UTF_8))
         }
@@ -573,6 +587,7 @@ class GigCommandClient(
         conn.connectTimeout = 2000
         conn.readTimeout = 2000
         conn.setRequestProperty("Accept", "application/json")
+        apiSecret.let { s -> if (s.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $s") }  // S233 (DARK): /take/status + /take/songs are gated machine GETs
         val code = conn.responseCode
         val text = if (code in 200..299)
             conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
