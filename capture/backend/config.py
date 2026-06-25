@@ -13,8 +13,8 @@ WAVEFORMS_DIR = STORAGE_DIR / "waveforms"
 THUMBNAILS_DIR = STORAGE_DIR / "thumbnails"
 DB_PATH = CAPTURE_ROOT / "capture.db"
 
-# Server
-HOST = "0.0.0.0"
+# Server — loopback only; single-user local tool, no LAN exposure (S233-C)
+HOST = "127.0.0.1"
 PORT = 9123
 CORS_ORIGINS = [
     "http://localhost:5174",

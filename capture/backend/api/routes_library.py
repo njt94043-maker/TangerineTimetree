@@ -11,7 +11,7 @@ from db import database as db
 from metadata.tagger import write_tags, read_tags
 from metadata.analyzer import analyze_audio
 from metadata.waveform import generate_waveform
-from storage.file_manager import get_library_path, relative_path, get_file_size, sanitize_filename
+from storage.file_manager import get_library_path, relative_path, get_file_size, sanitize_filename, resolve_inside_base
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
@@ -189,10 +189,18 @@ async def import_file(file: UploadFile = File(...), title: str = Form("")):
     if not file.filename:
         raise HTTPException(400, "No filename")
 
-    # Save uploaded file to temp location
+    # Save uploaded file to temp location. file.filename is client-controlled,
+    # so strip any directory components, slug the stem, and resolve inside
+    # RECORDINGS_DIR to defend against path-traversal (arbitrary file write).
     from config import RECORDINGS_DIR
-    temp_path = RECORDINGS_DIR / f"import-{file.filename}"
+    raw_name = Path(file.filename).name            # strip any directory components
+    stem = sanitize_filename(Path(raw_name).stem)  # slug the stem only
+    suffix = Path(raw_name).suffix.lower()
+    temp_path = resolve_inside_base(RECORDINGS_DIR, f"import-{stem}{suffix}")
     content = await file.read()
+    MAX_IMPORT_BYTES = 500 * 1024 * 1024
+    if len(content) > MAX_IMPORT_BYTES:
+        raise HTTPException(413, "File too large (max 500 MB)")
     temp_path.write_bytes(content)
 
     try:
@@ -238,10 +246,12 @@ async def import_file(file: UploadFile = File(...), title: str = Form("")):
 
         return {"id": track_id, "title": final_title, **analysis}
 
-    except Exception as e:
+    except Exception:
         if temp_path.exists():
             temp_path.unlink()
-        raise HTTPException(500, str(e))
+        import logging
+        logging.getLogger("uvicorn.error").exception("import_file failed")
+        raise HTTPException(500, "Import failed")
 
 
 # ---------- Tags ----------

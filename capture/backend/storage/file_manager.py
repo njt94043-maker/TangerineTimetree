@@ -28,6 +28,17 @@ def sanitize_filename(name: str) -> str:
     return name[:80] or "untitled"
 
 
+def resolve_inside_base(base: Path, *parts: str) -> Path:
+    """Join parts onto base and assert the resolved path stays inside base.
+    Defends against path-traversal in client-supplied names. Raises ValueError on escape."""
+    base_resolved = base.resolve()
+    candidate = (base_resolved / Path(*parts)).resolve()
+    # Python 3.9+: is_relative_to; the venv is 3.11+ (uses `str | None` unions).
+    if not candidate.is_relative_to(base_resolved):
+        raise ValueError(f"path escapes base: {candidate}")
+    return candidate
+
+
 def relative_path(absolute_path: Path, base: Path | None = None) -> str:
     """Convert an absolute path to relative (for DB storage)."""
     base = base or LIBRARY_DIR.parent  # storage/
