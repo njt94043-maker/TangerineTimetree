@@ -30,6 +30,10 @@ class MainActivity : ComponentActivity() {
         // S125 multi-cam test feedback: keep screen awake while app is open.
         // Without this, peers and orchestrator dim during long pairing/recording windows.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // S233-D security baseline: FLAG_SECURE blocks screenshots and the recents
+        // thumbnail across every screen (single-Activity Compose host). Protects the
+        // LoginScreen (Supabase email/password) and rig pairing/secret surfaces.
+        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         setContent {
             TangerineMediaTheme {
                 val sessionStatus by AuthRepository.sessionStatus.collectAsState(

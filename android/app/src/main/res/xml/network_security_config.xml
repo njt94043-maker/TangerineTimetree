@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  S233-D security baseline — cleartext policy relocated out of the manifest's blanket
+  android:usesCleartextTraffic="true" into network-security-config form.
+
+  IMPORTANT (verified S233): this base-config permits cleartext GLOBALLY. It is
+  functionally identical to the previous usesCleartextTraffic="true" and achieves NO
+  narrowing. The original intent (block cleartext by default, allow only the private
+  LAN rig/peers) is NOT expressible in Android NSC, because:
+    * the Media-Server rig host and peer cameras are reached by DYNAMIC raw LAN IPs
+      (manual venue IP such as 192.168.x.x, and mDNS-resolved IPs), and
+    * NSC <domain> matches hostnames by exact string only - it has no CIDR / subnet
+      primitive, so a private-range allowlist cannot be written.
+  A cleartext=false base-config (even one allowing local/localhost) would FAIL CLOSED
+  on targetSdk 36 for the gig HTTP bridge to a raw venue IP - in particular take-mode
+  GET (GigCommandClient fetchTakeSongs/fetchTakeStatus), which has no raw-socket
+  fallback. The peer raw-Socket TCP link, the OSC UDP DatagramSocket, and the inbound
+  ServerSocket all BYPASS NSC entirely and remain cleartext on the LAN regardless.
+
+  Real tightening is a follow-up (out of this slice's manifest+xml scope): force
+  hostname (.local) targeting end-to-end so a domain allowlist becomes viable, or move
+  the rig bridge to TLS. Until then this file is the documented scaffold only - do not
+  read its presence as "cleartext is scoped"; it is not.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

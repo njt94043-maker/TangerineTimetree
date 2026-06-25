@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// S233-D: load real release-signing creds from a gitignored keystore.properties
+// at the android root. Absent in CI/dev -> signingConfigs falls back to the public
+// debug keystore (see below), so non-release builds work without the file.
+val keystoreProps = Properties().apply {
+    val f = rootProject.file("keystore.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -44,11 +54,17 @@ android {
 
     signingConfigs {
         create("release") {
-            // TODO: configure release signing
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            // S233-D: real release signing reads from keystore.properties (gitignored,
+            // never committed). Falls back to the public debug keystore so CI/dev builds
+            // work without it; a real release build requires keystore.properties present.
+            // The configured storeFile is resolved relative to the android root
+            // (rootProject) to match app/tgt-release.keystore; the debug fallback is
+            // module-relative (app/debug.keystore), matching the existing layout.
+            storeFile = keystoreProps.getProperty("storeFile")?.let { rootProject.file(it) }
+                ?: file("debug.keystore")
+            storePassword = keystoreProps.getProperty("storePassword") ?: "android"
+            keyAlias = keystoreProps.getProperty("keyAlias") ?: "androiddebugkey"
+            keyPassword = keystoreProps.getProperty("keyPassword") ?: "android"
         }
     }
 
