@@ -11,6 +11,10 @@ import android.os.Build
 import android.os.IBinder
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
@@ -61,10 +65,13 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ModalDrawerSheet
@@ -98,6 +105,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -129,10 +137,15 @@ import com.thegreentangerine.gigbooks.ui.components.GigStartWizard
 import com.thegreentangerine.gigbooks.ui.theme.JetBrainsMono
 import com.thegreentangerine.gigbooks.ui.theme.Karla
 import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * The drummer's gig surface (S118 / S121). Single screen merging the older
@@ -314,6 +327,12 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     val discovered = service?.discoveryFlow?.collectAsState()?.value
     val isSearching = service?.isSearching?.collectAsState()?.value ?: false
     val autoDiscover = service?.autoDiscover?.collectAsState()?.value ?: true
+    // S233 (FLIP): current stored per-rig MS secret — seeds the "Pair with rig" field + drives
+    // the paired/not-paired status line in ReaperConfigPane. remember(svc) so observe()'s Flow is
+    // built once per service binding (not on every recomposition).
+    val rigTarget = service?.let { svc -> remember(svc) { svc.rigStore.observe() } }
+        ?.collectAsState(initial = null)?.value
+    val rigApiSecret = rigTarget?.apiSecret ?: ""
 
     var setStartMs by remember { mutableLongStateOf(0L) }
     var setElapsedSec by remember { mutableIntStateOf(0) }
@@ -717,6 +736,14 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                     // auto-discover. Replaces the v1.2.4 direct setTarget calls,
                     // which did not survive a restart.
                     service?.setManualRig(host, port)
+                },
+                currentSecret = rigApiSecret,
+                onSetSecret = { secret ->
+                    // S233 (FLIP): "Pair with rig" — dual-writes the per-rig MS secret into the live
+                    // Bearer header + DataStore. Deliberately INDEPENDENT of the host change above:
+                    // setManualRig clears the secret, so pairing must run as its own action (and, if
+                    // both change, after the host) or the secret would be wiped.
+                    service?.setRigSecret(secret)
                 },
             )
         }
@@ -1643,6 +1670,8 @@ private fun ReaperConfigPane(
     autoDiscover: Boolean,
     onAutoDiscoverChange: (Boolean) -> Unit,
     onManualHostChange: (String, Int) -> Unit,
+    currentSecret: String,
+    onSetSecret: (String) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
@@ -1699,12 +1728,206 @@ private fun ReaperConfigPane(
             OutlinedTextField(
                 value = port,
                 onValueChange = { port = it; onManualHostChange(host.text, it.text.toIntOrNull() ?: 8000) },
-                label = { Text("Port") }, singleLine = true,
+                // OSC port (Reaper, 8000) — NOT the MS bridge port and NOT the pairing secret.
+                label = { Text("OSC port") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+
+        // ── S233 (FLIP): Pair with rig ──────────────────────────────────────────
+        // Sets the per-rig Media-Server API secret (sent as `Authorization: Bearer`).
+        // Two ways in: type/paste the raw secret, or scan the host tray's QR (which
+        // encodes the raw secret string, nothing else). Independent of the host fields
+        // above — `setManualRig` clears the secret, so this is its own ordered action.
+        val pairContext = LocalContext.current
+        var secretField by remember(currentSecret) { mutableStateOf(currentSecret) }
+        var showScanner by remember { mutableStateOf(false) }
+        var pendingScan by remember { mutableStateOf(false) }
+        val camPermLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted && pendingScan) showScanner = true
+            pendingScan = false
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Tune, contentDescription = null, tint = TangerineColors.text, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "Pair with rig",
+                fontFamily = Karla, fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                color = TangerineColors.text,
+            )
+        }
+        Text(
+            text = if (currentSecret.isNotEmpty()) "Paired with this rig ✓"
+                   else "Not paired — scan the rig's QR or paste its secret",
+            fontFamily = Karla, fontSize = 12.sp,
+            color = if (currentSecret.isNotEmpty()) TangerineColors.orange else TangerineColors.textMuted,
+        )
+        OutlinedTextField(
+            value = secretField,
+            onValueChange = { secretField = it },
+            label = { Text("Rig pairing secret") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                onClick = { onSetSecret(secretField) },
+                enabled = secretField.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TangerineColors.orange,
+                    contentColor = Color.White,
+                ),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Save", fontFamily = Karla, fontWeight = FontWeight.SemiBold)
+            }
+            OutlinedButton(
+                onClick = {
+                    if (ContextCompat.checkSelfPermission(pairContext, Manifest.permission.CAMERA)
+                            == PackageManager.PERMISSION_GRANTED) {
+                        showScanner = true
+                    } else {
+                        pendingScan = true
+                        camPermLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Scan QR", fontFamily = Karla, color = TangerineColors.text)
+            }
+        }
+
+        if (showScanner) {
+            QrSecretScannerDialog(
+                onResult = { raw ->
+                    secretField = raw
+                    onSetSecret(raw)
+                    showScanner = false
+                },
+                onDismiss = { showScanner = false },
+            )
+        }
+
         Spacer(Modifier.height(8.dp))
+    }
+}
+
+// ─── S233 (FLIP): one-shot QR scanner for the rig pairing secret ─────────────
+//
+// CameraX Preview + ImageAnalysis feeding ML Kit's barcode scanner (QR only).
+// The host tray's pairing QR encodes the RAW secret string, so the first decoded
+// value IS the secret — we fire [onResult] once (AtomicBoolean guard) and let the
+// caller dismiss. Uses ONLY the already-bundled CameraX + ML Kit deps; the CAMERA
+// permission is requested by the caller before this is shown. Camera failures are
+// swallowed (the typed field remains the reliable path).
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+@Composable
+private fun QrSecretScannerDialog(
+    onResult: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val analysisExecutor = remember { Executors.newSingleThreadExecutor() }
+    val scanner = remember {
+        BarcodeScanning.getClient(
+            BarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                .build()
+        )
+    }
+    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    val handled = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try { cameraProvider?.unbindAll() } catch (_: Exception) {}
+            analysisExecutor.shutdown()
+            scanner.close()
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(Modifier.fillMaxSize().background(Color.Black)) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx).apply {
+                        scaleType = PreviewView.ScaleType.FILL_CENTER
+                    }
+                    val providerFuture = ProcessCameraProvider.getInstance(ctx)
+                    providerFuture.addListener({
+                        try {
+                            val provider = providerFuture.get()
+                            cameraProvider = provider
+                            val preview = androidx.camera.core.Preview.Builder().build().also {
+                                it.setSurfaceProvider(previewView.surfaceProvider)
+                            }
+                            val analysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
+                                .also { a ->
+                                    a.setAnalyzer(analysisExecutor) { imageProxy ->
+                                        val media = imageProxy.image
+                                        if (media == null) {
+                                            imageProxy.close()
+                                            return@setAnalyzer
+                                        }
+                                        val input = InputImage.fromMediaImage(
+                                            media, imageProxy.imageInfo.rotationDegrees,
+                                        )
+                                        scanner.process(input)
+                                            .addOnSuccessListener { codes ->
+                                                val raw = codes.firstOrNull()?.rawValue?.trim()
+                                                if (!raw.isNullOrEmpty() &&
+                                                    handled.compareAndSet(false, true)) {
+                                                    onResult(raw)
+                                                }
+                                            }
+                                            .addOnCompleteListener { imageProxy.close() }
+                                    }
+                                }
+                            provider.unbindAll()
+                            provider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                analysis,
+                            )
+                        } catch (_: Exception) {
+                            // Camera unavailable — leave the dialog up; the user can close
+                            // it and fall back to the typed pairing field.
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+                    previewView
+                },
+            )
+            // Header: close + instruction.
+            Row(
+                modifier = Modifier.padding(20.dp).align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Scan the rig's pairing QR",
+                    fontFamily = Karla, color = Color.White, fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
     }
 }
 

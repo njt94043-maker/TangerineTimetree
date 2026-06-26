@@ -98,13 +98,32 @@ class OrchestratorService : Service() {
         _autoDiscover.value = false
         osc.setTarget(host, oscPort)
         gigCmd.setTarget(host)
-        // S233 (DARK): the API secret is PER-RIG — a new host invalidates the previous rig's secret.
-        // Clear the cached + persisted secret so we never send the wrong rig's bearer (harmless
-        // log-only today, but it would 401 EVERY command on the new rig once enforcement flips). The
-        // flip slice's pairing UX re-mints + persists a secret for the new rig: it MUST write through
-        // BOTH rigStore.setApiSecret(...) (read back on restart, see onCreate) AND gigCmd.setApiSecret(...).
-        gigCmd.setApiSecret("")
-        scope.launch { rigStore.setManual(host, oscPort); rigStore.setApiSecret("") }
+        // S234.1: do NOT clear the pairing secret here. The secret is PER-RIG and IP-stable
+        // (MediaServerConfig.ApiSecret persists in server_config.json across reboots/DHCP leases),
+        // so a host/IP edit — or an unrelated OSC-port edit — must NOT wipe it. This onValueChange
+        // fires on every keystroke; S233 cleared the secret here, which silently un-paired the APK
+        // (and 401s every command once enforcement is on) just from touching the host or OSC-port
+        // field. If you point at a genuinely DIFFERENT rig, the stale secret simply 401s until you
+        // re-pair via setRigSecret — clearing is the pairing UI's explicit job, not a host side-effect.
+        scope.launch { rigStore.setManual(host, oscPort) }
+    }
+
+    /**
+     * S233 (FLIP slice): pair this APK with the current rig by setting its per-rig
+     * Media-Server API secret (from the "Pair with rig" UX in ReaperConfigPane — a
+     * scanned QR or a typed/pasted raw secret). Dual-write mirrors onCreate's read-back:
+     * push into [gigCmd] so the live Bearer header takes effect immediately AND persist
+     * via [rigStore] so it survives reboot/reinstall.
+     *
+     * Independent of host: blank is IGNORED. As of S234.1 [setManualRig] no longer clears the
+     * secret, so pairing survives host/OSC-port edits and same-rig IP changes; the only way to
+     * change the stored secret is this method (re-pair overwrites).
+     */
+    fun setRigSecret(secret: String) {
+        val s = secret.trim()
+        if (s.isEmpty()) return
+        gigCmd.setApiSecret(s)
+        scope.launch { rigStore.setApiSecret(s) }
     }
 
     private val _isRecording = MutableStateFlow(false)

@@ -27,8 +27,10 @@ private val Context.rigDataStore: DataStore<Preferences> by preferencesDataStore
  */
 class RigTargetStore(private val context: Context) {
 
-    // S233: apiSecret is the per-rig Media-Server API secret (read once from GET /api/pairing).
-    // "" until a pairing slice supplies it — gates the host HTTP bridge in either auto/manual mode.
+    // S233: apiSecret is the per-rig Media-Server API secret, set once via the "Pair with rig"
+    // flow in ReaperConfigPane (scan the host's QR or type/paste the raw 64-char secret). The old
+    // LAN GET /api/pairing hand-out is dead. "" until paired — gates the host HTTP bridge in either
+    // auto/manual mode.
     data class RigTarget(val host: String?, val oscPort: Int, val autoDiscover: Boolean, val apiSecret: String = "")
 
     fun observe(): Flow<RigTarget> = context.rigDataStore.data.map { prefs ->
@@ -55,8 +57,9 @@ class RigTargetStore(private val context: Context) {
         context.rigDataStore.edit { prefs -> prefs[KEY_AUTO_DISCOVER] = enabled }
     }
 
-    /** S233: persist the per-rig MS API secret (read once from GET /api/pairing). "" clears it.
-     *  Independent of host/auto-discover — the secret gates the HTTP bridge in either mode. */
+    /** S233: persist the per-rig MS API secret (set via the "Pair with rig" QR/typed flow in
+     *  ReaperConfigPane; the old GET /api/pairing hand-out is dead). "" clears it. Independent of
+     *  host/auto-discover — the secret gates the HTTP bridge in either mode. */
     suspend fun setApiSecret(secret: String) {
         context.rigDataStore.edit { prefs -> prefs[KEY_API_SECRET] = secret.trim() }
     }
