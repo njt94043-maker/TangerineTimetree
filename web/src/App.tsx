@@ -38,6 +38,7 @@ import { Library } from './components/Library';
 import { XR18Camera } from './components/XR18Camera';
 import Availability from './components/Availability';
 import { Drawer } from './components/Drawer';
+import { NotificationBell } from './components/NotificationBell';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -254,6 +255,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       case 'media': return 'Media';
       case 'enquiries': return 'Enquiries';
       case 'website': return 'Website';
+      case 'notifications': return 'Notifications';
       case 'profile': return 'Profile';
       case 'availability': return 'Availability';
       case 'day-detail': return 'Day Detail';
@@ -282,6 +284,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
           </div>
           <div className="flex-row-gap-8">
             <span className="header-screen-name">{headerTitle}</span>
+            <NotificationBell />
             <button className="header-avatar" onClick={() => setView('profile')} title={profile?.name ?? 'Profile'}>
               {(profile?.name ?? 'U')[0]}
             </button>

@@ -177,6 +177,34 @@ export interface ContactSubmission {
   created_at: string;
 }
 
+// In-app notification (S242 slice 1a). Rows are written only by the
+// notify_on_enquiry() SECURITY DEFINER trigger; clients read/mark-read their own.
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  event_type: string | null;
+  title: string;
+  body: string | null;
+  related_table: string | null;
+  related_id: string | null;
+  read: boolean;
+  created_at: string;
+}
+
+// Web Push subscription (S243 slice 2). One row per device/browser that opted in.
+// Own-row RLS (user_id = auth.uid()); the notify-push edge fn reads ALL rows via
+// the service role to fan out push. `endpoint` is UNIQUE (the upsert key).
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+}
+
 export interface PublicMedia {
   id: string;
   media_type: 'photo' | 'video';

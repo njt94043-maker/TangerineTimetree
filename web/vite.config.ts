@@ -15,6 +15,9 @@ export default defineConfig({
         clientsClaim: true,
         // Purge old caches from previous builds
         cleanupOutdatedCaches: true,
+        // S243 slice 2: pull the hand-written push/notificationclick handlers into
+        // the generated SW. generateSW stays — do NOT switch to injectManifest.
+        importScripts: ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {

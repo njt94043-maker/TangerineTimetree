@@ -8,6 +8,7 @@ import {
 } from '@shared/supabase/queries';
 import type { ServiceCatalogueItem, SiteReview } from '@shared/supabase/types';
 import { ErrorAlert } from './ErrorAlert';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const GALLERY_PHOTOS = [
   '597106079_122203114304318312_6658064872395739304_n.jpg',
@@ -83,6 +84,9 @@ export function Settings({ onClose }: SettingsProps) {
     if (saved) return saved;
     return /iPad|iPhone|iPod/.test(navigator.userAgent) ? 'apple' : 'google';
   });
+
+  // Web Push opt-in (device-local; S243 slice 2)
+  const push = usePushNotifications();
 
   // User settings
   const [yourName, setYourName] = useState('');
@@ -449,6 +453,47 @@ export function Settings({ onClose }: SettingsProps) {
             <option value="waze">Waze</option>
             <option value="apple">Apple Maps</option>
           </select>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h3 className="settings-section-title">Notifications</h3>
+        <div className="neu-inset" style={{ padding: '12px 14px' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 10 }}>
+            Get a push alert on this device when a new booking enquiry comes in &mdash; even when the app is closed.
+          </div>
+
+          {push.iosNeedsInstall ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              On iPhone, add Tangerine Timetree to your Home Screen first (Share {'▸'} Add to Home Screen), then open it from there to turn on notifications.
+            </div>
+          ) : !push.supported ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              This browser doesn&rsquo;t support push notifications.
+            </div>
+          ) : push.permission === 'denied' ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Notifications are blocked for this site. Allow them in your browser settings, then reload to turn on push.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: push.subscribed ? 'var(--color-green)' : 'var(--text-dim)', flexShrink: 0 }} />
+              <span style={{ fontSize: 13, flex: 1 }}>
+                {push.subscribed ? 'Push notifications are on for this device.' : 'Push notifications are off.'}
+              </span>
+              <button
+                className={`btn btn-small ${push.subscribed ? 'btn-outline' : 'btn-green'}`}
+                disabled={push.busy}
+                onClick={() => { if (push.subscribed) { void push.disable(); } else { void push.enable(); } }}
+              >
+                {push.busy ? 'Working…' : push.subscribed ? 'Turn off' : 'Turn on'}
+              </button>
+            </div>
+          )}
+
+          {push.error && (
+            <div style={{ fontSize: 12, color: 'var(--color-red, #e57373)', marginTop: 8 }}>{push.error}</div>
+          )}
         </div>
       </div>
 

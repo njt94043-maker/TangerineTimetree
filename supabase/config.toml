@@ -376,6 +376,14 @@ port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 
+# notify-push (S243 slice 2) — Web Push sender, the project's first edge function.
+# verify_jwt = false because JWT signing is disabled project-wide; the function
+# guards itself with a mandatory constant-time X-Webhook-Secret check (401 on
+# mismatch), NOT the gateway. Never rely on the gateway alone (F-05 lesson).
+[functions.notify-push]
+enabled = true
+verify_jwt = false
+
 # Experimental features may be deprecated any time
 [experimental]
 # Configures Postgres storage engine to use OrioleDB (S3)

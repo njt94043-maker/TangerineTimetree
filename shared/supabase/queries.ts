@@ -15,6 +15,8 @@ import type {
   ChangeSummaryItem,
   PublicMedia,
   ContactSubmission,
+  AppNotification,
+  PushSubscriptionRow,
   Client,
   Venue,
   VenuePhoto,
@@ -842,6 +844,131 @@ export async function archiveSubmission(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) { checkAuthError(error); throw error; }
+}
+
+// ─── Notifications (S242 slice 1a) ───────────────────────
+// RLS scopes every read/write to the caller's own rows (user_id = auth.uid()),
+// so these need no explicit user filter — mirrors the contact-submission block.
+
+export async function getNotifications(limit = 50): Promise<AppNotification[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? [];
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  const supabase = getSupabase();
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('read', false);
+
+  if (error) { checkAuthError(error); throw error; }
+  return count ?? 0;
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('id', id);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read: true })
+    .eq('read', false);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// Realtime: invoke cb on any change to THIS member's notification rows. RLS
+// already limits the stream to own rows; the user_id filter keeps it tight.
+// Returns the channel so the caller can removeChannel() on unmount.
+export function subscribeNotifications(userId: string, cb: () => void): unknown {
+  const supabase = getSupabase();
+  return supabase
+    .channel('notifications-' + userId)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'notifications', filter: 'user_id=eq.' + userId },
+      () => cb(),
+    )
+    .subscribe((status: string, err?: Error) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Notifications realtime error', status, err);
+      }
+    });
+}
+
+// ─── Push Subscriptions (S243 slice 2 — Web Push) ────────
+// One row per device/browser that opted in. Own-row RLS (user_id = auth.uid())
+// scopes reads/writes to the caller; the notify-push edge fn reads ALL rows via
+// the service role to fan out. `endpoint` is UNIQUE, so re-subscribing upserts.
+// The caller supplies user_agent so shared/ stays platform-agnostic (no navigator).
+
+export async function savePushSubscription(sub: {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent?: string | null;
+}): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .upsert(
+      {
+        user_id: user.id,
+        endpoint: sub.endpoint,
+        p256dh: sub.p256dh,
+        auth: sub.auth,
+        user_agent: sub.user_agent ?? null,
+      },
+      { onConflict: 'endpoint' },
+    );
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  const supabase = getSupabase();
+  // RLS scopes DELETE to the caller's own rows; endpoint is globally unique.
+  const { error } = await supabase
+    .from('push_subscriptions')
+    .delete()
+    .eq('endpoint', endpoint);
+
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function getMyPushSubscription(): Promise<PushSubscriptionRow | null> {
+  const supabase = getSupabase();
+  // RLS already scopes to the caller; return the most recent row (a member may
+  // have several — one per device). Soft signal only: the browser's
+  // pushManager.getSubscription() is the source of truth for THIS device.
+  const { data, error } = await supabase
+    .from('push_subscriptions')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) { checkAuthError(error); throw error; }
+  return data ?? null;
 }
 
 function formatShortDate(dateStr: string): string {

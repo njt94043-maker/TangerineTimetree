@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect, ty
 
 type View =
   | 'dashboard' | 'calendar' | 'list' | 'day-detail' | 'gig-form' | 'away'
-  | 'profile' | 'media' | 'enquiries' | 'website'
+  | 'profile' | 'media' | 'enquiries' | 'website' | 'notifications'
   | 'invoices' | 'invoice-form' | 'invoice-detail' | 'invoice-preview'
   | 'quotes' | 'quote-form' | 'quote-detail' | 'quote-preview'
   | 'settings' | 'clients'
