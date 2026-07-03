@@ -556,3 +556,9 @@ dates are available if they have not been set as "away" by any member
 ```text
 true yes, we want the qr feature and we have expanded the scope of that idea so it ties into the studio recorder with its own lightweight apk and pwa, but thats unrelated, as long as our qr code here doesnt interfere keep it and make sure the videos go to the same place
 ```
+
+## Live-App Testing Trusted + Invoice Numbers Restart 101 - 2026-07-03
+
+```text
+ok, i think you can be trusted to test in live app now (dev team is better equipped to do it now then when i wrote that rule) i dont mind burning invoice numbers we can start again at 101 (i want to make sure exerything works perfectly before we refine the ui)
+```
