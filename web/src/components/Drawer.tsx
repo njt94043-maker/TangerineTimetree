@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useView } from '../hooks/useViewContext';
-import { AppTutorial } from './AppTutorial';
 
 type View = ReturnType<typeof useView>['view'];
 
@@ -39,12 +38,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Music',
     items: [
       { icon: '\uD83C\uDFB5', label: 'Library', view: 'library' },
-    ],
-  },
-  {
-    title: 'Recording',
-    items: [
-      { icon: '\uD83D\uDCF9', label: 'XR18 Camera', view: 'xr18-camera' },
     ],
   },
   {
@@ -87,7 +80,6 @@ const VIEW_TO_NAV: Record<string, View> = {
   'settings': 'settings',
   'day-detail': 'calendar',
   'gig-form': 'calendar',
-  'xr18-camera': 'xr18-camera',
   'availability': 'availability',
 };
 
@@ -98,8 +90,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
-  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, goToXR18Camera } = useView();
-  const [showTutorial, setShowTutorial] = useState(false);
+  const { view, setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary } = useView();
 
   const activeNav = VIEW_TO_NAV[view] ?? 'calendar';
 
@@ -112,12 +103,11 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
       case 'clients': goToClients(); break;
       case 'venues': goToVenues(); break;
       case 'library': goToLibrary(); break;
-      case 'xr18-camera': goToXR18Camera(); break;
       default: setView(targetView);
     }
     // Close on mobile
     if (window.innerWidth < 768) onClose();
-  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, goToXR18Camera, onClose]);
+  }, [setView, goToDashboard, goToInvoices, goToQuotes, goToSettings, goToClients, goToVenues, goToLibrary, onClose]);
 
   // Close on Escape
   useEffect(() => {
@@ -166,14 +156,6 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
         </div>
 
         <div className="drawer-footer">
-          <button
-            className="drawer-item"
-            onClick={() => { setShowTutorial(true); if (window.innerWidth < 768) onClose(); }}
-            title="App Guide"
-          >
-            <span className="drawer-icon">{'\uD83C\uDF93'}</span>
-            <span className="drawer-label">App Guide</span>
-          </button>
           {FOOTER_ITEMS.map(item => (
             <button
               key={item.view}
@@ -191,8 +173,6 @@ export function Drawer({ isOpen, onClose, profileName }: DrawerProps) {
           </div>
         </div>
       </nav>
-
-      {showTutorial && <AppTutorial onClose={() => setShowTutorial(false)} />}
     </>
   );
 }

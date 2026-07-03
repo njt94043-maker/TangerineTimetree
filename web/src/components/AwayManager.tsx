@@ -1,7 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { getMyAwayDates, createAwayDate, deleteAwayDate, updateAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
-import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { formatRange } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
@@ -55,15 +54,6 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
       setReason('');
       fetchDates();
     } catch (err) {
-      if (isNetworkError(err)) {
-        if (!editingId) {
-          queueMutation('createAwayDate', { start_date: startDate, end_date: endDate, reason });
-        }
-        setShowForm(false);
-        setEditingId(null);
-        setReason('');
-        return;
-      }
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
@@ -75,10 +65,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
       await deleteAwayDate(id);
       fetchDates();
     } catch (err) {
-      if (isNetworkError(err)) {
-        queueMutation('deleteAwayDate', { id });
-        setAwayDates(prev => prev.filter(a => a.id !== id));
-      }
+      setError(err instanceof Error ? err.message : 'Failed to delete away date');
     }
   }
 
@@ -89,6 +76,8 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
         <h2 className="page-title">My Away Dates</h2>
         <div className="page-header-spacer" />
       </div>
+
+      {!showForm && error && <ErrorAlert message={error} compact />}
 
       {awayDates.length === 0 && !showForm && (
         <p className="empty-message empty-message-lg">No away dates set</p>
@@ -129,13 +118,13 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
           {error && <ErrorAlert message={error} compact />}
 
           <div className="form-submit-row">
-            <button className="btn btn-small" type="button" onClick={() => { setShowForm(false); setEditingId(null); }}>Cancel</button>
+            <button className="btn btn-small" type="button" onClick={() => { setShowForm(false); setEditingId(null); setError(''); }}>Cancel</button>
             <button className="btn btn-small btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
           </div>
         </form>
       ) : (
         <div className="away-add-wrap">
-          <button className="btn btn-green btn-full" onClick={() => setShowForm(true)}>Add Away Date</button>
+          <button className="btn btn-green btn-full" onClick={() => { setShowForm(true); setError(''); }}>Add Away Date</button>
         </div>
       )}
       {confirmDeleteId && (

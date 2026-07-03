@@ -5,7 +5,6 @@ import { AutocompleteInput } from './AutocompleteInput';
 import { EntityPicker } from './EntityPicker';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigVisibility, GigAttachment } from '@shared/supabase/types';
-import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 import { DigitalTimePicker } from './DigitalTimePicker';
@@ -158,15 +157,6 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
       }
       onSaved();
     } catch (err) {
-      if (isNetworkError(err)) {
-        if (isEditing && gigId) {
-          queueMutation('updateGig', { id: gigId, updates: data });
-        } else {
-          queueMutation('createGig', data);
-        }
-        onSaved();
-        return;
-      }
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
@@ -196,12 +186,7 @@ export function GigForm({ date: initialDate, gigId, initialType = 'gig', onClose
     try {
       await deleteGig(gigId);
       onSaved();
-    } catch (err) {
-      if (isNetworkError(err)) {
-        queueMutation('deleteGig', { id: gigId });
-        onSaved();
-        return;
-      }
+    } catch {
       setError('Failed to delete');
     }
   }

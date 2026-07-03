@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getGigWithLinkedDocs, updateGig, getGigChangelog } from '@shared/supabase/queries';
 import type { GigWithCreator, GigChangelogWithUser, Quote, Invoice, FormalInvoice, BookingStatus } from '@shared/supabase/types';
-import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -94,15 +93,10 @@ export function GigCardExpanded({
       setShowStatusPicker(false);
       setConfirmStatus(null);
       onGigUpdated();
-    } catch (err) {
-      if (isNetworkError(err)) {
-        queueMutation('updateGig', { id: gigId, updates: { status: newStatus } });
-        setGig({ ...gig, status: newStatus });
-        setShowStatusPicker(false);
-        setConfirmStatus(null);
-        onGigUpdated();
-        return;
-      }
+    } catch {
+      // Fail loud: close the picker/confirm modal so the error alert is visible
+      setShowStatusPicker(false);
+      setConfirmStatus(null);
       setError('Failed to update status');
     }
   }
@@ -112,12 +106,7 @@ export function GigCardExpanded({
       const { deleteGig } = await import('@shared/supabase/queries');
       await deleteGig(gigId);
       onGigDeleted();
-    } catch (err) {
-      if (isNetworkError(err)) {
-        queueMutation('deleteGig', { id: gigId });
-        onGigDeleted();
-        return;
-      }
+    } catch {
       setError('Failed to delete');
     }
   }

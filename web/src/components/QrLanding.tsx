@@ -9,7 +9,6 @@
  * "The Green / Tangerine" title with green + tangerine accent words, neon
  * glow shadows, Karla body / JetBrains Mono labels.
  */
-import { useState } from 'react';
 import './QrLanding.css';
 
 const SOCIAL_LINKS = [
@@ -22,8 +21,6 @@ const SOCIAL_LINKS = [
 const FB_REVIEW_URL = 'https://www.facebook.com/profile.php?id=61559549376238/reviews';
 
 export function QrLanding() {
-  const [showUpload, setShowUpload] = useState(false);
-
   return (
     <div className="qr">
       <header className="qr__header">
@@ -57,18 +54,6 @@ export function QrLanding() {
           </span>
         </a>
 
-        <button
-          type="button"
-          onClick={() => setShowUpload(true)}
-          className="qr__cta qr__cta--green"
-        >
-          <span className="qr__cta-emoji">📷</span>
-          <span className="qr__cta-text">
-            <strong>Send us your photos / videos</strong>
-            <small>from your gallery — we use them in our highlights</small>
-          </span>
-        </button>
-
         <div className="qr__cta qr__cta--ghost">
           <span className="qr__cta-text">
             <strong>Get the Capture app</strong>
@@ -95,25 +80,6 @@ export function QrLanding() {
       </section>
 
       <footer className="qr__footer">thegreentangerine.com</footer>
-
-      {showUpload && <FanUploadPlaceholder onClose={() => setShowUpload(false)} />}
-    </div>
-  );
-}
-
-function FanUploadPlaceholder({ onClose }: { onClose: () => void }) {
-  return (
-    <div className="qr__modal-scrim" onClick={onClose}>
-      <div className="qr__modal" onClick={(e) => e.stopPropagation()}>
-        <div className="qr__modal-title">Coming soon</div>
-        <div className="qr__modal-body">
-          We're still wiring up the upload. For now, send your clips to us via Facebook
-          and we'll grab them. Thanks for the support!
-        </div>
-        <button type="button" onClick={onClose} className="qr__modal-close">
-          Got it
-        </button>
-      </div>
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { createGig, updateGig, getVenueHistory } from '@shared/supabase/queries'
 import { EntityPicker } from './EntityPicker';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigVisibility, AwayDateWithUser, Profile, BookingStatus, GigSubtype, EventType, BandSettings } from '@shared/supabase/types';
-import { isNetworkError, queueMutation } from '../hooks/useOfflineQueue';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 import { DigitalTimePicker } from './DigitalTimePicker';
@@ -252,15 +251,6 @@ export function BookingWizard({
 
       onSaved();
     } catch (err) {
-      if (isNetworkError(err)) {
-        if (isEditing && gigId) {
-          queueMutation('updateGig', { id: gigId, updates: data });
-        } else {
-          queueMutation('createGig', data);
-        }
-        onSaved();
-        return;
-      }
       setError(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);

@@ -6,7 +6,6 @@ import { useInvoiceData } from './hooks/useInvoiceData';
 import { useQuoteData } from './hooks/useQuoteData';
 import { getChangesSince, updateLastOpened, createGig } from '@shared/supabase/queries';
 import type { ChangeSummaryItem, GigWithCreator, Profile } from '@shared/supabase/types';
-import { useOfflineQueue } from './hooks/useOfflineQueue';
 import { ViewProvider, useView } from './hooks/useViewContext';
 import { PublicSite } from './components/PublicSite';
 import { QrLanding } from './components/QrLanding';
@@ -35,7 +34,6 @@ import { Dashboard } from './components/Dashboard';
 import { VenueList } from './components/VenueList';
 import { VenueDetail } from './components/VenueDetail';
 import { Library } from './components/Library';
-import { XR18Camera } from './components/XR18Camera';
 import Availability from './components/Availability';
 import { Drawer } from './components/Drawer';
 import { NotificationBell } from './components/NotificationBell';
@@ -158,9 +156,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
     return [...dateSet].sort();
   }, [gigs, awayDates]);
 
-  // Offline mutation queue
-  const { pendingCount, refreshCount: refreshQueueCount } = useOfflineQueue(refresh);
-
   // Change summary banner
   const [changeSummary, setChangeSummary] = useState<ChangeSummaryItem[]>([]);
   const changeSummaryChecked = useRef(false);
@@ -203,7 +198,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
 
   function handleGigSaved() {
     refresh();
-    refreshQueueCount();
     goBack();
   }
 
@@ -304,14 +298,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
         {isOffline && (
           <div className="offline-banner" role="status">
             You're offline — showing cached data
-            {pendingCount > 0 && ` (${pendingCount} change${pendingCount > 1 ? 's' : ''} pending sync)`}
-          </div>
-        )}
-
-        {/* Pending sync badge (when online but queue still has items) */}
-        {!isOffline && pendingCount > 0 && (
-          <div className="offline-banner" role="status">
-            {pendingCount} change{pendingCount > 1 ? 's' : ''} syncing...
           </div>
         )}
 
@@ -393,7 +379,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
             onEditGig={goToEditGig}
             onAddBooking={goToBookingWizard}
             onMarkAway={() => goToAway(selectedDate)}
-            onGigDeleted={() => { refresh(); refreshQueueCount(); }}
+            onGigDeleted={() => { refresh(); }}
             onDateChange={goToDay}
             onCreateInvoice={handleCreateInvoiceFromGig}
             onViewQuote={(id) => goToQuoteDetail(id)}
@@ -558,8 +544,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
         )}
 
         {view === 'library' && <Library />}
-
-        {view === 'xr18-camera' && <XR18Camera />}
 
         {view === 'availability' && <Availability />}
 

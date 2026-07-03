@@ -532,3 +532,27 @@ test it plz, it doesnt appear to be working. we're on gig mode now
 ```text
 ok, it works well enough for tonight, but when paused it starts recording from the begining of the project again when resumed to it will overwrite (tonight i will just make sure not to pause) but we need to fit it (without breaking anything before tonight) and how do i pull all the plugins in and proper busses?
 ```
+
+## Timetree Reliability + Humanised UI + Calendar Layouts - 2026-07-03
+
+```text
+is tgt timetree 100% reliable now? the uix / ui needs work to bring it into 2026 but before we tackle that i want to make sure every function that is staying works 100% and everything obsolete gets removed / rebuilt to match our tgt backend big picture. the rest of the boys are still favouring the original timetree app over ours, that says to me ours although built to server every feature we need, the ui doesnt humanise it, we have a lot to offer, much more than timetree i know we are better but we must still feel clunky and toylike.
+
+theres no user customised "main" calendar screen options for different layouts such as current month view / month of weekends view (while also allowing for weekdays to be displayed, if there is a booking / practice linked) / just free, available dates
+
+dates are available if they have not been set as "away" by any member
+```
+
+## Timetree Audit Dispositions + Calendar-First Nav - 2026-07-03
+
+```text
+1. no studio link planned for the moment, we will remove from the timetree app.
+2. i cant remember what the qr was for?
+3. cut, do not remove any of the management features we want to improve those and humanise the way they are used and reorganise the navigation so its less intimidating while aiming to keep most of the functionality usable from just the calendar view if possible, for a start we need a way to quick ad button for bookings etc
+```
+
+## QR Landing Keep + Expanded Fan-Capture Scope - 2026-07-03
+
+```text
+true yes, we want the qr feature and we have expanded the scope of that idea so it ties into the studio recorder with its own lightweight apk and pwa, but thats unrelated, as long as our qr code here doesnt interfere keep it and make sure the videos go to the same place
+```

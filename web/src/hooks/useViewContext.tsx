@@ -9,7 +9,6 @@ type View =
   | 'venues' | 'venue-detail'
   | 'library'
   | 'booking-wizard'
-  | 'xr18-camera'
   | 'availability';
 
 /* ── History entry: view name + relevant state snapshot ── */
@@ -65,8 +64,6 @@ interface ViewContextValue extends ViewState {
   goToVenueDetail: (id: string) => void;
   // Library navigation (3-list setlist view)
   goToLibrary: () => void;
-  // XR18 Camera companion
-  goToXR18Camera: () => void;
   // Availability
   goToAvailability: () => void;
   // Booking wizard / Gig Hub navigation
@@ -229,7 +226,6 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const goToVenues = useCallback(() => resetToView('venues'), [resetToView]);
   const goToQuotes = useCallback(() => resetToView('quotes'), [resetToView]);
   const goToLibrary = useCallback(() => resetToView('library'), [resetToView]);
-  const goToXR18Camera = useCallback(() => resetToView('xr18-camera'), [resetToView]);
   const goToAvailability = useCallback(() => resetToView('availability'), [resetToView]);
 
   // Invoice drill-down
@@ -352,7 +348,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
         goToSettings, goToClients,
         goToQuotes, goToNewQuote, goToEditQuote, goToQuoteDetail, goToQuotePreview,
         goToVenues, goToVenueDetail,
-        goToLibrary, goToXR18Camera, goToAvailability,
+        goToLibrary, goToAvailability,
         goToBookingWizard, goToEditBooking,
         goToAway,
         replaceWithInvoiceDetail, replaceWithQuoteDetail,

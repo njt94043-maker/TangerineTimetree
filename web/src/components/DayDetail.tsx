@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GigWithCreator, AwayDateWithUser } from '@shared/supabase/types';
 import { isGigIncomplete } from '@shared/supabase/types';
 import { getGigsByDate, getVenue, getInvoiceByGigId } from '@shared/supabase/queries';
-import { isNetworkError } from '../hooks/useOfflineQueue';
 import { formatDisplayDate, fmt, fmtFee } from '../utils/format';
 import { ErrorAlert } from './ErrorAlert';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -48,7 +47,7 @@ export function DayDetail({
     setError(null);
     getGigsByDate(date)
       .then(setGigs)
-      .catch((err) => setError(isNetworkError(err) ? 'You\'re offline — gigs can\'t be loaded right now' : 'Failed to load gigs for this day'))
+      .catch(() => setError(!navigator.onLine ? 'You\'re offline — gigs can\'t be loaded right now' : 'Failed to load gigs for this day'))
       .finally(() => setLoading(false));
   }, [date]);
 
