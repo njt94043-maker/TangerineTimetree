@@ -5,7 +5,7 @@
 ## What Is This?
 Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps + one future + one shelved, sharing one Supabase backend. **All apps are one family** — same dark neumorphic theme, same fonts, same visual language. Different features but shared metadata must be consistent (D-156).
 - **GigBooks** (android/) — Jetpack Compose + C++/Oboe native app for calendar, songs, setlists, live mode, practice mode
-- **Tangerine Timetree** (web/) — React/Vite PWA for full band management (invoicing, quotes, calendar, stage prompter, public site)
+- **Tangerine Timetree** (web/) — React/Vite PWA for full band management (invoicing, quotes, calendar, enquiries+notifications, public site)
 - **TGT Capture** (capture/) — FastAPI + React local tool for capturing YouTube/system audio as practice material. **Entry point for the whole ecosystem** — feeds songs into web app via import pipeline, practice tracks into future ClickTrack. Capture is the metadata superset (D-154). **Rename pending**: the name "TGT Capture" will transfer to the S129 fan-capture app when that ships; this tool will be renamed (target name TBD). See Sovereign Spec v3.1 §A1.
 - **ClickTrack** (future, not yet in repo) — Personal practice tool for Nathan. Techniques, sticking patterns, fills, polyrhythms, limb independence. Will consume Capture's practice_category, instrument_focus, difficulty fields. **Not built yet but integration points must be considered now** (D-155).
 - **Native** (native/) — **SHELVED**. Former React Native/Expo app. Archived at `D:/tgt/gigbooks-react-native-backup-2026-03-08.7z`. Still in git history.
@@ -95,14 +95,14 @@ All in `docs/ai_context/` (project root level):
 | Song `category` (tgt_cover etc) | Yes | Yes | **Yes** (D-154) | No |
 | `practice_category` | No | No | **Yes** (D-154) | **Yes** |
 | `instrument_focus` / `difficulty` | No | No | **Yes** (D-154) | **Yes** |
-| Live Mode | Yes | Yes (S36) | No | No |
-| Practice Mode | Yes | Yes (S36) | No | Yes (different UX) |
+| Live Mode | Yes | No (web player removed, S118 pivot) | No | No |
+| Practice Mode | Yes | Yes (PracticeMixer, `web/src/practice/`) | No | Yes (different UX) |
 | Invoicing / Quotes | No | Yes | No | No |
 | PDF generation | No | Yes | No | No |
 | Clients / Venues | No | Yes | No | No |
 | Dashboard | No | Yes | No | No |
 | Public site | No | Yes | No | No |
-| Stage Prompter | No | Yes | No | No |
+| Stage Prompter | No | No (removed S118; prompter concept lives in Fusion5 kiosk spec) | No | No |
 | Settings | Yes (player only) | Yes (full) | No | Yes (practice) |
 | Audio capture (WASAPI/Chrome) | No | No | Yes | No |
 | BPM/key analysis (librosa) | No | No | Yes | No |
@@ -198,33 +198,35 @@ android/app/src/main/cpp/track_player.*    → MP3/stem playback
 android/app/src/main/cpp/mixer.*           → Gain mixing, stem channels
 android/app/src/main/cpp/CMakeLists.txt    → Build config (SoundTouch + Oboe)
 
-# Web — Views
-web/src/components/Calendar.tsx            → Gig calendar with day dots
-web/src/components/DayDetail.tsx           → Day sheet (gig list, add booking)
-web/src/components/BookingWizard.tsx       → Quick + full booking flow
-web/src/components/GigHub.tsx              → Gig pipeline (quote/invoice generation)
-web/src/components/InvoiceList.tsx         → Invoice list with filters
-web/src/components/InvoiceForm.tsx         → 3-step invoice wizard
-web/src/components/QuoteList.tsx           → Quote list
-web/src/components/QuoteForm.tsx           → Quote builder
-web/src/components/Library.tsx             → Tabbed Songs/Setlists with filter pills + launch
-web/src/components/Player.tsx              → Live/Practice player (transport, lyrics, stems, queue)
-web/src/components/SongList.tsx            → Song library (legacy, still routable)
-web/src/components/SetlistList.tsx         → Setlist library (legacy, still routable)
-web/src/components/StagePrompter.tsx       → Lyrics/chords display for stage
+# Web — Views (verified against disk, hub S244 2026-07-03)
+web/src/components/Calendar.tsx            → Gig calendar with day dots (default view)
+web/src/components/DayDetail.tsx           → Full-screen day view, accordion gig cards (S63; GigHub merged in)
+web/src/components/GigCardExpanded.tsx     → In-card gig pipeline (quote/invoice/deposit/actions)
+web/src/components/BookingWizard.tsx       → Quick + full booking flow (intentionally comprehensive)
+web/src/components/GigList.tsx / GigForm.tsx → Gig list + edit form
+web/src/components/InvoiceList/Form/Detail/Preview.tsx → Invoicing suite
+web/src/components/QuoteList/Form/Detail/Preview.tsx   → Quotes suite
+web/src/components/ClientList.tsx / VenueList.tsx / VenueDetail.tsx → Clients + venues
+web/src/components/Library.tsx             → Tabbed Songs/Setlists (setlist authoring home)
+web/src/components/Availability.tsx / AwayManager.tsx → Free dates + away dates
+web/src/components/Enquiries.tsx           → Public-form enquiries panel
+web/src/components/NotificationBell/Panel.tsx → In-app notifications (v1.6.0)
 web/src/components/Dashboard.tsx           → Stats overview
+web/src/components/MediaManager.tsx / ProfilePage.tsx / Settings.tsx → Media, profile, settings (push opt-in)
+web/src/components/PublicSite.tsx          → Public-facing website + booking form
+web/src/components/QrLanding.tsx           → Audience QR page (/qr — review CTA + socials; upload CTA hidden until shared fan-capture bucket exists)
 web/src/components/Drawer.tsx              → Collapsible navigation drawer
-web/src/components/Settings.tsx            → User/band settings
-web/src/components/PublicSite.tsx          → Public-facing website
+web/src/practice/PracticeMixer.tsx         → Practice mixer (ACTIVE — stems, click, chord ribbon)
+# REMOVED (do not re-document): Player/StagePrompter/SongList/SetlistList (S118 pivot);
+# XR18Camera + hooks/xr18/ + offline queue + AppTutorial (S244 removal slice, web v1.6.1)
 
-# Web — Audio Engine (S36)
+# Web — Audio Engine (S36; consumed by practice/PracticeMixer only)
 web/src/audio/AudioEngine.ts              → Singleton: AudioContext + master gain + tick loop
 web/src/audio/ClickScheduler.ts           → Frame-accurate metronome (5 sounds, beat map, swing)
 web/src/audio/TrackPlayer.ts              → SoundTouchJS pitch-preserved playback + A-B loop
 web/src/audio/StemMixer.ts                → Per-stem TrackPlayer + gain/mute/solo
 web/src/audio/soundtouchjs.d.ts           → Type declarations for soundtouchjs
 web/src/audio/index.ts                    → Barrel exports
-web/src/hooks/useAudioEngine.ts           → React hook bridging audio engine to UI
 
 # Shared
 shared/supabase/config.ts                 → Supabase URL + publishable key

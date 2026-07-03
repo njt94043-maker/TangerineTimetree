@@ -5,45 +5,23 @@
 
 ---
 
-## Current State
-- **Phase**: UX Simplification — GigHub merged into DayDetail as expandable accordion cards. Deployed.
-- **What works**: Android (full), Cloud Run, Capture. Web stems/mixer work. Web time display works. **Web click plays consistently**. **Invoice/receipt/quote PDF templates fixed for print**. **Gig Day is now a full-screen unified view**.
-- **What was done (S63)**: Merged GigHub into DayDetail — gig cards expand in-place (accordion) to reveal pipeline tracker, deposit, linked docs, actions. Removed `gig-hub` as standalone view from ViewContext. Navigation reduced from 3-4 hops to 1-2.
-- **Seed status**: 117 gigs (114 linked to venue_id) + 62 away dates. 29 clients, 65 venues. 4 songs.
+## Current State (2026-07-03, hub S244)
+- **Phase**: Timetree reliability → 2026-UI programme (spec: `C:\apps\Dev Team\specs\tgt\s244-timetree-function-audit.md`). Order LOCKED: verify/prune first, humanise UI second. Nathan's driver: the boys still favour original Timetree — ours "feels clunky and toylike" despite covering every feature.
+- **Web (Tangerine Timetree) v1.6.1** — S244 removal slice LIVE on prod (bundle-verified): XR18 camera surface, AppTutorial, offline mutation queue (booking/away/gig flows now fail LOUD via ErrorAlert), 3 S41 orphans, QR-landing upload CTA all removed. v1.6.0 booking notifications (in-app bell + Web Push) verified on Nathan's Samsung.
+- **What works**: Android APK (full — gig mode pause/resume overwrite CONFIRMED FIXED S222), Cloud Run, Capture, web invoicing/quotes/calendar/enquiries/notifications, practice mixer (`web/src/practice/` — ACTIVE, uses `web/src/audio/` engine).
+- **Seed status** (as of S63, June): 117 gigs (114 venue-linked) + 62 away dates, 29 clients, 65 venues, 4 songs.
 
-## Current Hotspot Incident (2026-06-13)
-- Gig Mode / Take Mode failed at a real gig over Nathan's mobile hotspot after only being proven on home WiFi.
-- PC side repro on S23 hotspot: Reaper UDP 8000 and Media Server TCP 9200 are alive; direct hotspot IP `10.117.252.228:9200/take/songs` works. APK fix added: `ACCESS_NETWORK_STATE` + guarded network enumeration. Live app still targeted stale `192.168.1.90:8000`, so release was emergency-pinned to `10.117.252.228` and auto-discovery defaulted off. Release APK installed to both connected phones (`SM_S918B`, `SM_S911B`); Gig Mode now visibly shows `10.117.252.228:8000`, and both phones can reach `10.117.252.228:9200`. Actual `Start gig` capture fanout not pressed/tested yet. Peer camera fallback still needed because peer pairing is mDNS-only.
-- Nathan accepted this as "works well enough for tonight" but reported pause/resume is unsafe: after pause, resume starts recording from the beginning of the Reaper project and can overwrite. Do not alter tonight's installed build before the gig; workaround is do not pause. Post-gig fix should make resume/continue call a Reaper-side "record at true project end" command instead of relying on generic OSC action sequencing.
-
-## S63 UX Consolidation
-- **New component**: `GigCardExpanded.tsx` — extracted from GigHub, renders inline in accordion cards
-- **DayDetail.tsx**: Full-screen view (was bottom sheet), accordion gig cards, mini pipeline dots on collapsed cards
-- **Removed**: `gig-hub` view from ViewContext, GigHub rendering from App.tsx, `goToGigHub`/`gigHubGigId` state
-- **Navigation**: Edit Booking, View Quote/Invoice, Create Invoice, Generate Quote all wired through DayDetail props
-- **Nathan chose**: Full-screen from the start (not bottom sheet). Deployed to Vercel.
-- **Nathan will test next session** and list UX tweaks needed.
-
-## NEXT SESSION: UX Tweaks
-Nathan will test the deployed Gig Day view and list issues/tweaks at start of next session.
-
-**PDF Templates — COMPLETE**: All 14 invoice + formal invoice templates now have JetBrains Mono bank details. PRINT_CSS, title tags, and BILL TO fallback were already in all 28 templates.
-
-**Also remaining**: Drift correction (S61), parity items — see todo.md
-
-## Remaining Items
-- [ ] **Drift correction** — re-enable resyncToPosition with ~93ms latency compensation
-- [ ] **Evaluate FFT necessity** — D-169 says vis is beat-synced only, may not need FFT
-- [ ] Web set-complete modal (Android has it, web doesn't)
-- [ ] Web waveform strip with loop region (Android has it)
-- [ ] Verify calendar cell shadows match mockup
-- [ ] Queue items: NeuCard → flat rows (already done per audit)
+## Known-stale / open
+- **Authed prod drive outstanding** — drawer nav walk + offline negative test (needs a logged-in session; magic-link mint awaits Nathan's OK, or 30s on his phone).
+- **Nathan device test (S243)**: lock-screen push on a Home-Screen iPhone (Samsung ✅).
+- Root `CLAUDE.md` + this doc were purged of S118-dead components (Player/StagePrompter/SongList/SetlistList) in the S244 doc purge — if you find a reference to them anywhere, it's rot; fix it.
 
 ## What's Deployed
-- **Web**: thegreentangerine.com (PDF print fixes + bank detail clarity deployed)
-- **Android**: Compose debug APK on Samsung RFCW113WZRM (2026-03-13, S52)
-- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables, 4 storage buckets)
-- **Cloud Run**: beat-analysis service — revision beat-analysis-00009-th7
+- **Web**: thegreentangerine.com v1.6.1 (Vercel, auto-deploys from master)
+- **Android**: release APK on Nathan's Samsung + band phones (S211 RigTargetStore build)
+- **Supabase**: jlufqgslgjowfaqmqlds.supabase.co (26 tables + notifications/push_subscriptions, 4 storage buckets, notify-push edge fn)
+- **Cloud Run**: beat-analysis service on GCP tangerine-time-tree (europe-west1)
+- **Capture**: localhost only — backend :9123, UI :5174 (`capture/start-silent.vbs`)
 
 ## Session Protocol (Quick Reference)
 **Start**: Read STATUS.md → todo.md (mandatory). Other docs on demand.
