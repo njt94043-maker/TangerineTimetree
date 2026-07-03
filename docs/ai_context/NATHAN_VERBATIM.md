@@ -562,3 +562,19 @@ true yes, we want the qr feature and we have expanded the scope of that idea so 
 ```text
 ok, i think you can be trusted to test in live app now (dev team is better equipped to do it now then when i wrote that rule) i dont mind burning invoice numbers we can start again at 101 (i want to make sure exerything works perfectly before we refine the ui)
 ```
+
+## UI Benchmark Real Apps (Vibe Coding Extends to UI) - 2026-07-03
+
+```text
+if you can just undo the test numbers we dont need to restart at 101?
+```
+
+```text
+ok lets go. also we are not limited by my ui instructions. i am vibe coding, you have the ability to research how other real apps perform in the real world, we want equal quality if possible
+```
+
+## Client/Agent Rethink - Booking Client = Name Box With Autofill - 2026-07-03
+
+```text
+also we need to further discuss the client / agent arrangement, we may have over engeneered  the simplicity out of our booking system while trying to build a reusable client list.. we can just have a client name entry box for bookings (name of person or agency that books goes here) wich auto fill for previous entries etc as name is typed..
+```
