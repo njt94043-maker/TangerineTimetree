@@ -72,13 +72,17 @@ function formatRelativeTime(iso: string): string {
 }
 
 export function Library() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const viewport = useViewport();
 
   const actor = useMemo(() => ({
     id: user?.id ?? '00000000-0000-0000-0000-000000000000',
     name: profile?.name || user?.email?.split('@')[0] || 'Web user',
   }), [user?.id, user?.email, profile?.name]);
+
+  // Writes are attributed to `actor`; block them until the profile has loaded so
+  // nothing is ever recorded under the fallback actor (F3, S249).
+  const canEdit = !!profile;
 
   const [entries, setEntries] = useState<SetlistEntry[]>([]);
   const [lockState, setLockState] = useState<GigLockState | null>(null);
@@ -96,8 +100,14 @@ export function Library() {
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
 
   // ── Initial load + Realtime subscriptions ──────────────────────────────
+  // Gate on `user`: on a cold load this component's own useAuth() session
+  // restore is async, so firing before it settles runs getSetlistEntries()
+  // unauthenticated → RLS returns 0 rows (not an error) → the view would wrongly
+  // settle at "0 songs". Wait for the session, and re-run when it arrives. (F3, S249)
   useEffect(() => {
+    if (!user) return;
     let cancelled = false;
+    setLoading(true);
 
     async function loadAll() {
       try {
@@ -143,7 +153,8 @@ export function Library() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // ── Derived state ──────────────────────────────────────────────────────
   const grouped = useMemo(() => {
@@ -161,6 +172,10 @@ export function Library() {
   const isLocked = lockState?.is_locked ?? false;
   const unappliedPending = useMemo(() => pending.filter(p => !p.applied_at), [pending]);
 
+  // Show the skeleton while EITHER auth is still restoring OR the setlist load is
+  // in flight — the "0 songs" empty state must never show during hydration. (F3, S249)
+  const hydrating = authLoading || loading;
+
   // ── Edit operations (route through pending queue when locked) ──────────
 
   const wrapWrite = useCallback(async <T,>(fn: () => Promise<T>): Promise<T | null> => {
@@ -177,6 +192,7 @@ export function Library() {
   }, []);
 
   const handleAddEntry = async () => {
+    if (!profile) return;
     if (!draft.title.trim()) return;
     const tail = activeEntries.length;
     const input = {
@@ -201,6 +217,7 @@ export function Library() {
   };
 
   const handleUpdateEntry = async (id: string, patch: Partial<SetlistEntry>, prev?: Partial<SetlistEntry>) => {
+    if (!profile) return;
     if (isLocked) {
       await wrapWrite(() => setlistApi.queuePendingEdit({
         list_id: activeList,
@@ -214,6 +231,7 @@ export function Library() {
   };
 
   const handleDeleteEntry = async (entry: SetlistEntry) => {
+    if (!profile) return;
     if (!confirm(`Remove "${entry.title}" from ${SETLIST_LIST_LABELS[entry.list_id]}?`)) return;
     if (isLocked) {
       await wrapWrite(() => setlistApi.queuePendingEdit({
@@ -228,6 +246,7 @@ export function Library() {
   };
 
   const handleMoveEntry = async (entry: SetlistEntry, toList: SetlistListId) => {
+    if (!profile) return;
     if (toList === entry.list_id) return;
     if (isLocked) {
       await wrapWrite(() => setlistApi.queuePendingEdit({
@@ -242,6 +261,7 @@ export function Library() {
   };
 
   const handleReorder = async (id: string, direction: -1 | 1) => {
+    if (!profile) return;
     const idx = activeEntries.findIndex(e => e.id === id);
     if (idx < 0) return;
     const newIdx = idx + direction;
@@ -298,7 +318,7 @@ export function Library() {
         actorName={actor.name}
       />
 
-      {loading && (
+      {hydrating && (
         <div className="setlist-entries-list">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="setlist-entry-row neu-card skeleton-card" />
@@ -306,7 +326,7 @@ export function Library() {
         </div>
       )}
 
-      {!loading && (
+      {!hydrating && (
         <div className={`setlists-body ${viewport.narrow ? 'narrow' : ''}`}>
           <SongsCard
             listId={activeList}
@@ -344,6 +364,7 @@ export function Library() {
                     changelog={changelog}
                     isLocked={isLocked}
                     saving={saving}
+                    canEdit={canEdit}
                     draft={draft}
                     onDraftChange={setDraft}
                     onAddEntry={() => { handleAddEntry(); setDrawerOpen(false); }}
@@ -362,6 +383,7 @@ export function Library() {
               changelog={changelog}
               isLocked={isLocked}
               saving={saving}
+              canEdit={canEdit}
               draft={draft}
               onDraftChange={setDraft}
               onAddEntry={handleAddEntry}
@@ -846,7 +868,7 @@ function FieldTextarea({
 
 function DrawerCard({
   activeTab, onTabChange, activeList, allEntries, pending, changelog,
-  isLocked, saving, draft, onDraftChange, onAddEntry, onMoveToActive,
+  isLocked, saving, canEdit, draft, onDraftChange, onAddEntry, onMoveToActive,
 }: {
   activeTab: DrawerTab;
   onTabChange: (t: DrawerTab) => void;
@@ -856,6 +878,7 @@ function DrawerCard({
   changelog: SetlistChangelogEntry[];
   isLocked: boolean;
   saving: boolean;
+  canEdit: boolean;
   draft: AddEntryDraft;
   onDraftChange: (d: AddEntryDraft) => void;
   onAddEntry: () => void;
@@ -886,6 +909,7 @@ function DrawerCard({
             activeList={activeList}
             allEntries={allEntries}
             saving={saving}
+            canEdit={canEdit}
             draft={draft}
             onDraftChange={onDraftChange}
             onAddEntry={onAddEntry}
@@ -904,11 +928,12 @@ function DrawerCard({
 }
 
 function LibraryDrawer({
-  activeList, allEntries, saving, draft, onDraftChange, onAddEntry, onMoveToActive,
+  activeList, allEntries, saving, canEdit, draft, onDraftChange, onAddEntry, onMoveToActive,
 }: {
   activeList: SetlistListId;
   allEntries: SetlistEntry[];
   saving: boolean;
+  canEdit: boolean;
   draft: AddEntryDraft;
   onDraftChange: (d: AddEntryDraft) => void;
   onAddEntry: () => void;
@@ -960,7 +985,7 @@ function LibraryDrawer({
             <button
               className="setlists-btn-primary setlists-add-btn"
               onClick={onAddEntry}
-              disabled={!canAdd || saving}
+              disabled={!canAdd || saving || !canEdit}
             >Add</button>
           </div>
         </div>
@@ -995,7 +1020,7 @@ function LibraryDrawer({
               <button
                 className="setlists-btn-ghost-sm"
                 onClick={() => onMoveToActive(entry)}
-                disabled={saving}
+                disabled={saving || !canEdit}
               >Move here</button>
             </div>
           ))}

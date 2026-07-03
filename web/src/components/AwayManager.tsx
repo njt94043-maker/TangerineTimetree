@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { getMyAwayDates, createAwayDate, deleteAwayDate, updateAwayDate } from '@shared/supabase/queries';
 import type { AwayDate } from '@shared/supabase/types';
 import { formatRange } from '../utils/format';
+import { saveErrorMessage } from '../utils/errorMessage';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -54,7 +55,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
       setReason('');
       fetchDates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(saveErrorMessage(err, 'Failed to save'));
     } finally {
       setSaving(false);
     }
@@ -65,7 +66,7 @@ export function AwayManager({ initialDate, onClose }: AwayManagerProps) {
       await deleteAwayDate(id);
       fetchDates();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete away date');
+      setError(saveErrorMessage(err, 'Failed to delete away date'));
     }
   }
 

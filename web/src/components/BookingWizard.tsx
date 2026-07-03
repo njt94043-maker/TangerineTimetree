@@ -4,6 +4,7 @@ import { createGig, updateGig, getVenueHistory } from '@shared/supabase/queries'
 import { EntityPicker } from './EntityPicker';
 import { isGigIncomplete } from '@shared/supabase/types';
 import type { Gig, GigVisibility, AwayDateWithUser, Profile, BookingStatus, GigSubtype, EventType, BandSettings } from '@shared/supabase/types';
+import { saveErrorMessage } from '../utils/errorMessage';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 import { DigitalTimePicker } from './DigitalTimePicker';
@@ -251,7 +252,7 @@ export function BookingWizard({
 
       onSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save');
+      setError(saveErrorMessage(err, 'Failed to save'));
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getGigWithLinkedDocs, updateGig, getGigChangelog } from '@shared/supabase/queries';
 import type { GigWithCreator, GigChangelogWithUser, Quote, Invoice, FormalInvoice, BookingStatus } from '@shared/supabase/types';
+import { saveErrorMessage } from '../utils/errorMessage';
 import { ErrorAlert } from './ErrorAlert';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -97,7 +98,7 @@ export function GigCardExpanded({
       // Fail loud: close the picker/confirm modal so the error alert is visible
       setShowStatusPicker(false);
       setConfirmStatus(null);
-      setError('Failed to update status');
+      setError(saveErrorMessage(undefined, 'Failed to update status'));
     }
   }
 
@@ -107,7 +108,7 @@ export function GigCardExpanded({
       await deleteGig(gigId);
       onGigDeleted();
     } catch {
-      setError('Failed to delete');
+      setError(saveErrorMessage(undefined, 'Failed to delete'));
     }
   }
 
