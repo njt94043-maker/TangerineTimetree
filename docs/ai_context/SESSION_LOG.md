@@ -5,6 +5,24 @@
 > For instant context, read STATUS.md first.
 > **Full history archived at `D:/tgt/sot-backup-s60/SESSION_LOG.md`**
 
+## 2026-07-04 — s258 slice A: calendar-first shell (web v1.7.0)
+
+### What Was Done (Builder)
+1. New `web/src/nav/navConfig.ts` — single source of nav truth: `TAB_ITEMS` (Calendar/Gigs/Money/More), `MORE_SECTIONS` (12 non-tab destinations), `VIEW_TO_NAV` (typed `Record<View, View>` — compiler guarantees every View has a nav home), `ALL_TOP_DESTINATIONS`.
+2. New components: `TabBar.tsx` (fixed bottom bar, 4 tabs, active = `VIEW_TO_NAV[view]`, Drawer's nav semantics), `MoreMenu.tsx` (grouped overflow list, view `'more'`), `DayPeek.tsx` (Timetree-style bottom sheet over the calendar — gigs/away rows, +Add booking / Open day, Escape+overlay close).
+3. App shell: added `'more'` to the View union; retired the hamburger + `<Drawer>` + `drawerOpen`/`toggleDrawer`/`closeDrawer`; day tap now opens the peek (`peekDate` state) instead of leaving the month; FAB (`.fab-add`) on calendar only → booking wizard; `headerTitle` case `'more'`. Deleted `Drawer.tsx`. Removed the calendar legend + `LegendItem`.
+4. App.css: removed all `.drawer*`/`.hamburger*`/`.legend*` rules + both drawer media queries (the desktop rail that phantom-indented `.main-content`/`.header`); added `.tab-bar`/`.tab-item`, `.fab-add`, `.more-*`, `.day-peek*`, and `.main-content` bottom padding (tab bar + `safe-area-inset-bottom`).
+5. Truthful `__APP_VERSION__` (closes S254 "reports 1.0.0"): `vite.config.ts` define from package.json version, `env.d.ts` declare, `main.tsx` assigns `window.__APP_VERSION__`. package.json → **1.7.0**.
+6. Tests: `navConfig.test.ts` (the 15-destination guardrail + no tab/More overlap + VIEW_TO_NAV covers every View) and `TabBar.test.tsx` (4 tabs, active follows view, click Gigs → list).
+7. Hub `scripts/prod-drive/smoke.js` → v2: `openNavTo` (tabs + More) replaces `openDrawerTo`, `.tab-bar` ready signal, new `day-peek` check + `.fab-add` assertions (committed in hub, NOT pushed — Architect's lane).
+
+### Verified (Builder gate — green)
+- `npx tsc -b` clean · `npx vitest run` 122 pass (incl. 2 new files, 6 tests) · `npx vite build` clean, `__APP_VERSION__="1.7.0"` in the bundle · quality_gate.py tgt-web (see commit).
+- **Deviations (documented):** (a) smoke uses `:has-text` not the spec's literal `:text-is` — tab/More buttons carry an emoji icon beside the label, so exact-text match would miss them. (b) `TabBar.test.tsx` drives raw `react-dom/client` + React 19 `act()` instead of `@testing-library/react` — RTL's required peer `@testing-library/dom` is NOT installed, so RTL `render()` fails at runtime; kept the slice dependency-free.
+
+### Left for the Architect
+- Authed 390×844 prod visual (tab bar / FAB / day-peek / all 15 destinations / no overflow / back-button history) — mint-needs-Nathan; run smoke v2 once a session exists. Hub commit is unpushed (Architect wraps the hub).
+
 ## 2026-06-13 - Gig/Take hotspot connectivity incident
 
 ### What Was Done

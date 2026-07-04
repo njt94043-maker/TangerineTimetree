@@ -2,8 +2,19 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import { readFileSync } from 'fs';
+
+// Truthful build version (s258, closes the S254 "reports 1.0.0" finding).
+// npm sets npm_package_version under `npm run`, but `vite build` invoked
+// directly does not — so fall back to reading package.json. Exposed to the app
+// as the __APP_VERSION__ compile-time constant.
+const appVersion = process.env.npm_package_version
+  || JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version;
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [
     react(),
     VitePWA({

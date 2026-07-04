@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import './App.css';
 import { useAuth } from './hooks/useAuth';
 import { useCalendarData } from './hooks/useCalendarData';
@@ -35,7 +35,9 @@ import { VenueList } from './components/VenueList';
 import { VenueDetail } from './components/VenueDetail';
 import { Library } from './components/Library';
 import Availability from './components/Availability';
-import { Drawer } from './components/Drawer';
+import { TabBar } from './components/TabBar';
+import { MoreMenu } from './components/MoreMenu';
+import { DayPeek } from './components/DayPeek';
 import { NotificationBell } from './components/NotificationBell';
 import { SplashScreen } from './components/SplashScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -135,7 +137,9 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Day-peek sheet: the tapped calendar date (null = closed). Replaces the old
+  // day-tap-leaves-the-month behaviour (s258).
+  const [peekDate, setPeekDate] = useState<string | null>(null);
   const [invoicePrefill, setInvoicePrefill] = useState<{ venue?: string; venue_id?: string; client_id?: string; gig_id?: string; gig_date?: string; amount?: string; description?: string } | undefined>();
 
   const { gigs, awayDates, profiles: allProfiles, error: calendarError, refresh } = useCalendarData(year, month);
@@ -182,9 +186,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
     window.addEventListener('online', goOnline);
     return () => { window.removeEventListener('offline', goOffline); window.removeEventListener('online', goOnline); };
   }, [refresh]);
-
-  const toggleDrawer = useCallback(() => setDrawerOpen(o => !o), []);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   function goToPrev() {
     if (month === 0) { setMonth(11); setYear(y => y - 1); }
@@ -252,6 +253,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       case 'notifications': return 'Notifications';
       case 'profile': return 'Profile';
       case 'availability': return 'Availability';
+      case 'more': return 'More';
       case 'day-detail': return 'Day Detail';
       case 'gig-form': return 'Gig Form';
       case 'booking-wizard': return 'New Booking';
@@ -265,11 +267,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       {(
         <header className="header">
           <div className="flex-row-gap-10">
-            <button className="hamburger" onClick={toggleDrawer} aria-label="Toggle menu">
-              <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-              <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-              <span className={`hamburger-bar ${drawerOpen ? 'open' : ''}`} />
-            </button>
             <img src="/logo.png" alt="TGT" className="header-logo" />
             <span className="header-title">
               <span className="header-brand-green">Tangerine</span>{' '}
@@ -288,9 +285,6 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
           </div>
         </header>
       )}
-
-      {/* Drawer — available in all views including player (D-166: player persists while navigating) */}
-      <Drawer isOpen={drawerOpen} onClose={closeDrawer} profileName={profile?.name ?? 'User'} />
 
       {/* Main content area */}
       <main className="main-content">
@@ -354,7 +348,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
             month={month}
             gigs={gigs}
             awayDates={awayDates}
-            onDatePress={goToDay}
+            onDatePress={setPeekDate}
             onPrevMonth={goToPrev}
             onNextMonth={goToNext}
             onGoToToday={() => { const n = new Date(); setYear(n.getFullYear()); setMonth(n.getMonth()); }}
@@ -547,7 +541,36 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
 
         {view === 'availability' && <Availability />}
 
+        {view === 'more' && <MoreMenu />}
+
       </main>
+
+      {/* Day-peek sheet — opens over the calendar when a day cell is tapped */}
+      {peekDate && (
+        <DayPeek
+          date={peekDate}
+          gigs={gigs}
+          awayDates={awayDates}
+          profiles={allProfiles}
+          onClose={() => setPeekDate(null)}
+          onOpenDay={(d) => { setPeekDate(null); goToDay(d); }}
+          onAddBooking={(d) => { setPeekDate(null); goToBookingWizard(d); }}
+        />
+      )}
+
+      {/* FAB — new booking; calendar-only. Slice B retargets it to quick-add. */}
+      {view === 'calendar' && (
+        <button
+          className="fab-add"
+          onClick={() => goToBookingWizard(new Date().toISOString().slice(0, 10))}
+          aria-label="New booking"
+        >
+          +
+        </button>
+      )}
+
+      {/* Bottom tab bar — the calendar-first shell's primary nav */}
+      <TabBar />
     </>
   );
 }

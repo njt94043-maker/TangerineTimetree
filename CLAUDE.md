@@ -21,7 +21,7 @@ Monorepo for The Green Tangerine — a 4-piece live music band. Three live apps 
 
 ## Architecture
 - **Android navigation**: Compose ModalNavigationDrawer (3 items: Calendar, Library, Settings)
-- **Web navigation**: Collapsible drawer — ViewContext state machine, no router library
+- **Web navigation**: Bottom tab bar (4: Calendar/Gigs/Money/More) + More view — ViewContext state machine, no router (s258; nav truth in `web/src/nav/navConfig.ts`)
 - **Database**: 26 Supabase tables, 4 storage buckets (see schema_map.md)
 - **PDF**: HTML templates in `shared/templates/` (28 styles: 7 invoice + 7 receipt + 7 quote + 7 formal invoice), rendered on-demand (web only)
 - **Audio**: Android = C++ AudioEngine (Oboe + SoundTouch) via JNI. Web = Web Audio API + SoundTouchJS (S36, built).
@@ -215,7 +215,10 @@ web/src/components/Dashboard.tsx           → Stats overview
 web/src/components/MediaManager.tsx / ProfilePage.tsx / Settings.tsx → Media, profile, settings (push opt-in)
 web/src/components/PublicSite.tsx          → Public-facing website + booking form
 web/src/components/QrLanding.tsx           → Audience QR page (/qr — review CTA + socials; upload CTA hidden until shared fan-capture bucket exists)
-web/src/components/Drawer.tsx              → Collapsible navigation drawer
+web/src/components/TabBar.tsx              → Bottom tab bar (Calendar/Gigs/Money/More) — primary nav (s258)
+web/src/components/MoreMenu.tsx            → "More" view — grouped overflow list of the 12 non-tab destinations
+web/src/components/DayPeek.tsx             → Day-peek bottom sheet over the calendar (gigs/away glance)
+web/src/nav/navConfig.ts                   → Single source of nav truth (TAB_ITEMS/MORE_SECTIONS/VIEW_TO_NAV)
 web/src/practice/PracticeMixer.tsx         → Practice mixer (ACTIVE — stems, click, chord ribbon)
 # REMOVED (do not re-document): Player/StagePrompter/SongList/SetlistList (S118 pivot);
 # XR18Camera + hooks/xr18/ + offline queue + AppTutorial (S244 removal slice, web v1.6.1)

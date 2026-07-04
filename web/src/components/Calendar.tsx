@@ -145,23 +145,6 @@ export function Calendar({ year, month, gigs, awayDates, onDatePress, onPrevMont
           );
         })}
       </div>
-
-      <div className="legend">
-        <LegendItem color="var(--color-gig)" label="Pub Gig" />
-        <LegendItem color="var(--color-tangerine)" label="Client" />
-        <LegendItem color="var(--color-tangerine)" label="Enquiry" dashed />
-        <LegendItem color="var(--color-practice)" label="Practice" />
-        <LegendItem color="var(--color-unavailable)" label="Away" />
-      </div>
-    </div>
-  );
-}
-
-function LegendItem({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
-  return (
-    <div className="legend-item">
-      <span className={`legend-dot${dashed ? ' legend-dot-dashed' : ''}`} style={{ background: dashed ? 'transparent' : color, borderColor: dashed ? color : undefined }} />
-      <span className="legend-label">{label}</span>
     </div>
   );
 }

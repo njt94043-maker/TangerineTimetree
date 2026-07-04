@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './App.css'
 import App from './App.tsx'
 
+// Truthful build version (s258) — the prod smoke reads window.__APP_VERSION__.
+(window as unknown as { __APP_VERSION__?: string }).__APP_VERSION__ = __APP_VERSION__;
+
 // ── Service Worker: auto-reload on update ──
 // When a new deploy goes live, the SW activates immediately (skipWaiting +
 // clientsClaim). This listener detects the controller change and reloads

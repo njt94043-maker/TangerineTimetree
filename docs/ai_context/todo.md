@@ -9,10 +9,10 @@
 > Master spec: `C:\apps\Dev Team\specs\tgt\s244-timetree-function-audit.md`. Order LOCKED by Nathan:
 > verify/prune FIRST, humanise UI SECOND. Management features are NEVER removed — improved only.
 - [x] Removal slice (web v1.6.1, S244): XR18 camera surface, AppTutorial, offline queue (5 flows now fail-loud), S41 orphans, QR upload CTA hidden
-- [ ] Authed prod drive: every drawer item routes + offline negative test (booking/away save → visible error)
+- [ ] Authed prod drive: every tab + More item routes, day-peek opens, FAB on Calendar only + offline negative test (booking/away save → visible error) — now on v1.7.0 tab-bar shell; run hub smoke.js v2
 - [ ] Nathan device test (from S243): lock-screen push on Samsung + Home-Screen iPhone
 - [ ] Phase 1: function-by-function live pass on prod, mobile viewport (audit spec table A) — booking flow first (its error paths just changed)
-- [ ] Phase 2 (after table A green): calendar-first nav + quick-add booking button + per-member main-calendar layouts (month / weekends-with-linked-weekdays / free-dates; available = no member away)
+- [~] Phase 2 — calendar-first nav: **slice A SHIPPED (s258, v1.7.0)** — bottom tab bar + FAB + day-peek replace the drawer (D-173). Remaining: slice B quick-add booking sheet · slice C per-member main-calendar layouts (month / weekends-with-linked-weekdays / free-dates; available = no member away) · slice D cell-density pass
 
 ## HOT: Gig Rig (remaining)
 - [ ] Test actual `Start gig` capture fanout when Nathan explicitly wants Reaper/camera recording started

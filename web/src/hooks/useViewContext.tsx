@@ -9,7 +9,8 @@ type View =
   | 'venues' | 'venue-detail'
   | 'library'
   | 'booking-wizard'
-  | 'availability';
+  | 'availability'
+  | 'more';
 
 /* ── History entry: view name + relevant state snapshot ── */
 interface HistoryEntry {
