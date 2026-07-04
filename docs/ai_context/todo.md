@@ -13,6 +13,7 @@
 - [ ] Nathan device test (from S243): lock-screen push on Samsung + Home-Screen iPhone
 - [ ] Phase 1: function-by-function live pass on prod, mobile viewport (audit spec table A) — booking flow first (its error paths just changed)
 - [~] Phase 2 — calendar-first nav: **slice A SHIPPED (s258, v1.7.0)** — bottom tab bar + FAB + day-peek replace the drawer (D-173). Remaining: slice B quick-add booking sheet · slice C per-member main-calendar layouts (month / weekends-with-linked-weekdays / free-dates; available = no member away) · slice D cell-density pass
+- [~] **Migration landing ground SHIPPED (s260, v1.8.0, D-174)** — `import_staging` + Imports review UI + stager + ClientOneBox; nothing auto-seeds. Remaining: Nathan's actual review/approve passes over the staged rows (his product moment); slice B one-box/quick-add booking flow (reuses ClientOneBox); away/gig source-drift is flag-and-review (never auto).
 
 ## HOT: Gig Rig (remaining)
 - [ ] Test actual `Start gig` capture fanout when Nathan explicitly wants Reaper/camera recording started

@@ -5,6 +5,26 @@
 > For instant context, read STATUS.md first.
 > **Full history archived at `D:/tgt/sot-backup-s60/SESSION_LOG.md`**
 
+## 2026-07-04 — s260: TimeTree migration landing ground (web v1.8.0)
+
+### What Was Done (Builder)
+1. §0 — restored the retired TimeTree exporter CLI: `pip install timetree-exporter` (0.8.0); patched `C:\Apps\timetree-scrape\scrape.py` to resolve the exe via `shutil.which` + fail-loud (was a hardcoded `C:\Users\Owner\…` path). `--help` exits 0. Did NOT run a scrape (interactive TimeTree login = Nathan). timetree-scrape/ is unversioned — no commit.
+2. Migration `supabase/migrations/20260704000000_s260_import_staging.sql`: `import_staging` table (+ addendum drift columns) with per-command RLS (authenticated only; anon nothing) + 3 staging-bound SECURITY DEFINER RPCs `commit_/remove_/apply_import_away` (changelog parity; away_dates policy UNCHANGED — the S263 resolution of the self-only-INSERT blocker).
+3. `shared/supabase/types.ts` `ImportStagingRow` (+ proposed shapes); `shared/supabase/queries.ts` staging CRUD + RPC callers + `getGigsBrief` (dupe check).
+4. `web/src/utils/importMapping.ts` — pure `mapStagedToGig`/`mapStagedToAway`/`diffProposed` (+ fee/time/payment/notes helpers). "Agency"→invoice, is_public→visibility, client_name→gig_subtype, raw_notes always preserved.
+5. Components: `ClientOneBox.tsx` (s244 one-box client typeahead, reusable) + `ImportsReview.tsx` (pills Pending/Committed/Skipped + Gone/Changed when n>0; raw-vs-proposed cards; EntityPicker venue + ClientOneBox; dupe chip; Add/Skip/Restore/View-day; Approve-all-matched; Gone Remove/Keep; Changed Apply/Ignore; undo path when a committed gig/away is deleted).
+6. Stager `web/scripts/stage_timetree_imports.py` (openpyxl both sheets, dev_secrets dual-path, upsert on timetree_uid protecting committed/skipped, member `name ilike First%` resolve, `--dry-run` counts, full source-disappearance sweep: last_seen / missing / restored / changed-in-source).
+7. Nav: Imports (📥) added to MORE_SECTIONS Business + VIEW_TO_NAV; `'imports'` in the View union; App headerTitle + `<ImportsReview/>`. navConfig guardrail → 16.
+8. Tests: importMapping.test.ts (27), ClientOneBox.test.tsx (3, raw react-dom), navConfig → 16. Hub smoke.js → v2.1 (+Imports 16th via More); hub rls_probe.py sensitive += import_staging.
+
+### Verified (Builder gate)
+- `tsc -b` clean · `vitest run` all pass (incl. new) · `vite build` clean · quality_gate tgt-web + live migration + RLS proofs + stage counts — see the session's tool output / commit.
+- **Away-RLS blocker (I raised it) resolved by Architect S263 §1b** — staging-bound RPCs, table policy untouched; gigs UPDATE/DELETE are all-authenticated (quoted in report) so gig Remove/Apply need no RPC.
+- **Deviations:** migration applied via the Management API / linked CLI (documented at apply time); ClientOneBox test uses raw react-dom (RTL's @testing-library/dom peer still absent).
+
+### Left for the Architect + Nathan
+- Authed prod smoke v2.1 (16 destinations) + staged-count vs xlsx reconciliation + taste-gate screenshots; then Nathan does the real review/approve passes (the product moment). Hub commit unpushed.
+
 ## 2026-07-04 — s258 slice A: calendar-first shell (web v1.7.0)
 
 ### What Was Done (Builder)

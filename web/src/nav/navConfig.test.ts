@@ -6,7 +6,7 @@ import { TAB_ITEMS, MORE_SECTIONS, VIEW_TO_NAV, ALL_TOP_DESTINATIONS } from './n
 // drawer became the tab bar + More menu.
 const EXPECTED_DESTINATIONS = [
   'calendar', 'list', 'away', 'availability', 'dashboard', 'invoices', 'quotes',
-  'clients', 'venues', 'library', 'media', 'enquiries', 'website', 'profile', 'settings',
+  'clients', 'venues', 'imports', 'library', 'media', 'enquiries', 'website', 'profile', 'settings',
 ];
 
 // Every member of useViewContext's View union, as a literal list. VIEW_TO_NAV
@@ -18,7 +18,7 @@ const ALL_VIEWS = [
   'invoices', 'invoice-form', 'invoice-detail', 'invoice-preview',
   'quotes', 'quote-form', 'quote-detail', 'quote-preview',
   'settings', 'clients', 'venues', 'venue-detail', 'library',
-  'booking-wizard', 'availability', 'more',
+  'booking-wizard', 'availability', 'more', 'imports',
 ];
 
 describe('navConfig — the 15-destination guardrail', () => {

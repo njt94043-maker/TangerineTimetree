@@ -77,6 +77,55 @@ export interface AwayDateWithUser extends AwayDate {
   user_name: string;
 }
 
+// ─── Import staging (s260 — TimeTree migration landing ground) ───
+// `proposed` (and `latest_from_source`) are editable jsonb; these interfaces
+// describe their shape per kind (cast at the edit/mapping sites).
+export interface ImportProposedGig {
+  date: string;
+  gig_type: GigType;
+  venue: string;
+  venue_id?: string | null;
+  client_name: string;
+  client_id?: string | null;
+  fee: string | number | null;   // xlsx supplies strings; UI edits as string
+  payment_type: string;
+  load_time: string;
+  start_time: string;
+  end_time: string;
+  notes: string;
+  is_public: boolean;
+}
+
+export interface ImportProposedAway {
+  member_name: string;
+  user_id: string | null;        // resolved via the UI member picker
+  start_date: string;
+  end_date: string;
+  reason: string;
+}
+
+export interface ImportStagingRow {
+  id: string;
+  timetree_uid: string;
+  kind: 'gig' | 'away';
+  raw_title: string;
+  raw_notes: string;
+  proposed: Record<string, unknown>;
+  match_source: string;
+  status: 'pending' | 'committed' | 'skipped';
+  created_gig_id: string | null;
+  created_away_id: string | null;
+  staged_at: string;
+  committed_at: string | null;
+  committed_by: string | null;
+  // addendum: source-disappearance + drift tracking
+  last_seen_at: string;
+  missing_from_source: boolean;
+  missing_acknowledged: boolean;
+  source_changed: boolean;
+  latest_from_source: Record<string, unknown> | null;
+}
+
 export interface GigChangelogEntry {
   id: string;
   gig_id: string;

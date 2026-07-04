@@ -10,6 +10,7 @@ import type {
   GigAttachment,
   AwayDate,
   AwayDateWithUser,
+  ImportStagingRow,
   GigChangelogEntry,
   GigChangelogWithUser,
   ChangeSummaryItem,
@@ -2484,4 +2485,101 @@ export async function setGigLockState(
     .single();
   if (error) { checkAuthError(error); throw error; }
   return data as GigLockState;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Import staging (s260 — TimeTree migration landing ground).
+// Low-level staging CRUD + the away-commit RPC callers. Commit ORCHESTRATION
+// (map → auto-create client → createGig → markStagingCommitted) lives in the
+// web ImportsReview component (it imports the pure mapper in web/src/utils).
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function getStagingRows(): Promise<ImportStagingRow[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('import_staging')
+    .select('*')
+    .order('staged_at', { ascending: true });
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as ImportStagingRow[];
+}
+
+export async function updateStagingProposed(id: string, proposed: Record<string, unknown>): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('import_staging').update({ proposed }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function setStagingStatus(id: string, status: 'pending' | 'skipped'): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('import_staging').update({ status }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+export async function acknowledgeStagingMissing(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('import_staging').update({ missing_acknowledged: true }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// Mark a staged row committed + link the created gig/away + stamp committer.
+export async function markStagingCommitted(
+  id: string,
+  link: { created_gig_id?: string | null; created_away_id?: string | null },
+): Promise<void> {
+  const supabase = getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase.from('import_staging').update({
+    status: 'committed',
+    created_gig_id: link.created_gig_id ?? null,
+    created_away_id: link.created_away_id ?? null,
+    committed_at: new Date().toISOString(),
+    committed_by: user?.id ?? null,
+  }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// gig Apply-changes: merge latest_from_source into proposed, clear the flag.
+export async function applyStagingGigChange(id: string, mergedProposed: Record<string, unknown>): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('import_staging').update({
+    proposed: mergedProposed, source_changed: false, latest_from_source: null,
+  }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// Changed → Ignore: clear the flag, keep our reviewed proposed.
+export async function ignoreStagingSourceChange(id: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('import_staging').update({
+    source_changed: false, latest_from_source: null,
+  }).eq('id', id);
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// Away commit/remove/apply go through the staging-bound SECURITY DEFINER RPCs
+// (s260 §1b) — away_dates is self-only, so these are the only cross-member door.
+export async function commitImportAway(stagingId: string): Promise<string> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc('commit_import_away', { p_staging_id: stagingId });
+  if (error) { checkAuthError(error); throw error; }
+  return data as string;
+}
+export async function removeImportAway(stagingId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.rpc('remove_import_away', { p_staging_id: stagingId });
+  if (error) { checkAuthError(error); throw error; }
+}
+export async function applyImportAway(stagingId: string): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.rpc('apply_import_away', { p_staging_id: stagingId });
+  if (error) { checkAuthError(error); throw error; }
+}
+
+// Lightweight all-gigs list for the Imports dupe check (id/date/venue only).
+export async function getGigsBrief(): Promise<{ id: string; date: string; venue: string }[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.from('gigs').select('id, date, venue');
+  if (error) { checkAuthError(error); throw error; }
+  return (data ?? []) as { id: string; date: string; venue: string }[];
 }

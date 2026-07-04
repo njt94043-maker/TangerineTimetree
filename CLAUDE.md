@@ -218,7 +218,11 @@ web/src/components/QrLanding.tsx           → Audience QR page (/qr — review 
 web/src/components/TabBar.tsx              → Bottom tab bar (Calendar/Gigs/Money/More) — primary nav (s258)
 web/src/components/MoreMenu.tsx            → "More" view — grouped overflow list of the 12 non-tab destinations
 web/src/components/DayPeek.tsx             → Day-peek bottom sheet over the calendar (gigs/away glance)
+web/src/components/ImportsReview.tsx       → Imports review UI (s260) — TimeTree migration landing ground (raw-vs-proposed, commit=approval)
+web/src/components/ClientOneBox.tsx        → One-box client typeahead (s244 pattern, reused by imports + future booking)
 web/src/nav/navConfig.ts                   → Single source of nav truth (TAB_ITEMS/MORE_SECTIONS/VIEW_TO_NAV)
+web/src/utils/importMapping.ts             → Pure staged-row → gig/away mapping + diff (s260)
+web/scripts/stage_timetree_imports.py      → TimeTree scrape → import_staging upsert (s260; manual run after a scrape)
 web/src/practice/PracticeMixer.tsx         → Practice mixer (ACTIVE — stems, click, chord ribbon)
 # REMOVED (do not re-document): Player/StagePrompter/SongList/SetlistList (S118 pivot);
 # XR18Camera + hooks/xr18/ + offline queue + AppTutorial (S244 removal slice, web v1.6.1)

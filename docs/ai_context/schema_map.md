@@ -77,6 +77,32 @@ Band member availability. Realtime-subscribed.
 **Constraint**: end_date >= start_date.
 **RLS**: SELECT all authenticated; INSERT/UPDATE/DELETE own only.
 
+#### import_staging  (s260 — web-only; NO Kotlin model)
+TimeTree migration landing ground. Scraped rows stage here; NOTHING writes to gigs/away_dates without explicit approval in the Imports UI. Populated by `web/scripts/stage_timetree_imports.py`.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| id | UUID PK | NO | gen_random_uuid() | |
+| timetree_uid | TEXT | NO | — | UNIQUE — upsert key (re-run safe) |
+| kind | TEXT | NO | — | CHECK gig \| away |
+| raw_title | TEXT | NO | '' | verbatim TimeTree title (never lost) |
+| raw_notes | TEXT | NO | '' | verbatim TimeTree notes (ICS description) |
+| proposed | JSONB | NO | '{}' | editable mapping (gig or away shape) |
+| match_source | TEXT | NO | '' | "WhatsApp enriched" = high confidence, else '' |
+| status | TEXT | NO | 'pending' | CHECK pending \| committed \| skipped |
+| created_gig_id | UUID | YES | — | FK → gigs(id) ON DELETE SET NULL (null = undo→pending) |
+| created_away_id | UUID | YES | — | FK → away_dates(id) ON DELETE SET NULL |
+| staged_at / committed_at | TIMESTAMPTZ | | | |
+| committed_by | UUID | YES | — | FK → profiles(id) |
+| last_seen_at | TIMESTAMPTZ | NO | NOW() | last full-scrape presence |
+| missing_from_source | BOOL | NO | false | uid absent from latest scrape (flag-only) |
+| missing_acknowledged | BOOL | NO | false | "Keep — stop flagging" |
+| source_changed | BOOL | NO | false | committed row's source proposal drifted |
+| latest_from_source | JSONB | YES | — | incoming proposal when source_changed |
+
+**RLS**: per-command TO authenticated (auth.uid() is not null); anon gets NOTHING. Sensitive — in hub `rls_probe.py`.
+**RPCs (SECURITY DEFINER, staging-bound, EXECUTE to authenticated only)**: `commit_import_away` / `remove_import_away` / `apply_import_away` — the only cross-member door into `away_dates` (whose policies stay self-only). Gig commit/remove/apply use plain createGig/deleteGig/updateGig (gigs UPDATE/DELETE are all-authenticated).
+
 #### gig_changelog
 Audit trail for gig CRUD.
 

@@ -10,7 +10,8 @@ type View =
   | 'library'
   | 'booking-wizard'
   | 'availability'
-  | 'more';
+  | 'more'
+  | 'imports';
 
 /* ── History entry: view name + relevant state snapshot ── */
 interface HistoryEntry {

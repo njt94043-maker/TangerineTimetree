@@ -37,6 +37,7 @@ import { Library } from './components/Library';
 import Availability from './components/Availability';
 import { TabBar } from './components/TabBar';
 import { MoreMenu } from './components/MoreMenu';
+import { ImportsReview } from './components/ImportsReview';
 import { DayPeek } from './components/DayPeek';
 import { NotificationBell } from './components/NotificationBell';
 import { SplashScreen } from './components/SplashScreen';
@@ -254,6 +255,7 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
       case 'profile': return 'Profile';
       case 'availability': return 'Availability';
       case 'more': return 'More';
+      case 'imports': return 'Imports';
       case 'day-detail': return 'Day Detail';
       case 'gig-form': return 'Gig Form';
       case 'booking-wizard': return 'New Booking';
@@ -542,6 +544,8 @@ function MainView({ profile, userEmail, onSignOut }: { profile: Profile | null; 
         {view === 'availability' && <Availability />}
 
         {view === 'more' && <MoreMenu />}
+
+        {view === 'imports' && <ImportsReview />}
 
       </main>
 

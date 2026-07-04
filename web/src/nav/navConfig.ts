@@ -53,6 +53,7 @@ export const MORE_SECTIONS: NavSection[] = [
       { icon: '\ud83d\udcdd', label: 'Quotes', view: 'quotes' },
       { icon: '\ud83d\udc65', label: 'Clients', view: 'clients' },
       { icon: '\ud83c\udfe2', label: 'Venues', view: 'venues' },
+      { icon: '\ud83d\udce5', label: 'Imports', view: 'imports' },
     ],
   },
   {
@@ -110,6 +111,7 @@ export const VIEW_TO_NAV: Record<View, View> = {
   'booking-wizard': 'calendar',
   'notifications': 'more',
   'more': 'more',
+  'imports': 'imports',
 };
 
 // The complete set of top-level destinations: tab views (minus the More hub)
