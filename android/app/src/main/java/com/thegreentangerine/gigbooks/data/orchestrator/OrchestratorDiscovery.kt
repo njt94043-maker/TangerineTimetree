@@ -2,7 +2,9 @@ package com.thegreentangerine.gigbooks.data.orchestrator
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.LinkAddress
 import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
@@ -10,6 +12,10 @@ import android.os.Build
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.net.Inet4Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
 
 /**
  * mDNS / NSD-based auto-discovery of the Tangerine Media Server host on the LAN.
@@ -145,13 +151,69 @@ class OrchestratorDiscovery(private val context: Context) {
     }
 
     private fun publishResolved(resolved: NsdServiceInfo) {
-        @Suppress("DEPRECATION")
-        val host = resolved.host?.hostAddress ?: return
         val port = resolved.port
         if (port <= 0) return
+        val candidates = resolvedHostCandidates(resolved)
+        val wifiRoute = activeWifiRoute()
+        val chosen = RigHostSelector.select(
+            candidates = candidates,
+            wifi = wifiRoute.linkAddress,
+            probe = { candidate ->
+                wifiRoute.network?.let { network ->
+                    probeHostOnWifiNetwork(candidate, port, network)
+                } ?: false
+            },
+        )
+        val host = chosen?.hostAddress
+        if (host == null) {
+            Log.w(TAG, "Resolved ${resolved.serviceName} but no reachable IPv4 host from ${candidates.toLogString()}")
+            return
+        }
         Log.i(TAG, "Resolved ${resolved.serviceName} → $host:$port")
         _discovered.value = Discovered(resolved.serviceName, host, port)
     }
+
+    private fun resolvedHostCandidates(resolved: NsdServiceInfo): List<InetAddress> {
+        if (Build.VERSION.SDK_INT >= 34) {
+            return resolved.hostAddresses.filterNotNull()
+        }
+        Log.i(TAG, "API ${Build.VERSION.SDK_INT} legacy NSD exposes one resolved host only; multi-address selection unavailable")
+        @Suppress("DEPRECATION")
+        return listOfNotNull(resolved.host)
+    }
+
+    private data class WifiRoute(val network: Network?, val linkAddress: LinkAddress?)
+
+    @Suppress("DEPRECATION")
+    private fun activeWifiRoute(): WifiRoute {
+        var firstWifiNetwork: Network? = null
+        for (network in cm.allNetworks) {
+            val caps = cm.getNetworkCapabilities(network) ?: continue
+            if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) continue
+            if (firstWifiNetwork == null) firstWifiNetwork = network
+            val ipv4Link = cm.getLinkProperties(network)
+                ?.linkAddresses
+                ?.firstOrNull { it.address is Inet4Address }
+            if (ipv4Link != null) return WifiRoute(network, ipv4Link)
+        }
+        return WifiRoute(firstWifiNetwork, null)
+    }
+
+    private fun probeHostOnWifiNetwork(
+        candidate: InetAddress,
+        port: Int,
+        network: Network,
+        timeoutMs: Int = 400,
+    ): Boolean =
+        try {
+            Socket().use { socket ->
+                network.bindSocket(socket)
+                socket.connect(InetSocketAddress(candidate, port), timeoutMs)
+                true
+            }
+        } catch (_: Exception) {
+            false
+        }
 
     private fun registerNetworkWatcher() {
         if (networkCallback != null) return
@@ -193,3 +255,65 @@ class OrchestratorDiscovery(private val context: Context) {
         multicastLock = null
     }
 }
+
+object RigHostSelector {
+
+    fun select(
+        candidates: List<InetAddress>,
+        wifi: LinkAddress?,
+        probe: (InetAddress) -> Boolean,
+    ): InetAddress? =
+        select(
+            candidates = candidates,
+            wifiAddress = wifi?.address as? Inet4Address,
+            wifiPrefixLength = wifi?.prefixLength,
+            probe = probe,
+        )
+
+    fun select(
+        candidates: List<InetAddress>,
+        wifiAddress: Inet4Address?,
+        wifiPrefixLength: Int?,
+        probe: (InetAddress) -> Boolean,
+    ): InetAddress? {
+        val ipv4Candidates = candidates
+            .filterIsInstance<Inet4Address>()
+            .filterNot { it.isLoopbackAddress }
+
+        if (ipv4Candidates.isEmpty()) return null
+        if (ipv4Candidates.size == 1) return ipv4Candidates.first()
+
+        val sameSubnet = if (
+            wifiAddress != null &&
+            wifiPrefixLength != null &&
+            wifiPrefixLength in 0..32
+        ) {
+            ipv4Candidates.firstOrNull { it.isSameSubnetAs(wifiAddress, wifiPrefixLength) }
+        } else {
+            null
+        }
+        if (sameSubnet != null) return sameSubnet
+
+        return ipv4Candidates.firstOrNull {
+            !it.isLinkLocalAddress &&
+                !it.isCarrierGradeNat() &&
+                probe(it)
+        }
+    }
+
+    private fun Inet4Address.isSameSubnetAs(other: Inet4Address, prefixLength: Int): Boolean {
+        val mask = if (prefixLength == 0) 0 else -1 shl (32 - prefixLength)
+        return (toIpv4Int() and mask) == (other.toIpv4Int() and mask)
+    }
+
+    private fun Inet4Address.toIpv4Int(): Int =
+        address.fold(0) { acc, byte -> (acc shl 8) or (byte.toInt() and 0xff) }
+
+    private fun Inet4Address.isCarrierGradeNat(): Boolean {
+        val octets = address.map { it.toInt() and 0xff }
+        return octets[0] == 100 && octets[1] in 64..127
+    }
+}
+
+private fun List<InetAddress>.toLogString(): String =
+    joinToString(prefix = "[", postfix = "]") { it.hostAddress ?: it.toString() }
