@@ -528,6 +528,11 @@ export function PublicSite({ onLogin }: PublicSiteProps) {
                 placeholder="Tell us about your event - venue, location, any special requests..."
               />
             </div>
+            <p className="ps-form-privacy">
+              We'll only use your name, email and message to reply to this enquiry. We don't share
+              it with anyone, and you can ask us to delete it any time by emailing{' '}
+              <a href="mailto:bookings@thegreentangerine.com">bookings@thegreentangerine.com</a>.
+            </p>
             <button
               type="submit"
               className="ps-btn ps-btn-primary"

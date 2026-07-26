@@ -1964,6 +1964,18 @@ select.ps-form-input {
   resize: vertical;
   min-height: 100px;
 }
+.ps-form-privacy {
+  text-align: center;
+  /* --color-text-dim (4.8:1 on the page bg) not --color-text-muted (2.32:1) —
+     a privacy notice nobody can read is not a privacy notice. */
+  color: var(--color-text-dim);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+.ps-form-privacy a {
+  color: var(--color-tangerine);
+}
 .ps-form-success {
   text-align: center;
   color: var(--color-green);
