@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Icon Generator — Download All Sizes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@400;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #08080c; color: #d0d0dc; font-family: 'Karla', sans-serif; padding: 30px; }
+  h1 { color: #f39c12; font-size: 20px; margin-bottom: 6px; }
+  p.sub { color: #4a4a60; font-size: 13px; margin-bottom: 24px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 30px; }
+  .icon-card {
+    background: #111118;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .icon-card canvas {
+    background: #08080c;
+    border-radius: 8px;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .icon-card .meta { font-size: 11px; color: #7a7a94; text-align: center; }
+  .icon-card .meta strong { color: #f39c12; }
+  .icon-card a {
+    font-size: 11px;
+    color: #00e676;
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid #00e676;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .icon-card a:hover { background: rgba(0,230,118,0.1); }
+  h2 { color: #7a7a94; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 12px; }
+  .btn-all {
+    background: #f39c12;
+    color: #08080c;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-family: 'Karla', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    margin-bottom: 30px;
+  }
+  .btn-all:hover { background: #e67e22; }
+  .note { color: #4a4a60; font-size: 12px; margin-top: 20px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<h1>TGT Icon Generator</h1>
+<p class="sub">Renders your logo-512.png at every required size. Right-click to save, or use the download links.</p>
+<button class="btn-all" onclick="downloadAll()">Download All Icons (.zip not available — use individual links)</button>
+
+<h2>PWA / Web</h2>
+<div class="grid" id="pwa-grid"></div>
+
+<h2>iOS (Apple Touch Icons)</h2>
+<div class="grid" id="ios-grid"></div>
+
+<h2>Android (Adaptive Icon Layers)</h2>
+<div class="grid" id="android-grid"></div>
+
+<h2>Favicon</h2>
+<div class="grid" id="fav-grid"></div>
+
+<p class="note">
+  Note: Android adaptive icons need a foreground (the tangerine) and a background (solid #08080c).<br>
+  The masked versions show how the icon looks with Android's circular mask applied.<br>
+  For production, export the foreground layer at 432x432 with padding for the safe zone.
+</p>
+
+<script>
+const SIZES = {
+  pwa: [
+    { w: 192, h: 192, name: 'logo-192.png', label: '192x192 (manifest)' },
+    { w: 512, h: 512, name: 'logo-512.png', label: '512x512 (manifest)' },
+    { w: 384, h: 384, name: 'logo-384.png', label: '384x384 (optional)' },
+    { w: 256, h: 256, name: 'logo-256.png', label: '256x256 (optional)' },
+    { w: 128, h: 128, name: 'logo-128.png', label: '128x128 (optional)' },
+  ],
+  ios: [
+    { w: 180, h: 180, name: 'apple-touch-icon-180.png', label: '180x180 (iPhone)' },
+    { w: 167, h: 167, name: 'apple-touch-icon-167.png', label: '167x167 (iPad Pro)' },
+    { w: 152, h: 152, name: 'apple-touch-icon-152.png', label: '152x152 (iPad)' },
+    { w: 120, h: 120, name: 'apple-touch-icon-120.png', label: '120x120 (iPhone older)' },
+    { w: 1024, h: 1024, name: 'ios-appstore-1024.png', label: '1024x1024 (App Store)' },
+  ],
+  android: [
+    { w: 512, h: 512, name: 'android-icon-512.png', label: '512x512 (Play Store)' },
+    { w: 432, h: 432, name: 'android-foreground-432.png', label: '432x432 (Adaptive FG)', adaptive: true },
+    { w: 192, h: 192, name: 'android-icon-192.png', label: '192x192 (launcher)' },
+    { w: 96, h: 96, name: 'android-icon-96.png', label: '96x96 (small)' },
+    { w: 48, h: 48, name: 'android-icon-48.png', label: '48x48 (mdpi)' },
+  ],
+  fav: [
+    { w: 32, h: 32, name: 'favicon-32.png', label: '32x32 (browser tab)' },
+    { w: 16, h: 16, name: 'favicon-16.png', label: '16x16 (tiny)' },
+    { w: 64, h: 64, name: 'favicon-64.png', label: '64x64 (HiDPI tab)' },
+  ],
+};
+
+const img = new Image();
+img.crossOrigin = 'anonymous';
+img.onload = () => {
+  Object.entries(SIZES).forEach(([group, sizes]) => {
+    const grid = document.getElementById(`${group}-grid`);
+    sizes.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'icon-card';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = s.w;
+      canvas.height = s.h;
+      // Display size capped for readability
+      const displaySize = Math.min(s.w, 120);
+      canvas.style.width = displaySize + 'px';
+      canvas.style.height = displaySize + 'px';
+
+      const ctx = canvas.getContext('2d');
+
+      if (s.adaptive) {
+        // Adaptive icon: draw with 25% padding (safe zone)
+        const padding = s.w * 0.20;
+        ctx.fillStyle = '#08080c';
+        ctx.fillRect(0, 0, s.w, s.h);
+        ctx.drawImage(img, padding, padding, s.w - padding * 2, s.h - padding * 2);
+      } else {
+        ctx.drawImage(img, 0, 0, s.w, s.h);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `<strong>${s.name}</strong><br>${s.label}`;
+
+      const link = document.createElement('a');
+      link.textContent = 'Download';
+      link.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.download = s.name;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      });
+
+      card.appendChild(canvas);
+      card.appendChild(meta);
+      card.appendChild(link);
+      grid.appendChild(card);
+    });
+  });
+};
+img.src = '../../logo-512.png';
+
+function downloadAll() {
+  document.querySelectorAll('.icon-card a').forEach((link, i) => {
+    setTimeout(() => link.click(), i * 200);
+  });
+}
+</script>
+
+</body>
+</html>

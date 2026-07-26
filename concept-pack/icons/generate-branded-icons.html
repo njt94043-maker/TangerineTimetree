@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tangerine Timetree — Branded Icon Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #08080c; color: #d0d0dc; font-family: 'Karla', sans-serif; padding: 30px; }
+  h1 { color: #f39c12; font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: #4a4a60; font-size: 13px; margin-bottom: 20px; }
+  .preview-section {
+    display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 30px;
+  }
+  .preview-box {
+    background: #111118; border-radius: 16px; padding: 20px; border: 1px solid rgba(255,255,255,0.04);
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+  }
+  .preview-box canvas { border-radius: 12px; }
+  .preview-box .label { font-size: 13px; color: #7a7a94; }
+  .grid { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 30px; }
+  .icon-card {
+    background: #111118; border-radius: 12px; padding: 14px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .icon-card canvas { background: #08080c; border-radius: 8px; image-rendering: -webkit-optimize-contrast; }
+  .icon-card .meta { font-size: 11px; color: #7a7a94; text-align: center; }
+  .icon-card .meta strong { color: #f39c12; }
+  .icon-card a {
+    font-size: 11px; color: #00e676; text-decoration: none;
+    padding: 4px 10px; border: 1px solid #00e676; border-radius: 6px; cursor: pointer;
+  }
+  .icon-card a:hover { background: rgba(0,230,118,0.1); }
+  h2 { color: #7a7a94; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 12px; }
+  .btn-all {
+    background: #f39c12; color: #08080c; border: none; padding: 12px 24px;
+    border-radius: 10px; font-family: 'Karla', sans-serif; font-weight: 700;
+    font-size: 14px; cursor: pointer; margin-bottom: 20px; margin-right: 10px;
+  }
+  .btn-all:hover { background: #e67e22; }
+  .btn-green { background: #00e676; }
+  .btn-green:hover { background: #00c853; }
+  .note { color: #4a4a60; font-size: 12px; margin-top: 20px; line-height: 1.6; }
+  .controls { margin-bottom: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .controls label { color: #7a7a94; font-size: 13px; }
+  .controls select, .controls input {
+    background: #1a1a24; color: #d0d0dc; border: 1px solid #2a2a3a; border-radius: 6px;
+    padding: 6px 10px; font-family: 'Karla', sans-serif; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Tangerine Timetree — Branded Icons</h1>
+<p class="sub">
+  <span style="color:#00e676; text-shadow: 0 0 12px #f39c12aa;">Tangerine</span>
+  <span style="color:#f39c12; text-shadow: 0 0 12px #00e676aa;">Timetree</span>
+  — signature glow style. Open in browser, download what you need.
+</p>
+
+<div class="controls">
+  <label>Background shape:</label>
+  <select id="bgShape" onchange="regenerate()">
+    <option value="rounded">Rounded Square</option>
+    <option value="circle">Circle</option>
+  </select>
+  <label>Include fruit icon:</label>
+  <select id="includeFruit" onchange="regenerate()">
+    <option value="yes" selected>Yes</option>
+    <option value="no">No (text only)</option>
+  </select>
+</div>
+
+<h2>Preview (512px)</h2>
+<div class="preview-section">
+  <div class="preview-box">
+    <canvas id="preview-512" width="512" height="512" style="width:256px;height:256px;"></canvas>
+    <div class="label">512x512 — Full size</div>
+  </div>
+  <div class="preview-box">
+    <canvas id="preview-192" width="192" height="192" style="width:192px;height:192px;"></canvas>
+    <div class="label">192x192 — Launcher</div>
+  </div>
+  <div class="preview-box">
+    <canvas id="preview-96" width="96" height="96" style="width:96px;height:96px;"></canvas>
+    <div class="label">96x96 — Small</div>
+  </div>
+  <div class="preview-box">
+    <canvas id="preview-48" width="48" height="48" style="width:48px;height:48px;"></canvas>
+    <div class="label">48x48 — mdpi</div>
+  </div>
+</div>
+
+<button class="btn-all" onclick="downloadAll()">Download All Icons</button>
+<button class="btn-all btn-green" onclick="downloadKey()">Download Key Sizes (192 + 512)</button>
+
+<h2>PWA / Web</h2>
+<div class="grid" id="pwa-grid"></div>
+
+<h2>iOS (Apple Touch Icons)</h2>
+<div class="grid" id="ios-grid"></div>
+
+<h2>Android</h2>
+<div class="grid" id="android-grid"></div>
+
+<h2>Favicon</h2>
+<div class="grid" id="fav-grid"></div>
+
+<p class="note">
+  The glow effect: "Tangerine" is green (#00e676) glowing orange, "Timetree" is orange (#f39c12) glowing green.<br>
+  For small sizes (&lt;128px), text scales down proportionally. The fruit icon adds the tangerine graphic above the text.<br>
+  Tip: Use "Rounded Square" for Android/PWA, "Circle" for iOS if desired.
+</p>
+
+<script>
+const GREEN = '#00e676';
+const ORANGE = '#f39c12';
+const BG = '#08080c';
+const CARD_BG = '#111118';
+
+const SIZES = {
+  pwa: [
+    { w: 512, name: 'logo-512.png', label: '512x512 (manifest)' },
+    { w: 384, name: 'logo-384.png', label: '384x384' },
+    { w: 256, name: 'logo-256.png', label: '256x256' },
+    { w: 192, name: 'logo-192.png', label: '192x192 (manifest)' },
+    { w: 128, name: 'logo-128.png', label: '128x128' },
+  ],
+  ios: [
+    { w: 1024, name: 'ios-appstore-1024.png', label: '1024x1024 (App Store)' },
+    { w: 180, name: 'apple-touch-icon-180.png', label: '180x180 (iPhone)' },
+    { w: 167, name: 'apple-touch-icon-167.png', label: '167x167 (iPad Pro)' },
+    { w: 152, name: 'apple-touch-icon-152.png', label: '152x152 (iPad)' },
+    { w: 120, name: 'apple-touch-icon-120.png', label: '120x120 (iPhone older)' },
+  ],
+  android: [
+    { w: 512, name: 'android-icon-512.png', label: '512x512 (Play Store)' },
+    { w: 432, name: 'android-foreground-432.png', label: '432x432 (Adaptive FG)', adaptive: true },
+    { w: 192, name: 'android-icon-192.png', label: '192x192 (launcher)' },
+    { w: 96, name: 'android-icon-96.png', label: '96x96 (small)' },
+    { w: 48, name: 'android-icon-48.png', label: '48x48 (mdpi)' },
+  ],
+  fav: [
+    { w: 64, name: 'favicon-64.png', label: '64x64 (HiDPI tab)' },
+    { w: 32, name: 'favicon-32.png', label: '32x32 (browser tab)' },
+    { w: 16, name: 'favicon-16.png', label: '16x16 (tiny)' },
+  ],
+};
+
+// Load the fruit image
+const fruitImg = new Image();
+fruitImg.crossOrigin = 'anonymous';
+let fruitLoaded = false;
+fruitImg.onload = () => { fruitLoaded = true; regenerate(); };
+fruitImg.onerror = () => { fruitLoaded = false; regenerate(); };
+fruitImg.src = '../../web/public/logo-512.png';
+
+function drawIcon(canvas, size, opts = {}) {
+  const ctx = canvas.getContext('2d');
+  const s = size;
+  const shape = document.getElementById('bgShape').value;
+  const showFruit = document.getElementById('includeFruit').value === 'yes' && fruitLoaded;
+  const adaptive = opts.adaptive || false;
+
+  // Clear
+  ctx.clearRect(0, 0, s, s);
+
+  // Background
+  ctx.fillStyle = BG;
+  if (shape === 'circle' && !adaptive) {
+    ctx.beginPath();
+    ctx.arc(s/2, s/2, s/2, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const r = adaptive ? 0 : s * 0.12;
+    ctx.beginPath();
+    ctx.moveTo(r, 0);
+    ctx.lineTo(s - r, 0);
+    ctx.quadraticCurveTo(s, 0, s, r);
+    ctx.lineTo(s, s - r);
+    ctx.quadraticCurveTo(s, s, s - r, s);
+    ctx.lineTo(r, s);
+    ctx.quadraticCurveTo(0, s, 0, s - r);
+    ctx.lineTo(0, r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Save for clipping
+  ctx.save();
+  if (shape === 'circle' && !adaptive) {
+    ctx.beginPath();
+    ctx.arc(s/2, s/2, s/2, 0, Math.PI * 2);
+    ctx.clip();
+  }
+
+  // Subtle radial gradient overlay
+  const grad = ctx.createRadialGradient(s/2, s * 0.35, 0, s/2, s/2, s * 0.7);
+  grad.addColorStop(0, 'rgba(243,156,18,0.06)');
+  grad.addColorStop(0.5, 'rgba(0,230,118,0.03)');
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, s, s);
+
+  const pad = adaptive ? s * 0.20 : s * 0.08;
+  const innerW = s - pad * 2;
+
+  if (showFruit) {
+    // Layout: fruit icon in top portion, text below
+    const fruitSize = innerW * 0.48;
+    const fruitX = (s - fruitSize) / 2;
+    const fruitY = pad + innerW * 0.02;
+
+    // Draw fruit with circular clip
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(fruitX + fruitSize/2, fruitY + fruitSize/2, fruitSize/2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(fruitImg, fruitX, fruitY, fruitSize, fruitSize);
+    ctx.restore();
+
+    // Text below fruit
+    const textY = fruitY + fruitSize + innerW * 0.06;
+    drawText(ctx, s, textY, innerW * 0.42);
+  } else {
+    // Text only — centered
+    const textY = s * 0.30;
+    drawText(ctx, s, textY, innerW * 0.55);
+  }
+
+  ctx.restore();
+}
+
+function drawText(ctx, s, startY, maxHeight) {
+  const fontSize1 = maxHeight * 0.48;
+  const fontSize2 = maxHeight * 0.48;
+  const gap = maxHeight * 0.08;
+
+  // "Tangerine" — green text, orange glow
+  ctx.save();
+  ctx.font = `800 ${fontSize1}px 'Karla', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  // Orange glow
+  ctx.shadowColor = ORANGE;
+  ctx.shadowBlur = s * 0.04;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = GREEN;
+  ctx.fillText('Tangerine', s/2, startY);
+  // Double pass for stronger glow
+  ctx.shadowBlur = s * 0.08;
+  ctx.globalAlpha = 0.5;
+  ctx.fillText('Tangerine', s/2, startY);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // "Timetree" — orange text, green glow
+  const y2 = startY + fontSize1 + gap;
+  ctx.save();
+  ctx.font = `800 ${fontSize2}px 'Karla', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  // Green glow
+  ctx.shadowColor = GREEN;
+  ctx.shadowBlur = s * 0.04;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = ORANGE;
+  ctx.fillText('Timetree', s/2, y2);
+  // Double pass for stronger glow
+  ctx.shadowBlur = s * 0.08;
+  ctx.globalAlpha = 0.5;
+  ctx.fillText('Timetree', s/2, y2);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function regenerate() {
+  // Preview canvases
+  [512, 192, 96, 48].forEach(size => {
+    const canvas = document.getElementById(`preview-${size}`);
+    if (canvas) {
+      canvas.width = size;
+      canvas.height = size;
+      drawIcon(canvas, size);
+    }
+  });
+
+  // Grid canvases
+  Object.entries(SIZES).forEach(([group, sizes]) => {
+    const grid = document.getElementById(`${group}-grid`);
+    grid.innerHTML = '';
+    sizes.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'icon-card';
+
+      const canvas = document.createElement('canvas');
+      canvas.width = s.w;
+      canvas.height = s.w;
+      const displaySize = Math.min(s.w, 120);
+      canvas.style.width = displaySize + 'px';
+      canvas.style.height = displaySize + 'px';
+
+      drawIcon(canvas, s.w, { adaptive: s.adaptive });
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `<strong>${s.name}</strong><br>${s.label}`;
+
+      const link = document.createElement('a');
+      link.textContent = 'Download';
+      link.dataset.name = s.name;
+      link.addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.download = s.name;
+        a.href = canvas.toDataURL('image/png');
+        a.click();
+      });
+
+      card.appendChild(canvas);
+      card.appendChild(meta);
+      card.appendChild(link);
+      grid.appendChild(card);
+    });
+  });
+}
+
+function downloadAll() {
+  document.querySelectorAll('.icon-card a').forEach((link, i) => {
+    setTimeout(() => link.click(), i * 200);
+  });
+}
+
+function downloadKey() {
+  document.querySelectorAll('.icon-card a').forEach((link, i) => {
+    const name = link.dataset.name;
+    if (name === 'logo-192.png' || name === 'logo-512.png') {
+      setTimeout(() => link.click(), i * 200);
+    }
+  });
+}
+
+// Initial render once font loads
+document.fonts.ready.then(() => regenerate());
+// Fallback
+setTimeout(regenerate, 1500);
+</script>
+
+</body>
+</html>

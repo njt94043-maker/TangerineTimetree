@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Logo Processor — Remove Background + Add Glow</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Karla:wght@700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #08080c; color: #d0d0dc; font-family: 'Karla', sans-serif; padding: 30px; }
+  h1 { color: #f39c12; font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: #4a4a60; font-size: 13px; margin-bottom: 20px; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 24px; }
+  .card {
+    background: #111118; border-radius: 14px; padding: 16px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .card .label { font-size: 13px; color: #7a7a94; text-align: center; }
+  .card canvas {
+    border-radius: 8px;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  /* Checker background to show transparency */
+  .transparent-bg {
+    background-image:
+      linear-gradient(45deg, #1a1a24 25%, transparent 25%),
+      linear-gradient(-45deg, #1a1a24 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #1a1a24 75%),
+      linear-gradient(-45deg, transparent 75%, #1a1a24 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #111118;
+  }
+  .controls { margin-bottom: 20px; }
+  .controls label { color: #7a7a94; font-size: 13px; margin-right: 6px; }
+  .controls input[type="range"] { width: 200px; vertical-align: middle; }
+  .controls .val { color: #00e676; font-size: 13px; margin-right: 16px; }
+  .btn {
+    background: #f39c12; color: #08080c; border: none; padding: 10px 20px;
+    border-radius: 8px; font-family: 'Karla', sans-serif; font-weight: 700;
+    font-size: 13px; cursor: pointer; margin-right: 10px; margin-top: 10px;
+  }
+  .btn:hover { background: #e67e22; }
+  .btn.green { background: #00e676; }
+  .btn.green:hover { background: #00c853; }
+  h2 { color: #7a7a94; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0 10px; }
+  .preview-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 16px 0; }
+  .preview-card {
+    background: #111118; border-radius: 12px; padding: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .preview-card .label { font-size: 11px; color: #7a7a94; }
+</style>
+</head>
+<body>
+
+<h1>Logo Processor</h1>
+<p class="sub">Remove the black background from the tangerine, add glow, export transparent PNGs for icons.</p>
+
+<div class="controls">
+  <label>Background threshold:</label>
+  <input type="range" id="threshold" min="10" max="120" value="50" oninput="update()">
+  <span class="val" id="thresholdVal">50</span>
+
+  <label>Edge softness:</label>
+  <input type="range" id="softness" min="0" max="30" value="8" oninput="update()">
+  <span class="val" id="softnessVal">8</span>
+
+  <label>Glow intensity:</label>
+  <input type="range" id="glowIntensity" min="0" max="60" value="25" oninput="update()">
+  <span class="val" id="glowVal">25</span>
+
+  <label>Glow color:</label>
+  <select id="glowColor" onchange="update()">
+    <option value="dual" selected>Dual (Green + Orange)</option>
+    <option value="green">Green (#00e676)</option>
+    <option value="orange">Orange (#f39c12)</option>
+    <option value="warm">Warm citrus</option>
+    <option value="none">None (transparent only)</option>
+  </select>
+</div>
+
+<h2>Processing</h2>
+<div class="row">
+  <div class="card">
+    <canvas id="original" width="512" height="512" style="width:200px;height:200px;"></canvas>
+    <div class="label">Original</div>
+  </div>
+  <div class="card">
+    <canvas id="mask" width="512" height="512" style="width:200px;height:200px;"></canvas>
+    <div class="label">Alpha Mask</div>
+  </div>
+  <div class="card transparent-bg">
+    <canvas id="result" width="512" height="512" style="width:200px;height:200px;"></canvas>
+    <div class="label">Transparent (checker = transparent)</div>
+  </div>
+  <div class="card">
+    <canvas id="glowed" width="512" height="512" style="width:200px;height:200px;"></canvas>
+    <div class="label">With Glow (on dark bg)</div>
+  </div>
+</div>
+
+<h2>Preview at different sizes</h2>
+<div class="preview-row" id="size-previews"></div>
+
+<div style="margin-top: 20px;">
+  <button class="btn" onclick="download('result', 'tangerine-transparent-512.png')">Download Transparent 512px</button>
+  <button class="btn green" onclick="download('glowed', 'tangerine-glow-512.png')">Download With Glow 512px</button>
+  <button class="btn" onclick="downloadAllSizes()">Download All Sizes</button>
+</div>
+
+<h2 style="margin-top:30px;">Combined Brand Icon (for app launchers)</h2>
+<div class="row">
+  <div class="card">
+    <canvas id="brand-icon" width="512" height="512" style="width:256px;height:256px;"></canvas>
+    <div class="label">512x512 — Tangerine + text</div>
+    <button class="btn" onclick="download('brand-icon', 'brand-icon-512.png')" style="margin:0;">Download</button>
+  </div>
+  <div class="card">
+    <canvas id="brand-adaptive" width="432" height="432" style="width:216px;height:216px;"></canvas>
+    <div class="label">432x432 — Android adaptive foreground</div>
+    <button class="btn" onclick="download('brand-adaptive', 'brand-adaptive-432.png')" style="margin:0;">Download</button>
+  </div>
+</div>
+
+<script>
+const GREEN = '#00e676';
+const ORANGE = '#f39c12';
+const BG = '#08080c';
+
+const img = new Image();
+img.crossOrigin = 'anonymous';
+
+img.onload = () => {
+  // Draw original
+  const origCtx = document.getElementById('original').getContext('2d');
+  origCtx.drawImage(img, 0, 0, 512, 512);
+  update();
+};
+img.src = '../../web/public/logo-512.png';
+
+function update() {
+  const threshold = parseInt(document.getElementById('threshold').value);
+  const softness = parseInt(document.getElementById('softness').value);
+  const glowInt = parseInt(document.getElementById('glowIntensity').value);
+  const glowColorMode = document.getElementById('glowColor').value;
+
+  document.getElementById('thresholdVal').textContent = threshold;
+  document.getElementById('softnessVal').textContent = softness;
+  document.getElementById('glowVal').textContent = glowInt;
+
+  const S = 512;
+
+  // Step 1: Get original image data
+  const origCanvas = document.getElementById('original');
+  const origCtx = origCanvas.getContext('2d');
+  origCtx.clearRect(0, 0, S, S);
+  origCtx.drawImage(img, 0, 0, S, S);
+  const origData = origCtx.getImageData(0, 0, S, S);
+
+  // Step 2: Create alpha mask
+  const maskCanvas = document.getElementById('mask');
+  const maskCtx = maskCanvas.getContext('2d');
+  const maskData = maskCtx.createImageData(S, S);
+
+  // Calculate brightness for each pixel, determine if it's "background"
+  const alphaMap = new Float32Array(S * S);
+
+  for (let i = 0; i < origData.data.length; i += 4) {
+    const r = origData.data[i];
+    const g = origData.data[i + 1];
+    const b = origData.data[i + 2];
+
+    // Brightness
+    const brightness = Math.max(r, g, b);
+
+    // Saturation check — black bg has low saturation AND low brightness
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const saturation = max === 0 ? 0 : (max - min) / max;
+
+    // The background is near-black (#08080c-ish)
+    // Keep pixels that are bright enough OR have significant color saturation
+    let alpha;
+    if (brightness < threshold && saturation < 0.3) {
+      alpha = 0;
+    } else if (brightness < threshold + softness) {
+      // Smooth transition
+      const t = (brightness - threshold) / Math.max(softness, 1);
+      alpha = Math.min(1, t);
+      // Boost alpha for colorful pixels
+      if (saturation > 0.2) alpha = Math.min(1, alpha + saturation);
+    } else {
+      alpha = 1;
+    }
+
+    const pixIdx = i / 4;
+    alphaMap[pixIdx] = alpha;
+
+    // Mask visualization (white = keep, black = remove)
+    const v = Math.round(alpha * 255);
+    maskData.data[i] = v;
+    maskData.data[i + 1] = v;
+    maskData.data[i + 2] = v;
+    maskData.data[i + 3] = 255;
+  }
+
+  maskCtx.putImageData(maskData, 0, 0);
+
+  // Step 3: Apply alpha to create transparent result
+  const resultCanvas = document.getElementById('result');
+  const resultCtx = resultCanvas.getContext('2d');
+  const resultData = resultCtx.createImageData(S, S);
+
+  for (let i = 0; i < origData.data.length; i += 4) {
+    const pixIdx = i / 4;
+    const alpha = alphaMap[pixIdx];
+    resultData.data[i] = origData.data[i];
+    resultData.data[i + 1] = origData.data[i + 1];
+    resultData.data[i + 2] = origData.data[i + 2];
+    resultData.data[i + 3] = Math.round(alpha * 255);
+  }
+  resultCtx.putImageData(resultData, 0, 0);
+
+  // Step 4: Create glowed version on dark background
+  const glowCanvas = document.getElementById('glowed');
+  const glowCtx = glowCanvas.getContext('2d');
+  glowCtx.clearRect(0, 0, S, S);
+  glowCtx.fillStyle = BG;
+  glowCtx.fillRect(0, 0, S, S);
+
+  if (glowInt > 0 && glowColorMode !== 'none') {
+    // Draw glow layers
+    const glowBlur = glowInt;
+
+    if (glowColorMode === 'dual') {
+      // Green glow (lower-left)
+      glowCtx.save();
+      glowCtx.shadowColor = GREEN;
+      glowCtx.shadowBlur = glowBlur;
+      glowCtx.shadowOffsetX = -3;
+      glowCtx.shadowOffsetY = 3;
+      glowCtx.globalAlpha = 0.7;
+      glowCtx.drawImage(resultCanvas, 0, 0);
+      glowCtx.restore();
+
+      // Orange glow (upper-right)
+      glowCtx.save();
+      glowCtx.shadowColor = ORANGE;
+      glowCtx.shadowBlur = glowBlur;
+      glowCtx.shadowOffsetX = 3;
+      glowCtx.shadowOffsetY = -3;
+      glowCtx.globalAlpha = 0.7;
+      glowCtx.drawImage(resultCanvas, 0, 0);
+      glowCtx.restore();
+    } else if (glowColorMode === 'warm') {
+      glowCtx.save();
+      glowCtx.shadowColor = '#ff8c00';
+      glowCtx.shadowBlur = glowBlur * 1.2;
+      glowCtx.globalAlpha = 0.8;
+      glowCtx.drawImage(resultCanvas, 0, 0);
+      glowCtx.restore();
+
+      glowCtx.save();
+      glowCtx.shadowColor = '#ffcc00';
+      glowCtx.shadowBlur = glowBlur * 0.6;
+      glowCtx.globalAlpha = 0.5;
+      glowCtx.drawImage(resultCanvas, 0, 0);
+      glowCtx.restore();
+    } else {
+      const c = glowColorMode === 'green' ? GREEN : ORANGE;
+      glowCtx.save();
+      glowCtx.shadowColor = c;
+      glowCtx.shadowBlur = glowBlur;
+      glowCtx.globalAlpha = 0.8;
+      glowCtx.drawImage(resultCanvas, 0, 0);
+      glowCtx.restore();
+    }
+  }
+
+  // Draw the transparent tangerine on top (crisp)
+  glowCtx.globalAlpha = 1;
+  glowCtx.drawImage(resultCanvas, 0, 0);
+
+  // Step 5: Size previews
+  renderSizePreviews();
+
+  // Step 6: Brand icons
+  renderBrandIcons();
+}
+
+function renderSizePreviews() {
+  const container = document.getElementById('size-previews');
+  container.innerHTML = '';
+  const sizes = [192, 128, 96, 64, 48, 32];
+  const resultCanvas = document.getElementById('result');
+  const glowCanvas = document.getElementById('glowed');
+
+  sizes.forEach(size => {
+    // Transparent version
+    const card = document.createElement('div');
+    card.className = 'preview-card transparent-bg';
+    const c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    c.style.width = Math.min(size, 96) + 'px';
+    c.style.height = Math.min(size, 96) + 'px';
+    const ctx = c.getContext('2d');
+    ctx.drawImage(resultCanvas, 0, 0, size, size);
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = `${size}px transparent`;
+    card.appendChild(c);
+    card.appendChild(label);
+    container.appendChild(card);
+
+    // Glow version
+    const card2 = document.createElement('div');
+    card2.className = 'preview-card';
+    const c2 = document.createElement('canvas');
+    c2.width = size; c2.height = size;
+    c2.style.width = Math.min(size, 96) + 'px';
+    c2.style.height = Math.min(size, 96) + 'px';
+    const ctx2 = c2.getContext('2d');
+    ctx2.drawImage(glowCanvas, 0, 0, size, size);
+    const label2 = document.createElement('div');
+    label2.className = 'label';
+    label2.textContent = `${size}px glow`;
+    card2.appendChild(c2);
+    card2.appendChild(label2);
+    container.appendChild(card2);
+  });
+}
+
+function renderBrandIcons() {
+  const resultCanvas = document.getElementById('result');
+
+  // 512px brand icon — tangerine with text below
+  const brandCanvas = document.getElementById('brand-icon');
+  const bCtx = brandCanvas.getContext('2d');
+  const S = 512;
+  bCtx.clearRect(0, 0, S, S);
+
+  // Dark background with rounded corners
+  bCtx.fillStyle = BG;
+  const r = S * 0.12;
+  bCtx.beginPath();
+  bCtx.moveTo(r, 0); bCtx.lineTo(S-r, 0); bCtx.quadraticCurveTo(S, 0, S, r);
+  bCtx.lineTo(S, S-r); bCtx.quadraticCurveTo(S, S, S-r, S);
+  bCtx.lineTo(r, S); bCtx.quadraticCurveTo(0, S, 0, S-r);
+  bCtx.lineTo(0, r); bCtx.quadraticCurveTo(0, 0, r, 0);
+  bCtx.closePath(); bCtx.fill();
+  bCtx.save(); bCtx.clip();
+
+  // Draw tangerine with glow — centered, upper portion
+  const tSize = S * 0.52;
+  const tX = (S - tSize) / 2;
+  const tY = S * 0.06;
+
+  // Glow behind tangerine
+  const glowInt = parseInt(document.getElementById('glowIntensity').value);
+  const glowColorMode = document.getElementById('glowColor').value;
+  if (glowInt > 0 && glowColorMode !== 'none') {
+    if (glowColorMode === 'dual' || glowColorMode === 'warm') {
+      bCtx.save();
+      bCtx.shadowColor = GREEN;
+      bCtx.shadowBlur = glowInt * 0.8;
+      bCtx.shadowOffsetX = -2; bCtx.shadowOffsetY = 2;
+      bCtx.globalAlpha = 0.6;
+      bCtx.drawImage(resultCanvas, tX, tY, tSize, tSize);
+      bCtx.restore();
+      bCtx.save();
+      bCtx.shadowColor = ORANGE;
+      bCtx.shadowBlur = glowInt * 0.8;
+      bCtx.shadowOffsetX = 2; bCtx.shadowOffsetY = -2;
+      bCtx.globalAlpha = 0.6;
+      bCtx.drawImage(resultCanvas, tX, tY, tSize, tSize);
+      bCtx.restore();
+    }
+  }
+  bCtx.globalAlpha = 1;
+  bCtx.drawImage(resultCanvas, tX, tY, tSize, tSize);
+
+  // "Tangerine" text — green with orange glow
+  const fontSize = S * 0.11;
+  const textY = tY + tSize + S * 0.04;
+  bCtx.font = `800 ${fontSize}px 'Karla', sans-serif`;
+  bCtx.textAlign = 'center';
+  bCtx.textBaseline = 'top';
+
+  bCtx.save();
+  bCtx.shadowColor = ORANGE;
+  bCtx.shadowBlur = S * 0.04;
+  bCtx.fillStyle = GREEN;
+  bCtx.fillText('Tangerine', S/2, textY);
+  bCtx.shadowBlur = S * 0.08;
+  bCtx.globalAlpha = 0.4;
+  bCtx.fillText('Tangerine', S/2, textY);
+  bCtx.restore();
+
+  // "Timetree" text — orange with green glow
+  const textY2 = textY + fontSize + S * 0.02;
+  bCtx.save();
+  bCtx.shadowColor = GREEN;
+  bCtx.shadowBlur = S * 0.04;
+  bCtx.fillStyle = ORANGE;
+  bCtx.fillText('Timetree', S/2, textY2);
+  bCtx.shadowBlur = S * 0.08;
+  bCtx.globalAlpha = 0.4;
+  bCtx.fillText('Timetree', S/2, textY2);
+  bCtx.restore();
+
+  bCtx.restore();
+
+  // 432px adaptive foreground (with safe zone padding)
+  const adaptCanvas = document.getElementById('brand-adaptive');
+  const aCtx = adaptCanvas.getContext('2d');
+  const A = 432;
+  aCtx.clearRect(0, 0, A, A);
+  aCtx.fillStyle = BG;
+  aCtx.fillRect(0, 0, A, A);
+
+  const pad = A * 0.20;
+  const innerA = A - pad * 2;
+  const aTSize = innerA * 0.55;
+  const aTX = (A - aTSize) / 2;
+  const aTY = pad + innerA * 0.02;
+
+  // Glow
+  if (glowInt > 0 && glowColorMode !== 'none') {
+    aCtx.save();
+    aCtx.shadowColor = GREEN;
+    aCtx.shadowBlur = glowInt * 0.6;
+    aCtx.globalAlpha = 0.5;
+    aCtx.drawImage(resultCanvas, aTX, aTY, aTSize, aTSize);
+    aCtx.restore();
+    aCtx.save();
+    aCtx.shadowColor = ORANGE;
+    aCtx.shadowBlur = glowInt * 0.6;
+    aCtx.globalAlpha = 0.5;
+    aCtx.drawImage(resultCanvas, aTX, aTY, aTSize, aTSize);
+    aCtx.restore();
+  }
+  aCtx.globalAlpha = 1;
+  aCtx.drawImage(resultCanvas, aTX, aTY, aTSize, aTSize);
+
+  const aFontSize = innerA * 0.12;
+  const aTextY = aTY + aTSize + innerA * 0.04;
+  aCtx.font = `800 ${aFontSize}px 'Karla', sans-serif`;
+  aCtx.textAlign = 'center';
+  aCtx.textBaseline = 'top';
+
+  aCtx.save();
+  aCtx.shadowColor = ORANGE; aCtx.shadowBlur = A * 0.03;
+  aCtx.fillStyle = GREEN;
+  aCtx.fillText('Tangerine', A/2, aTextY);
+  aCtx.restore();
+
+  const aTextY2 = aTextY + aFontSize + innerA * 0.01;
+  aCtx.save();
+  aCtx.shadowColor = GREEN; aCtx.shadowBlur = A * 0.03;
+  aCtx.fillStyle = ORANGE;
+  aCtx.fillText('Timetree', A/2, aTextY2);
+  aCtx.restore();
+}
+
+function download(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+
+function downloadAllSizes() {
+  const resultCanvas = document.getElementById('result');
+  const glowCanvas = document.getElementById('glowed');
+  const sizes = [512, 432, 384, 256, 192, 180, 167, 152, 128, 120, 96, 64, 48, 32, 16];
+
+  sizes.forEach((size, i) => {
+    setTimeout(() => {
+      // Transparent version
+      const c1 = document.createElement('canvas');
+      c1.width = size; c1.height = size;
+      c1.getContext('2d').drawImage(resultCanvas, 0, 0, size, size);
+      const a1 = document.createElement('a');
+      a1.download = `tangerine-transparent-${size}.png`;
+      a1.href = c1.toDataURL('image/png');
+      a1.click();
+    }, i * 300);
+
+    setTimeout(() => {
+      // Glow version
+      const c2 = document.createElement('canvas');
+      c2.width = size; c2.height = size;
+      c2.getContext('2d').drawImage(glowCanvas, 0, 0, size, size);
+      const a2 = document.createElement('a');
+      a2.download = `tangerine-glow-${size}.png`;
+      a2.href = c2.toDataURL('image/png');
+      a2.click();
+    }, i * 300 + 150);
+  });
+}
+</script>
+
+</body>
+</html>

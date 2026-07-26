@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 
 # Build outputs
@@ -56,7 +56,9 @@ native/modules/*/android/build/
 # Temp folders
 ERROR
 backups/
-concept-pack/
+# concept-pack/ UN-IGNORED S279: it is design intent + reusable components
+# (INTEGRATION.md, SplashScreen.tsx/css, SkeletonLoaders.tsx/css, icon generators),
+# not build output. 80 KB. It was untracked and single-copy.
 
 # tools/post-prod test artifacts (S155)
 tools/post-prod/__pycache__/
