@@ -23,8 +23,11 @@ function writeCache(us: UserSettings | null, bs: BandSettings | null) {
   } catch { /* ignore */ }
 }
 
-/** Wipe cached settings. MUST be called on sign-out: BandSettings holds
- *  bank_sort_code / bank_account_number (shared/supabase/types.ts). */
+/** Wipe cached settings. MUST be called on sign-out: UserSettings holds
+ *  bank_account_name / bank_name / bank_sort_code / bank_account_number
+ *  (shared/supabase/types.ts:365-368), and it is cached under KEYS.user.
+ *  Both keys are cleared — BandSettings itself carries no bank fields, but
+ *  it is business data and there is no reason to leave it behind either. */
 export function clearSettingsCache(): void {
   try {
     localStorage.removeItem(KEYS.user);
