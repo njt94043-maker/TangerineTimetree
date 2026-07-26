@@ -23,8 +23,8 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 63
-        versionName = "1.2.44"
+        versionCode = 64
+        versionName = "1.2.45"
 
         // S186 / D-batchD-1: APK no longer targets the dead E6330 box. Default
         // points at the MS host bridge on the laptop (POST /gig + /song-marker

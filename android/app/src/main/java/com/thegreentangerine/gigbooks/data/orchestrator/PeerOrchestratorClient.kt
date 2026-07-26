@@ -51,8 +51,29 @@ class PeerOrchestratorClient(private val context: Context) {
 
     companion object {
         private const val TAG = "PeerOrchestrator"
-        private const val PREVIEW_INTERVAL_MS = 3_000L
-        private const val PREVIEW_INTERVAL_REC_MS = 8_000L
+
+        /**
+         * S281: ONE interval, derived from measurement rather than picked.
+         *
+         * Post-fix p95 JPEG encode cost on the analysis thread (S23 Ultra,
+         * release build, 640x360 single-encode) measured 20.5 ms idle and
+         * 17.3 ms while recording. Four times the worst of those is 82 ms,
+         * which is under the 150 ms floor — so the floor is what binds, not
+         * the encode cost.
+         *
+         * Two constants collapsed to one because the measurement says
+         * recording costs nothing extra: encode was *cheaper* under load
+         * (17.3 ms) than idle (20.5 ms), the same way it was before the fix
+         * (43.3 vs 49.2 ms). The old 8 s recording back-off had nothing to
+         * back off from.
+         *
+         * At 150 ms a peer tile refreshes ~6.7x/s at ~11.7 KB/frame, i.e.
+         * ~0.6 Mbit/s per peer — inside the "under 1 Mbit/s" budget on an
+         * 866 Mbit/s 11ac link. Validated by the S281 gate: zero
+         * "CFR deviation detected" lines across a two-minute simultaneous
+         * record on both handsets with peer preview streaming.
+         */
+        private const val PREVIEW_INTERVAL_MS = 150L
     }
 
     enum class State { Idle, Discovering, Connecting, Paired, Recording }
@@ -357,9 +378,14 @@ class PeerOrchestratorClient(private val context: Context) {
     private fun startPreviewSender() {
         previewJob?.cancel()
         previewJob = scope.launch {
+            // S281: first frame goes out immediately. The old loop delayed
+            // *before* its first send, so a freshly-paired peer tile stayed
+            // blank for a full interval (3 s) — part of why pairing didn't
+            // feel connected. Every subsequent pass waits the interval.
+            var firstSend = true
             while (isActive && (_state.value == State.Paired || _state.value == State.Recording)) {
-                val gap = if (_state.value == State.Recording) PREVIEW_INTERVAL_REC_MS else PREVIEW_INTERVAL_MS
-                delay(gap)
+                if (!firstSend) delay(PREVIEW_INTERVAL_MS)
+                firstSend = false
                 val frame = providePreviewFrame?.invoke() ?: continue
                 val base64 = Base64.encodeToString(frame, Base64.NO_WRAP)
                 try {

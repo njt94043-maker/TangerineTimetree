@@ -2,10 +2,7 @@ package com.thegreentangerine.gigbooks.data.xr18
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
 import android.graphics.Matrix
-import android.graphics.YuvImage
 import android.util.Log
 import android.util.Size
 import android.view.Surface
@@ -13,6 +10,7 @@ import android.view.WindowManager
 import androidx.camera.core.*
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
 import androidx.camera.view.PreviewView
@@ -38,6 +36,16 @@ class CameraRecordingManager(private val context: Context) {
 
     companion object {
         private const val TAG = "CameraRecording"
+
+        /**
+         * S281: emit `preview-metric` lines from [imageProxyToJpeg] so the
+         * self-tile encode cost is measurable on the handset instead of guessed.
+         * Rate-limited to one line/second inside [logPreviewMetric] — the
+         * analyzer runs at camera fps and an unthrottled log both floods logcat
+         * and skews the very timing it is measuring. Left in the tree (flipped
+         * off) so the next preview change can re-measure without re-authoring it.
+         */
+        private const val PREVIEW_METRICS = false
 
         /**
          * S150 P3 bitrate presets. Pre-approved values from brief §6.3.
@@ -239,8 +247,25 @@ class CameraRecordingManager(private val context: Context) {
                 .setTargetRotation(targetRotation)
                 .setVideoStabilizationEnabled(stabilisationOn)
                 .build()
+            // S281: cap the ANALYSIS stream only. Left unbounded, CameraX picked
+            // 1280x720 and the self-tile thumbnail paid full price for it every
+            // frame. 640x360 is ~4x fewer pixels and still a watchable
+            // full-screen surface (CameraPreviewFullscreen consumes the same
+            // JPEG). Deliberately a separate selector from
+            // `sixteenNineResolution`: that one also feeds Preview, and the
+            // peer's on-screen PreviewView is a real hardware surface that is
+            // already smooth — capping it would be a regression, not a fix.
+            val analysisResolution = ResolutionSelector.Builder()
+                .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                .setResolutionStrategy(
+                    ResolutionStrategy(
+                        Size(640, 360),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                    )
+                )
+                .build()
             imageAnalysis = ImageAnalysis.Builder()
-                .setResolutionSelector(sixteenNineResolution)
+                .setResolutionSelector(analysisResolution)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setTargetRotation(targetRotation)
                 .build()
@@ -565,38 +590,52 @@ class CameraRecordingManager(private val context: Context) {
         _isBound.value = false
     }
 
+    /**
+     * S281 instrumentation. One line per second at most — see [PREVIEW_METRICS].
+     * Only ever called from the single-threaded `analysisExecutor`, so the
+     * last-emitted stamp needs no synchronisation.
+     */
+    private var lastPreviewMetricMs = 0L
+
+    private fun logPreviewMetric(w: Int, h: Int, outBytes: Int, startNs: Long, rot: Int, path: String) {
+        if (!PREVIEW_METRICS) return
+        val nowMs = System.currentTimeMillis()
+        if (nowMs - lastPreviewMetricMs < 1_000L) return
+        lastPreviewMetricMs = nowMs
+        val encMs = (System.nanoTime() - startNs) / 1_000_000.0
+        Log.d(TAG, "preview-metric w=$w h=$h outBytes=$outBytes encMs=%.1f rot=$rot path=$path".format(encMs))
+    }
+
     private fun imageProxyToJpeg(imageProxy: ImageProxy): ByteArray? {
+        val startNs = System.nanoTime()
+        val inW = imageProxy.width
+        val inH = imageProxy.height
+        val rotation = imageProxy.imageInfo.rotationDegrees
         return try {
-            val planes = imageProxy.planes
-            val yBuffer = planes[0].buffer
-            val uBuffer = planes[1].buffer
-            val vBuffer = planes[2].buffer
-            val ySize = yBuffer.remaining()
-            val uSize = uBuffer.remaining()
-            val vSize = vBuffer.remaining()
-            val nv21 = ByteArray(ySize + uSize + vSize)
-            yBuffer.get(nv21, 0, ySize)
-            vBuffer.get(nv21, ySize, vSize)
-            uBuffer.get(nv21, ySize + vSize, uSize)
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, imageProxy.width, imageProxy.height, null)
-            val out = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(android.graphics.Rect(0, 0, imageProxy.width, imageProxy.height), 60, out)
-            val raw = out.toByteArray()
+            // S281: exactly ONE JPEG encode on every path. The old route was
+            // NV21 -> YuvImage.compressToJpeg -> BitmapFactory.decodeByteArray
+            // -> rotate -> compress again, i.e. encode+decode+encode per frame
+            // whenever rotationDegrees != 0 — the normal case for a phone held
+            // any way but one. toBitmap() does the YUV->RGB conversion once and
+            // the rotation is applied to that bitmap before the single compress.
+            val src = imageProxy.toBitmap()
 
             // Match the thumbnail orientation to what VideoCapture writes to the MP4.
             // ImageAnalysis frames come out in the camera sensor's native orientation;
             // we need to rotate by imageInfo.rotationDegrees to get the upright frame.
-            val rotation = imageProxy.imageInfo.rotationDegrees
-            if (rotation == 0) return raw
+            val bmp = if (rotation == 0) src else {
+                val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+                Bitmap.createBitmap(src, 0, 0, src.width, src.height, matrix, true)
+            }
 
-            val bmp = BitmapFactory.decodeByteArray(raw, 0, raw.size) ?: return raw
-            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-            val rotated = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, matrix, true)
-            val out2 = ByteArrayOutputStream()
-            rotated.compress(Bitmap.CompressFormat.JPEG, 60, out2)
-            bmp.recycle()
-            if (rotated !== bmp) rotated.recycle()
-            out2.toByteArray()
+            val out = ByteArrayOutputStream()
+            bmp.compress(Bitmap.CompressFormat.JPEG, 60, out)
+            if (bmp !== src) bmp.recycle()
+            src.recycle()
+
+            val result = out.toByteArray()
+            logPreviewMetric(inW, inH, result.size, startNs, rotation, "single")
+            result
         } catch (_: Exception) { null }
     }
 }
