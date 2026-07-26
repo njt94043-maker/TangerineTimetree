@@ -112,4 +112,34 @@ COMMIT;
 --       READ must remain blocked.
 --   (d) [NEEDS-NATHAN] The real public contact form on thegreentangerine.com
 --       still submits successfully and the push still lands on his phone.
+--
+-- ⚠ (e) [MUST ASSERT, not assume] The rate limit can be a SILENT NO-OP.
+--       enforce_enquiry_rate_limit is SECURITY DEFINER, so it runs as its OWNER.
+--       If that owner does NOT bypass RLS on contact_submissions, the count(*)
+--       returns 0 for every anonymous insert and the limit never fires — while
+--       the migration still applies cleanly and everything looks green. That is a
+--       passing-shaped failure, the exact class this team refuses to accept.
+--       So (a)'s 4th-insert case is NOT optional: it is the only proof the limit
+--       works. If it does not reject, check the owner:
+--         select p.proname, r.rolname, r.rolbypassrls
+--           from pg_proc p join pg_roles r on r.oid = p.proowner
+--          where p.proname = 'enforce_enquiry_rate_limit';
+--       and ALTER FUNCTION ... OWNER TO postgres if needed.
+-- =============================================================================
+-- ROLLBACK (added by the Tier-1 adversarial pass — a migration you cannot undo
+-- is not reviewable). Restores the pre-S279 state exactly as read from
+-- pg_policies on 2026-07-26: one INSERT policy, TO public, WITH CHECK (true).
+-- Note that reverting re-opens the unbounded anonymous push channel — only do
+-- this if the new policy is actively breaking real enquiries.
+--
+--   BEGIN;
+--   DROP TRIGGER IF EXISTS contact_submissions_rate_limit ON public.contact_submissions;
+--   DROP FUNCTION IF EXISTS public.enforce_enquiry_rate_limit();
+--   DROP POLICY IF EXISTS anon_submit_enquiry ON public.contact_submissions;
+--   CREATE POLICY anon_submit_enquiry ON public.contact_submissions
+--     FOR INSERT TO public WITH CHECK (true);
+--   COMMIT;
+--
+-- The SELECT/UPDATE policies (auth_read_enquiries / auth_update_enquiries) are
+-- untouched by this migration, so a rollback must not recreate them.
 -- =============================================================================
