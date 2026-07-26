@@ -41,9 +41,25 @@
 -- Apply via Management API `database/query`, NOT `supabase db push` (same as
 -- 20260701000300). Prod-DB write — needs Nathan-approval past the classifier.
 --
--- STATUS: NOT YET APPLIED. Written and reviewed S279; the apply was withheld
--- pending Nathan's approval of the production write. Record the date here on
--- apply: Applied via Management API S279: <record date on apply>.
+-- STATUS: ✅ APPLIED via Management API 2026-07-26 (S279), on Nathan's approval.
+--
+-- VERIFIED LIVE, as anon, inside a transaction that was rolled back (this is a
+-- notify-flow — no row and no queued push may survive a test):
+--   * message 2001 chars      -> rejected (RLS)
+--   * archived => true        -> rejected (RLS)
+--   * notes => 'injected'     -> rejected (RLS)
+--   * email 'not-an-email'    -> rejected (RLS)
+--   * well-formed enquiries 1-3 -> ACCEPTED (the real form still works)
+--   * 4th from the same email -> rejected: "Too many enquiries from this email
+--     address in the last hour."  <-- the rate limit genuinely fires
+--   * a DIFFERENT email in the same hour -> ACCEPTED (per-email, not a global cap)
+-- Residue after rollback: contact_submissions unchanged at 6 rows, 0 probe rows,
+-- net.http_request_queue = 0 (no push queued). rls_probe --scope tgt PASS.
+--
+-- The silent-no-op risk in (e) below was CHECKED, not assumed:
+--   enforce_enquiry_rate_limit -> owner postgres, rolbypassrls = true,
+--   prosecdef = true. So the count(*) sees every row. Necessary but not
+--   sufficient, which is why the 4th-insert rejection above is the real proof.
 -- =============================================================================
 BEGIN;
 
