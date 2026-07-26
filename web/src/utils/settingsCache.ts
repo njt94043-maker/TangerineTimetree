@@ -23,6 +23,15 @@ function writeCache(us: UserSettings | null, bs: BandSettings | null) {
   } catch { /* ignore */ }
 }
 
+/** Wipe cached settings. MUST be called on sign-out: BandSettings holds
+ *  bank_sort_code / bank_account_number (shared/supabase/types.ts). */
+export function clearSettingsCache(): void {
+  try {
+    localStorage.removeItem(KEYS.user);
+    localStorage.removeItem(KEYS.band);
+  } catch { /* private mode */ }
+}
+
 /**
  * Load settings with cache-first strategy.
  * Returns cached values immediately if available, then fetches fresh in background.

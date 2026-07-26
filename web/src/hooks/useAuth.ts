@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase/client';
 import { onAuthError } from '@shared/supabase/clientRef';
+import { clearSettingsCache } from '../utils/settingsCache';
 import type { User, Session } from '@supabase/supabase-js';
 import type { Profile } from '@shared/supabase/types';
 
@@ -19,6 +20,7 @@ export function useAuth() {
     // Handle auth errors from shared queries (expired JWT, etc.)
     onAuthError(() => {
       supabase.auth.signOut();
+      clearSettingsCache();
       setUser(null);
       setSession(null);
       setProfile(null);
@@ -49,6 +51,7 @@ export function useAuth() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    clearSettingsCache();
     setProfile(null);
   }
 
