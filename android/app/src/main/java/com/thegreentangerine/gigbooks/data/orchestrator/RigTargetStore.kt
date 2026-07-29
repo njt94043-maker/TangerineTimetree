@@ -31,7 +31,14 @@ class RigTargetStore(private val context: Context) {
     // flow in ReaperConfigPane (scan the host's QR or type/paste the raw 64-char secret). The old
     // LAN GET /api/pairing hand-out is dead. "" until paired — gates the host HTTP bridge in either
     // auto/manual mode.
-    data class RigTarget(val host: String?, val oscPort: Int, val autoDiscover: Boolean, val apiSecret: String = "")
+    data class RigTarget(
+        val host: String?,
+        val oscPort: Int,
+        val autoDiscover: Boolean,
+        val apiSecret: String = "",
+        /** S284: [SOURCE_MANUAL] (Nathan typed it) or [SOURCE_SWEEP] (the subnet sweep found it). */
+        val hostSource: String = SOURCE_MANUAL,
+    )
 
     fun observe(): Flow<RigTarget> = context.rigDataStore.data.map { prefs ->
         RigTarget(
@@ -39,17 +46,27 @@ class RigTargetStore(private val context: Context) {
             oscPort = prefs[KEY_OSC_PORT] ?: DEFAULT_OSC_PORT,
             autoDiscover = prefs[KEY_AUTO_DISCOVER] ?: true,
             apiSecret = prefs[KEY_API_SECRET] ?: "",
+            hostSource = prefs[KEY_HOST_SOURCE] ?: SOURCE_MANUAL,
         )
     }
 
     suspend fun current(): RigTarget = observe().first()
 
-    /** Save a manually-entered rig host (+ OSC port). Flips to manual mode. */
-    suspend fun setManual(host: String, oscPort: Int) {
+    /**
+     * Save a rig host (+ OSC port). Flips to manual mode.
+     *
+     * S284: [source] records WHO chose it, written atomically with the host. A
+     * [SOURCE_MANUAL] host is never auto-replaced by the subnet sweep — only an
+     * explicit "Find rig" tap can overwrite it. A [SOURCE_SWEEP] host is re-swept
+     * automatically once it stops answering, so a venue change self-heals instead of
+     * leaving the APK pinned to a dead address (the S211 lesson, one layer up).
+     */
+    suspend fun setManual(host: String, oscPort: Int, source: String = SOURCE_MANUAL) {
         context.rigDataStore.edit { prefs ->
             prefs[KEY_HOST] = host.trim()
             prefs[KEY_OSC_PORT] = oscPort
             prefs[KEY_AUTO_DISCOVER] = false
+            prefs[KEY_HOST_SOURCE] = source
         }
     }
 
@@ -66,9 +83,14 @@ class RigTargetStore(private val context: Context) {
 
     companion object {
         const val DEFAULT_OSC_PORT = 8000
+        /** S284: host chosen by Nathan in ReaperConfigPane — the sweep must not clobber it. */
+        const val SOURCE_MANUAL = "manual"
+        /** S284: host adopted by the subnet sweep — re-sweepable once it stops answering. */
+        const val SOURCE_SWEEP = "sweep"
         private val KEY_HOST = stringPreferencesKey("rig_host")
         private val KEY_OSC_PORT = intPreferencesKey("rig_osc_port")
         private val KEY_AUTO_DISCOVER = booleanPreferencesKey("rig_auto_discover")
         private val KEY_API_SECRET = stringPreferencesKey("rig_api_secret")
+        private val KEY_HOST_SOURCE = stringPreferencesKey("rig_host_source")
     }
 }

@@ -53,6 +53,13 @@ class OrchestratorDiscovery(private val context: Context) {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var resolvingNow = false
 
+    /**
+     * S284: fired when the default network changes (home WiFi -> the phone's hotspot,
+     * new DHCP lease, venue AP). [OrchestratorService] hangs its subnet-sweep trigger
+     * off this rather than registering a second NetworkCallback. Set before [start].
+     */
+    var onNetworkAvailable: (() -> Unit)? = null
+
     /** Begin searching. Idempotent. */
     fun start() {
         acquireMulticastLock()
@@ -221,6 +228,7 @@ class OrchestratorDiscovery(private val context: Context) {
             override fun onAvailable(network: Network) {
                 Log.d(TAG, "Network available — restarting discovery")
                 restartDiscovery()
+                runCatching { onNetworkAvailable?.invoke() }
             }
             override fun onLost(network: Network) {
                 Log.d(TAG, "Network lost")

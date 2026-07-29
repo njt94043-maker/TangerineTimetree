@@ -12,17 +12,21 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.thegreentangerine.gigbooks.BuildConfig
 import com.thegreentangerine.gigbooks.R
 import com.thegreentangerine.gigbooks.data.supabase.GigLockRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -43,11 +47,31 @@ import java.net.Socket
 class OrchestratorService : Service() {
 
     companion object {
+        private const val TAG = "OrchestratorService"
         const val CHANNEL_ID = "tgt_orchestrator"
         const val NOTIFICATION_ID = 9200
         /** Reaper's OSC receive port is fixed by the rig config; the discovered SRV port is the MS HTTP bridge (9200). */
         const val REAPER_OSC_PORT = 8000
+
+        /** S284: how often the rig-record confirmation polls `GET /take/status`. */
+        private const val RIG_CONFIRM_POLL_MS = 1_000L
+        /** S284: no confirmation within this window and Gig Mode says so plainly, and keeps saying it. */
+        private const val RIG_CONFIRM_TIMEOUT_MS = 5_000L
+        /** S284: consecutive failed polls after a confirmation before we un-confirm (blip tolerance). */
+        private const val RIG_CONFIRM_MISS_LIMIT = 3
+        /** S284: hard cap on one poll, so a hung transport can never stall the watch. */
+        private const val RIG_CONFIRM_POLL_TIMEOUT_MS = 3_000L
     }
+
+    /**
+     * S284: what the RIG says, which is a different fact from what this phone decided to do.
+     *
+     * [IDLE] not recording · [PENDING] record fired, no confirmation yet · [CONFIRMED] Reaper
+     * reports `recording && !stale` · [UNCONFIRMED] the window passed (or confirmation stopped)
+     * with nothing from the rig. UNCONFIRMED NEVER stops the local cameras — a failed rig leg
+     * must not destroy the phone-side capture Nathan still has.
+     */
+    enum class RigConfirm { IDLE, PENDING, CONFIRMED, UNCONFIRMED }
 
     inner class LocalBinder : Binder() {
         val service: OrchestratorService get() = this@OrchestratorService
@@ -126,8 +150,19 @@ class OrchestratorService : Service() {
         scope.launch { rigStore.setApiSecret(s) }
     }
 
+    /** What THIS PHONE is doing (local cam + peer fan-out). Observably true from the phone. */
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording
+
+    /** S284: what the RIG confirms. Comes from the rig or it doesn't come at all. */
+    private val _rigConfirm = MutableStateFlow(RigConfirm.IDLE)
+    val rigConfirm: StateFlow<RigConfirm> = _rigConfirm
+    private var rigConfirmJob: kotlinx.coroutines.Job? = null
+
+    /** S284: a subnet sweep is in flight (drives the Gig Mode "searching…" readout). */
+    private val _isSweeping = MutableStateFlow(false)
+    val isSweeping: StateFlow<Boolean> = _isSweeping
+    private var sweepJob: kotlinx.coroutines.Job? = null
 
     private val _peerCount = MutableStateFlow(0)
     val peerCount: StateFlow<Int> = _peerCount
@@ -144,6 +179,10 @@ class OrchestratorService : Service() {
         // ever opens the wizard.
         battery.start()
         discovery = OrchestratorDiscovery(this)
+        // S284: a network change (venue AP, hotspot up, new lease) re-triggers the sweep.
+        // Set BEFORE start() so the first onAvailable is not missed. findRig() self-gates:
+        // it does nothing under a live set, and nothing to a manual host that still answers.
+        discovery.onNetworkAvailable = { findRig() }
         discovery.start()
         publisher = OrchestratorPublisher(this)
         // Start TCP server first, then advertise the bound port over mDNS
@@ -181,7 +220,9 @@ class OrchestratorService : Service() {
             // is simply not sent and the server stays log-only. Plumbed now so the flip slice is
             // a no-op on the APK beyond adding the entry UX.
             gigCmd.setApiSecret(saved.apiSecret)
-            if (!saved.autoDiscover && saved.host != null) {
+            // S284: isNotBlank, not just non-null — the release BuildConfig default is now ""
+            // and a blank saved host must stay NOT PAIRED rather than be adopted as a target.
+            if (!saved.autoDiscover && !saved.host.isNullOrBlank()) {
                 osc.setTarget(saved.host, saved.oscPort)
                 gigCmd.setTarget(saved.host)
             }
@@ -235,7 +276,8 @@ class OrchestratorService : Service() {
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId, gigName, gigDate)
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
-            _isRecording.value = true
+            _isRecording.value = true   // what THIS PHONE is doing
+            startRigConfirmWatch()      // what the RIG confirms — S284
             updateNotification()
         }
     }
@@ -246,6 +288,7 @@ class OrchestratorService : Service() {
             peerServer.broadcastStopRec()
             CameraGate.stopLocalRecording()
             _isRecording.value = false
+            stopRigConfirmWatch()
             updateNotification()
         }
     }
@@ -306,7 +349,8 @@ class OrchestratorService : Service() {
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId, gigName, gigDate)
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
-            _isRecording.value = true
+            _isRecording.value = true   // what THIS PHONE is doing
+            startRigConfirmWatch()      // what the RIG confirms — S284
             updateNotification()
         }
     }
@@ -321,6 +365,7 @@ class OrchestratorService : Service() {
             peerServer.broadcastStopRec()
             CameraGate.stopLocalRecording()
             _isRecording.value = false
+            stopRigConfirmWatch()
             session.pause()
             updateNotification()
         }
@@ -338,7 +383,8 @@ class OrchestratorService : Service() {
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId, gigName, gigDate)
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
-            _isRecording.value = true
+            _isRecording.value = true   // what THIS PHONE is doing
+            startRigConfirmWatch()      // what the RIG confirms — S284
             updateNotification()
         }
     }
@@ -365,7 +411,8 @@ class OrchestratorService : Service() {
             if (gigCmd.lastSendOk.value == false) {
                 osc.sendSongMarker(markerTitle)
             }
-            _isRecording.value = true
+            _isRecording.value = true   // what THIS PHONE is doing
+            startRigConfirmWatch()      // what the RIG confirms — S284
             updateNotification()
         }
     }
@@ -379,6 +426,7 @@ class OrchestratorService : Service() {
                 CameraGate.stopLocalRecording()
                 _isRecording.value = false
             }
+            stopRigConfirmWatch()
             scope.launch { bookendTone.playSetEnd() }  // fire-and-forget; gig save must not wait
             gigCmd.stop()  // final save (Reaper-side does not auto-close)
             session.end()
@@ -391,12 +439,146 @@ class OrchestratorService : Service() {
         }
     }
 
+    // ─── S284: find the rig by probing, not by name ─────────────────────────
+    //
+    // mDNS ([OrchestratorDiscovery]) stays the fast path. This is the fallback for
+    // when it doesn't fire — which is the gig case: Nathan's sets run on the phone's
+    // own hotspot, so the rig is a DHCP client of the phone and a `.local` name buys
+    // nothing. Triggered by Gig Mode opening, an explicit tap, and a network change.
+    // NEVER on a timer during a live set — a mid-gig sweep is something Nathan asks
+    // for, not something that happens under him.
+
+    /**
+     * Sweep the local subnet(s) for the rig. [userInitiated] taps bypass the gate
+     * (including mid-set); automatic triggers do not. Idempotent — a sweep already in
+     * flight wins.
+     */
+    fun findRig(userInitiated: Boolean = false) {
+        if (sweepJob?.isActive == true) return
+        sweepJob = scope.launch {
+            if (!userInitiated && !autoSweepAllowed()) return@launch
+            _isSweeping.value = true
+            try {
+                runSweep()
+            } catch (e: Exception) {
+                Log.w(TAG, "sweep failed: ${e.message}")
+            } finally {
+                _isSweeping.value = false
+            }
+        }
+    }
+
+    /**
+     * Automatic sweeps only when there is something to fix and nothing to disturb:
+     * never under a live set, never over a host Nathan typed himself, and only when
+     * the current target is empty or has stopped answering.
+     */
+    private suspend fun autoSweepAllowed(): Boolean {
+        if (_isRecording.value || session.state == GigSession.State.ACTIVE_SET) return false
+        val host = osc.target.value.host
+        if (host.isBlank()) return true
+        // Respect the mode flag the same way the mDNS collector does: a manually-saved
+        // host is Nathan's decision and the sweep does not overrule it.
+        val saved = rigStore.current()
+        if (saved.hostSource == RigTargetStore.SOURCE_MANUAL) return false
+        return !probeHost(host, BuildConfig.GIG_PORT_DEFAULT)
+    }
+
+    private suspend fun runSweep() {
+        val subnets = RigSweep.sweepable(RigSweep.localSubnets())
+        if (subnets.isEmpty()) {
+            Log.w(TAG, "sweep: no sweepable IPv4 subnet (/22 or narrower) on this device")
+            return
+        }
+        val port = BuildConfig.GIG_PORT_DEFAULT
+        for (subnet in subnets) {
+            val hosts = RigSweep.hostsIn(subnet)
+            Log.i(TAG, "sweep: ${subnet.address}/${subnet.prefixLength} -> ${hosts.size} hosts on :$port")
+            val hit = RigSweep.findFirstResponder(hosts) { host ->
+                probeHost(host, port, RigSweep.PROBE_TIMEOUT_MS)
+            } ?: continue
+            // Adopt decision uses the SAME probe at the standard timeout — one probe in
+            // this codebase, not two. NOTE: probeHost is a TCP connect, so this proves
+            // "something is listening on 9200", not "it is the MS". The rig-record
+            // confirmation below is what actually proves the MS, and it fails loudly.
+            if (!probeHost(hit, port)) continue
+            Log.i(TAG, "sweep: adopting $hit (answered on :$port)")
+            _autoDiscover.value = false
+            osc.setTarget(hit, REAPER_OSC_PORT)
+            gigCmd.setTarget(hit)
+            // Persist so the NEXT gig starts already pointed at it. Tagged SOURCE_SWEEP so a
+            // later sweep may re-heal it, unlike a host Nathan typed.
+            rigStore.setManual(hit, RigTargetStore.DEFAULT_OSC_PORT, RigTargetStore.SOURCE_SWEEP)
+            rigStore.setAutoDiscover(false)
+            return
+        }
+        Log.w(TAG, "sweep: no host answered on :$port")
+    }
+
+    // ─── S284: record must be confirmed by the rig, not assumed ─────────────
+
+    /**
+     * Poll `GET /take/status` and report the Reaper leg as capturing ONLY when the rig
+     * comes back `recording == true && stale == false`. That value is read from the
+     * status sidecar Reaper's own Lua writes, so it is a Reaper-side transport fact,
+     * not a phone-side guess.
+     *
+     * Verified 2026-07-29 (the "does this work for a GIG project?" question):
+     * `write_status()` in gig-command-listener.lua runs on its own 0.25 s gate in the
+     * defer loop, unconditionally, off `reaper.GetPlayState()` for the CURRENT project —
+     * it is not gated on take mode. `start_project` opens the gig .rpp with
+     * `Main_openProject("noprompt:…")`, which replaces the current project IN THE SAME
+     * TAB, so the sidecar tracks the gig project's transport. The sidecar is only silent
+     * when the listener itself isn't running — which is also when a gig cannot start.
+     */
+    private fun startRigConfirmWatch() {
+        rigConfirmJob?.cancel()
+        _rigConfirm.value = RigConfirm.PENDING
+        // Dispatchers.IO, NOT the scope's Default. Observed on the S23 2026-07-29: the
+        // watch ran at a clean 1 Hz and then silently stopped mid-set while local-cam +
+        // peer preview encoding saturated Default — leaving the readout frozen on its
+        // last verdict, which is the exact failure class this slice exists to kill. The
+        // runCatching + withTimeout below are the same idea: this loop must keep telling
+        // the truth, so nothing it calls is allowed to end it or stall it.
+        rigConfirmJob = scope.launch(Dispatchers.IO) {
+            val deadline = System.currentTimeMillis() + RIG_CONFIRM_TIMEOUT_MS
+            var everConfirmed = false
+            var misses = 0
+            while (isActive) {
+                val status = runCatching {
+                    withTimeout(RIG_CONFIRM_POLL_TIMEOUT_MS) { gigCmd.fetchTakeStatus() }
+                }.getOrNull()
+                val confirmed = status != null && status.recording && !status.stale
+                if (confirmed) {
+                    misses = 0
+                    everConfirmed = true
+                    _rigConfirm.value = RigConfirm.CONFIRMED
+                } else {
+                    misses++
+                    val giveUp = System.currentTimeMillis() >= deadline ||
+                        (everConfirmed && misses >= RIG_CONFIRM_MISS_LIMIT)
+                    // Deliberately NOT stopping CameraGate here. A failed rig leg must never
+                    // destroy the phone-side capture Nathan still has.
+                    _rigConfirm.value = if (giveUp) RigConfirm.UNCONFIRMED else RigConfirm.PENDING
+                }
+                delay(RIG_CONFIRM_POLL_MS)
+            }
+        }
+    }
+
+    private fun stopRigConfirmWatch() {
+        rigConfirmJob?.cancel()
+        rigConfirmJob = null
+        _rigConfirm.value = RigConfirm.IDLE
+    }
+
     /**
      * S211: liveness knock. TCP-connect to the MS bridge port with a short timeout;
      * a discovered host is only trusted (target adopted) if it answers. Pure I/O.
      */
     private suspend fun probeHost(host: String, port: Int, timeoutMs: Int = 1500): Boolean =
         withContext(Dispatchers.IO) {
+            if (host.isBlank()) return@withContext false  // S284: NOT PAIRED, nothing to knock on
             try {
                 Socket().use { s ->
                     s.connect(InetSocketAddress(host, port), timeoutMs)

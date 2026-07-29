@@ -320,6 +320,18 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
     val isRecording = service?.isRecording?.collectAsState()?.value ?: false
     val target = service?.osc?.target?.collectAsState()?.value
     val lastSendOk = service?.osc?.lastSendOk?.collectAsState()?.value
+    // ── S284: NOT PAIRED is a real state ──
+    // The release default is now "" — an empty host means there is no rig, and that is
+    // the most important fact on this screen when it's true. `target` itself is never
+    // null once the service is bound, so every readiness test keys off the HOST.
+    val rigHost = target?.host?.trim().orEmpty()
+    val rigPaired = rigHost.isNotEmpty()
+    val rigConfirm = service?.rigConfirm?.collectAsState()?.value ?: OrchestratorService.RigConfirm.IDLE
+    val rigSearching = service?.isSweeping?.collectAsState()?.value ?: false
+    // Trigger 1 of 3: Gig Mode opens. findRig() self-gates — it no-ops under a live set
+    // and never overrules a host Nathan typed that still answers. (Trigger 2 = the
+    // explicit taps below; trigger 3 = a network change, wired in OrchestratorService.)
+    LaunchedEffect(service) { service?.findRig() }
     val peerCount = service?.peerCount?.collectAsState()?.value ?: 0
     val peers = service?.peerInfos?.collectAsState()?.value ?: emptyList()
     val localCameraRecording by CameraGate.isRecording.collectAsState()
@@ -423,7 +435,8 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
                 )
             }
             ReaperStatusPill(
-                target = target?.let { "${it.host}:${it.port}" },
+                target = if (rigPaired) "$rigHost:${target?.port ?: OrchestratorService.REAPER_OSC_PORT}" else null,
+                searching = rigSearching,
                 lastSendOk = lastSendOk,
                 peerCount = peerCount,
                 onClick = { reaperConfigOpen = true },
@@ -434,8 +447,16 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         // Counts everything the orchestrator fans out to: Reaper (1), self-cam (0/1
         // depending on toggle), peer phones (N). Gives an honest live answer instead
         // of the silent failure that lost S122.
+        //
+        // S284: the Reaper leg no longer counts itself. Ready comes from the rig being
+        // paired AND the HTTP bridge not having just failed (gigCmdLastOk — previously
+        // collected and thrown away); capturing comes from the rig's own /take/status.
         CaptureStatusBanner(
-            reaperReady = target != null && lastSendOk != false,
+            rigPaired = rigPaired,
+            rigConfirm = rigConfirm,
+            rigSearching = rigSearching,
+            gigCmdLastOk = gigCmdLastOk,
+            oscLastSendOk = lastSendOk,
             selfCameraEnabled = cameraEnabled,
             selfCameraReady = cameraEnabled && CameraGate.manager != null,
             selfCameraRecording = localCameraRecording,
@@ -444,6 +465,7 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
             isRecording = isRecording,
             recordError = recordError,
             onClearError = { CameraGate.clearError() },
+            onFindRig = { service?.findRig(userInitiated = true) },
         )
 
         // ── BPM flash hero ──
@@ -559,12 +581,17 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
         ) {
             when (gigSnapshot.state) {
                 GigSession.State.IDLE, GigSession.State.ENDED -> {
+                    // S284: deliberately NOT gated on having a rig. The old gate was
+                    // `target != null`, which the release build could never fail because
+                    // the default was a hostname; making the empty default block the
+                    // button would be a NEW way to strand Nathan mid-gig. Phones-only
+                    // capture beats no capture — the banner above says what's missing.
                     GigPrimaryButton(
                         modifier = Modifier.weight(1f),
                         label = "Start gig",
-                        accent = TangerineColors.orange,
-                        enabled = target != null,
-                        disabledLabel = if (target == null) "no Reaper" else null,
+                        sublabel = if (!rigPaired) "NO RIG — phones only" else null,
+                        accent = if (rigPaired) TangerineColors.orange else TangerineColors.danger,
+                        enabled = true,
                         onClick = { startWizardOpen = true },
                     )
                 }
@@ -724,8 +751,11 @@ fun GigModeScreen(onMenuClick: () -> Unit) {
             ReaperConfigPane(
                 target = target,
                 discovered = discovered,
-                isSearching = isSearching,
+                isSearching = isSearching || rigSearching,
+                sweeping = rigSearching,
                 lastSendOk = lastSendOk,
+                gigCmdLastOk = gigCmdLastOk,
+                onFindRig = { service?.findRig(userInitiated = true) },
                 autoDiscover = autoDiscover,
                 onAutoDiscoverChange = { service?.setAutoDiscover(it) },
                 onManualHostChange = { host, port ->
@@ -848,10 +878,10 @@ private enum class DrawerKind { Setlist, Cameras }
 
 @Composable
 private fun ReaperStatusPill(
-    target: String?, lastSendOk: Boolean?, peerCount: Int, onClick: () -> Unit,
+    target: String?, searching: Boolean, lastSendOk: Boolean?, peerCount: Int, onClick: () -> Unit,
 ) {
     val color = when {
-        target == null -> TangerineColors.textMuted
+        target == null -> TangerineColors.danger  // S284: no rig is a fault state, not a neutral one
         lastSendOk == false -> TangerineColors.danger
         lastSendOk == true -> TangerineColors.green
         else -> TangerineColors.orange
@@ -867,8 +897,9 @@ private fun ReaperStatusPill(
             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
             Spacer(Modifier.width(6.dp))
             Text(
-                target ?: "no Reaper",
-                fontFamily = JetBrainsMono, fontSize = 10.sp, color = TangerineColors.textMuted,
+                target ?: if (searching) "searching…" else "NOT PAIRED",
+                fontFamily = JetBrainsMono, fontSize = 10.sp,
+                color = if (target == null) TangerineColors.danger else TangerineColors.textMuted,
             )
         }
         Text(
@@ -1666,13 +1697,18 @@ private fun ReaperConfigPane(
     target: ReaperOscClient.Target?,
     discovered: com.thegreentangerine.gigbooks.data.orchestrator.OrchestratorDiscovery.Discovered?,
     isSearching: Boolean,
+    sweeping: Boolean,
     lastSendOk: Boolean?,
+    gigCmdLastOk: Boolean?,
+    onFindRig: () -> Unit,
     autoDiscover: Boolean,
     onAutoDiscoverChange: (Boolean) -> Unit,
     onManualHostChange: (String, Int) -> Unit,
     currentSecret: String,
     onSetSecret: (String) -> Unit,
 ) {
+    // S284: an empty host is NOT PAIRED, not a configured target.
+    val paired = !target?.host.isNullOrBlank()
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -1688,12 +1724,14 @@ private fun ReaperConfigPane(
         }
         Text(
             text = when {
-                target == null && isSearching -> "Searching the network…"
-                target == null -> "No Reaper found yet"
-                discovered != null && autoDiscover -> "Found: ${discovered.name} → ${target.host}:${target.port}"
-                else -> "Manual: ${target.host}:${target.port}"
+                !paired && sweeping -> "Sweeping the subnet for the rig…"
+                !paired && isSearching -> "Searching the network…"
+                !paired -> "NOT PAIRED — no rig target. Reaper will not record."
+                discovered != null && autoDiscover -> "Found: ${discovered.name} → ${target!!.host}:${target.port}"
+                else -> "Manual: ${target!!.host}:${target.port}"
             },
-            fontFamily = Karla, fontSize = 12.sp, color = TangerineColors.textMuted,
+            fontFamily = Karla, fontSize = 12.sp,
+            color = if (paired) TangerineColors.textMuted else TangerineColors.danger,
         )
         Text(
             text = when (lastSendOk) {
@@ -1703,6 +1741,35 @@ private fun ReaperConfigPane(
             },
             fontFamily = Karla, fontSize = 11.sp, color = TangerineColors.textMuted.copy(alpha = 0.7f),
         )
+        // S284: the HTTP bridge is the leg that carries the project start, the markers and
+        // the record confirmation. It used to be collected in GigModeScreen and never read.
+        Text(
+            text = when (gigCmdLastOk) {
+                true -> "Rig bridge (HTTP :9200) OK"
+                false -> "Rig bridge (HTTP :9200) FAILED — no project, no markers"
+                null -> "Rig bridge (HTTP :9200) not used yet"
+            },
+            fontFamily = Karla, fontSize = 11.sp,
+            color = if (gigCmdLastOk == false) TangerineColors.danger
+                    else TangerineColors.textMuted.copy(alpha = 0.7f),
+        )
+
+        // S284: explicit "find the rig" tap — the sweep trigger Nathan controls. Allowed
+        // even mid-set (a sweep must never happen under him, but he can always ask).
+        Button(
+            onClick = onFindRig,
+            enabled = !sweeping,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TangerineColors.orange,
+                contentColor = Color.White,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                if (sweeping) "Searching…" else "Find rig on this network",
+                fontFamily = Karla, fontWeight = FontWeight.SemiBold,
+            )
+        }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Auto-discover", fontFamily = Karla, fontSize = 13.sp, color = TangerineColors.text, modifier = Modifier.weight(1f))
@@ -1935,7 +2002,11 @@ private fun QrSecretScannerDialog(
 
 @Composable
 private fun CaptureStatusBanner(
-    reaperReady: Boolean,
+    rigPaired: Boolean,
+    rigConfirm: OrchestratorService.RigConfirm,
+    rigSearching: Boolean,
+    gigCmdLastOk: Boolean?,
+    oscLastSendOk: Boolean?,
     selfCameraEnabled: Boolean,
     selfCameraReady: Boolean,
     selfCameraRecording: Boolean,
@@ -1944,13 +2015,55 @@ private fun CaptureStatusBanner(
     isRecording: Boolean,
     recordError: RecordError?,
     onClearError: () -> Unit,
+    onFindRig: () -> Unit,
 ) {
+    // ── S284: NOT PAIRED gets the whole banner ──
+    // Nathan is behind a kit in a dark room. If the rig is not connected, that is the
+    // most important fact on the screen — not a subtle pill in the corner.
+    if (rigPaired.not() && recordError == null) {
+        val accent = TangerineColors.danger
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(accent.copy(alpha = 0.22f))
+                .border(2.dp, accent, RoundedCornerShape(8.dp))
+                .clickable(onClick = onFindRig)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (rigSearching) "SEARCHING" else "NOT PAIRED",
+                fontFamily = JetBrainsMono, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                color = accent,
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                if (rigSearching) "looking for the rig on this network…"
+                else "No rig — Reaper will NOT record. Tap to find it.",
+                fontFamily = Karla, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                color = TangerineColors.text,
+                modifier = Modifier.weight(1f),
+                maxLines = 2,
+            )
+        }
+        return
+    }
+
     // Targets = how many capture endpoints the RECORD button fans out to.
     val totalTargets = 1 + (if (selfCameraEnabled) 1 else 0) + peerCount  // Reaper + self + peers
+    // S284: the Reaper leg is READY when we have a rig and neither transport has just
+    // failed. gigCmdLastOk is the HTTP bridge (project start, markers, /take/status);
+    // oscLastSendOk is the OSC leg. Either failing means "pending", not "ready".
+    val reaperReady = rigPaired && gigCmdLastOk != false && oscLastSendOk != false
     val readyTargets = (if (reaperReady) 1 else 0) +
         (if (selfCameraReady) 1 else 0) +
         peerCount  // peers count once paired
-    val recordingTargets = (if (isRecording) 1 else 0) +  // Reaper recording
+    // S284: Reaper counts as CAPTURING only when the rig said so — never because this
+    // phone decided to start.
+    val rigCapturing = rigConfirm == OrchestratorService.RigConfirm.CONFIRMED
+    val recordingTargets = (if (rigCapturing) 1 else 0) +
         (if (selfCameraRecording) 1 else 0) +
         peerRecordingCount
 
@@ -1963,14 +2076,20 @@ private fun CaptureStatusBanner(
         icon = "⚠"
         label = "${recordError::class.simpleName} — ${recordError.msg}"
     } else if (isRecording) {
-        if (recordingTargets < totalTargets) {
-            accent = TangerineColors.danger
-            icon = "● REC"
-            label = "$recordingTargets/$totalTargets capturing — ${totalTargets - recordingTargets} not engaged"
-        } else {
-            accent = TangerineColors.danger
-            icon = "● REC"
-            label = "$recordingTargets/$totalTargets capturing"
+        accent = TangerineColors.danger
+        icon = "● REC"
+        val counts = "$recordingTargets/$totalTargets capturing"
+        label = when (rigConfirm) {
+            // Plain words, and it keeps saying it. The local cameras are still rolling —
+            // a failed rig leg never stops them.
+            OrchestratorService.RigConfirm.UNCONFIRMED ->
+                "$counts — RIG NOT CONFIRMED: Reaper is not recording"
+            OrchestratorService.RigConfirm.PENDING ->
+                "$counts — waiting for the rig to confirm…"
+            else ->
+                if (recordingTargets < totalTargets)
+                    "$counts — ${totalTargets - recordingTargets} not engaged"
+                else counts
         }
     } else {
         if (readyTargets < totalTargets) {

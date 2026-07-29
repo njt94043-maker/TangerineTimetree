@@ -150,6 +150,9 @@ class GigCommandClient(
         _target.value = Target(host.trim(), port)
     }
 
+    /** S284: empty host == NOT PAIRED. See [ReaperOscClient.hasTarget]. */
+    val hasTarget: Boolean get() = _target.value.host.isNotBlank()
+
     // S233 (DARK): per-rig MS API secret, attached as `Authorization: Bearer` on every request
     // WHEN non-empty. Empty (the default, until a pairing slice supplies it) => no header sent;
     // the server runs log-only DARK mode, so nothing breaks pre-flip. Pushed in from RigTargetStore
@@ -284,6 +287,15 @@ class GigCommandClient(
     )
 
     private suspend fun postJson(path: String, body: String) {
+        // S284: NOT PAIRED — no target to send to. Queue it (so a marker fired before the
+        // rig is found still lands when it is) but never pretend the send happened.
+        if (!hasTarget) {
+            _lastSendOk.value = false
+            queue.enqueue(path, body)
+            _queuedCount.value = queue.size()
+            Log.w(TAG, "POST $path queued — no rig target (queue size=${_queuedCount.value})")
+            return
+        }
         val ok = sendOnce(path, body)
         _lastSendOk.value = ok
         if (ok) {
@@ -328,6 +340,9 @@ class GigCommandClient(
     /** One POST attempt with the full network-binding cascade. Pure I/O. */
     private suspend fun sendOnce(path: String, body: String): Boolean {
         val tgt = _target.value
+        // S284: hard stop for an empty target — also stops drainQueue() from burning the
+        // queue against a rig that isn't there.
+        if (tgt.host.isBlank()) return false
         val url = URL("http://${tgt.host}:${tgt.port}$path")
 
         return withContext(Dispatchers.IO) {
@@ -572,13 +587,111 @@ class GigCommandClient(
 
     private suspend fun getString(path: String): String? {
         val tgt = _target.value
+        if (tgt.host.isBlank()) return null  // S284: NOT PAIRED — nothing to GET
         val url = URL("http://${tgt.host}:${tgt.port}$path")
         return withContext(Dispatchers.IO) {
+            // S284: the raw-socket interface-bound path FIRST, exactly like the POST leg.
+            // Gig Mode's rig-record confirmation polls GET /take/status while the phone is
+            // the SoftAP host — the case where the AP downlink is not exposed as a Network,
+            // so the candidate-Network cascade below finds nothing that can reach the rig.
+            // Without this the confirmation would read "rig not confirmed" through every
+            // real gig even when Reaper IS rolling.
+            tryGetInterfaceBound(url)?.let { return@withContext it }
             for (network in collectCandidateNetworks()) {
                 tryGet(network, url)?.let { return@withContext it }
             }
             tryGet(network = null, url = url)  // last resort: unbound
         }
+    }
+
+    /**
+     * S284: GET over a socket bound to the local interface whose subnet contains the
+     * target — the read-side twin of [tryPostInterfaceBound]. Returns null (silently, so
+     * the Network cascade can take over) when the host isn't an IPv4 literal we can
+     * resolve locally or no local interface shares its subnet.
+     *
+     * The Media Server answers with `Transfer-Encoding: chunked` (verified against the
+     * live host, 2026-07-29), so de-chunking is not optional here.
+     */
+    private fun tryGetInterfaceBound(url: URL): String? {
+        return try {
+            val targetAddr = try { InetAddress.getByName(url.host) } catch (_: Exception) { null }
+                ?: return null
+            if (targetAddr.address.size != 4) return null
+            val localAddr = findInterfaceAddressInSubnet(targetAddr) ?: return null
+
+            Socket().use { socket ->
+                socket.bind(InetSocketAddress(localAddr, 0))
+                socket.connect(InetSocketAddress(targetAddr, url.port), 1500)
+                socket.soTimeout = 2000
+
+                val request = buildString {
+                    append("GET ").append(url.path.ifEmpty { "/" }).append(" HTTP/1.1\r\n")
+                    append("Host: ").append(url.host).append(':').append(url.port).append("\r\n")
+                    append("Accept: application/json\r\n")
+                    apiSecret.let { s -> if (s.isNotEmpty()) append("Authorization: Bearer ").append(s).append("\r\n") }
+                    append("Connection: close\r\n\r\n")
+                }
+                socket.getOutputStream().apply {
+                    write(request.toByteArray(Charsets.UTF_8))
+                    flush()
+                }
+                // `Connection: close` => read to EOF is the whole response.
+                val raw = socket.getInputStream().readBytes()
+                parseHttpResponse(url, raw)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "GET $url interface-bound failed: ${e.message}")
+            null
+        }
+    }
+
+    /** Split a raw HTTP/1.1 response into its body, de-chunking when needed. Non-2xx -> null. */
+    private fun parseHttpResponse(url: URL, raw: ByteArray): String? {
+        val sep = indexOfHeaderEnd(raw) ?: return null
+        val head = String(raw, 0, sep, Charsets.ISO_8859_1)
+        val code = head.lineSequence().firstOrNull()?.split(" ")?.getOrNull(1)?.toIntOrNull() ?: return null
+        if (code !in 200..299) {
+            Log.w(TAG, "GET $url interface-bound -> HTTP $code")
+            return null
+        }
+        val body = raw.copyOfRange(sep + 4, raw.size)
+        val chunked = head.lineSequence().any {
+            val l = it.lowercase()
+            l.startsWith("transfer-encoding:") && l.contains("chunked")
+        }
+        return String(if (chunked) deChunk(body) else body, Charsets.UTF_8)
+    }
+
+    /** Index of the CRLFCRLF that ends the header block, or null. */
+    private fun indexOfHeaderEnd(raw: ByteArray): Int? {
+        for (i in 0..raw.size - 4) {
+            if (raw[i] == 13.toByte() && raw[i + 1] == 10.toByte() &&
+                raw[i + 2] == 13.toByte() && raw[i + 3] == 10.toByte()
+            ) return i
+        }
+        return null
+    }
+
+    /** Minimal RFC 7230 chunked decoder. Byte-wise — chunk sizes count BYTES, not chars. */
+    private fun deChunk(body: ByteArray): ByteArray {
+        val out = java.io.ByteArrayOutputStream(body.size)
+        var i = 0
+        while (i < body.size) {
+            var nl = -1
+            for (j in i..body.size - 2) {
+                if (body[j] == 13.toByte() && body[j + 1] == 10.toByte()) { nl = j; break }
+            }
+            if (nl < 0) break
+            val size = String(body, i, nl - i, Charsets.ISO_8859_1)
+                .substringBefore(';').trim().toIntOrNull(16) ?: break
+            if (size <= 0) break
+            val start = nl + 2
+            val end = (start + size).coerceAtMost(body.size)
+            out.write(body, start, end - start)
+            i = end + 2  // skip the chunk's trailing CRLF
+        }
+        return out.toByteArray()
     }
 
     private fun tryGet(network: Network?, url: URL): String? = try {

@@ -29,6 +29,14 @@ class ReaperOscClient {
     private val _lastSendOk = MutableStateFlow<Boolean?>(null)
     val lastSendOk: StateFlow<Boolean?> = _lastSendOk
 
+    /**
+     * S284: an EMPTY host means NOT PAIRED — there is no rig to send to. The release
+     * default used to be the mDNS name `tgt-host.local`, which reads as a configured
+     * target while being unusable on the transport that carries the gig commands.
+     * An honest empty beats a plausible string that cannot work.
+     */
+    val hasTarget: Boolean get() = _target.value.host.isNotBlank()
+
     fun setTarget(host: String, port: Int) {
         _target.value = Target(host.trim(), port)
     }
@@ -83,6 +91,12 @@ class ReaperOscClient {
 
     private suspend fun sendPacket(packet: ByteArray) {
         val tgt = _target.value
+        // S284: short-circuit an empty target rather than attempting a doomed resolve.
+        // NOT PAIRED is a real state, and it reports as a failed send so the UI can say so.
+        if (tgt.host.isBlank()) {
+            _lastSendOk.value = false
+            return
+        }
         val ok = withContext(Dispatchers.IO) {
             try {
                 DatagramSocket().use { sock ->

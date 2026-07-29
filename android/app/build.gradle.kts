@@ -23,8 +23,8 @@ android {
         applicationId = "com.thegreentangerine.gigbooks"
         minSdk = 26
         targetSdk = 36
-        versionCode = 64
-        versionName = "1.2.45"
+        versionCode = 65
+        versionName = "1.2.46"
 
         // S186 / D-batchD-1: APK no longer targets the dead E6330 box. Default
         // points at the MS host bridge on the laptop (POST /gig + /song-marker
@@ -34,9 +34,20 @@ android {
         // manual rig target. ReaperConfigPane -> OrchestratorService.setManualRig
         // writes the host through RigTargetStore (DataStore), loaded on service
         // start, which supersedes this default — so a venue's rig address is set
-        // once and survives reboot/reinstall. Default falls back to the mDNS
-        // hostname for the home-WiFi auto-discover path.
-        buildConfigField("String", "GIG_HOST_DEFAULT", "\"tgt-host.local\"")
+        // once and survives reboot/reinstall.
+        //
+        // S284: the release default is now EMPTY, not the mDNS name `tgt-host.local`.
+        // Empty means NOT PAIRED and every send path short-circuits on it. The old
+        // default read as a configured target while being unusable on the transport
+        // that carries the gig commands: proven on the release APK 2026-07-29, with a
+        // live rig advertising that very name on the same LAN, `POST
+        // http://tgt-host.local:9200/gig` failed with `Unable to resolve host` on both
+        // the bound network and the default one — the gig project was never created.
+        // (The OSC/UDP leg did resolve it in that test; the point is that a name whose
+        // resolvability differs per-transport, per-network and per-Android-version is
+        // not a target you can bet a gig on. An honest empty is.) Debug keeps
+        // "localhost" so emulator + adb-reverse rigs work without DNS.
+        buildConfigField("String", "GIG_HOST_DEFAULT", "\"\"")
         buildConfigField("int", "GIG_PORT_DEFAULT", "9200")
 
         // Constrain bundled native libs (ML Kit, CameraX, datastore) to arm64-v8a —
