@@ -475,6 +475,14 @@ export function Settings({ onClose }: SettingsProps) {
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Notifications are blocked for this site. Allow them in your browser settings, then reload to turn on push.
             </div>
+          ) : push.subscribeSuppressed && !push.subscribed ? (
+            // F0: preview/local builds must not create a subscription (one endpoint
+            // per origin, no origin column, so it would double every push). If this
+            // browser is ALREADY subscribed we fall through to the row below so the
+            // "Turn off" button stays reachable.
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              Push is turned off on preview builds &mdash; this isn&rsquo;t the live app. Turn notifications on from thegreentangerine.com instead.
+            </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 8, height: 8, borderRadius: 4, background: push.subscribed ? 'var(--color-green)' : 'var(--text-dim)', flexShrink: 0 }} />

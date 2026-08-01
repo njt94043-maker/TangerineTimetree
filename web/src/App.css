@@ -957,6 +957,35 @@ html, body, #root {
   box-shadow: 0 0 24px rgba(243,156,18,0.3), 0 0 48px rgba(243,156,18,0.1);
 }
 
+/* ─── PREVIEW build badge (F0 fork slice) ───
+   The `cutover` branch deploys to a Vercel preview URL that looks identical to
+   the live app, so this chip is the only thing that tells them apart. Rules it
+   has to obey:
+     - fixed + centred, and small — it must stay inside the viewport so it can
+       never introduce horizontal overflow (the prod smoke asserts on that);
+     - pointer-events: none — it floats over everything, so it must never
+       swallow a tap;
+     - sits just under the 52px header, clear of the tab bar and the FAB.
+   Rendered only when __DEPLOY_ENV__ !== 'production' (see PreviewBadge.tsx),
+   so it does not exist at all in the live bundle. */
+.preview-badge {
+  position: fixed;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  pointer-events: none;
+  padding: 3px 12px;
+  border-radius: 10px;
+  background: var(--color-tangerine);
+  color: #000;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  box-shadow: var(--glow-tangerine);
+}
+
 /* ─── Offline indicator ─── */
 .offline-banner {
   padding: 8px 20px;

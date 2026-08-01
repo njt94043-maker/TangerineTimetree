@@ -11,9 +11,19 @@ import { readFileSync } from 'fs';
 const appVersion = process.env.npm_package_version
   || JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')).version;
 
+// Deploy environment (F0 fork slice). Vercel sets VERCEL_ENV at build time to
+// 'production' | 'preview' | 'development'; a local build doesn't set it at all,
+// so default to 'development'. Exposed to the app as the __DEPLOY_ENV__
+// compile-time constant — the `cutover` branch deploys to a preview URL that is
+// otherwise visually identical to thegreentangerine.com, so the app has to be
+// able to tell which one it is (PreviewBadge) and refuse to subscribe to push
+// from a non-production origin (usePushNotifications).
+const deployEnv = process.env.VERCEL_ENV || 'development';
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
+    __DEPLOY_ENV__: JSON.stringify(deployEnv),
   },
   plugins: [
     react(),

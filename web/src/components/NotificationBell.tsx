@@ -14,7 +14,9 @@ export function NotificationBell() {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Nudge to enable push only when this device can subscribe but hasn't yet.
-  const canEnablePush = push.supported && !push.subscribed && push.permission !== 'denied' && !push.iosNeedsInstall;
+  // Preview/local builds can't subscribe at all (F0) — don't offer a dead nudge.
+  const canEnablePush = push.supported && !push.subscribed && push.permission !== 'denied'
+    && !push.iosNeedsInstall && !push.subscribeSuppressed;
 
   useEffect(() => {
     if (!open) return;

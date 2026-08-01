@@ -578,3 +578,9 @@ ok lets go. also we are not limited by my ui instructions. i am vibe coding, you
 ```text
 also we need to further discuss the client / agent arrangement, we may have over engeneered  the simplicity out of our booking system while trying to build a reusable client list.. we can just have a client name entry box for bookings (name of person or agency that books goes here) wich auto fill for previous entries etc as name is typed..
 ```
+
+## Fork The PWA / Separate Link Until Cutover - 2026-08-01
+
+```text
+can we fork the tgt pwa so we can revert if we need too and keep using the app as is while running the new forked app from a seperate link until its realy to be switched over?
+```

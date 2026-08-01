@@ -1,6 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { savePushSubscription, deletePushSubscription } from '@shared/supabase/queries';
 import { VAPID_PUBLIC_KEY, urlBase64ToUint8Array } from '../lib/vapid';
+import { IS_PRODUCTION_DEPLOY } from '../lib/deployEnv';
+
+// F0 fork slice — non-production builds never CREATE a push subscription.
+//
+// Why: push_subscriptions.endpoint is UNIQUE and the table has NO origin
+// column, while the notify-push edge fn fans out to EVERY row via the service
+// role. A preview deploy is a different origin, so it gets its own endpoint —
+// if it subscribed, Nathan would receive every notification twice and the two
+// rows would be indistinguishable from each other.
+//
+// This is client-side suppression of the subscribe path ONLY. Existing rows are
+// never read, modified or deleted; refresh() and disable() are untouched, so a
+// subscription made before this shipped can still be turned off from here.
+const PUSH_SUBSCRIBE_ALLOWED = IS_PRODUCTION_DEPLOY;
+const PUSH_SUPPRESSED_MSG = 'Push is disabled on preview builds — turn it on from the live app.';
 
 export interface PushState {
   /** Browser exposes ServiceWorker + PushManager + Notification (false on an iOS Safari tab). */
@@ -15,6 +30,11 @@ export interface PushState {
   busy: boolean;
   /** Last error message, if any. */
   error: string | null;
+  /**
+   * Non-production build (preview/local): enable() is a no-op (F0). Rendering is
+   * unaffected — the UI just shouldn't offer to turn push on.
+   */
+  subscribeSuppressed: boolean;
 }
 
 function isIOS(): boolean {
@@ -118,6 +138,13 @@ export function usePushNotifications() {
 
   const enable = useCallback(async () => {
     if (!supported || busy) return;
+    // F0: preview/local origins never subscribe. Degrade quietly — say why in
+    // the existing error slot (Settings renders it), don't throw, don't touch
+    // the browser subscription or any DB row.
+    if (!PUSH_SUBSCRIBE_ALLOWED) {
+      setError(PUSH_SUPPRESSED_MSG);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -192,6 +219,9 @@ export function usePushNotifications() {
     }
   }, [supported, busy]);
 
-  const state: PushState = { supported, permission, subscribed, iosNeedsInstall, busy, error };
+  const state: PushState = {
+    supported, permission, subscribed, iosNeedsInstall, busy, error,
+    subscribeSuppressed: !PUSH_SUBSCRIBE_ALLOWED,
+  };
   return { ...state, enable, disable, refresh };
 }
