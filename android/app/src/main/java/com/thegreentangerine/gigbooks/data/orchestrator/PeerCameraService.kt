@@ -5,7 +5,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -64,7 +63,14 @@ class PeerCameraService : Service(), LifecycleOwner {
         val notification = buildNotification("TGT Peer Camera", "Standing by — recording controlled by drummer")
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                // S287: camera|microphone, NOT camera alone. A camera-only FGS keeps
+                // the camera through screen-off but silently loses the mic, and the
+                // mp4 gets a full-length track of digital silence with no error.
+                // FgsTypes drops microphone if RECORD_AUDIO isn't granted yet, so the
+                // promotion can't throw and cost us the camera too.
+                val types = FgsTypes.peerCamera(this)
+                Log.i(TAG, "startForeground types=0x${types.toString(16)}")
+                startForeground(NOTIFICATION_ID, notification, types)
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }

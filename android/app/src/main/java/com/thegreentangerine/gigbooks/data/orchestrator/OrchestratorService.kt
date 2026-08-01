@@ -245,7 +245,23 @@ class OrchestratorService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val notification = buildNotification("TGT Orchestrator", statusText())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            // S287: connectedDevice|camera|microphone. This service drives
+            // CameraGate.startLocalRecording (withAudioEnabled), so a connectedDevice-only
+            // type loses the mic the moment the drummer's screen sleeps — silently, with
+            // a full-length silent AAC track and no error. FgsTypes only adds the
+            // camera/microphone bits when those runtime grants are held.
+            val types = FgsTypes.orchestrator(this)
+            try {
+                startForeground(NOTIFICATION_ID, notification, types)
+                Log.i(TAG, "startForeground types=0x${types.toString(16)}")
+            } catch (e: Exception) {
+                // START_STICKY means the OS can restart us with the app in the
+                // background, where promoting a camera/microphone-typed FGS is not
+                // allowed. Never die on that path — the orchestrator IS the rig
+                // fan-out. Fall back to the always-legal connectedDevice type.
+                Log.e(TAG, "startForeground(types=0x${types.toString(16)}) failed, falling back to connectedDevice: ${e.message}", e)
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
