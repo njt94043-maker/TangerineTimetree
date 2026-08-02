@@ -164,9 +164,19 @@ class GigCommandClient(
         apiSecret = secret.trim()
     }
 
-    suspend fun start(projectName: String) = postJson(
+    /**
+     * S289: [armCsv] carries the gig wizard's channel selection to the rig, so the project the
+     * drummer reviews in the ARMED phase is already armed to his choice. Same csv contract as
+     * [takeRecord] — comma-separated XR18 channel numbers, sanitised MS-side by the same rule.
+     *
+     * Empty csv == "leave the Reaper template's own arming alone" (this is NOT take mode's
+     * empty-means-full-kit default). Before S289 the arm reached Reaper only at
+     * [OrchestratorService.beginRecording] via OSC, i.e. AFTER the review the drummer was
+     * meant to trust — so Reaper showed the template's all-18 while the app said otherwise.
+     */
+    suspend fun start(projectName: String, armCsv: String = "") = postJson(
         path = "/gig",
-        body = """{"action":"start","project_name":${jsonString(projectName)}}""",
+        body = """{"action":"start","project_name":${jsonString(projectName)},"arm":${jsonString(armCsv)}}""",
     )
 
     suspend fun save() = postJson(

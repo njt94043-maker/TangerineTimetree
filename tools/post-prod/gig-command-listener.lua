@@ -52,6 +52,10 @@ local take_slab_starts, take_delete, take_record_over, take_set_master, take_lab
 -- like the S217 take-guardrail forward-decls above.
 local take_seed_drums, take_armed_layers, take_arm_layers
 local take_add_layer, take_switch_layer, take_set_armed
+-- S289: the GIG path reuses the take path's arm primitives (name-prefix arming), so they are
+-- REFERENCED by start_project long before they are DEFINED. Same forward-decl idiom as above --
+-- one arm implementation for both paths is the whole point (two would drift).
+local take_parse_arm, take_arm
 
 local function poll_dir_path()
   local os_name = reaper.GetOS()
@@ -171,7 +175,7 @@ local function sanitise(name)
   return cleaned
 end
 
-local function start_project(name)
+local function start_project(name, arm)
   local clean = sanitise(name)
   -- F2 (S133 A1): without this guard a missing template silently saves an empty
   -- project as the gig — undetectable from the drum throne, ruins the recording.
@@ -224,6 +228,20 @@ local function start_project(name)
   -- so the auto-resumed prior gig doesn't taint the new one.
   reaper.Main_openProject("noprompt:" .. target)
   reaper.ShowConsoleMsg(string.format("[gig-cmd] start -> %s (cp from %s)\n", target, TEMPLATE))
+  -- S289: apply the wizard's channel selection. STRICTLY AFTER Main_openProject -- arming before
+  -- the open would arm the OUTGOING project's tracks and then be discarded with it.
+  --
+  -- Empty/absent arm == "leave the template's own arming alone". A pre-S289 APK sends no `arm`
+  -- field at all, so this is exactly the old behaviour for it. We deliberately do NOT fall through
+  -- to take_parse_arm("")'s full-acoustic-kit default -- that is take mode's contract, not the
+  -- gig template's, and silently re-arming a gig to 10-16 would be a data-loss-shaped surprise.
+  if arm and arm ~= "" then
+    take_arm(take_parse_arm(arm))
+    reaper.Main_OnCommand(40026, 0)   -- persist the arm state into the gig .rpp immediately
+    reaper.ShowConsoleMsg(string.format("[gig-cmd] armed channels: %s\n", arm))
+  else
+    reaper.ShowConsoleMsg("[gig-cmd] no arm csv -- leaving template arming as-is\n")
+  end
 end
 
 local function save_project()
@@ -544,7 +562,10 @@ local function take_clone_item(it, tr, newpos)
 end
 
 -- arm csv "10,11,15,16" -> set of channel numbers; default = full acoustic kit
-local function take_parse_arm(csv)
+-- NOTE (S289): the empty-csv default here is TAKE-mode's ("full acoustic kit"). The GIG path must
+-- NOT use it -- an arm-less /gig start means "leave the template's own arming alone" (back-compat
+-- with a pre-S289 APK), so start_project skips the arm call entirely rather than passing "".
+function take_parse_arm(csv)
   local s = {}
   if csv and csv ~= "" then
     for num in csv:gmatch("%d+") do s[tonumber(num)] = true end
@@ -556,7 +577,7 @@ end
 
 -- Arm by NAME-prefix: "10 Kick"->10 matched against the requested set. Backing
 -- tracks (no numeric prefix) are FORCED disarmed. (Finding #2.)
-local function take_arm(arm_set)
+function take_arm(arm_set)
   for i = 0, reaper.CountTracks(0) - 1 do
     local tr = reaper.GetTrack(0, i)
     local nm = take_track_name(tr)
@@ -640,7 +661,7 @@ local function take_record(arm_csv)
 end
 
 local function process(action, name, track_path, title, arm, track_id, mix_track, mute, vol_db, pos_sec, take_index, label, layer, kind, layers)
-  if action == "start" then start_project(name)
+  if action == "start" then start_project(name, arm)
   elseif action == "save" then save_project()
   elseif action == "stop" then stop_project()
   elseif action == "take-load" then take_load(track_path, title, track_id)

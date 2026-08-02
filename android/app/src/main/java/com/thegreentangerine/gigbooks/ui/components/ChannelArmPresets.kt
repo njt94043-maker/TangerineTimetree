@@ -41,13 +41,21 @@ import com.thegreentangerine.gigbooks.ui.theme.TangerineColors
 enum class ArmPresetMode { GIG, TAKE }
 enum class KitType { ACOUSTIC, EKIT }
 
-/** Hoisted preset state for [ChannelArmPresetSelector]. */
+/**
+ * Hoisted preset state for [ChannelArmPresetSelector].
+ *
+ * S289: defaults are Nathan's actual live setup, not "everything". With the GIG mode band core
+ * (3-6) these compute to {3,4,5,6,8,9,10,15,16} — byte-identical to the nine channels he armed
+ * BY HAND at the laptop during the 2026-08-01 60th-party gig (verified against that project's
+ * Media/ folder). EAD on, full kit off, music off: he mics EAD + overheads + kick, not the toms.
+ * Every toggle is still exposed, so a different rig night is one tap away.
+ */
 data class ArmPresetState(
     val kitType: KitType = KitType.ACOUSTIC,
     val overheads: Boolean = true,
-    val fullKit: Boolean = true,
-    val ead: Boolean = false,
-    val music: Boolean = true,
+    val fullKit: Boolean = false,
+    val ead: Boolean = true,
+    val music: Boolean = false,
 )
 
 /** Pure, unit-tested. Returns the 1-indexed Reaper track numbers to record-arm. */

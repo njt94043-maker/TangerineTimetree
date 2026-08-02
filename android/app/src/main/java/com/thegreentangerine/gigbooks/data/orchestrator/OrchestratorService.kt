@@ -337,7 +337,12 @@ class OrchestratorService : Service() {
             session.arm(name, armedTracks)
             // Reaper rename + save runs immediately so the named project exists
             // on disk. Recording transport stays idle until beginRecording().
-            gigCmd.start(name)
+            //
+            // S289: the arm csv rides WITH the start command, so the rig arms the drummer's
+            // selection as it opens the project. Previously the selection only reached Reaper
+            // at beginRecording() (OSC), which is AFTER the ARMED review phase — so the review
+            // showed the template's all-18 armed and Nathan hand-disarmed 9 at the laptop mid-gig.
+            gigCmd.start(name, armedTracks.sorted().joinToString(","))
             // S141: flip gig_lock_state.is_locked = true so the cross-surface
             // setlist authoring routes through pending_edits queue. Fire-and-forget
             // per Sovereign Spec §B.5 — Supabase failure does not block gig.
@@ -357,11 +362,18 @@ class OrchestratorService : Service() {
             val sessionId = newSessionId()
             val gigName = session.gigName
             val gigDate = session.gigDate
-            // S202: arm the chosen channel set immediately before record. Sent
-            // here (not at armGig) so it lands after the project has loaded and
-            // the ARMED review has passed. Arm state persists in Reaper memory
-            // across sets, so continue* paths don't re-send.
-            osc.sendRecArm(session.armedTracks)
+            // S289: the OSC record-arm that used to fire here has been REMOVED. The arm now rides
+            // with the /gig start command and is applied rig-side by gig-command-listener.lua the
+            // moment the project opens (armGig), so it is already correct before the ARMED review —
+            // which is the whole point of that review phase.
+            //
+            // Not kept as a belt-and-braces re-send, deliberately: it addressed tracks by POSITION
+            // (/track/N/recarm) while the Lua arms by NAME-prefix ("10 Kick" -> 10). Two arm
+            // implementations with different addressing is precisely how the gig and take paths
+            // would drift apart. It would also silently revert any arm tweak Nathan makes by hand
+            // at the laptop during the ARMED review — the same "system overrules the human" shape
+            // as the bug this slice fixes. ReaperOscClient.sendRecArm() itself is retained (still
+            // unit-tested) as an OSC primitive; it is simply no longer on the gig record path.
             osc.sendRecord()
             peerServer.broadcastStartRec(sessionId, gigName, gigDate)
             CameraGate.startLocalRecording(sessionName = "orchestrator", sessionId = sessionId, gigName = gigName, gigDate = gigDate)
